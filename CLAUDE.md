@@ -359,6 +359,36 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fonctions que la suite de tests. Ce que l'écran affiche est ce que les tests prouvent.
   Le bouton d'export reste fermé tant qu'il manque une tuile, et dit combien il en manque.
 
+- **Pas de remplissage par rotation. Décision prise, et son prix est chiffré.**
+  Tourner un voisinage d'un quart de tour est une permutation de bits (N→E→S→W→N,
+  NE→SE→SW→NW→NE), et sous cette rotation les 47 index se rangent en **15 orbites** : trois
+  fixes (0, 85, 255), deux de taille 2, dix de taille 4. Remplir les rotations ferait donc
+  tomber le travail de surface de **47 tuiles à 15**, et le total de 59 à 27. Le gain est
+  réel et il est gros. Il est refusé quand même, pour trois raisons dont la première suffit.
+
+  **La lumière.** Un tileset vu de dessus est éclairé d'une direction — ici le nord-ouest,
+  et c'est ce que dessine déjà `guide_image.gd`. Tourner une tuile tourne ses hautes
+  lumières avec elle : une lèvre nord qui accroche le jour devient une lèvre est éclairée du
+  mauvais côté. Le cas le plus parlant est l'orbite `[7, 28, 112, 193]`, les quatre coins
+  d'une masse pleine — précisément les tuiles où l'éclairage compte le plus. Les obtenir par
+  rotation les rend toutes les quatre identiquement éclairées, ce qui donne exactement l'air
+  plat et sans relief que cet outil existe pour éviter. Le gain se paierait donc en
+  repeignant les tuiles fautives : une économie qui se rembourse en travail.
+
+  **La charte.** La règle 3 interdit le miroir nommément ; la rotation est du même
+  ensemble. Et « No pixel you didn't paint » deviendrait faux, ou demanderait un astérisque.
+
+  **Le besoin est déjà servi ailleurs.** Ce que la rotation vise — ne pas redessiner
+  quarante-sept fois — c'est ce que font les jumelles, sans rien fabriquer, et ce que fera
+  mieux le mode `ample`, conçu pour ça.
+
+  ⚠ **La seule porte par laquelle elle pourrait revenir.** Si un mode livre un jour des
+  tuiles sans direction d'éclairage — matière ambiante, texture de dessus sans relief —,
+  alors la rotation y est *correcte*, pas seulement pratique. Elle devrait alors être une
+  **propriété de ce mode**, décidée une fois avec lui, jamais une case à cocher offerte au
+  milieu du dessin : c'est le mode qui dit ce qu'on fabrique (règle 1), et on n'autorise que
+  ce qui est garanti (règle 5).
+
 - **« Peindre les jumelles ».** Deux cases qui portent le même index de surface — ou le
   même rôle de robe — sont **la même tuile**. Les peindre ensemble n'invente rien : ça
   évite de refaire le même dessin autant de fois qu'il y a de variantes. Le noyau désigne
@@ -433,27 +463,10 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   dépend) : sa place est donc dans une section d'outils, à côté de « Recadrer le guide »,
   pas dans les boutons globaux.
 
-- **Mode « peindre les rotations ».** Une seconde case à cocher : toutes les tuiles qu'on
-  obtiendrait **en tournant** celle qu'on dessine se remplissent aussi, en temps réel.
-  Techniquement c'est prêt à écrire : tourner un voisinage d'un quart de tour est une
-  permutation de bits (N→E→S→W→N et NE→SE→SW→NW→NE), donc les 47 index se rangent en
-  orbites calculables, exactement comme `cells_by_index()` range les jumelles. Deux
-  remarques avant de s'y mettre :
-  - ça ne concerne **que les surfaces**. Un plateau n'a de face qu'au sud : le vocabulaire
-    de mur n'a pas de rotation.
-  - ⚠ **c'est une entorse à la règle 3**, et une plus grande que les jumelles. Deux
-    jumelles sont la *même* tuile : rien n'est transformé, on évite juste de refaire le
-    même dessin. Une rotation, elle, **fabrique** une tuile dans une orientation que
-    personne n'a dessinée — c'est le frère du miroir, que la charte interdit nommément, et
-    « No pixel you didn't paint » demanderait alors une nuance. À assumer explicitement,
-    pas à laisser passer.
 - **Dessiner le guide du mode `ample`.** Le mode est décidé, nommé, et déjà au catalogue —
   mais fermé tant que `guides/ample.txt` n'existe pas.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- **Les variantes ne couvrent pas encore les murs.** `variants.resolve_relief()` traite la
-  surface visible ; la même règle devra s'appliquer aux cases de robe, qui ont elles aussi
-  des occurrences multiples.
 - Règles d'exportation du mode minimal : format de sortie, ordre des tuiles, taille de
   tuile. Rien n'est décidé, `exporters/` est vide exprès.
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
