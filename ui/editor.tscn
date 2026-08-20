@@ -568,6 +568,12 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_vibf4")
 theme_override_styles/hover = SubResource("StyleBoxFlat_i3odb")
 metadata/color = Color(0.451, 0.588, 0.639, 1)
 
+[node name="TwinsCheck" type="CheckBox" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Les cases qui portent la meme tuile recoivent le meme dessin, en direct."
+text = "Peindre les jumelles"
+
 [node name="ViewSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=540198287]
 layout_mode = 2
 theme_override_constants/separation = 0

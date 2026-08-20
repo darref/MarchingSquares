@@ -359,6 +359,20 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fonctions que la suite de tests. Ce que l'écran affiche est ce que les tests prouvent.
   Le bouton d'export reste fermé tant qu'il manque une tuile, et dit combien il en manque.
 
+- **« Peindre les jumelles ».** Deux cases qui portent le même index de surface — ou le
+  même rôle de robe — sont **la même tuile**. Les peindre ensemble n'invente rien : ça
+  évite de refaire le même dessin autant de fois qu'il y a de variantes. Le noyau désigne
+  les groupes (`coverage.cells_by_index()`, `walls.cells_by_role()`), l'interface ne fait
+  que les suivre. ⚠ C'est une **aide au geste, pas un réglage du produit** : ce qui sort
+  est identique, seul le nombre de gestes change. La distinction compte pour la règle 1.
+  Conséquence technique : un coup de crayon peut salir cent cases d'un coup, d'où le
+  téléversement **limité à ce qui est à l'écran** ; les autres attendent d'entrer dans le
+  cadre.
+
+- **Pas de surbrillance du pixel sous la souris.** Essayée, retirée : suivre le pixel
+  obligeait à redessiner la zone de travail à chaque micro-mouvement de souris, pour un
+  repérage dont on n'a pas voulu. Le survol se suit **à la case**.
+
 - **La taille des faux pixels se choisit avant de dessiner.** Le choix se ferme au premier
   pixel posé : en changer rejetterait tout le travail. Même statut que le mode — c'est ce
   qu'on fabrique, pas un réglage.
@@ -393,13 +407,20 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
-- **Prochain lot d'interface**, dans l'ordre :
-  1. *Surbrillance du faux pixel sous la souris*, dans sa couleur peinte légèrement
-     éclaircie, pour savoir où l'on est.
-  2. *Case à cocher « peindre les jumelles »* dans une catégorie d'outils : toutes les
-     tuiles du guide qui portent le **même index** que celle qu'on dessine reçoivent le
-     même état de peinture, en temps réel. Le noyau sait déjà les désigner —
-     `coverage.index_map()` donne l'index de chaque case, il ne reste qu'à grouper.
+- **Mode « peindre les rotations ».** Une seconde case à cocher : toutes les tuiles qu'on
+  obtiendrait **en tournant** celle qu'on dessine se remplissent aussi, en temps réel.
+  Techniquement c'est prêt à écrire : tourner un voisinage d'un quart de tour est une
+  permutation de bits (N→E→S→W→N et NE→SE→SW→NW→NE), donc les 47 index se rangent en
+  orbites calculables, exactement comme `cells_by_index()` range les jumelles. Deux
+  remarques avant de s'y mettre :
+  - ça ne concerne **que les surfaces**. Un plateau n'a de face qu'au sud : le vocabulaire
+    de mur n'a pas de rotation.
+  - ⚠ **c'est une entorse à la règle 3**, et une plus grande que les jumelles. Deux
+    jumelles sont la *même* tuile : rien n'est transformé, on évite juste de refaire le
+    même dessin. Une rotation, elle, **fabrique** une tuile dans une orientation que
+    personne n'a dessinée — c'est le frère du miroir, que la charte interdit nommément, et
+    « No pixel you didn't paint » demanderait alors une nuance. À assumer explicitement,
+    pas à laisser passer.
 - **Dessiner le guide du mode `ample`.** Le mode est décidé, nommé, et déjà au catalogue —
   mais fermé tant que `guides/ample.txt` n'existe pas.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas

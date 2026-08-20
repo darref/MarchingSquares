@@ -306,3 +306,17 @@ static func _reading_order(left: Vector2i, right: Vector2i) -> bool:
 		return left.y < right.y
 	return left.x < right.x
 
+
+## Les cases de robe regroupees par role. Meme raison que coverage.cells_by_index() : deux
+## cases du meme role portent la meme tuile.
+static func cells_by_role(visible: Dictionary) -> Dictionary:
+	var groups: Dictionary = {}
+	for cell: Vector2i in visible.keys():
+		var role: Vector2i = visible[cell]
+		if not groups.has(role):
+			var fresh: Array[Vector2i] = []
+			groups[role] = fresh
+		var cells: Array[Vector2i] = groups[role]
+		cells.append(cell)
+	return groups
+

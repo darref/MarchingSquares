@@ -35,6 +35,11 @@ const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
 
 var pencil: Color = Color(0.906, 0.855, 0.671)
 
+## Peindre une case peint aussi toutes celles qui portent la meme tuile.
+## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT, c'est une aide au geste : elle ne change rien a ce
+## qui sort, seulement au nombre de fois qu'il faut refaire le meme dessin.
+var paint_twins: bool = false
+
 ## Largeur occupee par la barre d'outils, qui est posee SUR la zone de travail.
 ## ⚠ ELLE NE SERT QU AU CADRAGE. On ne bride pas le dessin a cette marge : le guide peut
 ## passer sous la barre, et c'est meme le but -- on le voit a travers elle.
@@ -52,7 +57,9 @@ var _hover: Vector2i = Vector2i(-1, -1)
 var _stroke: int = 0
 var _last_paint: Vector2 = Vector2.ZERO
 var _panning: bool = false
-var _dirty: Dictionary = {}
+var _stale: Dictionary = {}
+var _changed: bool = false
+var _twin_of: Dictionary = {}
 var _wall_roles: Dictionary = {}
 var _needs_fit: bool = false
 
@@ -65,13 +72,28 @@ func _ready() -> void:
 ## chaque pixel pose ferait, a 256 de cote, un quart de mega-octet par pixel et par coup de
 ## souris. On marque la case sale, et on ne televerse qu ici.
 func _process(_delta: float) -> void:
-	if _dirty.is_empty():
-		return
-	for cell: Vector2i in _dirty.keys():
-		_upload_cell(cell)
-	_dirty.clear()
-	queue_redraw()
-	painting_changed.emit()
+	if not _stale.is_empty():
+		# ⚠ ON NE TELEVERSE QUE CE QU ON VOIT. Peindre les jumelles peut salir cent cases d un
+		# coup ; a 256 pixels de cote, les remonter toutes ferait vingt-cinq mega-octets par
+		# image. Les autres attendent d entrer dans le cadre.
+		var done: Array[Vector2i] = []
+		for cell: Vector2i in _stale.keys():
+			if _on_screen(cell):
+				_upload_cell(cell)
+				done.append(cell)
+		for cell: Vector2i in done:
+			_stale.erase(cell)
+		if not done.is_empty():
+			queue_redraw()
+	if _changed:
+		_changed = false
+		queue_redraw()
+		painting_changed.emit()
+
+
+func _on_screen(cell: Vector2i) -> bool:
+	var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
+	return rect.intersects(Rect2(Vector2.ZERO, size))
 
 
 ## Charge un guide et la peinture qui va avec. Tout est recalcule : les cases peignables,
@@ -80,7 +102,7 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_heights = heights
 	_painting = painting
 	_textures.clear()
-	_dirty.clear()
+	_stale.clear()
 	_surface_cells.clear()
 	_wall_cells.clear()
 	# La carte case -> index se calcule une fois : l'editeur en a besoin a chaque coup de
@@ -91,6 +113,17 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_wall_roles = Walls.visible_roles(heights)
 	for cell: Vector2i in _wall_roles.keys():
 		_wall_cells[cell] = true
+	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
+	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
+	_twin_of.clear()
+	for group: Array in Coverage.cells_by_index(_surface_cells).values():
+		var surface_twins: Array[Vector2i] = group
+		for cell: Vector2i in surface_twins:
+			_twin_of[cell] = surface_twins
+	for group: Array in Walls.cells_by_role(_wall_roles).values():
+		var wall_twins: Array[Vector2i] = group
+		for cell: Vector2i in wall_twins:
+			_twin_of[cell] = wall_twins
 	var image: Image = GuideImage.render(heights, GUIDE_TILE)
 	_background = ImageTexture.create_from_image(image)
 	# ⚠ ON NE CADRE PAS TOUT DE SUITE. Au premier chargement, le conteneur n'a pas encore
@@ -246,6 +279,8 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 
 
+## ⚠ LE SURVOL SE SUIT A LA CASE, PAS AU PIXEL. Suivre le pixel redessinait la zone de
+## travail a chaque micro-mouvement de souris, pour un reperage dont on n a pas voulu.
 func _set_hover(position: Vector2) -> bool:
 	var cell: Vector2i = _cell_at(position)
 	if cell == _hover:
@@ -286,9 +321,17 @@ func _touch(position: Vector2) -> bool:
 	var inside: Vector2 = (local - Vector2(float(cell.x), float(cell.y))) * float(_painting.resolution)
 	var px: int = clampi(floori(inside.x), 0, _painting.resolution - 1)
 	var py: int = clampi(floori(inside.y), 0, _painting.resolution - 1)
-	var changed: bool = _painting.paint(cell, px, py, pencil) if _stroke > 0 else _painting.erase(cell, px, py)
+	var targets: Array[Vector2i] = [cell]
+	if paint_twins and _twin_of.has(cell):
+		targets = _twin_of[cell]
+	var changed: bool = false
+	for target: Vector2i in targets:
+		var touched: bool = _painting.paint(target, px, py, pencil) if _stroke > 0 else _painting.erase(target, px, py)
+		if touched:
+			_stale[target] = true
+			changed = true
 	if changed:
-		_dirty[cell] = true
+		_changed = true
 	return changed
 
 

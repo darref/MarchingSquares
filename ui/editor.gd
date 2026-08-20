@@ -55,6 +55,7 @@ func _ready() -> void:
 		var button: Button = swatch as Button
 		if button != null:
 			button.pressed.connect(_on_swatch_pressed.bind(button))
+	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	work.reserved_left = (%Sidebar as Control).size.x
@@ -143,6 +144,7 @@ func _load_current_mode() -> void:
 	_painting = Painting.new(_current_resolution())
 	var work: Control = %WorkArea
 	work.pencil = (%PencilColor as ColorPickerButton).color
+	work.paint_twins = (%TwinsCheck as CheckBox).button_pressed
 	work.show_guide(_heights, _painting)
 	_refresh_counters()
 
@@ -165,6 +167,10 @@ func _on_swatch_pressed(button: Button) -> void:
 	var color: Color = button.get_meta("color")
 	(%PencilColor as ColorPickerButton).color = color
 	(%WorkArea as Control).pencil = color
+
+
+func _on_twins_toggled(pressed: bool) -> void:
+	(%WorkArea as Control).paint_twins = pressed
 
 
 func _on_fit_pressed() -> void:

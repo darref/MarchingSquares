@@ -147,3 +147,19 @@ static func index_map(heights: PackedStringArray) -> Dictionary:
 				indices[Vector2i(x, y)] = index
 	return indices
 
+
+## Les cases regroupees par index de surface.
+##
+## Deux cases du meme groupe portent LA MEME TUILE : ce sont des variantes l'une de
+## l'autre. C'est ce qui permet de proposer de les peindre ensemble.
+static func cells_by_index(index_by_cell: Dictionary) -> Dictionary:
+	var groups: Dictionary = {}
+	for cell: Vector2i in index_by_cell.keys():
+		var index: int = int(index_by_cell[cell])
+		if not groups.has(index):
+			var fresh: Array[Vector2i] = []
+			groups[index] = fresh
+		var cells: Array[Vector2i] = groups[index]
+		cells.append(cell)
+	return groups
+

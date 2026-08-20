@@ -37,6 +37,7 @@ func _initialize() -> void:
 	_test_minimal_guide_walls()
 	_test_painting()
 	_test_wall_variants()
+	_test_twins()
 	_test_guide_image()
 	_report_candidate_guide()
 	_print_summary()
@@ -452,6 +453,39 @@ func _test_wall_variants() -> void:
 	var full: Dictionary = Walls.resolve_roles(roles, every_cell)
 	_check(full["is_exportable"], "tout peindre livre les douze roles")
 	_check(full["unused"].is_empty(), "aucune case de robe inutilisee quand tout est peint")
+
+
+func _test_twins() -> void:
+	print("jumelles : les cases qui portent la meme tuile")
+	# Deux ilots isoles portent le meme index : ce sont des variantes l une de l autre.
+	var flat: PackedStringArray = HeightMask.parse("#.#")
+	var indices: Dictionary = Coverage.index_map(flat)
+	var groups: Dictionary = Coverage.cells_by_index(indices)
+	_check_equal(groups.size(), 1, "un seul index en jeu")
+	var expected: Array[Vector2i] = [Vector2i(0, 0), Vector2i(2, 0)]
+	_check_equal(groups[0], expected, "les deux ilots sont jumeaux")
+
+	var relief: PackedStringArray = HeightMask.parse(".....
+.222.
+.....
+.....
+.....
+.....
+.....
+.....")
+	var roles: Dictionary = Walls.visible_roles(relief)
+	var wall_groups: Dictionary = Walls.cells_by_role(roles)
+	_check_equal(wall_groups.size(), Walls.ALL_ROLES.size(), "les douze roles forment douze groupes")
+	var consistent: bool = true
+	var counted: int = 0
+	for role: Vector2i in wall_groups.keys():
+		var cells: Array[Vector2i] = wall_groups[role]
+		counted += cells.size()
+		for cell: Vector2i in cells:
+			if roles[cell] != role:
+				consistent = false
+	_check(consistent, "un groupe ne rassemble que des cases du meme role")
+	_check_equal(counted, roles.size(), "aucune case de robe n est oubliee ni comptee deux fois")
 
 
 func _test_guide_image() -> void:
