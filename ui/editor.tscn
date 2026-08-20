@@ -1,0 +1,647 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/editor.gd" id="1_c0sed"]
+[ext_resource type="Script" path="res://ui/work_area.gd" id="2_c55ig"]
+[ext_resource type="Script" path="res://ui/sidebar.gd" id="3_4x3iy"]
+[ext_resource type="Script" path="res://ui/tool_section.gd" id="4_cwcei"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qfej6"]
+bg_color = Color(0.129, 0.141, 0.149, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5on0m"]
+bg_color = Color(0.106, 0.118, 0.125, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_28l1f"]
+bg_color = Color(0.906, 0.855, 0.671, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_75vv8"]
+bg_color = Color(0.72480005, 0.684, 0.5368, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tj0f7"]
+bg_color = Color(0.92480004, 0.884, 0.7368, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4rs6f"]
+bg_color = Color(0.706, 0.741, 0.522, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8sq1u"]
+bg_color = Color(0.56479996, 0.5928, 0.4176, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ny7lf"]
+bg_color = Color(0.76479995, 0.7928, 0.6176, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nqww0"]
+bg_color = Color(0.478, 0.545, 0.365, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2x4ir"]
+bg_color = Color(0.3824, 0.43600002, 0.29200003, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_407as"]
+bg_color = Color(0.58239996, 0.63600004, 0.492, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ljj"]
+bg_color = Color(0.302, 0.376, 0.29, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n8yra"]
+bg_color = Color(0.24159999, 0.3008, 0.232, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sb7vj"]
+bg_color = Color(0.4416, 0.5008, 0.43199998, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i6rcl"]
+bg_color = Color(0.612, 0.514, 0.396, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c0lqr"]
+bg_color = Color(0.4896, 0.41120002, 0.3168, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kd16f"]
+bg_color = Color(0.6896, 0.6112, 0.5168, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ad7g"]
+bg_color = Color(0.396, 0.325, 0.259, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1tuwu"]
+bg_color = Color(0.3168, 0.26, 0.2072, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nmgcu"]
+bg_color = Color(0.5168, 0.45999998, 0.4072, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nterg"]
+bg_color = Color(0.847, 0.639, 0.427, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bs2fd"]
+bg_color = Color(0.6776, 0.5112, 0.3416, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hwdbu"]
+bg_color = Color(0.8776, 0.7112, 0.5416, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6p2ph"]
+bg_color = Color(0.259, 0.29, 0.325, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u0qos"]
+bg_color = Color(0.2072, 0.232, 0.26, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nvu24"]
+bg_color = Color(0.4072, 0.43199998, 0.45999998, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_760qh"]
+bg_color = Color(0.949, 0.949, 0.925, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tr603"]
+bg_color = Color(0.75920004, 0.75920004, 0.74, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mx6i0"]
+bg_color = Color(0.9592, 0.9592, 0.94, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ckd56"]
+bg_color = Color(0.141, 0.149, 0.157, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avmn2"]
+bg_color = Color(0.1128, 0.119200006, 0.12560001, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hvudo"]
+bg_color = Color(0.3128, 0.3192, 0.32560003, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qxu7j"]
+bg_color = Color(0.678, 0.4, 0.361, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8r8hd"]
+bg_color = Color(0.5424, 0.32000002, 0.2888, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rp24c"]
+bg_color = Color(0.7424, 0.52, 0.4888, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ukb5q"]
+bg_color = Color(0.451, 0.588, 0.639, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vibf4"]
+bg_color = Color(0.3608, 0.4704, 0.5112, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3odb"]
+bg_color = Color(0.5608, 0.6704, 0.7112, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="Editor" type="Control" unique_id=465720354]
+layout_mode = 3
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_c0sed")
+
+[node name="Layout" type="VBoxContainer" parent="." unique_id=2098625532]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 0
+
+[node name="TitleBar" type="PanelContainer" parent="Layout" unique_id=1330558533]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_qfej6")
+
+[node name="TitleMargin" type="MarginContainer" parent="Layout/TitleBar" unique_id=1768604247]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_right = 14
+
+[node name="TitleLine" type="HBoxContainer" parent="Layout/TitleBar/TitleMargin" unique_id=1192846120]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Brand" type="Label" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=1012250736]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.706, 0.741, 0.522, 1)
+text = "AbsoluTiles"
+
+[node name="Slogan" type="Label" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=1394854407]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+text = "Paint one landscape. Every edge case covered."
+
+[node name="Subtitle" type="Label" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=1110391409]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "No pixel you didn't paint."
+
+[node name="Gap" type="Control" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=1928088694]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Ticker" type="Label" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=217949280]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Le guide est prouve complet avant que vous ne posiez un pixel."
+horizontal_alignment = 2
+
+[node name="Body" type="Control" parent="Layout" unique_id=1123746989]
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="WorkArea" type="Control" parent="Layout/Body" unique_id=96472627]
+unique_name_in_owner = true
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+focus_mode = 1
+script = ExtResource("2_c55ig")
+
+[node name="Sidebar" type="PanelContainer" parent="Layout/Body" unique_id=2144598249]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_bottom = 1.0
+offset_right = 272.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_5on0m")
+script = ExtResource("3_4x3iy")
+
+[node name="Column" type="VBoxContainer" parent="Layout/Body/Sidebar" unique_id=219247792]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Globals" type="MarginContainer" parent="Layout/Body/Sidebar/Column" unique_id=1219006371]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 25.0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="GlobalsBox" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/Globals" unique_id=1346596373]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ModeRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=141837988]
+layout_mode = 2
+
+[node name="ModeLabel" type="Label" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/ModeRow" unique_id=1367843559]
+custom_minimum_size = Vector2(74, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Mode"
+
+[node name="ModeChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/ModeRow" unique_id=700373081]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SizeRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=688914943]
+layout_mode = 2
+
+[node name="SizeLabel" type="Label" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/SizeRow" unique_id=1392666663]
+custom_minimum_size = Vector2(74, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Pixels"
+
+[node name="SizeChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/SizeRow" unique_id=1185418158]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Spacer" type="Control" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=1400306741]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+
+[node name="SurfaceLabel" type="Label" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=667716003]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+text = "Surfaces     0 / 47"
+
+[node name="SurfaceBar" type="ProgressBar" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=951746926]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+max_value = 47.0
+show_percentage = false
+
+[node name="WallLabel" type="Label" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=750576799]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+text = "Falaises     0 / 12"
+
+[node name="WallBar" type="ProgressBar" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=1071333548]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+max_value = 12.0
+show_percentage = false
+
+[node name="ExportButton" type="Button" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=1514816009]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Exporter"
+
+[node name="Rule" type="HSeparator" parent="Layout/Body/Sidebar/Column" unique_id=801035265]
+layout_mode = 2
+
+[node name="ToolsScroll" type="ScrollContainer" parent="Layout/Body/Sidebar/Column" unique_id=897710861]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 75.0
+horizontal_scroll_mode = 0
+
+[node name="Sections" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll" unique_id=52686229]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="PencilSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=1189054818]
+layout_mode = 2
+theme_override_constants/separation = 0
+script = ExtResource("4_cwcei")
+title = "Crayon"
+
+[node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection" unique_id=1312642171]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
+toggle_mode = true
+button_pressed = true
+text = "▾  Crayon"
+flat = true
+alignment = 0
+
+[node name="Content" type="MarginContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection" unique_id=734423798]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Items" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content" unique_id=1636612716]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PencilColor" type="ColorPickerButton" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=1404615691]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+color = Color(0.906, 0.855, 0.671, 1)
+
+[node name="Swatches" type="GridContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=1683616510]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 6
+
+[node name="Swatch0" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=1617218609]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_28l1f")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_75vv8")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tj0f7")
+metadata/color = Color(0.906, 0.855, 0.671, 1)
+
+[node name="Swatch1" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=814207477]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_4rs6f")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_8sq1u")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ny7lf")
+metadata/color = Color(0.706, 0.741, 0.522, 1)
+
+[node name="Swatch2" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=509406347]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_nqww0")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_2x4ir")
+theme_override_styles/hover = SubResource("StyleBoxFlat_407as")
+metadata/color = Color(0.478, 0.545, 0.365, 1)
+
+[node name="Swatch3" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=603357614]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_l3ljj")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_n8yra")
+theme_override_styles/hover = SubResource("StyleBoxFlat_sb7vj")
+metadata/color = Color(0.302, 0.376, 0.29, 1)
+
+[node name="Swatch4" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=1434980121]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_i6rcl")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_c0lqr")
+theme_override_styles/hover = SubResource("StyleBoxFlat_kd16f")
+metadata/color = Color(0.612, 0.514, 0.396, 1)
+
+[node name="Swatch5" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=365640489]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_0ad7g")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_1tuwu")
+theme_override_styles/hover = SubResource("StyleBoxFlat_nmgcu")
+metadata/color = Color(0.396, 0.325, 0.259, 1)
+
+[node name="Swatch6" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=603168369]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_nterg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_bs2fd")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hwdbu")
+metadata/color = Color(0.847, 0.639, 0.427, 1)
+
+[node name="Swatch7" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=1808071166]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_6p2ph")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_u0qos")
+theme_override_styles/hover = SubResource("StyleBoxFlat_nvu24")
+metadata/color = Color(0.259, 0.29, 0.325, 1)
+
+[node name="Swatch8" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=1532267628]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_760qh")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tr603")
+theme_override_styles/hover = SubResource("StyleBoxFlat_mx6i0")
+metadata/color = Color(0.949, 0.949, 0.925, 1)
+
+[node name="Swatch9" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=192304781]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_ckd56")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_avmn2")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hvudo")
+metadata/color = Color(0.141, 0.149, 0.157, 1)
+
+[node name="Swatch10" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=955933924]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_qxu7j")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_8r8hd")
+theme_override_styles/hover = SubResource("StyleBoxFlat_rp24c")
+metadata/color = Color(0.678, 0.4, 0.361, 1)
+
+[node name="Swatch11" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/PencilSection/Content/Items/Swatches" unique_id=194954210]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_ukb5q")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_vibf4")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i3odb")
+metadata/color = Color(0.451, 0.588, 0.639, 1)
+
+[node name="ViewSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=540198287]
+layout_mode = 2
+theme_override_constants/separation = 0
+script = ExtResource("4_cwcei")
+title = "Vue"
+
+[node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection" unique_id=1176993571]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
+toggle_mode = true
+button_pressed = true
+text = "▾  Vue"
+flat = true
+alignment = 0
+
+[node name="Content" type="MarginContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection" unique_id=1095240334]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Items" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content" unique_id=123230718]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FitButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1937516197]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Recadrer le guide"
+
+[node name="ViewHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1659373790]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Molette : zoom
+Clic milieu : deplacer
+Clic droit : peindre
+Clic gauche : effacer"
+
+[node name="NextSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=1696284847]
+layout_mode = 2
+theme_override_constants/separation = 0
+script = ExtResource("4_cwcei")
+title = "A venir"
+
+[node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection" unique_id=1171185055]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
+toggle_mode = true
+button_pressed = true
+text = "▾  A venir"
+flat = true
+alignment = 0
+
+[node name="Content" type="MarginContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection" unique_id=936631486]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Items" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection/Content" unique_id=1662128638]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NextHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection/Content/Items" unique_id=265618387]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Les prochaines familles d'outils
+se rangent ici, une section
+par categorie."
