@@ -1,4 +1,19 @@
-# L'ILLUSTRATION DU GUIDE — le paysage tel qu'il sera une fois peint.
+# L'ILLUSTRATION DU GUIDE — deux styles, un seul relief.
+#
+# REPRESENTATIVE montre le paysage tel qu'il sera une fois peint : couleurs, falaises,
+# ombres. C'est ce qu'il faut pour comprendre le guide d'un coup d'oeil.
+#
+# USABLE montre la STRUCTURE plutot que le resultat : au trait, en teinte neutre, contraste
+# bas. C'est ce qu'il faut pour peindre par-dessus -- un fond soutenu contamine la lecture
+# des couleurs qu'on pose, et un aplat vert fait juger faux un vert qu'on essaie.
+#
+# ⚠ CE CHOIX N'EST PAS CELUI DE L'ECLAIRAGE DU TILESET. Le style du fond dit ce qu'on
+# REGARDE en peignant et ne change rien a ce qui sort ; qu'un mode soit eclaire ou non dit
+# ce qu'on FABRIQUE. Les quatre combinaisons ont un sens, et la plus courante est sans
+# doute : tileset eclaire, fond usable.
+#
+# ⚠ LES DEUX SORTENT DE LA MEME FONCTION ET DU MEME RELIEF. Un second dessinateur finirait
+# par raconter un autre guide que le premier, et ce fichier existe pour empecher ca.
 #
 # Elle se calcule entierement depuis le relief : aucune image n'est lue, aucun pixel n'est
 # emprunte. Les 47 silhouettes et les 12 robes suffisent a la dessiner, si bien qu'elle ne
@@ -11,6 +26,11 @@
 # ⚠ AUCUNE DEPENDANCE A UN NOEUD. Image et Color sont des ressources : ce fichier tourne en
 # headless, et l'interface n'aura qu'a en faire une ImageTexture.
 extends RefCounted
+
+enum Style {
+	REPRESENTATIVE,  ## Le paysage fini : pour comprendre.
+	USABLE,          ## La structure au trait : pour peindre dessus.
+}
 
 const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
@@ -51,15 +71,35 @@ const STONE_FOOT: Color = Color(0.318, 0.278, 0.220)
 const GROUND_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.38)
 const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
 
+# ⚠ TOUT L'ECART DU STYLE USABLE TIENT DANS UNE BANDE ETROITE. Les etages doivent se
+# distinguer, mais aucun ne doit peser assez pour qu'on juge mal la couleur qu'on pose
+# dessus. D'ou des gris a peine bleutes, et toute l'information portee par le TRAIT.
+const USABLE_PLAIN: Color = Color(0.145, 0.153, 0.169)
+const USABLE_LEVELS: Array[Color] = [
+	Color(0.145, 0.153, 0.169),
+	Color(0.204, 0.216, 0.235),
+	Color(0.243, 0.255, 0.278),
+	Color(0.282, 0.294, 0.318),
+]
+const USABLE_WALL: Color = Color(0.176, 0.180, 0.204)
+const USABLE_EDGE: Color = Color(0.588, 0.627, 0.678)
+const USABLE_LIP: Color = Color(0.870, 0.898, 0.933)
+const USABLE_FACE: Color = Color(0.400, 0.427, 0.470)
+const USABLE_MARK: Color = Color(0.639, 0.678, 0.729)
+
+## Epaisseur du trait, en fraction de case.
+const STROKE: float = 0.055
+
 
 ## Rend le relief en une image. Une case du guide = TILE pixels.
 ## Le cote de tuile est un parametre : l'illustration sert de fond d'ecran a l'editeur,
 ## et doit pouvoir se caler sur la resolution des faux pixels.
-static func render(heights: PackedStringArray, tile_size: int = TILE) -> Image:
+static func render(heights: PackedStringArray, tile_size: int = TILE,
+		style: Style = Style.REPRESENTATIVE) -> Image:
 	var columns: int = HeightMask.width(heights)
 	var rows: int = HeightMask.height(heights)
 	var image: Image = Image.create_empty(columns * tile_size, rows * tile_size, false, Image.FORMAT_RGBA8)
-	image.fill(PLAIN_COLOR)
+	image.fill(USABLE_PLAIN if style == Style.USABLE else PLAIN_COLOR)
 
 	var top_level: int = HeightMask.top_level(heights)
 	var tops: Dictionary = {}
@@ -71,7 +111,7 @@ static func render(heights: PackedStringArray, tile_size: int = TILE) -> Image:
 					continue
 				var key: Vector2i = Vector2i(index, level)
 				if not tops.has(key):
-					tops[key] = _make_top(index, level, tile_size)
+					tops[key] = _make_top(index, level, tile_size, style)
 				_stamp(image, tops[key], x, y, tile_size)
 
 	var assembled: Dictionary = Walls.assemble(heights)
@@ -84,7 +124,7 @@ static func render(heights: PackedStringArray, tile_size: int = TILE) -> Image:
 				continue
 			var role: Vector2i = roles[key]
 			if not faces.has(role):
-				faces[role] = _make_wall(role, tile_size)
+				faces[role] = _make_wall(role, tile_size, style)
 			_stamp(image, faces[role], key.x, key.y, tile_size)
 			if role.y == Walls.ROW_FOOT:
 				feet.append(Vector2i(key.x, key.y + 1))
@@ -93,7 +133,7 @@ static func render(heights: PackedStringArray, tile_size: int = TILE) -> Image:
 	# voisin plus haut porte son ombre vers le sud-est ; au sud c'est deja une robe qui
 	# couvre la case, et il ne reste que le flanc est a assombrir.
 	var contact: Image = _make_contact_shadow(tile_size)
-	for y: int in range(rows):
+	for y: int in range(rows if style == Style.REPRESENTATIVE else 0):
 		for x: int in range(columns):
 			if HeightMask.level_at(heights, x - 1, y) > HeightMask.level_at(heights, x, y):
 				_stamp(image, contact, x, y, tile_size)
@@ -101,7 +141,7 @@ static func render(heights: PackedStringArray, tile_size: int = TILE) -> Image:
 	# L'ombre portee au sol, sous les pieds de falaise. C'est elle qui donne la hauteur ;
 	# sans elle, un mur ressemble a un aplat colle sur l'herbe.
 	var shadow: Image = _make_ground_shadow(tile_size)
-	for cell: Vector2i in feet:
+	for cell: Vector2i in (feet if style == Style.REPRESENTATIVE else ([] as Array[Vector2i])):
 		if _has_wall_at(roles, cell):
 			continue
 		_stamp(image, shadow, cell.x, cell.y, tile_size)
@@ -154,13 +194,15 @@ static func _finish(buffer: PackedByteArray, side: int, tile_size: int) -> Image
 	return image
 
 
-static func _make_top(index: int, level: int, tile_size: int) -> Image:
+static func _make_top(index: int, level: int, tile_size: int, style: Style) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
-	var base: Color = LEVEL_COLORS[mini(level, LEVEL_COLORS.size() - 1)]
+	var usable: bool = style == Style.USABLE
+	var base: Color = USABLE_LEVELS[mini(level, USABLE_LEVELS.size() - 1)] if usable 			else LEVEL_COLORS[mini(level, LEVEL_COLORS.size() - 1)]
 	var buffer: PackedByteArray = _blank(side, base)
 	var outer: float = OUTER_ROUND * float(side)
 	var inner: float = INNER_ROUND * float(side)
 	var lip: float = LIP * float(side)
+	var stroke: float = STROKE * float(side)
 	var north: bool = (index & BlobIndex.N) != 0
 	var east: bool = (index & BlobIndex.E) != 0
 	var south: bool = (index & BlobIndex.S) != 0
@@ -173,6 +215,24 @@ static func _make_top(index: int, level: int, tile_size: int) -> Image:
 			if _carved(px, py, last, outer, inner, index, north, east, south, west):
 				continue
 			var color: Color = base
+			if usable:
+				# ⚠ TOUTE L'INFORMATION EST DANS LE TRAIT, et elle est GEOMETRIQUE : le bord
+				# nord est la levre, le bord sud est la ou commence la face. On les distingue
+				# par la clarte du trait, jamais par un aplat -- pour ne rien imposer aux
+				# couleurs qu'on posera par-dessus. Dans un mode eclaire, cette geometrie dit
+				# accessoirement ou le jour se prend ; dans un mode sans lumiere, elle reste
+				# vraie et tout aussi utile. Le style du fond et l'eclairage du mode sont deux
+				# choses.
+				var on_edge: bool = _on_outline(px, py, last, outer, inner, stroke,
+						index, north, east, south, west)
+				if on_edge:
+					color = USABLE_EDGE
+					if not north and py < stroke * 2.0:
+						color = USABLE_LIP
+					elif not south and py > last - stroke * 2.0:
+						color = USABLE_FACE
+				_put(buffer, side, x, y, color)
+				continue
 			# La lumiere vient du nord-ouest : la levre y est eclairee, l'autre bord recule.
 			if not north and py < lip:
 				color = base.lightened(0.30)
@@ -223,7 +283,94 @@ static func _carved(px: float, py: float, last: float, outer: float, inner: floa
 	return false
 
 
-static func _make_wall(role: Vector2i, tile_size: int) -> Image:
+## Vrai si le pixel -- deja connu comme etant DANS la matiere -- touche le bord de la
+## silhouette : les cotes ouverts, les arcs des coins arrondis, et ceux des encoches. C'est
+## ce trait qui porte toute la lecture du style usable.
+static func _on_outline(px: float, py: float, last: float, outer: float, inner: float,
+		stroke: float, index: int, north: bool, east: bool, south: bool, west: bool) -> bool:
+	if not north and py < stroke:
+		return true
+	if not south and py > last - stroke:
+		return true
+	if not west and px < stroke:
+		return true
+	if not east and px > last - stroke:
+		return true
+	var corners: Array = [
+		[north, east, (index & BlobIndex.NE) != 0, last, 0.0],
+		[south, east, (index & BlobIndex.SE) != 0, last, last],
+		[south, west, (index & BlobIndex.SW) != 0, 0.0, last],
+		[north, west, (index & BlobIndex.NW) != 0, 0.0, 0.0],
+	]
+	for corner: Array in corners:
+		var side_a: bool = corner[0]
+		var side_b: bool = corner[1]
+		var diagonal: bool = corner[2]
+		var cx: float = corner[3]
+		var cy: float = corner[4]
+		if not side_a and not side_b:
+			var centre_x: float = cx + (outer if cx == 0.0 else -outer)
+			var centre_y: float = cy + (outer if cy == 0.0 else -outer)
+			var ox: float = px - centre_x
+			var oy: float = py - centre_y
+			var outward_x: bool = (px < centre_x) if cx == 0.0 else (px > centre_x)
+			var outward_y: bool = (py < centre_y) if cy == 0.0 else (py > centre_y)
+			if outward_x and outward_y and absf(sqrt(ox * ox + oy * oy) - outer) < stroke:
+				return true
+		elif side_a and side_b and not diagonal:
+			var dx: float = px - cx
+			var dy: float = py - cy
+			if absf(sqrt(dx * dx + dy * dy) - inner) < stroke:
+				return true
+	return false
+
+
+## LA ROBE AU TRAIT — on ne montre pas la roche, on montre a quelle rangee on est.
+##
+## Le code se lit d'un coup d'oeil : un trait en haut pour le chapiteau, un trait en bas
+## pour le pied, un tiret au milieu pour le premier corps, deux pour le second. Et un trait
+## vertical du cote ou la falaise s'arrete, qui dit le pan.
+static func _make_wall_usable(role: Vector2i, tile_size: int) -> Image:
+	var side: int = tile_size * SUPERSAMPLE
+	var buffer: PackedByteArray = _blank(side, USABLE_WALL)
+	var last: float = float(side - 1)
+	var stroke: float = STROKE * float(side)
+	var margin: float = 0.10 * float(side)
+	var left_end: bool = role.x == Walls.PAN_LEFT
+	var right_end: bool = role.x == Walls.PAN_RIGHT
+	for y: int in range(side):
+		for x: int in range(side):
+			var px: float = float(x)
+			var py: float = float(y)
+			if left_end and px < margin:
+				continue
+			if right_end and px > last - margin:
+				continue
+			var color: Color = USABLE_WALL
+			var marked: bool = false
+			if left_end and px < margin + stroke:
+				color = USABLE_EDGE
+				marked = true
+			elif right_end and px > last - margin - stroke:
+				color = USABLE_EDGE
+				marked = true
+			if not marked:
+				var inset: float = last * 0.32
+				if role.y == Walls.ROW_CROWN and py < stroke:
+					color = USABLE_LIP
+				elif role.y == Walls.ROW_FOOT and py > last - stroke:
+					color = USABLE_FACE
+				elif role.y == 1 and absf(py - last * 0.5) < stroke * 0.5 						and px > inset and px < last - inset:
+					color = USABLE_MARK
+				elif role.y == 2 and (absf(py - last * 0.35) < stroke * 0.5 						or absf(py - last * 0.65) < stroke * 0.5) 						and px > inset and px < last - inset:
+					color = USABLE_MARK
+			_put(buffer, side, x, y, color)
+	return _finish(buffer, side, tile_size)
+
+
+static func _make_wall(role: Vector2i, tile_size: int, style: Style) -> Image:
+	if style == Style.USABLE:
+		return _make_wall_usable(role, tile_size)
 	var side: int = tile_size * SUPERSAMPLE
 	var base: Color = STONE_BODY_A
 	match role.y:

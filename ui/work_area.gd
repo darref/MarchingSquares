@@ -27,7 +27,10 @@ const MAX_TILE_PX: float = 2000.0
 const PIXEL_GRID_FROM: float = 5.0
 
 const BACKDROP: Color = Color(0.106, 0.114, 0.125)
+# Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
+# Le fond utilisable est deja en teinte basse, il n'a pas besoin d'etre efface.
 const GUIDE_TINT: Color = Color(1.0, 1.0, 1.0, 0.55)
+const GUIDE_TINT_USABLE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const TILE_LINE: Color = Color(1.0, 1.0, 1.0, 0.16)
 const PIXEL_LINE: Color = Color(1.0, 1.0, 1.0, 0.05)
 const HOVER_OK: Color = Color(1.0, 1.0, 1.0, 0.85)
@@ -39,6 +42,10 @@ var pencil: Color = Color(0.906, 0.855, 0.671)
 ## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT, c'est une aide au geste : elle ne change rien a ce
 ## qui sort, seulement au nombre de fois qu'il faut refaire le meme dessin.
 var paint_twins: bool = false
+
+## Ce qu'on regarde en peignant. ⚠ Rien de ce qui sort n'en depend : ce n'est pas
+## l'eclairage du tileset, c'est le fond de l'ecran.
+var guide_style: GuideImage.Style = GuideImage.Style.REPRESENTATIVE
 
 ## Largeur occupee par la barre d'outils, qui est posee SUR la zone de travail.
 ## ⚠ ELLE NE SERT QU AU CADRAGE. On ne bride pas le dessin a cette marge : le guide peut
@@ -124,8 +131,7 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 		var wall_twins: Array[Vector2i] = group
 		for cell: Vector2i in wall_twins:
 			_twin_of[cell] = wall_twins
-	var image: Image = GuideImage.render(heights, GUIDE_TILE)
-	_background = ImageTexture.create_from_image(image)
+	_redraw_background()
 	# ⚠ ON NE CADRE PAS TOUT DE SUITE. Au premier chargement, le conteneur n'a pas encore
 	# donne sa taille : cadrer ici reviendrait a cadrer sur une fenetre qui n'existe plus.
 	# On demande le cadrage, et c'est le premier redimensionnement qui l'execute.
@@ -163,6 +169,21 @@ func _filter_painted(among: Dictionary) -> Array[Vector2i]:
 	return cells
 
 
+## Change le style du fond. Le relief ne bouge pas : seule sa representation change.
+func set_guide_style(style: GuideImage.Style) -> void:
+	if style == guide_style:
+		return
+	guide_style = style
+	_redraw_background()
+	queue_redraw()
+
+
+func _redraw_background() -> void:
+	if _heights.is_empty():
+		return
+	_background = ImageTexture.create_from_image(GuideImage.render(_heights, GUIDE_TILE, guide_style))
+
+
 ## Recadre le guide entier dans la fenetre.
 func fit() -> void:
 	var columns: int = HeightMask.width(_heights)
@@ -191,7 +212,8 @@ func _draw() -> void:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	if _background != null:
-		draw_texture_rect(_background, Rect2(_origin, span), false, GUIDE_TINT)
+		var tint: Color = GUIDE_TINT_USABLE if guide_style == GuideImage.Style.USABLE else GUIDE_TINT
+		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
 
 	for cell: Vector2i in _textures.keys():
 		var texture: ImageTexture = _textures[cell]

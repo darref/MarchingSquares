@@ -515,6 +515,15 @@ func _test_guide_image() -> void:
 	var again: Image = GuideImage.render(heights)
 	_check_equal(again.get_data(), image.get_data(), "le rendu est deterministe")
 
+	# ⚠ LES DEUX STYLES SORTENT DE LA MEME FONCTION ET DU MEME RELIEF, mais ne montrent pas
+	# la meme chose : l un le resultat, l autre la structure.
+	var usable: Image = GuideImage.render(heights, GuideImage.TILE, GuideImage.Style.USABLE)
+	_check_equal(usable.get_size(), image.get_size(), "les deux styles ont la meme taille")
+	_check(usable.get_data() != image.get_data(), "le style utilisable rend autre chose")
+	var neutral: Color = usable.get_pixel(4 * GuideImage.TILE + half, 6 * GuideImage.TILE + half)
+	_check(absf(neutral.r - neutral.g) < 0.08 and absf(neutral.g - neutral.b) < 0.08,
+			"le fond utilisable est neutre : il n impose aucune teinte aux couleurs qu on pose")
+
 
 # --- Etat du guide candidat (informatif, pas une assertion) -----------------
 

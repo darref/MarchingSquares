@@ -607,6 +607,21 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Recadrer le guide"
 
+[node name="StyleRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items"]
+layout_mode = 2
+
+[node name="StyleLabel" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items/StyleRow"]
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Fond"
+
+[node name="StyleChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items/StyleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Ce qu on regarde en peignant. Ne change rien a ce qui sort."
+
 [node name="ViewHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1659373790]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12

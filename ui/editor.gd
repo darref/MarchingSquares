@@ -15,6 +15,7 @@ const Painting := preload("res://core/painting.gd")
 const Variants := preload("res://core/variants.gd")
 const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
+const GuideImage := preload("res://render/guide_image.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -43,6 +44,7 @@ func _ready() -> void:
 	_apply_window_size()
 	_fill_modes()
 	_fill_resolutions()
+	_fill_styles()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	var mode_choice: OptionButton = %ModeChoice
@@ -55,6 +57,7 @@ func _ready() -> void:
 		var button: Button = swatch as Button
 		if button != null:
 			button.pressed.connect(_on_swatch_pressed.bind(button))
+	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
@@ -122,6 +125,24 @@ func _fill_resolutions() -> void:
 		choice.set_item_metadata(choice.item_count - 1, resolution)
 		if resolution == Painting.DEFAULT_RESOLUTION:
 			choice.select(choice.item_count - 1)
+
+
+## ⚠ CE CHOIX EST UNE AIDE A LA VUE, PAS UN REGLAGE DU PRODUIT. Il dit ce qu'on regarde en
+## peignant, et rien de ce qui sort n'en depend -- a ne pas confondre avec l'eclairage du
+## mode, qui, lui, change ce qu'on fabrique.
+func _fill_styles() -> void:
+	var choice: OptionButton = %StyleChoice
+	choice.clear()
+	choice.add_item("Representatif")
+	choice.set_item_metadata(0, GuideImage.Style.REPRESENTATIVE)
+	choice.add_item("Utilisable")
+	choice.set_item_metadata(1, GuideImage.Style.USABLE)
+	choice.select(0)
+
+
+func _on_style_selected(index: int) -> void:
+	var choice: OptionButton = %StyleChoice
+	(%WorkArea as Control).set_guide_style(choice.get_item_metadata(index))
 
 
 func _current_mode() -> StringName:

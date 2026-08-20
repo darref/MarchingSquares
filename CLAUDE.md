@@ -108,8 +108,14 @@ godot --path . --script res://ui/screenshot.gd -- sortie.png
 godot --headless --path . --script res://render/preview.gd
 ```
 
-Écrit `guides/minimal_preview.png`. Accepte deux arguments après `--` : le guide à rendre,
-et le fichier de sortie.
+Écrit `guides/minimal_preview.png`. Accepte trois arguments après `--` : le guide à rendre,
+le fichier de sortie, et le style (`usable` pour l'autre).
+
+Et pour se relire dans l'éditeur, style compris :
+
+```
+godot --path . --script res://ui/screenshot.gd -- sortie.png usable
+```
 
 ## Décisions prises
 
@@ -289,6 +295,24 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   identifiable : l'épaulement des crêtes est large, et le plateau aux lacs pourrait
   peut-être se poser sur un massif existant plutôt que sur le sien.
 
+- **`representative` / `usable` et `lit` / `unlit` sont deux axes orthogonaux.** Les
+  confondre est facile — les deux parlent de lumière — et faux.
+  - **`representative` / `usable` qualifie le FOND**, c'est-à-dire ce qu'on regarde en
+    peignant. Ça ne change rien à ce qui sort : c'est une aide à la vue.
+  - **`lit` / `unlit` qualifie le MODE**, c'est-à-dire le tileset qu'on fabrique. Ça change
+    ce qui sort, et c'est ce qui rend les symétries licites ou non.
+
+  Les quatre combinaisons ont un sens. On peut peindre un tileset éclairé sur un fond
+  `usable` — c'est même le cas courant : on veut le trait sous la main, pas le résultat.
+
+  ⚠ **Le seul lien entre les deux axes** : `representative` promet de montrer ce qu'on
+  obtiendra. Il doit donc **suivre le mode** — éclairé au nord-ouest pour un mode `lit`,
+  sans lumière pour un mode `unlit`. `usable`, lui, ne porte de lumière dans aucun cas :
+  la distinction qu'il trace entre bord nord et bord sud est **géométrique** — où est la
+  lèvre, où commence la face. Dans un mode éclairé, cette géométrie dit accessoirement où
+  le jour se prend ; dans un mode `unlit`, elle ne dit plus que la géométrie, et reste
+  aussi utile.
+
 - **L'illustration se calcule depuis le relief, elle ne se dessine pas à côté**
   (`render/guide_image.gd`). Aucune image n'est lue, aucun pixel n'est emprunté : les 47
   silhouettes et les 12 robes suffisent. Deux conséquences, et la seconde vaut la première.
@@ -326,6 +350,22 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   taille des pixels, les deux jauges, l'export) ; **75 % en bas** pour les sections
   d'outils repliables, dans un `ScrollContainer` pour qu'on puisse en empiler autant qu'on
   voudra.
+
+- **Deux styles de fond : `representative` et `usable`.** Le premier montre le paysage tel
+  qu'il sera une fois peint — c'est ce qu'il faut pour comprendre le guide d'un coup d'œil.
+  Le second montre la **structure** : au trait, teinte neutre, contraste bas. C'est ce qu'il
+  faut pour peindre par-dessus, parce qu'un fond soutenu contamine la lecture des couleurs
+  qu'on pose — on juge faux un vert qu'on essaie sur un aplat vert.
+
+  Ce que `usable` dit, et rien de plus : la **silhouette** de chaque tuile (ses côtés
+  ouverts, ses coins arrondis, ses encoches), quel bord est la lèvre et quel bord est la
+  face, et à quelle rangée de robe on se trouve — un filet en haut pour le chapiteau, en bas
+  pour le pied, un tiret pour le premier corps, deux pour le second, un trait vertical du
+  côté où la falaise s'arrête. Tout est porté par le trait, jamais par un aplat.
+
+  ⚠ Les deux styles sortent de **la même fonction et du même relief** (`Style` en paramètre
+  de `guide_image.render()`), pour la raison qui fait exister ce fichier : deux dessinateurs
+  finiraient par raconter deux guides différents.
 
 - **La barre est posée SUR la zone de travail, et translucide au repos.** Elle laisse voir
   le guide à travers elle : c'est ce qui donne l'air d'un calque plutôt que d'un panneau.
@@ -438,32 +478,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
-- **Liste déroulante « guide background style » : `representative` ou `usable`.**
-  Le fond actuel est *representative* : il montre le paysage **tel qu'il sera une fois
-  peint**, avec ses couleurs, ses falaises et ses ombres. C'est ce qu'il faut pour
-  comprendre le guide d'un coup d'œil — mais c'est un mauvais support pour peindre dessus,
-  et deux défauts déjà observés le disent :
-  - ses teintes contaminent la lecture des siennes. On ne juge pas une couleur posée sur un
-    aplat vert soutenu comme on la juge sur un fond neutre ;
-  - un lac d'une case y rend comme une fosse de pierre — fidèle au modèle, mais ça ne dit
-    pas ce qu'il y a à dessiner.
-
-  *usable* reste **à dessiner**, et c'est un travail de conception, pas de rendu. Intention :
-  montrer la **structure** plutôt que le résultat. Ce qu'il faut voir pendant qu'on peint,
-  c'est où passent les bords de tuile, quel côté est la lèvre éclairée et quel côté est la
-  face, et à quelle rangée de robe on se trouve (chapiteau, corps, pied). Donc : trait
-  plutôt qu'aplat, teinte neutre et contraste bas pour que n'importe quelle couleur de
-  crayon ressorte, et rien qui attire l'œil ailleurs que sur ce qu'on pose.
-
-  ⚠ Les deux styles doivent sortir de **la même fonction et du même relief** — un paramètre
-  de `guide_image.render()`, pas un second dessinateur. Sinon les deux fonds finiront par
-  raconter deux guides différents, et c'est exactement ce que ce fichier existe pour
-  empêcher.
-
-  Le choix est une **aide à la vue, pas un réglage du produit** (rien de ce qui sort n'en
-  dépend) : sa place est donc dans une section d'outils, à côté de « Recadrer le guide »,
-  pas dans les boutons globaux.
-
 - **Un mode sans lumière, où rotations et miroirs deviennent licites.** Mesuré, et les deux
   familles ne se comportent pas du tout pareil — c'est le résultat utile de cette fiche :
 
@@ -496,9 +510,9 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
     « le guide doit couvrir 47 index » et « vous devez peindre 47 tuiles ». Sous symétrie,
     le guide couvre toujours 47, mais on n'en peint que 14. Il faudra séparer la **taille du
     vocabulaire** de la **quantité de travail**.
-  - L'illustration devra elle aussi se passer de lumière dans ce mode — `guide_image.gd`
-    éclaire au nord-ouest. Cela rejoint le style de fond `usable`, qui n'a de toute façon
-    pas à porter d'ombres.
+  - L'illustration `representative` devra se passer de lumière dans ce mode —
+    `guide_image.gd` éclaire au nord-ouest, et montrer un relief éclairé pour un tileset
+    qui ne l'est pas serait un mensonge sur le résultat.
   - Nom proposé : **`unlit`**, précis et sans ambiguïté dans le vocabulaire des tilesets.
     (`flat` prêterait à confusion avec le relief plat, ce qui est une autre affaire.)
 

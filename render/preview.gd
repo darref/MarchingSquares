@@ -1,8 +1,9 @@
 # Ecrit l'illustration du guide sur disque.
 #
-#   godot --headless --path . --script res://render/preview.gd [guide] [sortie]
+#   godot --headless --path . --script res://render/preview.gd -- [guide] [sortie] [style]
 #
-# Par defaut : le guide du mode minimal, vers guides/minimal_preview.png.
+# Par defaut : le guide du mode minimal, vers guides/minimal_preview.png, style
+# representative. Le troisieme argument accepte « usable ».
 extends SceneTree
 
 const HeightMask := preload("res://core/height_mask.gd")
@@ -19,7 +20,10 @@ func _initialize() -> void:
 		quit(1)
 		return
 	var heights: PackedStringArray = HeightMask.read(guide_path)
-	var image: Image = GuideImage.render(heights)
+	var style: GuideImage.Style = GuideImage.Style.REPRESENTATIVE
+	if arguments.size() > 2 and arguments[2] == "usable":
+		style = GuideImage.Style.USABLE
+	var image: Image = GuideImage.render(heights, GuideImage.TILE, style)
 	var error: Error = image.save_png(ProjectSettings.globalize_path(output_path))
 	if error != OK:
 		printerr("ecriture impossible : %d" % error)
