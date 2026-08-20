@@ -382,12 +382,13 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   quarante-sept fois — c'est ce que font les jumelles, sans rien fabriquer, et ce que fera
   mieux le mode `ample`, conçu pour ça.
 
-  ⚠ **La seule porte par laquelle elle pourrait revenir.** Si un mode livre un jour des
+  ⚠ **La porte par laquelle elles reviennent : un mode sans lumière.** Si un mode livre des
   tuiles sans direction d'éclairage — matière ambiante, texture de dessus sans relief —,
-  alors la rotation y est *correcte*, pas seulement pratique. Elle devrait alors être une
-  **propriété de ce mode**, décidée une fois avec lui, jamais une case à cocher offerte au
-  milieu du dessin : c'est le mode qui dit ce qu'on fabrique (règle 1), et on n'autorise que
-  ce qui est garanti (règle 5).
+  alors rotations **et miroirs** y sont *corrects*, pas seulement pratiques : rien n'y
+  contredit la logique du dessin. C'est une **propriété du mode**, décidée une fois avec
+  lui, jamais une case à cocher offerte au milieu du dessin : c'est le mode qui dit ce qu'on
+  fabrique (règle 1), et on n'autorise que ce qui est garanti (règle 5). Voir la fiche du
+  mode `unlit` dans les questions ouvertes.
 
 - **« Peindre les jumelles ».** Deux cases qui portent le même index de surface — ou le
   même rôle de robe — sont **la même tuile**. Les peindre ensemble n'invente rien : ça
@@ -462,6 +463,44 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Le choix est une **aide à la vue, pas un réglage du produit** (rien de ce qui sort n'en
   dépend) : sa place est donc dans une section d'outils, à côté de « Recadrer le guide »,
   pas dans les boutons globaux.
+
+- **Un mode sans lumière, où rotations et miroirs deviennent licites.** Mesuré, et les deux
+  familles ne se comportent pas du tout pareil — c'est le résultat utile de cette fiche :
+
+  | | tuiles à peindre |
+  |---|---|
+  | surfaces, telles quelles | 47 |
+  | surfaces, rotations seules (C4) | **15** |
+  | surfaces, miroir est-ouest seul | 30 |
+  | surfaces, rotations + miroirs (D4) | **14** |
+  | robes, telles quelles | 12 |
+  | robes, miroir est-ouest | **8** |
+
+  ⚠ **Pour les surfaces, les miroirs n'apportent presque rien par-dessus les rotations :
+  15 → 14, une seule tuile.** Le jeu des 47 est déjà quasi clos par réflexion dès qu'on a
+  les rotations. Inutile donc d'implémenter les miroirs *pour les surfaces* : c'est de la
+  complexité pour une tuile.
+
+  ⚠ **Pour les robes, c'est l'inverse.** La rotation n'y a aucun sens — un plateau n'a de
+  face qu'au sud — et le miroir vertical non plus, puisque le chapiteau et le pied ne sont
+  pas interchangeables : le pied repose sur le sol, il y a une gravité. Seul le miroir
+  est-ouest agit, et il agit bien : pan gauche ↔ pan droit, pan courant fixe. **12 → 8.**
+
+  Total dans un tel mode : **22 tuiles au lieu de 59.**
+
+  Conséquences à traiter le jour où on l'écrit :
+  - **Le mode n'a pas besoin d'un nouveau guide** : il peut reprendre `guides/minimal.txt`.
+    Ce qui change n'est pas le paysage, c'est ce que le mode *déclare* — pas de direction
+    d'éclairage, donc symétries licites, donc moins de tuiles obligatoires.
+  - ⚠ **`Modes.surface_tile_count()` veut aujourd'hui dire deux choses** qui divergeraient :
+    « le guide doit couvrir 47 index » et « vous devez peindre 47 tuiles ». Sous symétrie,
+    le guide couvre toujours 47, mais on n'en peint que 14. Il faudra séparer la **taille du
+    vocabulaire** de la **quantité de travail**.
+  - L'illustration devra elle aussi se passer de lumière dans ce mode — `guide_image.gd`
+    éclaire au nord-ouest. Cela rejoint le style de fond `usable`, qui n'a de toute façon
+    pas à porter d'ombres.
+  - Nom proposé : **`unlit`**, précis et sans ambiguïté dans le vocabulaire des tilesets.
+    (`flat` prêterait à confusion avec le relief plat, ce qui est une autre affaire.)
 
 - **Dessiner le guide du mode `ample`.** Le mode est décidé, nommé, et déjà au catalogue —
   mais fermé tant que `guides/ample.txt` n'existe pas.
