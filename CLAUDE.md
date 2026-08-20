@@ -38,6 +38,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
+  guide_render_job.gd  le même dessin, par étapes, pour pouvoir le regarder avancer
   preview.gd      écrit l'illustration sur disque
 ui/           l'éditeur
   editor.tscn     la fenêtre : bandeau, barre d'outils, zone de travail
@@ -48,6 +49,7 @@ ui/           l'éditeur
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : relief 35x28, 47/47 et 12/12
+  ample.txt            guide du mode « ample » : relief 66x31, 3 occurrences minimum
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
 tests/        tests headless
@@ -351,6 +353,43 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   d'outils repliables, dans un `ScrollContainer` pour qu'on puisse en empiler autant qu'on
   voudra.
 
+- **`guides/ample.txt` : relief 66x31, et sa promesse est chiffrée.** Même complétude que
+  `minimal` — 47/47 et 12/12 — mais **chaque index y est vu au moins trois fois**, contre
+  une seule pour vingt d'entre eux dans `minimal`. Ce n'est pas une impression : la table
+  des modes déclare `min_variants`, et la suite de tests le vérifie pour tout mode ouvert.
+  Ajouter un mode au catalogue, c'est désormais s'engager à ce que son guide passe la
+  preuve.
+
+  Construction : les mêmes accidents de terrain que `minimal`, mais **trois régions**
+  portant chacune son plateau aux lacs, ses quatre crêtes, ses quatre coudes, son pinacle
+  et son éperon — avec une phase de tore, des motifs d'épaulement et une orientation
+  différents à chaque fois, pour que ce ne soit pas trois copies.
+
+  ⚠ **Deux pièges appris en le dessinant, tous deux sur le plateau aux lacs.** Depuis
+  l'origine du plateau, les lacs occupent les décalages **impairs** et les seize cases
+  utiles les décalages **pairs**. Un pinacle posé sur un lac le comble et fait disparaître
+  quatre fenêtres du tore ; posé sur une case utile, il lui **vole son index** — la surface
+  visible d'une case est celle de *son* étage, et une case montée à l'étage 3 ne compte
+  plus pour l'étage 2. Le pinacle va donc sur le **bord** du plateau, dont l'index est un
+  coin, et les coins ne manquent jamais.
+
+- **Le fond du guide se calcule par étapes, et la barre dit la vérité.** ⚠ Mesuré :
+  dessiner le fond coûte **2 à 5 secondes** (3,1 s pour `minimal` en représentatif, 5,2 s
+  en utilisable). En un seul appel, l'écran gèle. `render/guide_render_job.gd` fait le même
+  travail par tranches, `ui/work_area.gd` l'avance de 12 ms par image, et l'unité de
+  progression est la **tuile distincte dessinée** — quand la barre est à la moitié, la
+  moitié des tuiles est faite. Pas un compte à rebours, pas une animation qui tourne.
+
+  Le résultat est **gardé en cache**, la clé portant le contenu du relief : revenir à un
+  style déjà vu est instantané, et un guide modifié ne ressort jamais une vieille image.
+  `guide_image.render()` reste le chemin d'un seul bloc, pour les tests et l'écriture sur
+  disque, où personne ne regarde l'écran — même code, deux façons de l'appeler.
+
+- **Tous les scripts du dépôt sont chargés par la suite de tests.** ⚠ Découvert en dur : la
+  suite ne touchait aucun script d'interface, et un `PackedStringArray.hash()` — qui
+  n'existe pas — est passé au travers jusqu'au lancement. Charger chaque `.gd` suffit à le
+  faire analyser par le moteur, et coûte quelques millisecondes.
+
 - **Deux styles de fond : `representative` et `usable`.** Le premier montre le paysage tel
   qu'il sera une fois peint — c'est ce qu'il faut pour comprendre le guide d'un coup d'œil.
   Le second montre la **structure** : au trait, teinte neutre, contraste bas. C'est ce qu'il
@@ -516,8 +555,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   - Nom proposé : **`unlit`**, précis et sans ambiguïté dans le vocabulaire des tilesets.
     (`flat` prêterait à confusion avec le relief plat, ce qui est une autre affaire.)
 
-- **Dessiner le guide du mode `ample`.** Le mode est décidé, nommé, et déjà au catalogue —
-  mais fermé tant que `guides/ample.txt` n'existe pas.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
 - Règles d'exportation du mode minimal : format de sortie, ordre des tuiles, taille de

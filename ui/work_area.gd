@@ -14,9 +14,14 @@ const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const GuideImage := preload("res://render/guide_image.gd")
+const RenderJob := preload("res://render/guide_render_job.gd")
 
 ## Emis des que la peinture change : l'editeur s'en sert pour rafraichir ses compteurs.
 signal painting_changed
+
+## Emis pendant le calcul du fond, avec des valeurs REELLES : le nombre de tuiles
+## distinctes deja dessinees, sur le nombre a dessiner.
+signal loading_progress(done: int, total: int)
 
 ## Finesse du fond. Il est mis a l'echelle a l'affichage : plus fin coute cher pour rien,
 ## un guide se regarde, il ne se compte pas au pixel.
@@ -25,6 +30,10 @@ const GUIDE_TILE: int = 32
 const MIN_TILE_PX: float = 5.0
 const MAX_TILE_PX: float = 2000.0
 const PIXEL_GRID_FROM: float = 5.0
+
+## Temps accorde au calcul du fond a chaque image. Une tuile coute environ vingt
+## millisecondes : le budget en laisse passer une par image, et l'interface reste vivante.
+const LOAD_BUDGET_USEC: int = 12000
 
 const BACKDROP: Color = Color(0.106, 0.114, 0.125)
 # Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
@@ -69,6 +78,9 @@ var _changed: bool = false
 var _twin_of: Dictionary = {}
 var _wall_roles: Dictionary = {}
 var _needs_fit: bool = false
+var _job: RefCounted = null
+var _cache: Dictionary = {}
+var _cache_key: String = ""
 
 
 func _ready() -> void:
@@ -79,6 +91,15 @@ func _ready() -> void:
 ## chaque pixel pose ferait, a 256 de cote, un quart de mega-octet par pixel et par coup de
 ## souris. On marque la case sale, et on ne televerse qu ici.
 func _process(_delta: float) -> void:
+	if _job != null:
+		if _job.step(LOAD_BUDGET_USEC):
+			_background = ImageTexture.create_from_image(_job.image())
+			_cache[_cache_key] = _background
+			loading_progress.emit(_job.total, _job.total)
+			_job = null
+		else:
+			loading_progress.emit(_job.done, _job.total)
+		queue_redraw()
 	if not _stale.is_empty():
 		# ⚠ ON NE TELEVERSE QUE CE QU ON VOIT. Peindre les jumelles peut salir cent cases d un
 		# coup ; a 256 pixels de cote, les remonter toutes ferait vingt-cinq mega-octets par
@@ -178,10 +199,24 @@ func set_guide_style(style: GuideImage.Style) -> void:
 	queue_redraw()
 
 
+## ⚠ LE FOND SE CALCULE PAR ETAPES, ET ON GARDE CE QU'ON A DEJA CALCULE. Le dessiner coute
+## de deux a cinq secondes ; en un seul appel l'ecran gele. On lance un travail que
+## _process() fait avancer, et on range le resultat : revenir a un style deja vu est
+## instantane. La cle porte le contenu du relief, donc un guide modifie ne ressort jamais
+## une vieille image.
 func _redraw_background() -> void:
 	if _heights.is_empty():
 		return
-	_background = ImageTexture.create_from_image(GuideImage.render(_heights, GUIDE_TILE, guide_style))
+	_cache_key = "%d:%d:%d" % ["
+".join(_heights).hash(), GUIDE_TILE, int(guide_style)]
+	if _cache.has(_cache_key):
+		_background = _cache[_cache_key]
+		_job = null
+		loading_progress.emit(1, 1)
+		return
+	_background = null
+	_job = RenderJob.new(_heights, GUIDE_TILE, guide_style)
+	loading_progress.emit(0, _job.total)
 
 
 ## Recadre le guide entier dans la fenetre.

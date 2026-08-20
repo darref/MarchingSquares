@@ -23,15 +23,17 @@ const MODES: Dictionary = {
 		"guide_path": "res://guides/minimal.txt",
 		"surface_tiles": 47,
 		"wall_tiles": 12,
+		"min_variants": 1,
 	},
-	# ⚠ DECIDE, NOMME, PAS ENCORE DESSINE. Meme completude que `minimal`, mais volontairement
-	# plus de repetitions : peindre une tuile en remplit plusieurs, ce qui rend le geste plus
-	# intuitif. Il reste ferme tant que son guide n'existe pas (charte, regle 5).
+	# Meme completude que `minimal`, mais volontairement plus de repetitions : chaque tuile
+	# se voit dans plusieurs contextes, ce qui rend le geste plus sur. La promesse est
+	# chiffree par `min_variants` et prouvee par la suite de tests.
 	AMPLE: {
 		"label": "Ample",
 		"guide_path": "res://guides/ample.txt",
 		"surface_tiles": 47,
 		"wall_tiles": 12,
+		"min_variants": 3,
 	},
 }
 
@@ -69,6 +71,16 @@ static func guide_path(id: StringName) -> String:
 		push_error("modes: mode inconnu '%s'." % id)
 		return ""
 	return MODES[id]["guide_path"]
+
+
+## Nombre minimal d'occurrences que chaque tuile doit avoir dans le guide du mode.
+## ⚠ C'EST LA PROMESSE DU MODE, ET ELLE EST PROUVEE. `ample` ne dit pas « plus redondant »
+## en esperant que ce soit vrai : il annonce 3, et la suite de tests le verifie.
+static func min_variants(id: StringName) -> int:
+	if not MODES.has(id):
+		push_error("modes: mode inconnu '%s'." % id)
+		return 0
+	return MODES[id]["min_variants"]
 
 
 ## Nombre de tuiles de surface -- le blob 47.

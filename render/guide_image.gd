@@ -94,68 +94,24 @@ const STROKE: float = 0.055
 ## Rend le relief en une image. Une case du guide = TILE pixels.
 ## Le cote de tuile est un parametre : l'illustration sert de fond d'ecran a l'editeur,
 ## et doit pouvoir se caler sur la resolution des faux pixels.
+## ⚠ CE CHEMIN DESSINE TOUT D'UN COUP, et cela prend de deux a cinq secondes. Il sert aux
+## tests et a l'ecriture sur disque, ou personne ne regarde l'ecran. L'interface, elle,
+## passe par guide_render_job.gd, qui fait le meme travail par etapes -- meme code, meme
+## resultat, mais on peut le regarder avancer.
 static func render(heights: PackedStringArray, tile_size: int = TILE,
 		style: Style = Style.REPRESENTATIVE) -> Image:
-	var columns: int = HeightMask.width(heights)
-	var rows: int = HeightMask.height(heights)
-	var image: Image = Image.create_empty(columns * tile_size, rows * tile_size, false, Image.FORMAT_RGBA8)
-	image.fill(USABLE_PLAIN if style == Style.USABLE else PLAIN_COLOR)
-
-	var top_level: int = HeightMask.top_level(heights)
-	var tops: Dictionary = {}
-	for level: int in range(1, top_level + 1):
-		for y: int in range(rows):
-			for x: int in range(columns):
-				var index: int = Coverage.index_at_level(heights, x, y, level)
-				if index == Coverage.NO_INDEX:
-					continue
-				var key: Vector2i = Vector2i(index, level)
-				if not tops.has(key):
-					tops[key] = _make_top(index, level, tile_size, style)
-				_stamp(image, tops[key], x, y, tile_size)
-
-	var assembled: Dictionary = Walls.assemble(heights)
-	var roles: Dictionary = assembled["roles"]
-	var faces: Dictionary = {}
-	var feet: Array[Vector2i] = []
-	for level: int in range(1, top_level + 1):
-		for key: Vector3i in roles.keys():
-			if key.z != level:
-				continue
-			var role: Vector2i = roles[key]
-			if not faces.has(role):
-				faces[role] = _make_wall(role, tile_size, style)
-			_stamp(image, faces[role], key.x, key.y, tile_size)
-			if role.y == Walls.ROW_FOOT:
-				feet.append(Vector2i(key.x, key.y + 1))
-
-	# ⚠ L'OMBRE DE CONTACT NE SE POSE QU'A L'EST. La lumiere vient du nord-ouest, donc un
-	# voisin plus haut porte son ombre vers le sud-est ; au sud c'est deja une robe qui
-	# couvre la case, et il ne reste que le flanc est a assombrir.
-	var contact: Image = _make_contact_shadow(tile_size)
-	for y: int in range(rows if style == Style.REPRESENTATIVE else 0):
-		for x: int in range(columns):
-			if HeightMask.level_at(heights, x - 1, y) > HeightMask.level_at(heights, x, y):
-				_stamp(image, contact, x, y, tile_size)
-
-	# L'ombre portee au sol, sous les pieds de falaise. C'est elle qui donne la hauteur ;
-	# sans elle, un mur ressemble a un aplat colle sur l'herbe.
-	var shadow: Image = _make_ground_shadow(tile_size)
-	for cell: Vector2i in (feet if style == Style.REPRESENTATIVE else ([] as Array[Vector2i])):
-		if _has_wall_at(roles, cell):
-			continue
-		_stamp(image, shadow, cell.x, cell.y, tile_size)
-	return image
+	var job: RefCounted = load("res://render/guide_render_job.gd").new(heights, tile_size, style)
+	while not job.step(1 << 40):
+		pass
+	return job.image()
 
 
-static func _has_wall_at(roles: Dictionary, cell: Vector2i) -> bool:
-	for key: Vector3i in roles.keys():
-		if key.x == cell.x and key.y == cell.y:
-			return true
-	return false
+## La couleur de fond hors de tout relief, selon le style.
+static func plain_color(style: Style) -> Color:
+	return USABLE_PLAIN if style == Style.USABLE else PLAIN_COLOR
 
 
-static func _stamp(image: Image, tile: Image, x: int, y: int, tile_size: int) -> void:
+static func stamp(image: Image, tile: Image, x: int, y: int, tile_size: int) -> void:
 	if x < 0 or y < 0 or x * tile_size >= image.get_width() or y * tile_size >= image.get_height():
 		return
 	image.blend_rect(tile, Rect2i(0, 0, tile_size, tile_size), Vector2i(x * tile_size, y * tile_size))
@@ -194,7 +150,7 @@ static func _finish(buffer: PackedByteArray, side: int, tile_size: int) -> Image
 	return image
 
 
-static func _make_top(index: int, level: int, tile_size: int, style: Style) -> Image:
+static func make_top(index: int, level: int, tile_size: int, style: Style) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var usable: bool = style == Style.USABLE
 	var base: Color = USABLE_LEVELS[mini(level, USABLE_LEVELS.size() - 1)] if usable 			else LEVEL_COLORS[mini(level, LEVEL_COLORS.size() - 1)]
@@ -330,7 +286,7 @@ static func _on_outline(px: float, py: float, last: float, outer: float, inner: 
 ## Le code se lit d'un coup d'oeil : un trait en haut pour le chapiteau, un trait en bas
 ## pour le pied, un tiret au milieu pour le premier corps, deux pour le second. Et un trait
 ## vertical du cote ou la falaise s'arrete, qui dit le pan.
-static func _make_wall_usable(role: Vector2i, tile_size: int) -> Image:
+static func make_wall_usable(role: Vector2i, tile_size: int) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var buffer: PackedByteArray = _blank(side, USABLE_WALL)
 	var last: float = float(side - 1)
@@ -368,9 +324,9 @@ static func _make_wall_usable(role: Vector2i, tile_size: int) -> Image:
 	return _finish(buffer, side, tile_size)
 
 
-static func _make_wall(role: Vector2i, tile_size: int, style: Style) -> Image:
+static func make_wall(role: Vector2i, tile_size: int, style: Style) -> Image:
 	if style == Style.USABLE:
-		return _make_wall_usable(role, tile_size)
+		return make_wall_usable(role, tile_size)
 	var side: int = tile_size * SUPERSAMPLE
 	var base: Color = STONE_BODY_A
 	match role.y:
@@ -425,7 +381,7 @@ static func _make_wall(role: Vector2i, tile_size: int, style: Style) -> Image:
 	return _finish(buffer, side, tile_size)
 
 
-static func _make_ground_shadow(tile_size: int) -> Image:
+static func make_ground_shadow(tile_size: int) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var buffer: PackedByteArray = _blank(side, GROUND_SHADOW)
 	var last: float = float(side - 1)
@@ -440,7 +396,7 @@ static func _make_ground_shadow(tile_size: int) -> Image:
 	return _finish(buffer, side, tile_size)
 
 
-static func _make_contact_shadow(tile_size: int) -> Image:
+static func make_contact_shadow(tile_size: int) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var buffer: PackedByteArray = _blank(side, CONTACT_SHADOW)
 	var last: float = float(side - 1)

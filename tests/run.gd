@@ -33,12 +33,13 @@ func _initialize() -> void:
 	_test_height_mask()
 	_test_wall_rows()
 	_test_wall_assembly()
-	_test_minimal_guide_is_complete()
+	_test_mode_guides_are_complete()
 	_test_minimal_guide_walls()
 	_test_painting()
 	_test_wall_variants()
 	_test_twins()
 	_test_guide_image()
+	_test_every_script_parses()
 	_report_candidate_guide()
 	_print_summary()
 	quit(0 if _failures.is_empty() else 1)
@@ -198,11 +199,13 @@ func _test_modes_catalogue() -> void:
 	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
 	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
-	_check(not Modes.is_available(Modes.AMPLE), "ample n a pas encore de guide : il reste ferme")
+	_check(Modes.is_available(Modes.AMPLE), "ample a son guide, il se choisit")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
 	_check_equal(Modes.surface_tile_count(Modes.MINIMAL), BLOB_TILE_COUNT, "47 tuiles de surface")
 	_check_equal(Modes.wall_tile_count(Modes.MINIMAL), Walls.ALL_ROLES.size(), "12 tuiles de mur")
 	_check_equal(Modes.tile_count(Modes.MINIMAL), BLOB_TILE_COUNT + Walls.ALL_ROLES.size(), "59 tuiles en tout")
+	_check_equal(Modes.min_variants(Modes.MINIMAL), 1, "minimal ne promet qu une occurrence")
+	_check_equal(Modes.min_variants(Modes.AMPLE), 3, "ample en promet trois")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
 
@@ -334,15 +337,20 @@ func _test_wall_assembly() -> void:
 	_check_equal(stair_roles[Vector3i(2, 5, 2)].x, Walls.PAN_MIDDLE, "plus bas, l etage voisin borde : pan courant")
 
 
-func _test_minimal_guide_is_complete() -> void:
-	print("mode minimal : le guide est complet, et ce qui est peint decide")
-	var guide_path: String = Modes.guide_path(Modes.MINIMAL)
-	_check(FileAccess.file_exists(guide_path), "le guide du mode minimal existe")
-	if not FileAccess.file_exists(guide_path):
-		return
+## ⚠ TOUT MODE OUVERT DOIT PROUVER SON GUIDE. La boucle vaut declaration : ajouter un mode
+## au catalogue, c'est s'engager a ce que son guide passe ici.
+func _test_mode_guides_are_complete() -> void:
+	for id: StringName in Modes.ids():
+		if Modes.is_available(id):
+			_check_one_guide(id)
+
+
+func _check_one_guide(id: StringName) -> void:
+	print("mode %s : le guide est complet, et ce qui est peint decide" % Modes.label(id))
+	var guide_path: String = Modes.guide_path(id)
 	var heights: PackedStringArray = HeightMask.read(guide_path)
 	var report: Dictionary = Coverage.analyse_relief(heights)
-	_check_equal(report["present"].size(), Modes.surface_tile_count(Modes.MINIMAL), "les 47 index de surface visible sont couverts")
+	_check_equal(report["present"].size(), Modes.surface_tile_count(id), "les 47 index de surface visible sont couverts")
 	_check(report["is_complete"], "aucun index de surface manquant")
 	print("  %d surfaces visibles a peindre" % report["filled_count"])
 
@@ -357,37 +365,45 @@ func _test_minimal_guide_is_complete() -> void:
 	_check_equal(resolved["delivered"].size(), BLOB_TILE_COUNT, "les 47 index sont livres")
 	_check(resolved["unused"].is_empty(), "aucune case inutilisee quand tout est peint")
 
-	# Un guide complet ne suffit pas : laisser une case seule non peinte retire son index.
-	var solo_index: int = -1
+	# ⚠ LA PROMESSE DU MODE EST CHIFFREE, DONC ELLE SE PROUVE. `minimal` annonce 1 variante
+	# minimum, `ample` en annonce 3 : c est toute la difference entre les deux, et elle
+	# n a pas a etre crue sur parole.
+	var promised: int = Modes.min_variants(id)
+	var rarest: int = 1 << 30
 	for index: int in report["present"]:
-		if int(report["occurrences"][index]) == 1:
-			solo_index = index
-			break
-	_check(solo_index >= 0, "le guide contient au moins un index a occurrence unique")
-	if solo_index < 0:
-		return
-	var solo_cells: Array[Vector3i] = report["positions"][solo_index]
-	var solo_cell: Vector2i = Vector2i(solo_cells[0].x, solo_cells[0].y)
-	var without_solo: Array[Vector2i] = []
+		rarest = mini(rarest, int(report["occurrences"][index]))
+	_check(rarest >= promised, "chaque index est vu au moins %d fois, comme annonce (le plus rare : %d)" % [promised, rarest])
+
+	# Un guide complet ne suffit pas a exporter : laisser un index ENTIEREMENT vierge le
+	# retire. On ne peut pas se contenter d omettre une case -- dans un mode redondant, ses
+	# jumelles couvriraient l index.
+	var target: int = report["present"][0]
+	var skipped: Dictionary = {}
+	for cell: Vector3i in report["positions"][target]:
+		skipped[Vector2i(cell.x, cell.y)] = true
+	var without: Array[Vector2i] = []
 	for cell: Vector2i in every_cell:
-		if cell != solo_cell:
-			without_solo.append(cell)
-	var partial: Dictionary = Variants.resolve_relief(heights, without_solo)
-	_check_equal(partial["missing"], PackedInt32Array([solo_index]), "laisser cette case non peinte fait manquer exactement son index")
+		if not skipped.has(cell):
+			without.append(cell)
+	var partial: Dictionary = Variants.resolve_relief(heights, without)
+	_check_equal(partial["missing"], PackedInt32Array([target]), "laisser un index entierement vierge le fait manquer, et lui seul")
 	_check_equal(partial["is_exportable"], false, "un index non peint interdit l export")
 
 
 func _test_minimal_guide_walls() -> void:
-	print("mode minimal : le guide couvre aussi le vocabulaire de mur")
-	var guide_path: String = Modes.guide_path(Modes.MINIMAL)
-	if not FileAccess.file_exists(guide_path):
-		_check(false, "le guide du mode minimal existe")
-		return
+	for id: StringName in Modes.ids():
+		if Modes.is_available(id):
+			_check_one_guide_walls(id)
+
+
+func _check_one_guide_walls(id: StringName) -> void:
+	print("mode %s : le guide couvre aussi le vocabulaire de mur" % Modes.label(id))
+	var guide_path: String = Modes.guide_path(id)
 	var heights: PackedStringArray = HeightMask.read(guide_path)
 	_check(HeightMask.top_level(heights) >= 2, "le guide a du relief : au moins deux etages")
 	var report: Dictionary = Walls.analyse(heights)
 	var present: Array[Vector2i] = report["present"]
-	_check_equal(present.size(), Modes.wall_tile_count(Modes.MINIMAL), "les 12 roles de mur sont couverts")
+	_check_equal(present.size(), Modes.wall_tile_count(id), "les 12 roles de mur sont couverts")
 	_check(report["is_complete"], "aucun role de mur manquant")
 	# ⚠ UNE ROBE QUI TOMBE HORS DE LA GRILLE EST UNE TUILE QU ON NE PEUT PAS PEINDRE.
 	# Un guide en relief doit garder de la plaine sous ses falaises.
@@ -396,8 +412,11 @@ func _test_minimal_guide_walls() -> void:
 	print("  grille %dx%d, etages 0..%d" % [HeightMask.width(heights), HeightMask.height(heights), HeightMask.top_level(heights)])
 	var occurrences: Dictionary = report["occurrences"]
 	var wall_cells: int = 0
+	var rarest_role: int = 1 << 30
 	for role: Vector2i in occurrences.keys():
 		wall_cells += int(occurrences[role])
+		rarest_role = mini(rarest_role, int(occurrences[role]))
+	_check(rarest_role >= Modes.min_variants(id), "chaque role de mur est vu au moins %d fois (le plus rare : %d)" % [Modes.min_variants(id), rarest_role])
 	print("  %d cases de robe deroulees" % wall_cells)
 
 
@@ -523,6 +542,38 @@ func _test_guide_image() -> void:
 	var neutral: Color = usable.get_pixel(4 * GuideImage.TILE + half, 6 * GuideImage.TILE + half)
 	_check(absf(neutral.r - neutral.g) < 0.08 and absf(neutral.g - neutral.b) < 0.08,
 			"le fond utilisable est neutre : il n impose aucune teinte aux couleurs qu on pose")
+
+
+## ⚠ LA SUITE NE CHARGE PAS L'INTERFACE PAR AILLEURS, et une faute de frappe dans un script
+## d'ui passait donc au travers -- decouvert en dur, sur un `PackedStringArray.hash()` qui
+## n'existe pas. Charger chaque script suffit a les faire analyser par le moteur.
+func _test_every_script_parses() -> void:
+	print("tous les scripts du depot s analysent")
+	var scripts: PackedStringArray = PackedStringArray()
+	_collect_scripts("res://", scripts)
+	_check(scripts.size() >= 12, "au moins douze scripts trouves (%d)" % scripts.size())
+	var broken: PackedStringArray = PackedStringArray()
+	for path: String in scripts:
+		if ResourceLoader.load(path, "Script") == null:
+			broken.append(path)
+	_check_equal(broken, PackedStringArray(), "aucun script en erreur")
+
+
+func _collect_scripts(folder: String, into: PackedStringArray) -> void:
+	var directory: DirAccess = DirAccess.open(folder)
+	if directory == null:
+		return
+	directory.list_dir_begin()
+	var entry: String = directory.get_next()
+	while entry != "":
+		var path: String = folder.path_join(entry)
+		if directory.current_is_dir():
+			if not entry.begins_with("."):
+				_collect_scripts(path, into)
+		elif entry.ends_with(".gd"):
+			into.append(path)
+		entry = directory.get_next()
+	directory.list_dir_end()
 
 
 # --- Etat du guide candidat (informatif, pas une assertion) -----------------

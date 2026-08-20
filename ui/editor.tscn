@@ -263,6 +263,13 @@ corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_load"]
+bg_color = Color(0.075, 0.082, 0.09, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [node name="Editor" type="Control" unique_id=465720354]
 layout_mode = 3
 anchors_preset = 0
@@ -329,6 +336,51 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 focus_mode = 1
 script = ExtResource("2_c55ig")
+
+[node name="LoadingPanel" type="PanelContainer" parent="Layout/Body"]
+unique_name_in_owner = true
+visible = false
+theme_override_styles/panel = SubResource("StyleBoxFlat_load")
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -44.0
+offset_right = 150.0
+offset_bottom = 44.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LoadingMargin" type="MarginContainer" parent="Layout/Body/LoadingPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="LoadingBox" type="VBoxContainer" parent="Layout/Body/LoadingPanel/LoadingMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LoadingTitle" type="Label" parent="Layout/Body/LoadingPanel/LoadingMargin/LoadingBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+text = "Dessin du fond du guide"
+
+[node name="LoadingBar" type="ProgressBar" parent="Layout/Body/LoadingPanel/LoadingMargin/LoadingBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+show_percentage = false
+
+[node name="LoadingCount" type="Label" parent="Layout/Body/LoadingPanel/LoadingMargin/LoadingBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "0 / 0 tuiles"
 
 [node name="Sidebar" type="PanelContainer" parent="Layout/Body" unique_id=2144598249]
 unique_name_in_owner = true

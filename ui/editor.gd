@@ -47,6 +47,7 @@ func _ready() -> void:
 	_fill_styles()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
+	work.loading_progress.connect(_on_loading_progress)
 	var mode_choice: OptionButton = %ModeChoice
 	mode_choice.item_selected.connect(_on_mode_selected)
 	var size_choice: OptionButton = %SizeChoice
@@ -188,6 +189,17 @@ func _on_swatch_pressed(button: Button) -> void:
 	var color: Color = button.get_meta("color")
 	(%PencilColor as ColorPickerButton).color = color
 	(%WorkArea as Control).pencil = color
+
+
+## ⚠ LA VALEUR AFFICHEE EST CELLE DU TRAVAIL REEL : des tuiles dessinees sur des tuiles a
+## dessiner. Pas un compte a rebours, pas une animation qui tourne pendant qu'on attend.
+func _on_loading_progress(done: int, total: int) -> void:
+	var panel: Control = %LoadingPanel
+	panel.visible = done < total
+	var bar: ProgressBar = %LoadingBar
+	bar.max_value = float(maxi(total, 1))
+	bar.value = float(done)
+	(%LoadingCount as Label).text = "%d / %d tuiles" % [done, total]
 
 
 func _on_twins_toggled(pressed: bool) -> void:
