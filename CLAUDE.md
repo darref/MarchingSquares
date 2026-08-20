@@ -407,6 +407,32 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
+- **Liste déroulante « guide background style » : `representative` ou `usable`.**
+  Le fond actuel est *representative* : il montre le paysage **tel qu'il sera une fois
+  peint**, avec ses couleurs, ses falaises et ses ombres. C'est ce qu'il faut pour
+  comprendre le guide d'un coup d'œil — mais c'est un mauvais support pour peindre dessus,
+  et deux défauts déjà observés le disent :
+  - ses teintes contaminent la lecture des siennes. On ne juge pas une couleur posée sur un
+    aplat vert soutenu comme on la juge sur un fond neutre ;
+  - un lac d'une case y rend comme une fosse de pierre — fidèle au modèle, mais ça ne dit
+    pas ce qu'il y a à dessiner.
+
+  *usable* reste **à dessiner**, et c'est un travail de conception, pas de rendu. Intention :
+  montrer la **structure** plutôt que le résultat. Ce qu'il faut voir pendant qu'on peint,
+  c'est où passent les bords de tuile, quel côté est la lèvre éclairée et quel côté est la
+  face, et à quelle rangée de robe on se trouve (chapiteau, corps, pied). Donc : trait
+  plutôt qu'aplat, teinte neutre et contraste bas pour que n'importe quelle couleur de
+  crayon ressorte, et rien qui attire l'œil ailleurs que sur ce qu'on pose.
+
+  ⚠ Les deux styles doivent sortir de **la même fonction et du même relief** — un paramètre
+  de `guide_image.render()`, pas un second dessinateur. Sinon les deux fonds finiront par
+  raconter deux guides différents, et c'est exactement ce que ce fichier existe pour
+  empêcher.
+
+  Le choix est une **aide à la vue, pas un réglage du produit** (rien de ce qui sort n'en
+  dépend) : sa place est donc dans une section d'outils, à côté de « Recadrer le guide »,
+  pas dans les boutons globaux.
+
 - **Mode « peindre les rotations ».** Une seconde case à cocher : toutes les tuiles qu'on
   obtiendrait **en tournant** celle qu'on dessine se remplissent aussi, en temps réel.
   Techniquement c'est prêt à écrire : tourner un voisinage d'un quart de tour est une
