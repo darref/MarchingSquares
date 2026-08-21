@@ -8,6 +8,8 @@ var _work: String = ""
 var _assembled: bool = false
 var _preview: bool = false
 var _marks: bool = true
+var _hover: Vector2i = Vector2i(-1, -1)
+var _hovered: bool = false
 var _decor: int = 0
 var _editor: Node = null
 
@@ -42,7 +44,11 @@ func _initialize() -> void:
 				_preview = true
 				_decor = 1
 			_:
-				if argument.ends_with(".absolutiles"):
+				if argument.begins_with("survol="):
+					var at: PackedStringArray = argument.substr(7).split(",")
+					if at.size() == 2:
+						_hover = Vector2i(at[0].to_int(), at[1].to_int())
+				elif argument.ends_with(".absolutiles"):
 					_work = argument
 
 
@@ -85,6 +91,13 @@ func _process(_delta: float) -> bool:
 		return false
 	var loading: Control = _editor.get_node("%LoadingPanel")
 	if loading.visible and _frames < 900:
+		return false
+	# ⚠ LE SURVOL SE POSE AU DERNIER MOMENT. Pose plus tot, la VRAIE souris -- garee quelque
+	# part sur l'ecran -- emet son propre survol et l'ecrase. On a cru un panneau casse alors
+	# qu'il suivait fidelement un curseur qu'on ne voyait pas.
+	if _hover.x >= 0 and not _hovered:
+		_hovered = true
+		_editor.call("_on_hover_changed", _hover)
 		return false
 	var image: Image = root.get_texture().get_image()
 	var error: Error = image.save_png(_target)

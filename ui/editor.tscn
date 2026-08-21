@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://ui/sidebar.gd" id="3_4x3iy"]
 [ext_resource type="Script" path="res://ui/tool_section.gd" id="4_cwcei"]
 [ext_resource type="Script" path="res://ui/preview_panel.gd" id="5_prvw"]
+[ext_resource type="Script" path="res://ui/neighbours_panel.gd" id="6_nghb"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qfej6"]
 bg_color = Color(0.129, 0.141, 0.149, 1)
@@ -750,6 +751,20 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_vibf4")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_i3odb")
 theme_override_styles/hover = SubResource("StyleBoxFlat_ghx7n")
 metadata/color = Color(0.451, 0.588, 0.639, 1)
+
+[node name="NeighboursLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3100019]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+autowrap_mode = 2
+text = "Les voisines de la case survolee, collees."
+
+[node name="NeighboursPanel" type="Control" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3100020]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 212)
+layout_mode = 2
+tooltip_text = "La case survolee et ses voisines reelles, a la meme echelle et COLLEES. Le raccord se juge pendant le geste, pas apres l'export."
+script = ExtResource("6_nghb")
 
 [node name="TwinsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=2000725611]
 unique_name_in_owner = true

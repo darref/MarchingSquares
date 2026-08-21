@@ -88,6 +88,7 @@ func _ready() -> void:
 	(%MarksCheck as CheckBox).toggled.connect(_on_marks_hidden)
 	(%DecorChoice as OptionButton).item_selected.connect(_on_decor_selected)
 	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
+	work.painting_changed.connect((%NeighboursPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
@@ -234,6 +235,7 @@ func _load_current_mode() -> void:
 	work.guide_purpose = technic.get_item_metadata(technic.selected)
 	work.show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
+	(%NeighboursPanel as Control).show_guide(_painting)
 	_apply_decor()
 	_refresh_counters()
 
@@ -402,6 +404,7 @@ func _on_assembled_toggled(pressed: bool) -> void:
 ## ⚠ ON DECRIT L'INDEX PAR SES BITS, pas par son numero seul. « 117 » ne dit rien ;
 ## « N+E+S+SW+W » dit la forme, donc ce qu'il faut dessiner.
 func _on_hover_changed(cell: Vector2i) -> void:
+	(%NeighboursPanel as Control).look_at_cell(cell)
 	var label: Label = %HoverLabel
 	if cell.x < 0:
 		label.text = "survolez une case"
@@ -475,6 +478,7 @@ func _on_open_chosen(path: String) -> void:
 	_painting = report["painting"]
 	(%WorkArea as Control).show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
+	(%NeighboursPanel as Control).show_guide(_painting)
 	_work_path = path
 	_refresh_counters()
 

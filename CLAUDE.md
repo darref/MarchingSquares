@@ -53,6 +53,7 @@ ui/           l'éditeur
   sidebar.gd      la barre translucide, pleine sous le curseur
   tool_section.gd une section d'outils repliable
   preview_panel.gd  l'aperçu en jeu : les tuiles peintes sur un décor ordinaire
+  neighbours_panel.gd  la case survolée et ses voisines, collées
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : relief 35x28, 47/47 et 12/12
@@ -884,6 +885,29 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **Chaque arête n'est tracée qu'une fois** : on pose toujours le haut et la gauche, et le
   bas ou la droite seulement au bord du peignable. Une arête intérieure appartient ainsi à la
   case du dessous ou de droite, jamais aux deux.
+
+- **Les voisines : le raccord se juge PENDANT le geste** (`ui/neighbours_panel.gd`, section
+  Crayon). Trente-six tuiles de robe dont beaucoup ne diffèrent que par une arête de deux ou
+  trois pixels : c'est répétitif, et la répétition est exactement là où une main diverge. Le
+  test des raccords attrape la divergence — mais l'attraper veut dire du rouge et des
+  retouches, soit le va-et-vient que cet outil existe pour supprimer. Le panneau montre donc
+  la case survolée entourée de ses **voisines réelles**, celles du guide, à la même échelle.
+
+  ⚠ **Aucun écart entre les cases, jamais.** Un panneau qui espacerait ses tuiles pour faire
+  joli ne montrerait plus rien du tout : c'est précisément la ligne de contact qu'on vient
+  regarder. Le repérage de la case centrale se fait donc par des marques posées **dehors**.
+
+  ⚠ **L'échelle est un entier**, comme pour l'aperçu en jeu : un demi-pixel d'écran par faux
+  pixel inventerait des coutures que le dessin n'a pas.
+
+  ⚠ **Un trou est noir, pas couleur de sol.** Je l'avais peint à la teinte de l'étage 0 : un
+  panneau entièrement vide ressemblait alors à du terrain, et j'ai cru pendant trois essais
+  que le panneau marchait. Un trou n'est pas du terrain, c'est ce qu'il reste à faire.
+
+  ⚠ **Et le piège de l'outil de capture, qui vaut d'être noté** : `screenshot.gd` posait le
+  survol au troisième frame, puis la **vraie souris** — garée quelque part sur l'écran —
+  émettait le sien et l'écrasait. On a cru un panneau cassé alors qu'il suivait fidèlement un
+  curseur qu'on ne voyait pas. Le survol se pose désormais juste avant la capture.
 
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
