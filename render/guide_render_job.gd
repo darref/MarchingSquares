@@ -27,8 +27,16 @@ var done: int = 0
 var _heights: PackedStringArray
 var _tile_size: int
 var _ink: GuideImage.Ink
+var _marks: bool = true
 var _purpose: GuideImage.Purpose
 var _image: Image
+
+## ⚠ LA LUMIERE PORTEE EST UNE COUCHE A PART, ET IL LE FAUT. Les ombres tombent sur des
+## cases de PLAINE -- or la plaine n'est pas une tuile du tileset : aucune tuile exportee ne
+## peut les porter. L'illustration montrerait donc un paysage plus beau que ce que le
+## tileset sait produire, c'est-a-dire qu'elle mentirait. On garde donc les deux images :
+## celle qui flatte, et celle qui dit la verite.
+var _flat: Image
 var _tops: Dictionary = {}
 var _faces: Dictionary = {}
 var _top_queue: Array[Vector2i] = []
@@ -41,11 +49,12 @@ var _finished: bool = false
 
 
 func _init(heights: PackedStringArray, tile_size: int, ink: GuideImage.Ink,
-		purpose: GuideImage.Purpose) -> void:
+		purpose: GuideImage.Purpose, marks: bool = true) -> void:
 	_heights = heights
 	_tile_size = tile_size
 	_ink = ink
 	_purpose = purpose
+	_marks = marks
 	_prepare()
 
 
@@ -60,6 +69,9 @@ func _prepare() -> void:
 	_image = Image.create_empty(maxi(columns, 1) * _tile_size, maxi(rows, 1) * _tile_size,
 			false, Image.FORMAT_RGBA8)
 	_image.fill(GuideImage.plain_color(_ink))
+	_flat = Image.create_empty(_image.get_width(), _image.get_height(), false,
+			Image.FORMAT_RGBA8)
+	_flat.fill(GuideImage.plain_color(_ink))
 
 	var wanted: Dictionary = {}
 	for level: int in range(1, HeightMask.top_level(_heights) + 1):
@@ -94,6 +106,21 @@ func _prepare() -> void:
 			for x: int in range(columns):
 				if HeightMask.level_at(_heights, x - 1, y) > HeightMask.level_at(_heights, x, y):
 					_contacts.append(Vector2i(x, y))
+		# ⚠ UNE FALAISE AUSSI PORTE OMBRE A L'EST, et elle ne le faisait pas. Le test
+		# ci-dessus lit `level_at`, or une case de robe EST une case de plaine sur la carte :
+		# une falaise ne se voyait donc jamais comme « du haut ». Elle se dresse pourtant
+		# au-dessus du sol, et le soleil du nord-ouest la couche vers l'est.
+		var standing: Dictionary = {}
+		for key: Vector3i in roles.keys():
+			standing[Vector2i(key.x, key.y)] = maxi(int(standing.get(Vector2i(key.x, key.y), 0)),
+					key.z)
+		for cell: Vector2i in standing.keys():
+			var beside: Vector2i = cell + Vector2i.RIGHT
+			if standing.has(beside):
+				continue
+			if HeightMask.level_at(_heights, beside.x, beside.y) >= int(standing[cell]):
+				continue
+			_contacts.append(beside)
 
 	total = _top_queue.size() + _wall_queue.size() + 1
 
@@ -174,13 +201,13 @@ func step(budget_usec: int) -> bool:
 	var deadline: int = Time.get_ticks_usec() + budget_usec
 	while not _top_queue.is_empty():
 		var key: Vector2i = _top_queue.pop_front()
-		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _ink, _purpose)
+		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _ink, _marks)
 		done += 1
 		if Time.get_ticks_usec() >= deadline:
 			return false
 	while not _wall_queue.is_empty():
 		var role: Vector2i = _wall_queue.pop_front()
-		_faces[role] = GuideImage.make_wall(role, _tile_size, _ink, _purpose)
+		_faces[role] = GuideImage.make_wall(role, _tile_size, _ink, _marks)
 		done += 1
 		if Time.get_ticks_usec() >= deadline:
 			return false
@@ -196,14 +223,20 @@ func _stamp_everything() -> void:
 	# Le banc d'essai a tout pose dans _prepare_example() : rien a tamponner ici.
 	if _purpose == GuideImage.Purpose.EXAMPLE:
 		return
+	# ⚠ L'ORDRE COMPTE, ET C'EST POURQUOI LA LUMIERE PORTEE N'EST PAS UN SIMPLE CALQUE
+	# PAR-DESSUS. L'ombre de contact se pose APRES les sommets et AVANT les faces : une
+	# falaise la recouvre. Posee en dernier, elle noircirait la roche. On tamponne donc les
+	# deux images en parallele, l'une recevant les ombres, l'autre non.
 	for placement: Array in _placements:
 		GuideImage.stamp(_image, _tops[placement[0]], placement[1], placement[2], _tile_size)
+		GuideImage.stamp(_flat, _tops[placement[0]], placement[1], placement[2], _tile_size)
 	if _ink == GuideImage.Ink.PAINTED:
 		var contact: Image = GuideImage.make_contact_shadow(_tile_size)
 		for cell: Vector2i in _contacts:
 			GuideImage.stamp(_image, contact, cell.x, cell.y, _tile_size)
 	for placement: Array in _wall_placements:
 		GuideImage.stamp(_image, _faces[placement[0]], placement[1], placement[2], _tile_size)
+		GuideImage.stamp(_flat, _faces[placement[0]], placement[1], placement[2], _tile_size)
 	if _ink != GuideImage.Ink.PAINTED:
 		return
 	var shadow: Image = GuideImage.make_ground_shadow(_tile_size)
@@ -217,3 +250,8 @@ func _stamp_everything() -> void:
 
 func image() -> Image:
 	return _image
+
+
+## La meme illustration SANS la lumiere portee : ce que le tileset sait reellement produire.
+func flat_image() -> Image:
+	return _flat if _flat != null else _image

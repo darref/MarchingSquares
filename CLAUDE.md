@@ -812,6 +812,48 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   disent *pourquoi*. Un lecteur n'a besoin que des premières ; un humain qui doit
   réimplémenter a besoin des secondes.
 
+- **L'EXAGÉRATION EST ELLE-MÊME UNE MARQUE DE TRAVAIL, et « Utilisable » a donc disparu de
+  la liste des techniques.** Il n'était rien d'autre que Représentatif **sans ses marques** :
+  ni marqueurs de coin rentrant, ni tirets de rangée, **ni traits épaissis** (lèvre ×1,7,
+  trait ×1,9, bandes de flanc ×1,6). Or la lèvre grossie et le trait large n'existent pas
+  pour être beaux — ils existent pour rendre la **spécification** lisible d'un coup d'œil,
+  exactement comme les tirets. Les masquer tous ensemble redonne exactement l'ancien
+  « Utilisable ».
+
+  Une entrée de liste est donc devenue une **case à cocher**, qui rejoint la famille des
+  « Masquer ». Rien n'est perdu, et il reste deux techniques : **Notre dessin** et
+  **Example**. La seconde question — *d'où vient le fond* — est la seule qui reste, et c'est
+  la bonne : notre dessin, ou un vrai tileset.
+
+- **La lumière portée est une couche à part, et elle DOIT l'être.** Les ombres tombent sur
+  des cases de **plaine** — or la plaine n'est pas une tuile du tileset : **aucune tuile
+  exportée ne peut les porter**. L'illustration montrait donc un paysage plus beau que ce que
+  le tileset sait produire, c'est-à-dire qu'elle mentait, ce qu'on lui interdit. « Masquer
+  les ombres » n'est pas une coquetterie : c'est un **outil de vérité**.
+
+  ⚠ **Et ce n'est pas un simple calque par-dessus.** L'ombre de contact se pose **après** les
+  sommets et **avant** les faces : une falaise la recouvre. Posée en dernier, elle noircirait
+  la roche. Le rendu tamponne donc **deux images en parallèle**, l'une recevant les ombres et
+  l'autre non.
+
+  **Le soleil est au nord-ouest**, et les deux ombres portées sont ses deux composantes
+  posées séparément : l'ombre de contact part vers l'**est**, l'ombre au sol vers le **sud**.
+  Aucune n'est jamais diagonale, et les deux ne se rejoignent pas dans un angle. C'est une
+  stylisation assumée, pas une géométrie exacte.
+
+  ⚠ **Une falaise porte ombre à l'est, et elle ne le faisait pas.** Le test de contact lisait
+  `level_at` — or **une case de robe EST une case de plaine sur la carte** : une falaise ne
+  se voyait donc jamais comme « du haut ». Elle se dresse pourtant au-dessus du sol.
+
+- **L'épaule : le coin de roche sous la lèvre sud.** Les coins sortants sont découpés, et
+  sous un bord sud il y a **toujours** une falaise — la case montrait donc le fond à travers
+  la roche, dans le petit angle entre l'arrondi et le haut de la face. On le remplit d'un
+  aplat de pierre, volontairement distinct du corps juste en dessous : c'est le chanfrein du
+  rocher, pas la face.
+
+  ⚠ **Et celui-là est légitime là où les ombres portées ne l'étaient pas** : il vit **dans**
+  la tuile de surface, donc une tuile exportée peut le porter.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

@@ -84,6 +84,8 @@ func _ready() -> void:
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
 	(%WorkCheck as CheckBox).toggled.connect(_on_work_hidden)
+	(%LightCheck as CheckBox).toggled.connect(_on_light_hidden)
+	(%MarksCheck as CheckBox).toggled.connect(_on_marks_hidden)
 	(%DecorChoice as OptionButton).item_selected.connect(_on_decor_selected)
 	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
@@ -158,22 +160,26 @@ func _fill_resolutions() -> void:
 
 ## ⚠ TROIS AXES INDEPENDANTS, ET ILS NE SE COMMANDENT PAS L UN L AUTRE.
 ##   le PAYSAGE   -- quel relief : minimal ou ample. C est le mode.
-##   la TECHNIQUE -- ce que le fond montre : le resultat seul, ou plus les marques.
-##   le STYLE     -- de quoi le fond est fait : des aplats, ou des traits.
-## Les deux derniers sont des aides a la vue : rien de ce qui sort n en depend. Les
-## avoir melanges une fois a suffi a rendre l un a la place de l autre.
+##   la TECHNIQUE -- d'ou vient le fond : de notre dessin, ou d'un vrai tileset.
+##   le STYLE     -- de quoi notre dessin est fait : des aplats, ou des traits.
+## Les deux derniers sont des aides a la vue : rien de ce qui sort n en depend.
+##
+## ⚠ « UTILISABLE » A DISPARU DE CETTE LISTE, ET C'EST UN GAIN. Il n'etait rien d'autre que
+## le representatif SANS SES MARQUES -- ni marqueurs, ni traits epaissis. Or l'epaississement
+## est lui-meme une marque de travail : la levre grossie et le trait large n'existent pas
+## pour etre beaux, ils existent pour rendre la specification lisible. Les masquer tous
+## ensemble redonne exactement l'ancien « utilisable ». Une entree de liste est donc devenue
+## une case a cocher, qui rejoint la famille des « Masquer » -- rien n'est perdu.
 func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
-	choice.add_item("Representatif")
+	choice.add_item("Notre dessin")
 	choice.set_item_metadata(0, GuideImage.Purpose.REPRESENTATIVE)
-	choice.add_item("Utilisable")
-	choice.set_item_metadata(1, GuideImage.Purpose.USABLE)
 	# ⚠ LE BANC D'ESSAI NE S'OUVRE QUE SI SATYRON EST LA. On lit son tileset chez lui, on ne
 	# le copie pas : sur une machine sans lui, la technique reste fermee (charte, regle 5).
 	choice.add_item("Example")
-	choice.set_item_metadata(2, GuideImage.Purpose.EXAMPLE)
-	choice.set_item_disabled(2, not Satyron.is_available())
+	choice.set_item_metadata(1, GuideImage.Purpose.EXAMPLE)
+	choice.set_item_disabled(1, not Satyron.is_available())
 	choice.select(0)
 
 
@@ -300,6 +306,30 @@ func _apply_margins() -> void:
 ## cochee est un mensonge d'ergonomie : elle donne a croire qu'on ajoute quelque chose alors
 ## qu'on en retire. Les trois retirent une couche -- la grille, le guide, le travail -- et
 ## elles partent toutes decochees, l'ecran complet.
+## ⚠ CE N'EST PAS UNE COQUETTERIE, C'EST UN OUTIL DE VERITE. Les ombres portees tombent sur
+## des cases de PLAINE, et la plaine n'est pas une tuile du tileset : aucune tuile exportee
+## ne peut les porter. Sans elles, on voit ce que le tileset sait reellement produire.
+## ⚠ LES MARQUES, C'EST AUSSI L'EPAISSEUR DU TRAIT. Ce ne sont pas seulement les marqueurs
+## de coin et les tirets de rangee : la levre grossie et les bandes de flanc elargies sont
+## des marques elles aussi. Elles n'existent pas pour etre belles, elles existent pour rendre
+## la specification lisible d'un coup d'oeil. Les masquer toutes ensemble donne le dessin nu,
+## tel que le tileset le montrera une fois assemble.
+func _on_marks_hidden(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.guide_marks = not pressed
+	work.refresh_background()
+	_announce("Marques masquees : le dessin nu, sans exageration." if pressed
+			else "Marques revenues.")
+
+
+func _on_light_hidden(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.hide_cast_light = pressed
+	work.queue_redraw()
+	_announce("Lumiere portee masquee : ce que le tileset sait vraiment rendre." if pressed
+			else "Lumiere portee revenue.")
+
+
 func _on_work_hidden(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.hide_work = pressed

@@ -7,6 +7,7 @@ var _ink: int = -1
 var _work: String = ""
 var _assembled: bool = false
 var _preview: bool = false
+var _marks: bool = true
 var _decor: int = 0
 var _editor: Node = null
 
@@ -27,10 +28,10 @@ func _initialize() -> void:
 	for index: int in range(1, arguments.size()):
 		var argument: String = arguments[index]
 		match argument:
-			"utilisable":
-				_technic = 1
 			"example":
-				_technic = 2
+				_technic = 1
+			"nu":
+				_marks = false
 			"fil":
 				_ink = 1
 			"remontage":
@@ -54,6 +55,10 @@ func _process(_delta: float) -> bool:
 			var technic: OptionButton = _editor.get_node("%StyleChoice")
 			technic.select(_technic)
 			technic.item_selected.emit(_technic)
+		if not _marks:
+			var marks: CheckBox = _editor.get_node("%MarksCheck")
+			marks.button_pressed = true
+			marks.toggled.emit(true)
 		if _ink >= 0:
 			var ink: OptionButton = _editor.get_node("%InkChoice")
 			ink.select(_ink)

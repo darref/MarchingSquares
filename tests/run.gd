@@ -1177,9 +1177,9 @@ func _test_seams() -> void:
 	# TOUTES. Deux tuiles voisines decrivent le MEME bord physique : si l une y met de la
 	# matiere et l autre du vide, l une des deux ment. On les compare toutes.
 	for style: Array in [
-			[GuideImage.Ink.PAINTED, GuideImage.Purpose.REPRESENTATIVE, "peint representatif"],
-			[GuideImage.Ink.PAINTED, GuideImage.Purpose.USABLE, "peint utilisable"],
-			[GuideImage.Ink.WIREFRAME, GuideImage.Purpose.REPRESENTATIVE, "fil representatif"]]:
+			[GuideImage.Ink.PAINTED, true, "peint avec marques"],
+			[GuideImage.Ink.PAINTED, false, "peint nu"],
+			[GuideImage.Ink.WIREFRAME, true, "fil avec marques"]]:
 		_check_surface_seams(style[0], style[1], String(style[2]))
 		_check_wall_seams(style[0], style[1], String(style[2]))
 
@@ -1190,11 +1190,10 @@ func _test_seams() -> void:
 ## chute decrivent la meme paroi, a la meme lumiere : ce qui traverse leur bord commun --
 ## rainure, teinte, grain -- doit le traverser sans se decaler. Une rainure qui saute a
 ## chaque cran, c est une falaise rayee de traits que la roche n a pas.
-func _check_wall_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
-		label: String) -> void:
+func _check_wall_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	var tiles: Dictionary = {}
 	for role: Vector2i in Walls.ALL_ROLES:
-		tiles[role] = GuideImage.make_wall(role, SEAM_TILE, ink, purpose)
+		tiles[role] = GuideImage.make_wall(role, SEAM_TILE, ink, marks)
 
 	# Les enchainements de rangees qu une chute produit reellement.
 	var sequences: Array = []
@@ -1236,11 +1235,10 @@ func _check_wall_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
 			% [label, worst * 100.0, guilty.size()])
 
 
-func _check_surface_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
-		label: String) -> void:
+func _check_surface_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	var tiles: Dictionary = {}
 	for index: int in BlobIndex.CANONICAL_INDICES:
-		tiles[index] = GuideImage.make_top(index, 1, SEAM_TILE, ink, purpose)
+		tiles[index] = GuideImage.make_top(index, 1, SEAM_TILE, ink, marks)
 
 	var broken_east: Array[String] = []
 	var steps_east: Array[String] = []
@@ -1399,9 +1397,10 @@ func _test_guide_image() -> void:
 	for id: StringName in Modes.ids():
 		var relief: PackedStringArray = HeightMask.read(Modes.guide_path(id))
 		for ink: GuideImage.Ink in [GuideImage.Ink.PAINTED, GuideImage.Ink.WIREFRAME]:
-			for purpose: GuideImage.Purpose in [GuideImage.Purpose.REPRESENTATIVE, GuideImage.Purpose.USABLE]:
-				drawings.append(GuideImage.render(relief, 8, ink, purpose).get_data())
-	_check_equal(drawings.size(), 8, "huit dessins : 2 paysages x 2 techniques x 2 styles")
+			for marks: bool in [true, false]:
+				drawings.append(GuideImage.render(relief, 8, ink,
+						GuideImage.Purpose.REPRESENTATIVE, marks).get_data())
+	_check_equal(drawings.size(), 8, "huit dessins : 2 paysages x 2 encres x 2 etats de marques")
 	var all_different: bool = true
 	for first: int in range(drawings.size()):
 		for second: int in range(first + 1, drawings.size()):
@@ -1410,7 +1409,7 @@ func _test_guide_image() -> void:
 	_check(all_different, "les huit sont differents deux a deux")
 
 	var wire: Image = GuideImage.render(heights, GuideImage.TILE, GuideImage.Ink.WIREFRAME,
-			GuideImage.Purpose.REPRESENTATIVE)
+			GuideImage.Purpose.REPRESENTATIVE, true)
 	var neutral: Color = wire.get_pixel(4 * GuideImage.TILE + half, 6 * GuideImage.TILE + half)
 	_check(absf(neutral.r - neutral.g) < 0.08 and absf(neutral.g - neutral.b) < 0.08,
 			"le fil de fer est neutre : il n impose aucune teinte aux couleurs qu on pose")
@@ -1427,9 +1426,9 @@ func _test_wireframe_joins() -> void:
 	# cardinaux pleins, diagonale vide -- qui doit fermer le coude. Sans elle, un carre vide
 	# de la largeur du trait apparait a chaque angle, et le dessin se troue.
 	var notched: Image = GuideImage.make_top(253, 1, side, GuideImage.Ink.WIREFRAME,
-			GuideImage.Purpose.USABLE)
+			false)
 	var solid: Image = GuideImage.make_top(255, 1, side, GuideImage.Ink.WIREFRAME,
-			GuideImage.Purpose.USABLE)
+			false)
 	var base: Color = GuideImage.WIRE_LEVELS[1]
 	var notched_corner: Color = notched.get_pixel(side - 1, 0)
 	var solid_corner: Color = solid.get_pixel(side - 1, 0)
@@ -1440,7 +1439,7 @@ func _test_wireframe_joins() -> void:
 
 	# Un cote ouvert doit etre trace d'un bord a l'autre, sinon il ne rejoint pas la voisine.
 	var open_north: Image = GuideImage.make_top(20, 1, side, GuideImage.Ink.WIREFRAME,
-			GuideImage.Purpose.USABLE)
+			false)
 	var reaches: bool = true
 	for x: int in range(side):
 		if open_north.get_pixel(x, 0).a > 0.0 and _same_ink(open_north.get_pixel(x, 0), base):

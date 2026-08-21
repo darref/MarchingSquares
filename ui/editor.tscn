@@ -485,8 +485,8 @@ clip_text = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "La technique dit ce que le fond montre,
-le style de quoi il est fait."
+text = "La technique dit d'ou vient le fond,
+le style de quoi notre dessin est fait."
 
 [node name="NextSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=863479697]
 layout_mode = 2
@@ -809,6 +809,18 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Efface vos pixels et ne laisse que le guide. L'inverse de « Masquer le guide » : pour comparer ce que vous avez peint a ce qu'il fallait peindre."
 text = "Masquer le travail"
+
+[node name="MarksCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100018]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Retire les marqueurs ET l'epaississement des traits. L'epaisseur est une marque elle aussi : elle existe pour rendre la specification lisible, pas pour etre belle. Sans elles, le dessin nu."
+text = "Masquer les marques"
+
+[node name="LightCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100017]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Les ombres portees tombent sur des cases de plaine, et la plaine n'est pas une tuile : aucune tuile exportee ne peut les porter. Les masquer montre ce que le tileset sait reellement produire."
+text = "Masquer les ombres"
 
 [node name="PreviewCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100012]
 unique_name_in_owner = true

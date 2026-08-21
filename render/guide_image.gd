@@ -41,9 +41,6 @@ enum Purpose {
 	## de la tuile qu'on peint : trait plus gras sur les cotes ouverts, marque franche aux
 	## coins rentrants, code de rangee bien lisible.
 	REPRESENTATIVE,
-	## Rien qui paraisse irreel, rien qu'on regarde : le dessin seul, tel que le tileset
-	## le montrera une fois assemble. Aucune marque, aucune exageration.
-	USABLE,
 	## Le guide assemble avec un VRAI tileset, celui de Satyron, lu depuis son projet.
 	## ⚠ L'encre n'a plus de sens ici : ce ne sont ni nos aplats ni nos traits, ce sont les
 	## tuiles de quelqu'un d'autre. C'est un banc d'essai, pas un fond de travail.
@@ -92,6 +89,18 @@ const STONE_CROWN: Color = Color(0.576, 0.510, 0.420)
 # pour que l'oeil ne lise pas la repetition.
 const STONE_BODY: Color = Color(0.478, 0.416, 0.337)
 const STONE_FOOT: Color = Color(0.318, 0.278, 0.220)
+
+## L'EPAULE : le coin de roche sous la levre sud.
+##
+## ⚠ UN COIN ARRONDI SOUS UNE LEVRE SUD N'EST PAS DU VIDE. Les coins sortants sont
+## decoupes, et sous un bord sud il y a TOUJOURS une falaise -- la case y montrait donc le
+## fond a travers la roche, dans le petit angle entre l'arrondi et le haut de la face. On le
+## remplit d'un aplat de pierre, volontairement DISTINCT du corps juste en dessous : c'est
+## le chanfrein du rocher, pas la face.
+##
+## ⚠ ET CELUI-CI EST LEGITIME LA OU LES OMBRES PORTEES NE L'ETAIENT PAS : il vit DANS la
+## tuile de surface, donc une tuile exportee peut le porter.
+const SHOULDER: Color = Color(0.404, 0.348, 0.282)
 const GROUND_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.38)
 const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
 
@@ -119,8 +128,10 @@ const MARK_PAINT: Color = Color(0.965, 0.902, 0.729)
 ## tests et a l'ecriture sur disque, ou personne ne regarde l'ecran. L'interface passe par
 ## guide_render_job.gd, qui fait le meme travail par etapes.
 static func render(heights: PackedStringArray, tile_size: int = TILE,
-		ink: Ink = Ink.PAINTED, purpose: Purpose = Purpose.REPRESENTATIVE) -> Image:
-	var job: RefCounted = load("res://render/guide_render_job.gd").new(heights, tile_size, ink, purpose)
+		ink: Ink = Ink.PAINTED, purpose: Purpose = Purpose.REPRESENTATIVE,
+		marks: bool = true) -> Image:
+	var job: RefCounted = load("res://render/guide_render_job.gd").new(heights, tile_size,
+			ink, purpose, marks)
 	while not job.step(1 << 40):
 		pass
 	return job.image()
@@ -171,17 +182,22 @@ static func _finish(buffer: PackedByteArray, side: int, tile_size: int) -> Image
 	return image
 
 
-static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: Purpose) -> Image:
+## ⚠ `marks` NE COMMANDE PAS QUE LES MARQUEURS : il commande aussi l'EPAISSISSEMENT des
+## traits. Et c'est juste, parce que l'epaississement EST une marque de travail -- la levre
+## grossie, le trait large, les bandes de flanc elargies n'existent pas pour etre beaux, ils
+## existent pour rendre la specification lisible d'un coup d'oeil. Exactement comme les
+## tirets. Les masquer tous ensemble redonne le dessin nu, tel que le tileset le montrera.
+static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bool) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var wire: bool = ink == Ink.WIREFRAME
 	var base: Color = WIRE_LEVELS[mini(level, WIRE_LEVELS.size() - 1)] if wire \
 			else LEVEL_COLORS[mini(level, LEVEL_COLORS.size() - 1)]
 	var buffer: PackedByteArray = _blank(side, base)
 	var outer: float = OUTER_ROUND * float(side)
-	var lip: float = LIP * float(side) * (1.7 if purpose == Purpose.REPRESENTATIVE else 1.0)
+	var lip: float = LIP * float(side) * (1.7 if marks else 1.0)
 	var weight: float = LEVEL_WEIGHTS[mini(level, LEVEL_WEIGHTS.size() - 1)]
 	var stroke: float = STROKE * float(side) * weight \
-			* (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
+			* (1.9 if marks else 1.0)
 	var north: bool = (index & BlobIndex.N) != 0
 	var east: bool = (index & BlobIndex.E) != 0
 	var south: bool = (index & BlobIndex.S) != 0
@@ -193,6 +209,8 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 			var px: float = float(x)
 			var py: float = float(y)
 			if _carved(px, py, last, outer, north, east, south, west):
+				if not wire and not south and _in_south_shoulder(px, py, last, outer, east, west):
+					_put(buffer, side, x, y, SHOULDER)
 				continue
 			var color: Color = base
 			if wire:
@@ -213,7 +231,7 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 					color = base.lightened(0.34 * shade)
 				elif shade < 0.0:
 					color = base.darkened(0.30 * -shade)
-			if purpose == Purpose.REPRESENTATIVE and _on_inner_tick(px, py, last, stroke, index,
+			if marks and _on_inner_tick(px, py, last, stroke, index,
 					north, east, south, west):
 				color = mark
 			_put(buffer, side, x, y, color)
@@ -289,6 +307,17 @@ static func _rim_shade(px: float, py: float, last: float, outer: float, lip: flo
 	if nearest >= lip:
 		return 0.0
 	return tone * smoothstep(0.0, 1.0, 1.0 - nearest / lip)
+
+
+## Le pixel est-il dans un coin decoupe qui touche le bord SUD ? C'est la que la falaise
+## commence, et donc la que le vide serait un mensonge.
+static func _in_south_shoulder(px: float, py: float, last: float, outer: float,
+		east: bool, west: bool) -> bool:
+	if not east and _in_outer_corner(px, py, last, last, outer, 0.0):
+		return true
+	if not west and _in_outer_corner(px, py, 0.0, last, outer, 0.0):
+		return true
+	return false
 
 
 ## Vrai si le pixel est hors de la matiere. ⚠ SEULS LES COINS SORTANTS SONT ARRONDIS --
@@ -398,11 +427,11 @@ static func _corners(last: float, north: bool, east: bool, south: bool, west: bo
 	]
 
 
-static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose) -> Image:
+static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var wire: bool = ink == Ink.WIREFRAME
 	var last: float = float(side - 1)
-	var stroke: float = STROKE * float(side) * (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
+	var stroke: float = STROKE * float(side) * (1.9 if marks else 1.0)
 	# ⚠ TROIS ETATS PAR FLANC, ET CHACUN A SON TRACE.
 	#   VIDE   la roche s'arrete : un liseré au bord, et la case voisine dessine la plaine.
 	#   MUET   rien : ou la meme face continue, ou c'est le voisin qui portera l'angle.
@@ -425,7 +454,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 	# Une seule largeur, donc, et c'est la TEINTE qui dit ce qui se passe : le vide est doux
 	# -- la plaine a cote fait deja tout le contraste -- l'arete est franche, puisqu'elle a
 	# de la roche des deux cotes. La bande descend d'un trait, et seule sa couleur bouge.
-	var swell: float = 1.6 if purpose == Purpose.REPRESENTATIVE else 1.0
+	var swell: float = 1.6 if marks else 1.0
 	var band: float = 0.09 * float(side) * swell
 	var rim: float = band
 	var edge: float = band
@@ -501,7 +530,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.
-			if purpose == Purpose.REPRESENTATIVE and px > inset and px < last - inset:
+			if marks and px > inset and px < last - inset:
 				if role.y == 1 and absf(py - last * 0.5) < stroke * 0.6:
 					color = mark
 				elif role.y == 2 and (absf(py - last * 0.35) < stroke * 0.6 \

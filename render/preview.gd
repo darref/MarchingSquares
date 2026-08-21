@@ -24,14 +24,16 @@ func _initialize() -> void:
 	var ink: GuideImage.Ink = GuideImage.Ink.PAINTED
 	if arguments.size() > 2 and arguments[2] == "fil":
 		ink = GuideImage.Ink.WIREFRAME
+	# Quatrieme argument : « nu » pour retirer les marques de travail.
+	var marks: bool = true
+	if arguments.size() > 3 and arguments[3] == "nu":
+		marks = false
 	var purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
-	if arguments.size() > 3 and arguments[3] == "utilisable":
-		purpose = GuideImage.Purpose.USABLE
 	# Cinquieme argument : le cote de tuile, pour inspecter le trait de pres.
 	var tile_size: int = GuideImage.TILE
 	if arguments.size() > 4:
 		tile_size = maxi(8, arguments[4].to_int())
-	var image: Image = GuideImage.render(heights, tile_size, ink, purpose)
+	var image: Image = GuideImage.render(heights, tile_size, ink, purpose, marks)
 	var error: Error = image.save_png(ProjectSettings.globalize_path(output_path))
 	if error != OK:
 		printerr("ecriture impossible : %d" % error)

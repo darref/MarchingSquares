@@ -50,7 +50,7 @@ const BACKDROP: Color = Color(0.106, 0.114, 0.125)
 # Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
 # Le fond utilisable est deja en teinte basse, il n'a pas besoin d'etre efface.
 const GUIDE_TINT: Color = Color(1.0, 1.0, 1.0, 0.55)
-const GUIDE_TINT_USABLE: Color = Color(1.0, 1.0, 1.0, 0.92)
+const GUIDE_TINT_WIRE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const TILE_LINE: Color = Color(1.0, 1.0, 1.0, 0.16)
 const PIXEL_LINE: Color = Color(1.0, 1.0, 1.0, 0.05)
 const HOVER_OK: Color = Color(1.0, 1.0, 1.0, 0.85)
@@ -83,6 +83,12 @@ var guide_ink: GuideImage.Ink = GuideImage.Ink.PAINTED
 ## A quoi le fond sert : montrer le resultat, ou porter les marques de travail.
 var guide_purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
 
+## Les marques de travail : les marqueurs de coin rentrant, les tirets de rangee, et
+## l'EPAISSISSEMENT des traits. ⚠ Les trois se masquent ensemble parce que les trois sont
+## des marques : le trait grossi n'existe pas pour etre beau, il existe pour rendre la
+## specification lisible d'un coup d'oeil.
+var guide_marks: bool = true
+
 ## Largeurs occupees par les deux barres, qui sont posees SUR la zone de travail.
 ## ⚠ ELLES NE SERVENT QU AU CADRAGE. On ne bride pas le dessin a ces marges : le guide
 ## peut passer dessous, et c'est meme le but -- on le voit a travers elles.
@@ -109,11 +115,17 @@ var assembled: bool = false
 ## et c'est une reponse honnete plutot qu'un cas interdit.
 var hide_work: bool = false
 
+## ⚠ LA LUMIERE PORTEE EST UNE DECORATION, PAS UN PRODUIT. Les ombres tombent sur des cases
+## de plaine, et la plaine n'est pas une tuile : aucune tuile exportee ne peut les porter.
+## Les masquer montre donc ce que le tileset sait REELLEMENT produire.
+var hide_cast_light: bool = false
+
 var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
 var _surface_cells: Dictionary = {}
 var _wall_cells: Dictionary = {}
 var _background: ImageTexture = null
+var _background_flat: ImageTexture = null
 var _textures: Dictionary = {}
 var _tile_px: float = 32.0
 var _origin: Vector2 = Vector2.ZERO
@@ -145,7 +157,8 @@ func _process(_delta: float) -> void:
 	if _job != null:
 		if _job.step(LOAD_BUDGET_USEC):
 			_background = ImageTexture.create_from_image(_job.image())
-			_cache[_cache_key] = _background
+			_background_flat = ImageTexture.create_from_image(_job.flat_image())
+			_cache[_cache_key] = [_background, _background_flat]
 			loading_progress.emit(_job.total, _job.total)
 			_job = null
 		else:
@@ -272,6 +285,13 @@ func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose) -> void:
 	queue_redraw()
 
 
+## Relance le calcul du fond. L'editeur s'en sert quand une aide a la vue change ce que le
+## fond doit montrer.
+func refresh_background() -> void:
+	_redraw_background()
+	queue_redraw()
+
+
 ## ⚠ LE FOND SE CALCULE PAR ETAPES, ET ON GARDE CE QU'ON A DEJA CALCULE. Le dessiner coute
 ## de deux a cinq secondes ; en un seul appel l'ecran gele. On lance un travail que
 ## _process() fait avancer, et on range le resultat : revenir a un style deja vu est
@@ -280,15 +300,19 @@ func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose) -> void:
 func _redraw_background() -> void:
 	if _heights.is_empty():
 		return
-	_cache_key = "%d:%d:%d:%d" % ["
-".join(_heights).hash(), GUIDE_TILE, int(guide_ink), int(guide_purpose)]
+	_cache_key = "%d:%d:%d:%d:%d" % ["
+".join(_heights).hash(), GUIDE_TILE, int(guide_ink), int(guide_purpose),
+			1 if guide_marks else 0]
 	if _cache.has(_cache_key):
-		_background = _cache[_cache_key]
+		var pair: Array = _cache[_cache_key]
+		_background = pair[0]
+		_background_flat = pair[1]
 		_job = null
 		loading_progress.emit(1, 1)
 		return
 	_background = null
-	_job = RenderJob.new(_heights, GUIDE_TILE, guide_ink, guide_purpose)
+	_background_flat = null
+	_job = RenderJob.new(_heights, GUIDE_TILE, guide_ink, guide_purpose, guide_marks)
 	loading_progress.emit(0, _job.total)
 
 
@@ -320,8 +344,11 @@ func _draw() -> void:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	if _background != null and not assembled:
-		var tint: Color = GUIDE_TINT_USABLE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
-		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
+		var tint: Color = GUIDE_TINT_WIRE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
+		var sheet: ImageTexture = _background
+		if hide_cast_light and _background_flat != null:
+			sheet = _background_flat
+		draw_texture_rect(sheet, Rect2(_origin, span), false, tint)
 
 	var pixel_px: float = _tile_px / float(_painting.resolution) if _painting != null else 1.0
 	for cell: Vector2i in (_textures.keys() if not hide_work else []):
