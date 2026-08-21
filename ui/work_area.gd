@@ -73,10 +73,15 @@ var guide_ink: GuideImage.Ink = GuideImage.Ink.PAINTED
 ## A quoi le fond sert : montrer le resultat, ou porter les marques de travail.
 var guide_purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
 
-## Largeur occupee par la barre d'outils, qui est posee SUR la zone de travail.
-## ⚠ ELLE NE SERT QU AU CADRAGE. On ne bride pas le dessin a cette marge : le guide peut
-## passer sous la barre, et c'est meme le but -- on le voit a travers elle.
+## Largeurs occupees par les deux barres, qui sont posees SUR la zone de travail.
+## ⚠ ELLES NE SERVENT QU AU CADRAGE. On ne bride pas le dessin a ces marges : le guide
+## peut passer dessous, et c'est meme le but -- on le voit a travers elles.
 var reserved_left: float = 0.0
+var reserved_right: float = 0.0
+
+## La grille se montre ou se cache. Une grille est une aide a viser, pas un decor : quand
+## on juge une couleur, elle gene.
+var show_grid: bool = true
 
 var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
@@ -257,7 +262,7 @@ func fit() -> void:
 	var rows: int = HeightMask.height(_heights)
 	if columns <= 0 or rows <= 0 or size.x <= 0.0:
 		return
-	var usable: float = maxf(size.x - reserved_left, 1.0)
+	var usable: float = maxf(size.x - reserved_left - reserved_right, 1.0)
 	_tile_px = minf(usable / float(columns), size.y / float(rows)) * 0.94
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	_origin = Vector2(reserved_left + (usable - span.x) * 0.5, (size.y - span.y) * 0.5)
@@ -294,7 +299,7 @@ func _draw() -> void:
 
 	# La grille des faux pixels n'apparait que lorsqu'elle est lisible : sinon elle noircit
 	# l'ecran et cache le guide qu'elle est censee servir.
-	if _painting != null and pixel_px >= PIXEL_GRID_FROM:
+	if show_grid and _painting != null and pixel_px >= PIXEL_GRID_FROM:
 		# ⚠ ON NE TRACE QUE CE QUI EST A L ECRAN. A 256 pixels par tuile, la grille complete
 		# ferait seize mille traits dont la quasi-totalite hors cadre : de quoi mettre une
 		# machine a genoux pour dessiner ce que personne ne voit.
@@ -314,12 +319,13 @@ func _draw() -> void:
 			var y: float = _origin.y + float(i) * step
 			draw_line(Vector2(left, y), Vector2(right, y), PIXEL_LINE, 1.0)
 
-	for i: int in range(columns + 1):
-		var gx: float = _origin.x + float(i) * _tile_px
-		draw_line(Vector2(gx, _origin.y), Vector2(gx, _origin.y + span.y), TILE_LINE, 1.0)
-	for i: int in range(rows + 1):
-		var gy: float = _origin.y + float(i) * _tile_px
-		draw_line(Vector2(_origin.x, gy), Vector2(_origin.x + span.x, gy), TILE_LINE, 1.0)
+	if show_grid:
+		for i: int in range(columns + 1):
+			var gx: float = _origin.x + float(i) * _tile_px
+			draw_line(Vector2(gx, _origin.y), Vector2(gx, _origin.y + span.y), TILE_LINE, 1.0)
+		for i: int in range(rows + 1):
+			var gy: float = _origin.y + float(i) * _tile_px
+			draw_line(Vector2(_origin.x, gy), Vector2(_origin.x + span.x, gy), TILE_LINE, 1.0)
 
 	if _hover.x >= 0:
 		var accepted: bool = _is_paintable(_hover)
@@ -349,15 +355,9 @@ func _gui_input(event: InputEvent) -> void:
 				_panning = button.pressed
 			MOUSE_BUTTON_LEFT:
 				# Bouton gauche : on pose. Bouton droit : on efface.
-				_stroke = 1 if button.pressed else 0
-				if button.pressed:
-					_last_paint = button.position
-					_apply_stroke(button.position, button.position)
+				_begin_or_end(button.pressed, 1, button.position)
 			MOUSE_BUTTON_RIGHT:
-				_stroke = -1 if button.pressed else 0
-				if button.pressed:
-					_last_paint = button.position
-					_apply_stroke(button.position, button.position)
+				_begin_or_end(button.pressed, -1, button.position)
 		accept_event()
 		return
 	if event is InputEventMouseMotion:
@@ -376,6 +376,40 @@ func _gui_input(event: InputEvent) -> void:
 
 ## ⚠ LE SURVOL SE SUIT A LA CASE, PAS AU PIXEL. Suivre le pixel redessinait la zone de
 ## travail a chaque micro-mouvement de souris, pour un reperage dont on n a pas voulu.
+## Une passe s'ouvre au clic et se ferme au relachement : c'est l'unite qu'on defait.
+func _begin_or_end(pressed: bool, direction: int, position: Vector2) -> void:
+	if _painting == null:
+		return
+	if pressed:
+		_stroke = direction
+		_painting.begin_stroke()
+		_last_paint = position
+		_apply_stroke(position, position)
+		return
+	_stroke = 0
+	_painting.end_stroke()
+
+
+## ⚠ LES RACCOURCIS SONT PRIS ICI, PAS DANS _gui_input : celui-la exige que la zone ait le
+## focus, et l'on vient souvent de cliquer une case a cocher.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or not key.ctrl_pressed or _painting == null:
+		return
+	var cells: Array[Vector2i] = []
+	if key.keycode == KEY_Z and not key.shift_pressed:
+		cells = _painting.undo()
+	elif key.keycode == KEY_Y or (key.keycode == KEY_Z and key.shift_pressed):
+		cells = _painting.redo()
+	else:
+		return
+	get_viewport().set_input_as_handled()
+	for cell: Vector2i in cells:
+		_stale[cell] = true
+	if not cells.is_empty():
+		_changed = true
+
+
 func _set_hover(position: Vector2) -> bool:
 	var cell: Vector2i = _cell_at(position)
 	if cell == _hover:

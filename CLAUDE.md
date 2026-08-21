@@ -345,143 +345,39 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   l'illustration se fabrique en headless et se teste avec le reste. L'interface n'aura qu'à
   en faire une `ImageTexture`.
 
-- **L'éditeur : bandeau, barre, zone de travail.** La fenêtre fait 95 % de l'écran,
-  centrée. En haut un bandeau fin porte le nom, le slogan, et une ligne qui déroule la
-  charte — la seule fantaisie du logiciel, et chaque phrase y est vraie. À gauche une barre
-  coupée en deux : **25 % en haut** pour les boutons globaux, sans défilement (mode,
-  taille des pixels, les deux jauges, l'export) ; **75 % en bas** pour les sections
-  d'outils repliables, dans un `ScrollContainer` pour qu'on puisse en empiler autant qu'on
-  voudra.
+- **Deux barres : à gauche les options, à droite le travail.** La coupure est la seule
+  chose qui rende une barre lisible : à gauche **ce qu'on fabrique** (paysage, taille des
+  pixels) et **ce qu'on regarde** (technique et style du fond) ; à droite **tout ce qui
+  sert à peindre** — les deux jauges, l'export, le crayon, la grille, le recadrage.
+  Mélangées, on cherche ; séparées, on trouve sans lire.
 
-- **Les rotations sont une case à cocher, et l'outil ne peut pas trancher à votre place.**
-  J'avais d'abord fait des symétries une propriété du mode, en pariant qu'un mode « sans
-  lumière » déciderait pour l'utilisateur. C'était faux à deux titres : un mode est un
-  **paysage**, pas un style de dessin ; et surtout **l'outil ne sait pas ce que vous
-  dessinez**. Il ne peut pas savoir si vos tuiles portent une direction d'éclairage.
+  La barre de gauche garde ses 25 % fixes en haut et ses sections repliables en dessous ;
+  la barre de droite est plus fine, et ses sections suivent la même forme.
 
-  Donc : deux cases dans la section Crayon. « Peindre les jumelles » ne fabrique rien —
-  deux jumelles sont la même tuile. « Peindre les rotations » **fabrique** une tuile dans
-  une orientation que personne n'a peinte : correct si votre dessin n'a pas de lumière,
-  visiblement faux s'il en a. L'infobulle le dit, et le choix reste celui du dessinateur.
-  Quand elle est cochée, la case « jumelles » devient sans objet : les jumelles sont déjà
-  comprises dans l'orbite.
+  ⚠ **Un libellé qui s'allonge impose sa largeur à toute la barre.** Le bouton d'export
+  portait le compte des tuiles restantes : il débordait du cadre et rognait tout le reste.
+  Le bouton dit ce qu'il fait, le compte est à côté.
 
-  Ce que ça rapporte, mesuré : **47 index → 15 orbites** sous la rotation, **12 rôles → 8**
-  sous le miroir est-ouest, soit **23 tuiles au lieu de 59**. Pas 22 : le 22 serait le
-  compte du groupe complet, miroirs de surface compris — écartés, puisqu'ils n'y gagnent
-  qu'une tuile (15 → 14) pour tout un mécanisme de plus. Les robes n'ont **que** le
-  miroir : la rotation n'y a aucun sens, un plateau n'a de face qu'au sud, et le miroir
-  vertical non plus, le pied reposant sur le sol.
+  ⚠ **Les quatre bords d'un panneau ancré se posent, pas un seul.** N'en fixer qu'un laisse
+  les autres à leur valeur d'avant, et le panneau sort du cadre sans qu'on comprenne
+  pourquoi.
 
-  ⚠ **Le voisinage et les pixels doivent tourner dans le MÊME sens**, sans quoi la tuile
-  posée contredirait sa propre silhouette et aucun compte ne le dirait. C'est asserté :
-  un quart de tour envoie le nord du voisinage sur l'est, et la rangée du haut de l'image
-  sur la colonne de droite.
+- **Annuler est indispensable ici, pas confortable.** Avec les jumelles, un trait de
+  travers ruine une tuile **dans tous ses exemplaires à la fois** — jusqu'à deux cents
+  cases d'un geste. Sans retour en arrière il faudrait les reprendre une par une.
+  `Ctrl+Z` défait, `Ctrl+Y` refait, et l'unité est la **passe** : du clic au relâchement.
 
-- **`guides/ample.txt` : relief 66x31, et sa promesse est chiffrée.** Même complétude que
-  `minimal` — 47/47 et 12/12 — mais **chaque index y est vu au moins trois fois**, contre
-  une seule pour vingt d'entre eux dans `minimal`. Ce n'est pas une impression : la table
-  des modes déclare `min_variants`, et la suite de tests le vérifie pour tout mode ouvert.
-  Ajouter un mode au catalogue, c'est désormais s'engager à ce que son guide passe la
-  preuve.
+  On journalise les **pixels changés**, pas les images : une passe de dix pixels sur deux
+  cents jumelles pèse quelques dizaines de kilo-octets, là où copier les images en
+  pèserait cinquante méga à 256 px.
 
-  Construction : les mêmes accidents de terrain que `minimal`, mais **trois régions**
-  portant chacune son plateau aux lacs, ses quatre crêtes, ses quatre coudes, son pinacle
-  et son éperon — avec une phase de tore, des motifs d'épaulement et une orientation
-  différents à chaque fois, pour que ce ne soit pas trois copies.
+  ⚠ **On rejoue à l'envers en défaisant.** Deux pixels posés au même endroit dans la même
+  passe ne se défont correctement que dans l'ordre inverse — dans l'ordre, le second
+  écraserait le premier et la case resterait peinte. C'est asserté.
 
-  ⚠ **Deux pièges appris en le dessinant, tous deux sur le plateau aux lacs.** Depuis
-  l'origine du plateau, les lacs occupent les décalages **impairs** et les seize cases
-  utiles les décalages **pairs**. Un pinacle posé sur un lac le comble et fait disparaître
-  quatre fenêtres du tore ; posé sur une case utile, il lui **vole son index** — la surface
-  visible d'une case est celle de *son* étage, et une case montée à l'étage 3 ne compte
-  plus pour l'étage 2. Le pinacle va donc sur le **bord** du plateau, dont l'index est un
-  coin, et les coins ne manquent jamais.
-
-- **Le fond du guide se calcule par étapes, et la barre dit la vérité.** ⚠ Mesuré :
-  dessiner le fond coûte **2 à 5 secondes** (3,1 s pour `minimal` en représentatif, 5,2 s
-  en utilisable). En un seul appel, l'écran gèle. `render/guide_render_job.gd` fait le même
-  travail par tranches, `ui/work_area.gd` l'avance de 12 ms par image, et l'unité de
-  progression est la **tuile distincte dessinée** — quand la barre est à la moitié, la
-  moitié des tuiles est faite. Pas un compte à rebours, pas une animation qui tourne.
-
-  Le résultat est **gardé en cache**, la clé portant le contenu du relief : revenir à un
-  style déjà vu est instantané, et un guide modifié ne ressort jamais une vieille image.
-  `guide_image.render()` reste le chemin d'un seul bloc, pour les tests et l'écriture sur
-  disque, où personne ne regarde l'écran — même code, deux façons de l'appeler.
-
-- **Tous les scripts du dépôt sont chargés par la suite de tests.** ⚠ Découvert en dur : la
-  suite ne touchait aucun script d'interface, et un `PackedStringArray.hash()` — qui
-  n'existe pas — est passé au travers jusqu'au lancement. Charger chaque `.gd` suffit à le
-  faire analyser par le moteur, et coûte quelques millisecondes.
-
-- **Trois axes indépendants, donc huit dessins.** Les avoir mélangés une fois a suffi à
-  rendre l'un à la place de l'autre, alors ils sont séparés pour de bon :
-  - **Paysage** (`minimal` | `ample`) — quel relief. C'est le **mode**, et c'est tout ce
-    qu'un mode est. Il change ce qu'on peint.
-  - **Technique** (`usable` | `representative`) — `usable` : rien qui paraisse irréel,
-    rien qu'on regarde ; le dessin seul, tel que le tileset le montrera assemblé.
-    `representative` : le même dessin **appuyé** — trait plus gras, marque franche aux
-    coins rentrants, code de rangée bien lisible — pour savoir d'un coup ce qu'on attend
-    de la tuile en cours.
-  - **Style** (`painted` | `wireframe`) — de quoi le fond est fait : des aplats, ou des
-    traits.
-
-  ⚠ **Technique et style sont des outils, pas des modes.** Ce sont des aides à la vue :
-  rien de ce qui sort n'en dépend. Les avoir rangés dans le catalogue des modes avait
-  pour conséquence directe que choisir « utilisable » tirait son encre du mode et rendait
-  un fond peint.
-
-  ⚠ **Une marque n'est pas un trait du dessin** : les pastilles de coin rentrant et les
-  tirets de rangée de robe sont d'une autre couleur, pour qu'on ne puisse jamais les
-  prendre pour une côte.
-
-- **⚠ AUCUNE DISCONTINUITÉ — et j'avais tiré la mauvaise conclusion la première fois.**
-  Chaque trait est tiré à l'intérieur de sa propre tuile. À un coin rentrant — trois cases
-  pleines autour d'un vide — les traits des deux voisines se croisent donc **sans se
-  rejoindre**, et laissent un carré vide de la largeur du trait. C'était ça, la
-  discontinuité visible.
-
-  J'en avais conclu que personne ne pouvait la combler, puisque les deux voisines ne
-  savent rien de ce coin. **C'est faux** : le carré manquant tombe chez la TROISIÈME, celle
-  dont les deux cardinaux sont pleins et la diagonale vide — et elle, elle le sait, ce
-  bit-là étant justement le seul bit de coin que la canonicalisation **conserve**. C'est
-  donc elle qui ferme le coude, et le trait devient continu de bout en bout.
-
-  ⚠ Ce qui reste vrai de l'ancien raisonnement : **on n'arrondit pas la terre à cet
-  endroit**. Les deux voisines tracent leur côte droit jusqu'au coin et ne peuvent pas
-  savoir qu'il faudrait la courber — une case dont le sud est ouvert porte le même index
-  que son voisin du sud-ouest soit plein ou vide. Courber là, ce serait poser un arc que
-  personne ne rejoint. Seuls les coins **sortants** s'arrondissent.
-
-- **La lèvre peinte suit le contour, pas les quatre côtés.** Peindre quatre bandes droites
-  laissait la lèvre s'arrêter net avant chaque coin arrondi, et manquer entièrement les
-  coins rentrants — le même trou que le trait avait au fil de fer, en plus sournois : une
-  bande claire qui s'interrompt se lit comme un défaut de peinture, pas comme un choix.
-  `_rim_shade()` mesure la distance au **contour réel** — côtés ouverts, arcs des coins
-  sortants, carré des coins rentrants — et fond la teinte au lieu de poser une bande
-  franche.
-
-- **Une falaise ne doit pas être barrée de coutures.** Deux corrections, toutes deux
-  visibles à l'œil dès qu'on regarde un mur de six cases :
-  - les deux rangées de corps avaient **deux teintes différentes**, ce qui rayait la face
-    d'une bande à chaque changement de rangée. Elles partagent maintenant la même teinte,
-    et ce qui diffère est la **texture** : un décalage de striure, invisible en bande,
-    suffisant pour que l'œil ne lise pas la répétition ;
-  - le chapiteau et le pied **commencent et finissent désormais sur la teinte du corps**.
-    Le chapiteau part de la lumière en haut et la rejoint en bas, le pied part du corps et
-    s'enfonce. Sans ça, deux rangées voisines se raccordaient sur deux teintes
-    différentes, et le raccord se voyait à chaque cran.
-
-- **Le littoral est plus appuyé que les courbes de niveau.** Un dessin où tous les traits
-  pèsent pareil se lit comme un plan de cuisine ; en allégeant à mesure qu'on monte,
-  l'œil trouve tout de suite le bord de la terre et lit les étages comme un relief.
-  `LEVEL_WEIGHTS` porte ces poids.
-
-- **On arrondit les canaux, on ne les tronque pas.** Tronquer décale chaque canal d'un
-  demi-pas vers le sombre : invisible à l'œil, mais la teinte rendue n'est alors plus
-  exactement celle qu'on a demandée — et un test qui compare les deux échoue pour une
-  raison qui n'a rien à voir avec le dessin. C'est arrivé.
+- **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
+  centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
+  déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
 
 - **La barre est posée SUR la zone de travail, et translucide au repos.** Elle laisse voir
   le guide à travers elle : c'est ce qui donne l'air d'un calque plutôt que d'un panneau.

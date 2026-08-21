@@ -17,10 +17,22 @@ const DEFAULT_RESOLUTION: int = 64
 
 const TRANSPARENT: Color = Color(0.0, 0.0, 0.0, 0.0)
 
+## Combien de passes on peut defaire.
+const HISTORY_LIMIT: int = 60
+
 var resolution: int = DEFAULT_RESOLUTION
 
 var _images: Dictionary = {}
 var _counts: Dictionary = {}
+
+## ⚠ UN COUP DE CRAYON PEUT TOUCHER DEUX CENTS CASES. Avec les jumelles, un trait de
+## travers ruine une tuile dans tous ses exemplaires a la fois : sans retour en arriere,
+## il faudrait les reprendre une par une. On journalise donc les pixels CHANGES, pas les
+## images -- une passe de dix pixels sur deux cents jumelles pese quelques dizaines de
+## kilo-octets, la ou copier les images en pesserait cinquante mega.
+var _stroke: Array = []
+var _past: Array = []
+var _future: Array = []
 
 
 func _init(pixel_resolution: int = DEFAULT_RESOLUTION) -> void:
@@ -36,6 +48,7 @@ func paint(cell: Vector2i, x: int, y: int, color: Color) -> bool:
 	if before.is_equal_approx(color):
 		return false
 	image.set_pixel(x, y, color)
+	_stroke.append([cell, x, y, before, color])
 	if before.a <= 0.0 and color.a > 0.0:
 		_counts[cell] = int(_counts.get(cell, 0)) + 1
 	elif before.a > 0.0 and color.a <= 0.0:
@@ -96,3 +109,74 @@ static func _reading_order(left: Vector2i, right: Vector2i) -> bool:
 	if left.y != right.y:
 		return left.y < right.y
 	return left.x < right.x
+
+
+## Ouvre une passe. Tout ce qui suit se defera d'un seul geste.
+func begin_stroke() -> void:
+	_stroke = []
+
+
+## Ferme la passe. Une passe vide ne s'enregistre pas : annuler ne doit jamais avoir
+## l'air de ne rien faire.
+func end_stroke() -> void:
+	if _stroke.is_empty():
+		return
+	_past.append(_stroke)
+	if _past.size() > HISTORY_LIMIT:
+		_past.pop_front()
+	_future.clear()
+	_stroke = []
+
+
+func can_undo() -> bool:
+	return not _past.is_empty()
+
+
+func can_redo() -> bool:
+	return not _future.is_empty()
+
+
+## Defait la derniere passe. Rend les cases touchees, pour que l'affichage les reprenne.
+func undo() -> Array[Vector2i]:
+	if _past.is_empty():
+		return [] as Array[Vector2i]
+	var entries: Array = _past.pop_back()
+	_future.append(entries)
+	return _replay(entries, 3)
+
+
+## Refait la passe defaite.
+func redo() -> Array[Vector2i]:
+	if _future.is_empty():
+		return [] as Array[Vector2i]
+	var entries: Array = _future.pop_back()
+	_past.append(entries)
+	return _replay(entries, 4)
+
+
+## ⚠ ON REJOUE A L'ENVERS EN DEFAISANT. Deux pixels poses au meme endroit dans la meme
+## passe ne se defont correctement que dans l'ordre inverse.
+func _replay(entries: Array, which: int) -> Array[Vector2i]:
+	var touched: Dictionary = {}
+	var order: Array = entries.duplicate()
+	if which == 3:
+		order.reverse()
+	for entry: Array in order:
+		var cell: Vector2i = entry[0]
+		_restore(cell, int(entry[1]), int(entry[2]), entry[which])
+		touched[cell] = true
+	var cells: Array[Vector2i] = []
+	for cell: Vector2i in touched.keys():
+		cells.append(cell)
+	return cells
+
+
+## Repose un pixel SANS journaliser : defaire ne doit pas s'inscrire dans l'historique.
+func _restore(cell: Vector2i, x: int, y: int, color: Color) -> void:
+	var image: Image = _image_for(cell)
+	var before: Color = image.get_pixel(x, y)
+	image.set_pixel(x, y, color)
+	if before.a <= 0.0 and color.a > 0.0:
+		_counts[cell] = int(_counts.get(cell, 0)) + 1
+	elif before.a > 0.0 and color.a <= 0.0:
+		_counts[cell] = maxi(0, int(_counts.get(cell, 0)) - 1)

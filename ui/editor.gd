@@ -68,8 +68,9 @@ func _ready() -> void:
 	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
+	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
-	work.reserved_left = (%Sidebar as Control).size.x
+	_apply_margins()
 	_load_current_mode()
 	# ⚠ ON REPOSE LA TAILLE APRES LA PREMIERE IMAGE. Selon la facon dont on lance -- depuis
 	# l'editeur Godot, depuis un raccourci --, la taille demandee dans _ready peut etre
@@ -77,7 +78,7 @@ func _ready() -> void:
 	# fenetre reellement ouverte, et on dit ce qu'on a obtenu.
 	await get_tree().process_frame
 	_apply_window_size()
-	work.reserved_left = (%Sidebar as Control).size.x
+	_apply_margins()
 	work.fit()
 
 
@@ -257,6 +258,20 @@ func _apply_fill_rules() -> void:
 				Modes.tile_count(_current_mode())]
 
 
+## Les deux barres flottent SUR la zone de travail : elles ne lui prennent pas de place,
+## elles lui disent seulement ou cadrer pour ne rien masquer au depart.
+func _apply_margins() -> void:
+	var work: Control = %WorkArea
+	work.reserved_left = (%Sidebar as Control).size.x
+	work.reserved_right = (%Toolbar as Control).size.x
+
+
+func _on_grid_toggled(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.show_grid = pressed
+	work.queue_redraw()
+
+
 func _on_fit_pressed() -> void:
 	(%WorkArea as Control).fit()
 
@@ -293,8 +308,8 @@ func _refresh_counters() -> void:
 	var complete: bool = bool(surface["is_exportable"]) and bool(walls["is_exportable"])
 	var export_button: Button = %ExportButton
 	export_button.disabled = not complete
-	export_button.text = "Exporter le tileset" if complete else "Exporter  —  %d tuiles a peindre" % [
-			(surface_total - surface_done) + (wall_total - wall_done)]
+	var left: int = (surface_total - surface_done) + (wall_total - wall_done)
+	(%RemainingLabel as Label).text = "pret a exporter" if complete else "%d tuiles a peindre" % left
 
 	# ⚠ LA TAILLE DES PIXELS SE CHOISIT AVANT DE DESSINER, pas apres : en changer
 	# rejetterait tout ce qui est peint. Le choix se ferme au premier pixel pose.

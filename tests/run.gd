@@ -37,6 +37,7 @@ func _initialize() -> void:
 	_test_mode_guides_are_complete()
 	_test_minimal_guide_walls()
 	_test_painting()
+	_test_undo()
 	_test_wall_variants()
 	_test_twins()
 	_test_symmetry()
@@ -454,6 +455,56 @@ func _test_painting() -> void:
 	painting.paint(Vector2i(0, 0), 0, 0, Color.RED)
 	var expected: Array[Vector2i] = [Vector2i(0, 0), Vector2i(5, 1)]
 	_check_equal(painting.painted_cells(), expected, "les cases peintes sortent en ordre de lecture")
+
+
+func _test_undo() -> void:
+	print("painting : defaire et refaire une passe")
+	var painting: RefCounted = Painting.new(16)
+	var cell: Vector2i = Vector2i(2, 3)
+	_check(not painting.can_undo(), "rien a defaire au depart")
+
+	painting.begin_stroke()
+	for i: int in range(4):
+		painting.paint(cell, i, 0, Color.RED)
+	painting.end_stroke()
+	_check_equal(painting.pixel_count(cell), 4, "quatre pixels poses")
+	_check(painting.can_undo(), "la passe est defaisable")
+
+	var touched: Array[Vector2i] = painting.undo()
+	_check_equal(touched, [cell] as Array[Vector2i], "defaire rend les cases touchees")
+	_check_equal(painting.pixel_count(cell), 0, "la passe entiere est defaite d un geste")
+	_check(painting.can_redo(), "et elle est refaisable")
+
+	painting.redo()
+	_check_equal(painting.pixel_count(cell), 4, "refaire la repose telle quelle")
+
+	# ⚠ LE CAS PIEGEUX : deux pixels au MEME endroit dans la meme passe. Ils ne se defont
+	# correctement qu'en rejouant a l'envers -- dans l'ordre, le second ecraserait le premier
+	# et la case resterait peinte.
+	var twice: RefCounted = Painting.new(16)
+	twice.begin_stroke()
+	twice.paint(cell, 0, 0, Color.RED)
+	twice.paint(cell, 0, 0, Color.BLUE)
+	twice.end_stroke()
+	twice.undo()
+	_check_equal(twice.pixel_count(cell), 0, "deux pixels au meme endroit se defont quand meme")
+
+	# Une passe vide ne s enregistre pas : defaire ne doit jamais avoir l air de ne rien faire.
+	var empty: RefCounted = Painting.new(16)
+	empty.begin_stroke()
+	empty.end_stroke()
+	_check(not empty.can_undo(), "une passe sans pixel ne s enregistre pas")
+
+	# Peindre apres avoir defait ferme la branche refaite.
+	var branch: RefCounted = Painting.new(16)
+	branch.begin_stroke()
+	branch.paint(cell, 0, 0, Color.RED)
+	branch.end_stroke()
+	branch.undo()
+	branch.begin_stroke()
+	branch.paint(cell, 1, 1, Color.BLUE)
+	branch.end_stroke()
+	_check(not branch.can_redo(), "peindre apres avoir defait ferme le refaire")
 
 
 func _test_wall_variants() -> void:
