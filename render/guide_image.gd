@@ -445,11 +445,21 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 					color = base.lightened(0.34 * (1.0 - smoothstep(0.0, 1.0, vertical)))
 				elif role.y == Walls.ROW_FOOT:
 					color = base.darkened(0.34 * smoothstep(0.0, 1.0, vertical))
-				# La striure se decale d'une rangee a l'autre : meme teinte, autre grain.
-				var phase: float = 0.0 if role.y == 1 else 0.37
-				var streak: float = fmod(px / float(side) * 2.0 + phase, 1.0)
+				# ⚠ LA STRIURE NE SE DECALE PLUS D'UNE RANGEE A L'AUTRE. Elle le faisait,
+				# pour « varier le grain » -- et cassait CHAQUE rainure a CHAQUE cran : sur
+				# une chute de six cases, la paroi se lisait comme une pile de tuiles au lieu
+				# d'une face. Mesuree, la rupture ne pesait que 2,4 % de teinte et elle
+				# sautait aux yeux : une LIGNE BRISEE se voit bien mieux qu'un degrade.
+				var streak: float = fmod(px / float(side) * 2.0, 1.0)
 				if streak < 0.05:
 					color = color.darkened(0.05)
+				# ⚠ CE QUI DISTINGUE LES DEUX RANGEES DE CORPS EST UNE ASSISE, PAS UN
+				# DECALAGE DE GRAIN. Elle se tient loin des deux bords, donc elle ne peut pas
+				# se voir au raccord, quelle que soit la rangee qui suit.
+				if role.y == 1 or role.y == 2:
+					var ledge: float = 0.40 if role.y == 1 else 0.62
+					if absf(vertical - ledge) < 0.055:
+						color = color.darkened(0.07)
 				if left_end and px < margin * 2.0:
 					color = color.lightened(0.10)
 				if right_end and px > last - margin * 2.0:

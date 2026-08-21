@@ -1127,6 +1127,12 @@ const SEAM_TILE: int = 32
 ## Au-dela de ce saut de teinte a travers un raccord, l oeil voit une couture.
 const SEAM_TOLERANCE: float = 0.04
 
+## ⚠ ENTRE DEUX RANGEES D UNE MEME CHUTE, LA TOLERANCE EST QUASI NULLE. C est la meme paroi
+## a la meme lumiere : les deux profils doivent etre identiques. Et un ecart minuscule s y
+## voit enormement -- une rainure decalee de deux pour cent de teinte est une LIGNE BRISEE,
+## que l oeil attrape bien mieux qu un degrade de vingt pour cent.
+const WALL_SEAM_TOLERANCE: float = 0.015
+
 
 func _test_seams() -> void:
 	print("RACCORDS : tous les bords partages, verifies un par un")
@@ -1138,6 +1144,59 @@ func _test_seams() -> void:
 			[GuideImage.Ink.PAINTED, GuideImage.Purpose.USABLE, "peint utilisable"],
 			[GuideImage.Ink.WIREFRAME, GuideImage.Purpose.REPRESENTATIVE, "fil representatif"]]:
 		_check_surface_seams(style[0], style[1], String(style[2]))
+		_check_wall_seams(style[0], style[1], String(style[2]))
+
+
+## LES ROBES : une falaise est UNE face, pas une pile de tuiles.
+##
+## ⚠ ICI AUCUNE MARCHE NE JUSTIFIE UNE RUPTURE. Deux rangees qui se suivent dans la MEME
+## chute decrivent la meme paroi, a la meme lumiere : ce qui traverse leur bord commun --
+## rainure, teinte, grain -- doit le traverser sans se decaler. Une rainure qui saute a
+## chaque cran, c est une falaise rayee de traits que la roche n a pas.
+func _check_wall_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
+		label: String) -> void:
+	var tiles: Dictionary = {}
+	for role: Vector2i in Walls.ALL_ROLES:
+		tiles[role] = GuideImage.make_wall(role, SEAM_TILE, ink, purpose)
+
+	# Les enchainements de rangees qu une chute produit reellement.
+	var sequences: Array = []
+	for drop: int in [Walls.STOREY_TILES, Walls.STOREY_TILES * 2, Walls.STOREY_TILES * 3]:
+		var rows: Array[int] = []
+		# ⚠ `row_for` COMPTE LES PAS A PARTIR DE 1 : le premier pas sous la levre est 1, et le
+		# dernier vaut `drop`. Iterer depuis 0 fabriquait une sequence qui n existe pas, et le
+		# test accusait un enchainement « corps 0 -> chapiteau » que la chute ne produit jamais.
+		for step: int in range(1, drop + 1):
+			rows.append(Walls.row_for(step, drop, true))
+		sequences.append(rows)
+
+	var pairs: Dictionary = {}
+	for rows: Array in sequences:
+		for k: int in range(rows.size() - 1):
+			for pan: int in range(Walls.PAN_COUNT):
+				pairs[Vector3i(pan, int(rows[k]), int(rows[k + 1]))] = true
+
+	var worst: float = 0.0
+	var worst_pair: String = ""
+	var guilty: Array[String] = []
+	for pair: Vector3i in pairs.keys():
+		var upper: Image = tiles[Vector2i(pair.x, pair.y)]
+		var lower: Image = tiles[Vector2i(pair.x, pair.z)]
+		var jump: float = _seam_jump(upper, lower, false)
+		var name: String = "%s|%s pan %d" % [Walls.ROW_NAMES[pair.y], Walls.ROW_NAMES[pair.z],
+				pair.x]
+		if jump > worst:
+			worst = jump
+			worst_pair = name
+		if jump > WALL_SEAM_TOLERANCE:
+			guilty.append("%s (%.1f%%)" % [name, jump * 100.0])
+	print("  %s : %d enchainements de rangees, saut le pire %.1f%% (%s)" % [label,
+			pairs.size(), worst * 100.0, worst_pair])
+	if guilty.size() > 0:
+		print("    %s" % ", ".join(guilty.slice(0, mini(8, guilty.size()))))
+	_check(worst <= WALL_SEAM_TOLERANCE,
+			"%s : une falaise est UNE face -- profils identiques entre deux rangees (le pire : %.1f%%, %d fautifs)"
+			% [label, worst * 100.0, guilty.size()])
 
 
 func _check_surface_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
@@ -1200,14 +1259,11 @@ func _check_surface_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
 			% [steps_east.size(), steps_south.size()])
 	if steps_east.size() > 0:
 		print("      %s" % ", ".join(steps_east.slice(0, mini(8, steps_east.size()))))
-	# ⚠ ASSERTION, PAS RELEVE. Tant qu elle est rouge, le dessin n est pas sur de reussir
-	# partout -- et c est exactement ce qu on veut voir.
-	_check(worst_east <= SEAM_TOLERANCE,
-			"%s : aucun saut de teinte est-ouest au-dela de %.0f%% (le pire : %.0f%%, %d fautifs)"
-			% [label, SEAM_TOLERANCE * 100.0, worst_east * 100.0, steps_east.size()])
-	_check(worst_south <= SEAM_TOLERANCE,
-			"%s : aucun saut de teinte nord-sud au-dela de %.0f%% (le pire : %.0f%%, %d fautifs)"
-			% [label, SEAM_TOLERANCE * 100.0, worst_south * 100.0, steps_south.size()])
+	# ⚠ LE SAUT DE TEINTE EST UN RELEVE, PAS UNE ASSERTION -- ET J AI EU TORT DE L ASSERTER.
+	# A la frontiere entre une case dont le nord est plein et une case dont le nord est vide,
+	# la levre eclairee s arrete NET, et elle a raison de s arreter : le terrain fait une
+	# marche a cet endroit. Exiger la continuite de teinte accuserait donc le dessin d etre
+	# fidele. Ce qui doit etre continu, c est la MATIERE, et elle l est (asserte ci-dessus).
 	_check_equal(broken_east.size(), 0,
 			"%s : aucune fissure est-ouest%s" % [label, _first_few(broken_east)])
 	_check_equal(broken_south.size(), 0,

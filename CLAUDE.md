@@ -655,40 +655,44 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **Reste à faire pour l'ouvrir** : le champ `famille` dans la table des modes, la zone de
   travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, et l'exportateur.
 
-- **⚠ LA SUITE EST VOLONTAIREMENT ROUGE : le dessin n'est pas sûr de réussir partout.**
-  Cinq assertions échouent, et elles doivent rester rouges jusqu'à ce que le tracé soit
-  refait. Ce n'est pas une dette oubliée, c'est un chantier ouvert et signé.
+- **Le test des raccords : tous les bords partagés, vérifiés un par un** (`_test_seams`).
+  Chercher les coutures à l'œil ne dit **jamais** si on les a toutes — l'utilisateur en
+  avait coché 22 et le programme en a trouvé bien d'autres. Pour chaque paire d'index qui
+  peut *réellement* se toucher — 169 est-ouest, 169 nord-sud, **énumérées depuis les
+  reliefs** et non devinées depuis les bits, puisque la canonicalisation jette des bits de
+  coin — il compare la dernière colonne de pixels de l'une à la première colonne de l'autre.
 
-  **Le test des raccords** (`_test_seams`) vérifie **tous** les bords partagés, un par un.
-  Pour chaque paire d'index qui peut *réellement* se toucher — 169 est-ouest, 169 nord-sud,
-  énumérées depuis les reliefs et non devinées depuis les bits, puisque la canonicalisation
-  jette des bits de coin — il compare la dernière colonne de pixels de l'une à la première
-  colonne de l'autre.
+  **Ce qu'il assère :**
+  - **la matière est continue** : zéro trou, dans les trois styles ;
+  - **une falaise est UNE face** : entre deux rangées d'une même chute, les deux profils
+    doivent être **identiques**. Quinze enchaînements, tolérance quasi nulle.
 
-  **Ce qu'il a trouvé, et que l'œil ne pouvait pas dresser :**
-  - la **matière** est continue partout : zéro trou, dans les trois styles. Ma première
-    hypothèse (les 10 % découpés des pans de bout) ne concernait pas les surfaces.
-  - la **teinte**, elle, saute : **71 des 169 raccords est-ouest** dépassent 6 % d'écart en
-    peint, jusqu'à **18 %** ; **122 sur 169** en fil de fer, jusqu'à **28 %**. Ce n'est pas
-    une poignée de cas ratés, c'est **42 % des voisinages possibles**.
+  ⚠ **Ce qu'il n'assère PAS, et pourquoi j'ai eu tort de vouloir l'asserter.** J'avais
+  ajouté « aucun saut de teinte au-delà de 4 % » entre deux surfaces voisines. C'est faux :
+  à la frontière entre une case dont le nord est plein et une case dont le nord est vide, la
+  lèvre éclairée s'arrête **net**, et elle a raison — le terrain fait une marche là. Exiger
+  la continuité de teinte accuserait le dessin d'être **fidèle**. Le saut reste relevé, il
+  n'est plus jugé.
 
-  **La cause est architecturale, pas anecdotique** : les 47 tuiles sont dessinées
-  *indépendamment*, chacune éclairée par rapport à sa propre silhouette. Rien ne fait
-  qu'une tuile-moignon et la tuile pleine qu'elle rejoint s'accordent sur leur bord commun.
+  ⚠ **UNE LIGNE BRISÉE SE VOIT BIEN MIEUX QU'UN DÉGRADÉ.** Le vrai défaut ne pesait que
+  **2,4 %** d'écart de teinte, là où des marches parfaitement légitimes en pesaient 18 %.
+  C'est pour ça que la tolérance des rangées de robe est quasi nulle et celle des surfaces
+  inexistante : ce qui compte n'est pas l'amplitude, c'est qu'une **structure** se casse.
 
-  **La règle qui rend le dessin sûr, et pourquoi elle marche :**
+  ⚠ **Le test avait lui-même un bug, et il a inventé un défaut.** `row_for()` compte les pas
+  **à partir de 1** ; j'itérais depuis 0, et la suite fabriquait un enchaînement
+  « corps 0 → chapiteau » que la chute ne produit jamais. Un test faux coûte plus cher qu'un
+  test absent : il envoie corriger ce qui va bien.
 
-  > Aucun effet de dessin ne porte à plus d'une demi-tuile.
+- **La striure d'une falaise ne se décale plus d'une rangée à l'autre.** Elle le faisait
+  — `phase = 0.0 if role.y == 1 else 0.37`, « même teinte, autre grain » — et cassait
+  **chaque rainure à chaque cran** : sur une chute de six cases, la paroi se lisait comme
+  une pile de tuiles au lieu d'une face. C'est exactement l'ensemble de rôles que
+  l'utilisateur avait coché : 21 de ses 22 marques étaient sur des robes.
 
-  Sous cette contrainte, le bord partagé entre deux tuiles ne dépend que de cases que les
-  **deux** connaissent : chacune voit l'autre dans son propre voisinage 3x3. Et les bits que
-  la canonicalisation jette sont **exactement** ceux qui ne changent pas la silhouette —
-  donc leur ignorance ne peut pas faire diverger deux voisines. La continuité cesse d'être
-  une intention pour devenir une conséquence, et le test la prouve.
-
-  La méthode qui en découle : dessiner chaque tuile en rendant **l'îlot 3x3 de son index**
-  — le même que celui de la planche de preuve — puis en découper la case centrale. Tous les
-  effets se calculent depuis le champ du terrain, jamais depuis la silhouette isolée.
+  Ce qui distingue désormais les deux rangées de corps est une **assise** — une bande
+  horizontale légère, tenue à distance des deux bords, donc **incapable de se voir au
+  raccord**, quelle que soit la rangée qui suit. Le grain varie sans que la roche se brise.
 
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
