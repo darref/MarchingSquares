@@ -15,13 +15,11 @@ config/description="Paint one landscape. Every edge case covered."
 run/main_scene="res://ui/editor.tscn"
 config/features=PackedStringArray("4.7")
 
-[display]
-
-; La fenetre se redimensionne a 95% de l ecran au lancement (ui/editor.gd).
-; Cette taille n est que celle de la premiere image.
-window/size/viewport_width=1600
-window/size/viewport_height=900
-
 [debug]
 
 gdscript/warnings/untyped_declaration=2
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900

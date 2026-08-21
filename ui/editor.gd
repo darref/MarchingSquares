@@ -46,6 +46,7 @@ func _ready() -> void:
 	_fill_modes()
 	_fill_resolutions()
 	_fill_styles()
+	_fill_inks()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	work.loading_progress.connect(_on_loading_progress)
@@ -60,6 +61,8 @@ func _ready() -> void:
 		if button != null:
 			button.pressed.connect(_on_swatch_pressed.bind(button))
 	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
+	(%InkChoice as OptionButton).item_selected.connect(_on_style_selected)
+	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
@@ -129,14 +132,15 @@ func _fill_resolutions() -> void:
 			choice.select(choice.item_count - 1)
 
 
-## ⚠ CE CHOIX EST UNE AIDE A LA VUE, PAS UN REGLAGE DU PRODUIT. Il dit ce qu'on regarde en
-## peignant, et rien de ce qui sort n'en depend -- a ne pas confondre avec l'eclairage du
-## mode, qui, lui, change ce qu'on fabrique.
+## ⚠ TROIS AXES INDEPENDANTS, ET ILS NE SE COMMANDENT PAS L UN L AUTRE.
+##   le PAYSAGE   -- quel relief : minimal ou ample. C est le mode.
+##   la TECHNIQUE -- ce que le fond montre : le resultat seul, ou plus les marques.
+##   le STYLE     -- de quoi le fond est fait : des aplats, ou des traits.
+## Les deux derniers sont des aides a la vue : rien de ce qui sort n en depend. Les
+## avoir melanges une fois a suffi a rendre l un a la place de l autre.
 func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
-	# ⚠ L'ENCRE SUIT LE MODE, PAS LA VUE. Peint ou fil de fer, c'est ce qu'on FABRIQUE ;
-	# ici on ne choisit que l'usage du fond -- montrer le resultat, ou porter les marques.
 	choice.add_item("Representatif")
 	choice.set_item_metadata(0, GuideImage.Purpose.REPRESENTATIVE)
 	choice.add_item("Utilisable")
@@ -144,16 +148,25 @@ func _fill_styles() -> void:
 	choice.select(0)
 
 
+func _fill_inks() -> void:
+	var choice: OptionButton = %InkChoice
+	choice.clear()
+	choice.add_item("Peint")
+	choice.set_item_metadata(0, GuideImage.Ink.PAINTED)
+	choice.add_item("Fil de fer")
+	choice.set_item_metadata(1, GuideImage.Ink.WIREFRAME)
+	choice.select(0)
+
+
 func _on_style_selected(_index: int) -> void:
 	_apply_background_style()
 
 
-## Le fond se dessine dans l'encre du MODE et pour l'usage choisi dans la vue.
 func _apply_background_style() -> void:
-	var choice: OptionButton = %StyleChoice
-	var purpose: GuideImage.Purpose = choice.get_item_metadata(choice.selected)
-	var ink: GuideImage.Ink = Modes.ink(_current_mode())
-	(%WorkArea as Control).set_guide_style(ink, purpose)
+	var technic: OptionButton = %StyleChoice
+	var style: OptionButton = %InkChoice
+	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected),
+			technic.get_item_metadata(technic.selected))
 
 
 func _current_mode() -> StringName:
@@ -177,9 +190,10 @@ func _load_current_mode() -> void:
 	var work: Control = %WorkArea
 	work.pencil = (%PencilColor as ColorPickerButton).color
 	_apply_fill_rules()
-	var choice: OptionButton = %StyleChoice
-	work.guide_ink = Modes.ink(id)
-	work.guide_purpose = choice.get_item_metadata(choice.selected)
+	var technic: OptionButton = %StyleChoice
+	var style: OptionButton = %InkChoice
+	work.guide_ink = style.get_item_metadata(style.selected)
+	work.guide_purpose = technic.get_item_metadata(technic.selected)
 	work.show_guide(_heights, _painting)
 	_refresh_counters()
 
@@ -219,21 +233,25 @@ func _on_twins_toggled(_pressed: bool) -> void:
 	_apply_fill_rules()
 
 
-## ⚠ QUI REMPLIT QUOI SE DECIDE ICI, ET LE MODE A LE DERNIER MOT. Sans lumiere, les
-## symetries sont licites et le mode les applique toujours -- la case a cocher devient sans
-## objet, puisque les jumelles sont deja comprises dans l'orbite. Eclaire, seules les
-## jumelles sont offertes : elles ne fabriquent rien.
+## ⚠ LES ROTATIONS SONT OFFERTES, PAS IMPOSEES, ET L OUTIL NE PEUT PAS TRANCHER A
+## VOTRE PLACE. Une rotation FABRIQUE une tuile dans une orientation que personne n a
+## peinte : sur un dessin eclaire c est visiblement faux, la lumiere tourne avec la
+## tuile ; sur un dessin sans direction d eclairage c est correct. Or l outil ne sait
+## pas ce que vous dessinez. La case le dit dans son infobulle, et le choix reste
+## le votre.
 func _apply_fill_rules() -> void:
-	var lit: bool = Modes.is_lit(_current_mode())
-	var check: CheckBox = %TwinsCheck
-	check.disabled = not lit
 	var work: Control = %WorkArea
-	work.set_fill_rules(check.button_pressed, not lit)
+	var rotations: bool = (%RotationsCheck as CheckBox).button_pressed
+	var twins: CheckBox = %TwinsCheck
+	work.set_fill_rules(twins.button_pressed, rotations)
+	# Les jumelles sont deja comprises dans l orbite : la case devient sans objet.
+	twins.disabled = rotations
 	var note: Label = %ModeNote
-	note.visible = not lit
-	if not lit:
-		note.text = "Fil de fer : sans aplat, donc sans lumiere. Rotations et miroirs sont licites, %d tuiles a peindre." % Modes.work_count(_current_mode())
-	_apply_background_style()
+	note.visible = rotations
+	if rotations:
+		note.text = "Rotations : les orbites se remplissent seules, %d tuiles a peindre au lieu de %d." % [
+				Symmetry.surface_work_count() + Symmetry.wall_work_count(),
+				Modes.tile_count(_current_mode())]
 
 
 func _on_fit_pressed() -> void:

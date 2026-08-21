@@ -197,19 +197,16 @@ func _test_variant_selection() -> void:
 func _test_modes_catalogue() -> void:
 	print("modes : catalogue")
 	var ids: Array[StringName] = Modes.ids()
-	_check_equal(ids.size(), 3, "trois modes au catalogue")
+	# ⚠ UN MODE EST UN PAYSAGE, RIEN D AUTRE. La technique et le style du fond sont des
+	# outils : les avoir ranges ici avait suffi a rendre l un a la place de l autre.
+	_check_equal(ids.size(), 2, "deux paysages au catalogue")
 	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
 	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
-	_check_equal(ids[2], Modes.WIREFRAME, "le troisieme est au fil de fer")
-	_check(Modes.is_lit(Modes.MINIMAL), "minimal est peint, donc eclaire")
-	_check(not Modes.is_lit(Modes.WIREFRAME), "le fil de fer n a pas d aplat, donc pas de lumiere")
-	_check_equal(Modes.ink(Modes.MINIMAL), GuideImage.Ink.PAINTED, "minimal est a l encre peinte")
-	_check_equal(Modes.ink(Modes.WIREFRAME), GuideImage.Ink.WIREFRAME, "et l autre au trait")
-	_check_equal(Modes.work_count(Modes.MINIMAL), 59, "un mode eclaire se peint tuile par tuile : 59")
-	# ⚠ 23, PAS 22. Le 22 serait le compte du groupe complet -- rotations ET miroirs sur les
-	# surfaces. Les miroirs de surface n'y gagnent qu'UNE tuile (15 orbites deviennent 14),
-	# et on les a ecartes pour ca. Les robes, elles, n'ont que le miroir : 12 -> 8.
-	_check_equal(Modes.work_count(Modes.WIREFRAME), 23, "au fil de fer : 15 surfaces + 8 robes = 23")
+	# ⚠ 23, PAS 22. Le 22 serait le compte du groupe complet -- rotations ET miroirs sur
+	# les surfaces. Les miroirs de surface n y gagnent qu UNE tuile (15 orbites deviennent
+	# 14), et on les a ecartes pour ca. Les robes, elles, n ont que le miroir : 12 -> 8.
+	_check_equal(Symmetry.surface_work_count() + Symmetry.wall_work_count(), 23,
+			"avec les rotations : 15 surfaces + 8 robes = 23, contre 59")
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
 	_check(Modes.is_available(Modes.AMPLE), "ample a son guide, il se choisit")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
@@ -594,18 +591,22 @@ func _test_guide_image() -> void:
 
 	# ⚠ LES QUATRE FONDS SORTENT DE LA MEME FONCTION ET DU MEME RELIEF, et aucun ne
 	# ressemble a un autre : deux encres, deux usages.
-	var four: Array[PackedByteArray] = []
-	for ink: GuideImage.Ink in [GuideImage.Ink.PAINTED, GuideImage.Ink.WIREFRAME]:
-		for purpose: GuideImage.Purpose in [GuideImage.Purpose.REPRESENTATIVE, GuideImage.Purpose.USABLE]:
-			var drawn: Image = GuideImage.render(heights, GuideImage.TILE, ink, purpose)
-			_check_equal(drawn.get_size(), image.get_size(), "encre %d, usage %d : meme taille" % [ink, purpose])
-			four.append(drawn.get_data())
+	# ⚠ TROIS AXES INDEPENDANTS FONT HUIT DESSINS : deux paysages, deux techniques, deux
+	# styles. Aucun ne doit ressembler a un autre, sans quoi l un serait rendu a la place
+	# de l autre sans que personne ne le voie.
+	var drawings: Array[PackedByteArray] = []
+	for id: StringName in Modes.ids():
+		var relief: PackedStringArray = HeightMask.read(Modes.guide_path(id))
+		for ink: GuideImage.Ink in [GuideImage.Ink.PAINTED, GuideImage.Ink.WIREFRAME]:
+			for purpose: GuideImage.Purpose in [GuideImage.Purpose.REPRESENTATIVE, GuideImage.Purpose.USABLE]:
+				drawings.append(GuideImage.render(relief, 8, ink, purpose).get_data())
+	_check_equal(drawings.size(), 8, "huit dessins : 2 paysages x 2 techniques x 2 styles")
 	var all_different: bool = true
-	for first: int in range(four.size()):
-		for second: int in range(first + 1, four.size()):
-			if four[first] == four[second]:
+	for first: int in range(drawings.size()):
+		for second: int in range(first + 1, drawings.size()):
+			if drawings[first] == drawings[second]:
 				all_different = false
-	_check(all_different, "les quatre combinaisons donnent quatre dessins differents")
+	_check(all_different, "les huit sont differents deux a deux")
 
 	var wire: Image = GuideImage.render(heights, GuideImage.TILE, GuideImage.Ink.WIREFRAME,
 			GuideImage.Purpose.REPRESENTATIVE)
