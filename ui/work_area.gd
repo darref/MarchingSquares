@@ -104,6 +104,11 @@ var show_grid: bool = true
 ## trou est la verite, et c'est exactement ce qu'on veut voir.
 var assembled: bool = false
 
+## L'inverse de `assembled` : on efface ce qui est peint et on ne garde que le guide.
+## ⚠ LES DEUX SE COCHENT EN MEME TEMPS SANS SE CONTREDIRE : il ne reste alors rien du tout,
+## et c'est une reponse honnete plutot qu'un cas interdit.
+var hide_work: bool = false
+
 var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
 var _surface_cells: Dictionary = {}
@@ -319,7 +324,7 @@ func _draw() -> void:
 		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
 
 	var pixel_px: float = _tile_px / float(_painting.resolution) if _painting != null else 1.0
-	for cell: Vector2i in _textures.keys():
+	for cell: Vector2i in (_textures.keys() if not hide_work else []):
 		var texture: ImageTexture = _textures[cell]
 		var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
 		draw_texture_rect(texture, rect, false)

@@ -83,6 +83,7 @@ func _ready() -> void:
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
+	(%WorkCheck as CheckBox).toggled.connect(_on_work_hidden)
 	(%DecorChoice as OptionButton).item_selected.connect(_on_decor_selected)
 	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
@@ -295,10 +296,23 @@ func _apply_margins() -> void:
 	work.reserved_right = (%Toolbar as Control).size.x
 
 
+## ⚠ LES TROIS CASES DISENT « MASQUER », PAS « AFFICHER ». Une case a cocher qui commence
+## cochee est un mensonge d'ergonomie : elle donne a croire qu'on ajoute quelque chose alors
+## qu'on en retire. Les trois retirent une couche -- la grille, le guide, le travail -- et
+## elles partent toutes decochees, l'ecran complet.
+func _on_work_hidden(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.hide_work = pressed
+	work.queue_redraw()
+	_announce("Travail masque : le guide seul." if pressed else "Travail revenu.")
+
+
 func _on_grid_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
-	work.show_grid = pressed
+	work.show_grid = not pressed
 	work.queue_redraw()
+	_announce("Grille masquee : on juge la couleur sans rien par-dessus." if pressed
+			else "Grille revenue.")
 
 
 ## L'APERCU EN JEU. Le guide est un banc d'epreuve -- lacs d'une case, pinacles isoles ; il

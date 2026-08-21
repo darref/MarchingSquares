@@ -403,17 +403,32 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 	var wire: bool = ink == Ink.WIREFRAME
 	var last: float = float(side - 1)
 	var stroke: float = STROKE * float(side) * (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
-	var margin: float = 0.10 * float(side)
 	# ⚠ TROIS ETATS PAR FLANC, ET CHACUN A SON TRACE.
-	#   VIDE   la roche s'arrete : la face est mise en retrait, et la plaine se voit a cote.
+	#   VIDE   la roche s'arrete : un liseré au bord, et la case voisine dessine la plaine.
 	#   MUET   rien : ou la meme face continue, ou c'est le voisin qui portera l'angle.
-	#   DEVANT je suis le bloc qui avance : je porte mon angle, POSE JUSQU'AU BORD, sans
-	#          decoupe -- sinon on verrait la plaine a travers la roche du voisin.
+	#   DEVANT je suis le bloc qui avance : je porte mon angle, POSE JUSQU'AU BORD.
 	# ⚠ ET L'ANGLE N'EST PAS SYMETRIQUE : lumiere du nord-ouest, donc l'angle ouest accroche
 	# le jour et l'angle est recule. C'est ce qui fait qu'on lit DE QUEL COTE est le retrait.
 	var west: int = Walls.pan_west(role.x)
 	var east: int = Walls.pan_east(role.x)
-	var edge: float = stroke * 1.5
+	# ⚠ LE RAPPORT DES DEUX MARQUES EST VOULU, ET IL NE L'ETAIT PAS. Le liseré du vide etait
+	# une fraction fixe de la tuile tandis que l'angle derivait de `stroke`, lequel porte le
+	# facteur d'exageration du mode representatif : l'angle etait donc plus LARGE que le
+	# liseré en representatif et plus ETROIT en utilisable, le rapport s'inversant d'une
+	# technique a l'autre. Accident, pas intention.
+	#
+	# ⚠ ET LA LARGEUR EST LA MEME POUR LES DEUX. Elle ne l'etait pas -- 0,10 pour le vide,
+	# 0,055 pour l'arete -- et comme l'ETAT D'UN FLANC CHANGE EN DESCENDANT (le voisin est
+	# en retrait sur trois rangees, puis sa robe s'arrete), la bande passait de large a
+	# etroite EN COURS DE COLONNE. Elle pulsait, et ca se lit comme une negligence.
+	#
+	# Une seule largeur, donc, et c'est la TEINTE qui dit ce qui se passe : le vide est doux
+	# -- la plaine a cote fait deja tout le contraste -- l'arete est franche, puisqu'elle a
+	# de la roche des deux cotes. La bande descend d'un trait, et seule sa couleur bouge.
+	var swell: float = 1.6 if purpose == Purpose.REPRESENTATIVE else 1.0
+	var band: float = 0.09 * float(side) * swell
+	var rim: float = band
+	var edge: float = band
 	var base: Color = WIRE_WALL
 	if not wire:
 		base = STONE_BODY
@@ -438,9 +453,9 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 				# bas du pied est le sol ; entre deux rangees de corps il n'y a AUCUNE
 				# ligne, la face est continue -- sans quoi la falaise serait rayee de traits
 				# que rien ne justifie.
-				if west == Walls.SIDE_VOID and px < stroke:
+				if west == Walls.SIDE_VOID and px < rim:
 					color = WIRE_EDGE
-				elif east == Walls.SIDE_VOID and px > last - stroke:
+				elif east == Walls.SIDE_VOID and px > last - rim:
 					color = WIRE_EDGE
 				elif west == Walls.SIDE_FRONT and px < edge:
 					color = WIRE_LIP
@@ -475,14 +490,14 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 					var ledge: float = 0.40 if role.y == 1 else 0.62
 					if absf(vertical - ledge) < 0.055:
 						color = color.darkened(0.07)
-				if west == Walls.SIDE_VOID and px < margin:
-					color = color.lightened(0.16)
+				if west == Walls.SIDE_VOID and px < rim:
+					color = color.lightened(0.13)
 				elif west == Walls.SIDE_FRONT and px < edge:
-					color = color.lightened(0.22)
-				if east == Walls.SIDE_VOID and px > last - margin:
-					color = color.darkened(0.20)
+					color = color.lightened(0.30)
+				if east == Walls.SIDE_VOID and px > last - rim:
+					color = color.darkened(0.16)
 				elif east == Walls.SIDE_FRONT and px > last - edge:
-					color = color.darkened(0.28)
+					color = color.darkened(0.36)
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.

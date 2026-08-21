@@ -774,6 +774,26 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
   Le vide se dit désormais par **l'ombre du bord**, jamais en mangeant la roche.
 
+- **⚠ UNE SEULE LARGEUR DE BANDE, ET C'EST LA TEINTE QUI PARLE.** Le liseré du `vide` faisait
+  0,10 de tuile et l'angle du `devant` 0,055 — et comme **l'état d'un flanc change en
+  descendant** (le voisin est en retrait sur trois rangées, puis sa robe s'arrête), la bande
+  passait de large à étroite **en cours de colonne**. Elle pulsait, ce qui se lit comme une
+  négligence. Pire : les deux largeurs ne dérivaient pas de la même source — l'une était une
+  fraction fixe, l'autre héritait du facteur d'exagération du mode Représentatif — si bien
+  que **leur rapport s'inversait d'une technique à l'autre**. Deux accidents, aucune
+  intention.
+
+  Une seule largeur désormais, et la teinte dit ce qui se passe : le **vide est doux** — la
+  plaine à côté fait déjà tout le contraste — l'**arête est franche**, puisqu'elle a de la
+  roche des deux côtés. La bande descend d'un trait, seule sa couleur bouge.
+
+- **Les trois cases de vue disent « masquer », pas « afficher ».** Masquer la grille · le
+  guide · le travail. Une case à cocher qui **commence cochée** est un mensonge d'ergonomie :
+  elle donne à croire qu'on ajoute quelque chose alors qu'on en retire. Les trois retirent
+  une couche et partent toutes décochées, l'écran complet. « Masquer le travail » est
+  l'inverse exact de « Masquer le guide » : il sert à comparer ce qu'on a peint à ce qu'il
+  fallait peindre.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

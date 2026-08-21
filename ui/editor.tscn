@@ -795,15 +795,20 @@ theme_override_constants/separation = 6
 [node name="GridCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1040001326]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "La grille des tuiles, et celle des faux pixels quand le zoom la rend lisible."
-button_pressed = true
-text = "Afficher la grille"
+tooltip_text = "La grille des tuiles, et celle des faux pixels quand le zoom la rend lisible. Une grille est une aide a viser : quand on juge une couleur, elle gene."
+text = "Masquer la grille"
 
 [node name="AssembledCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100011]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Efface le fond du guide, les grilles et les reperes : il ne reste que vos tuiles. Meme famille que la grille -- on ne juge pas une couleur a travers autre chose."
 text = "Masquer le guide"
+
+[node name="WorkCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100016]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Efface vos pixels et ne laisse que le guide. L'inverse de « Masquer le guide » : pour comparer ce que vous avez peint a ce qu'il fallait peindre."
+text = "Masquer le travail"
 
 [node name="PreviewCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100012]
 unique_name_in_owner = true
