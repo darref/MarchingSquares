@@ -35,7 +35,11 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const Assembly := preload("res://render/assembly.gd")
 
 const MAGIC: String = "absolutiles-tileset"
-const VERSION: int = 1
+## ⚠ VERSION 2 : LE MANIFESTE EST DEVENU UN CONTRAT. Il ne decrit plus seulement OU sont
+## les tuiles, il porte la REGLE DE POSE. Une seconde moitie du projet posera le monde dans
+## Godot et dans Unity : c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui
+## se fient a leur memoire finissent toujours par diverger. La regle vit ici, une seule fois.
+const VERSION: int = 2
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -220,37 +224,115 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("mode %s" % mode_id)
 	lines.append("tile_size %d" % int(report["tile_size"]))
 	lines.append("variants %d" % int(report["variants"]))
+
+	_spec(lines)
+
 	lines.append("")
 	lines.append("surface %s %d %d" % [basename + SUFFIX_SURFACE, SURFACE_COLUMNS, surface_rows()])
-	lines.append("# les 47 index du blob, en ordre croissant, huit par rangee ;")
-	lines.append("# la derniere case de la planche reste vide, 47 n'etant pas un multiple de 8.")
+	lines.append("# les %d index du blob, en ordre croissant, huit par rangee ; la derniere"
+			% BlobIndex.CANONICAL_INDICES.size())
+	lines.append("# case de la planche reste vide, 47 n'etant pas un multiple de 8.")
 	var indices: Array[int] = []
 	for index: int in report["surface_variants"].keys():
 		indices.append(index)
 	indices.sort()
 	for index: int in indices:
 		var slot: Vector2i = surface_slot(index, 0)
-		lines.append("index %d slot %d,%d variants %d"
-				% [index, slot.x, slot.y, report["surface_variants"][index].size()])
+		lines.append("index %d slot %d,%d variants %d  # %s" % [index, slot.x, slot.y,
+				report["surface_variants"][index].size(), BlobIndex.describe(index)])
 
-	lines.append("")
 	lines.append("")
 	lines.append("proof %s" % [basename + SUFFIX_PROOF])
 	lines.append("# chaque index sur son propre ilot, dans l'ordre de la planche de surface :")
 	lines.append("# la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.")
+
 	lines.append("")
 	lines.append("walls %s %d %d" % [basename + SUFFIX_WALLS, Walls.PAN_COUNT, Walls.BLOCK_ROWS])
-	lines.append("# 3 pans (gauche, courant, droit) x 4 rangees (chapiteau, corps 0, corps 1, pied).")
-	lines.append("storey_tiles %d" % Walls.STOREY_TILES)
-	lines.append("body_rows %d" % Walls.BODY_ROWS)
+	lines.append("# %d pans (le couple des deux flancs) x %d rangees = %d tuiles."
+			% [Walls.PAN_COUNT, Walls.BLOCK_ROWS, Walls.ALL_ROLES.size()])
 	for role: Vector2i in Walls.ALL_ROLES:
 		if not report["wall_variants"].has(role):
 			continue
 		var at: Vector2i = wall_slot(role, 0)
-		lines.append("role %d,%d slot %d,%d variants %d"
-				% [role.x, role.y, at.x, at.y, report["wall_variants"][role].size()])
+		lines.append("role %d,%d slot %d,%d variants %d  # %s" % [role.x, role.y, at.x, at.y,
+				report["wall_variants"][role].size(), Walls.role_name(role)])
 
 	return "\n".join(lines) + "\n"
+
+
+## LA REGLE DE POSE, ecrite noir sur blanc.
+##
+## ⚠ NECESSAIRE ET SUFFISANT. Ce qui suit doit permettre a quelqu'un qui n'a QUE ce fichier
+## et les planches de poser un monde correct. Si une regle manque ici, elle vivra dans la
+## tete de celui qui a ecrit le moteur -- et le jour ou il en ecrira un second, les deux
+## divergeront sans que rien ne le dise.
+static func _spec(lines: PackedStringArray) -> void:
+	lines.append("")
+	lines.append("# ======================= LA REGLE DE POSE =======================")
+	lines.append("# Ce fichier n'est pas une notice, c'est le contrat. Tout ce qui suit est")
+	lines.append("# necessaire et suffisant pour placer chaque tuile.")
+	lines.append("")
+	lines.append("# --- LE RELIEF ---")
+	lines.append("# Une carte est une hauteur par case : 0 la plaine, 1..9 les plateaux. La")
+	lines.append("# silhouette de l'etage N est l'ensemble des cases de hauteur >= N, et c'est")
+	lines.append("# un masque BINAIRE : tout ce qui suit s'applique etage par etage. On dessine")
+	lines.append("# du bas vers le haut, chaque couche recouvrant la precedente.")
+	lines.append("levels silhouette_per_level")
+	lines.append("draw_order bottom_up")
+	lines.append("")
+	lines.append("# --- LA SURFACE : le blob 47 ---")
+	lines.append("# Voisinage 8 bits, sens horaire depuis le nord.")
+	lines.append("bits N=%d NE=%d E=%d SE=%d S=%d SW=%d W=%d NW=%d" % [
+			BlobIndex.N, BlobIndex.NE, BlobIndex.E, BlobIndex.SE,
+			BlobIndex.S, BlobIndex.SW, BlobIndex.W, BlobIndex.NW])
+	lines.append("# ⚠ UN BIT DE COIN N'EST CONSERVE QUE SI LES DEUX CARDINAUX QUI L'ENCADRENT")
+	lines.append("# SONT PLEINS. Un coin diagonal isole ne change pas la silhouette de la tuile :")
+	lines.append("# il ne doit donc pas produire une tuile de plus. Les 256 voisinages bruts se")
+	lines.append("# reduisent ainsi a exactement %d index." % BlobIndex.CANONICAL_INDICES.size())
+	lines.append("canonicalise corner_needs_both_cardinals")
+	lines.append("# La tuile d'une case est celle de SON etage, jamais de l'union des etages.")
+	lines.append("visible own_level")
+	lines.append("")
+	lines.append("# --- LES FALAISES ---")
+	lines.append("# ⚠ UN PLATEAU N'A DE FACE QU'AU SUD. Les trois autres cotes ne montrent rien :")
+	lines.append("# on voit son dessus, puis le sol d'en dessous, sans transition.")
+	lines.append("faces south_only")
+	lines.append("storey_tiles %d" % Walls.STOREY_TILES)
+	lines.append("body_rows %d" % Walls.BODY_ROWS)
+	lines.append("block_rows %d" % Walls.BLOCK_ROWS)
+	lines.append("# LA CHUTE. Sous une levre de l'etage N -- une case de l'etage N dont la case")
+	lines.append("# au sud est plus basse -- on cherche l'etage le plus haut M reellement")
+	lines.append("# atteint, et la chute vaut storey_tiles * (N - M).")
+	lines.append("# ⚠ ON SONDE LA CASE JUSTE SOUS LE PIED, jamais celles que la robe traverse :")
+	lines.append("# les etages partagent la grille, et l'etage N-1 continue SOUS la robe de")
+	lines.append("# l'etage N. Sonder au fil de la descente repondrait « touche » des la premiere")
+	lines.append("# case, et toutes les falaises feraient une case de haut.")
+	lines.append("fall storey_tiles_times_gap probe_below_foot")
+	lines.append("# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle")
+	lines.append("# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,")
+	lines.append("# elle bute contre un voisin de son niveau.")
+	lines.append("trim stop_on_same_level no_foot")
+	lines.append("# LA RANGEE, au pas `step` (1 = premiere case sous la levre) d'une chute de")
+	lines.append("# `drop` cases :")
+	lines.append("#     step == 1               -> %d  chapiteau" % Walls.ROW_CROWN)
+	lines.append("#     step == drop et posee   -> %d  pied" % Walls.ROW_FOOT)
+	lines.append("#     sinon                   -> 1 + (step - 2) modulo body_rows")
+	lines.append("row_for crown_first foot_last body_cycle")
+	lines.append("# LE PAN. C'est le couple des deux flancs : pan = ouest * %d + est."
+			% Walls.SIDE_COUNT)
+	lines.append("#     %d VIDE    aucune roche a ce flanc" % Walls.SIDE_VOID)
+	lines.append("#     %d MUET    la meme face continue, OU le voisin est DEVANT moi"
+			% Walls.SIDE_MUTE)
+	lines.append("#     %d DEVANT  le voisin est en retrait : je porte l'angle"
+			% Walls.SIDE_FRONT)
+	lines.append("# ⚠ « EN RETRAIT » SE MESURE A LA LEVRE : la levre du voisin est plus au NORD")
+	lines.append("# que la mienne. Deux faces mitoyennes issues de levres decalees ne sont PAS la")
+	lines.append("# meme face, et l'arete appartient a celle qui AVANCE -- c'est ce qui rend")
+	lines.append("# lisible laquelle des deux est la plus proche.")
+	lines.append("# ⚠ ET LE PAN SE CHOISIT PAR RANGEE, JAMAIS PAR COLONNE : sous le pied d'une")
+	lines.append("# voisine plus courte, un flanc redevient vide.")
+	lines.append("pan west_times_three_plus_east lip_row_comparison per_row")
+	lines.append("# ================================================================")
 
 
 ## Ecrit les deux planches et leur manifeste dans [param folder].

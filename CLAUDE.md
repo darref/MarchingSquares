@@ -794,6 +794,24 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   l'inverse exact de « Masquer le guide » : il sert à comparer ce qu'on a peint à ce qu'il
   fallait peindre.
 
+- **Le manifeste porte la RÈGLE DE POSE, pas seulement la table des cases**
+  (`<nom>_tileset.txt`, version 2). Une seconde moitié du projet posera le monde dans Godot
+  et dans Unity : **c'est nous qui écrirons le lecteur, deux fois**, et deux lecteurs qui se
+  fient à leur mémoire finissent toujours par diverger. La règle vit donc dans le fichier,
+  une seule fois.
+
+  ⚠ **Nécessaire et suffisant.** Quelqu'un qui n'a *que* ce fichier et les planches doit
+  pouvoir poser un monde correct. Si une règle manque, elle vivra dans la tête de celui qui
+  a écrit le premier moteur — et le second divergera sans que rien ne le dise. Le test
+  vérifie que **chaque clause y est** : le relief par silhouettes, l'ordre de dessin, les
+  huit bits et leur canonicalisation, la surface visible, la face au sud seulement, la
+  chute et sa sonde sous le pied, l'écrêtage sans pied, la rangée par pas, et le pan comme
+  couple de flancs comparés à la lèvre.
+
+  La forme : des lignes `clé valeur` lisibles par un programme, et des commentaires `#` qui
+  disent *pourquoi*. Un lecteur n'a besoin que des premières ; un humain qui doit
+  réimplémenter a besoin des secondes.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

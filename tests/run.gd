@@ -819,9 +819,29 @@ func _test_export() -> void:
 	_check(preuve != null and preuve.get_width() == HeightMask.width(ProofScene.relief()) * 16,
 			"la planche de preuve est ecrite a la taille du relief de preuve")
 	var manifest: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt"))
-	_check(manifest.begins_with("absolutiles-tileset 1"), "le manifeste s annonce")
-	_check(manifest.contains("storey_tiles %d" % Walls.STOREY_TILES),
-			"le manifeste donne la hauteur d etage, sans quoi on ne remonte pas une falaise")
+	_check(manifest.begins_with("%s %d" % [TilesetPNG.MAGIC, TilesetPNG.VERSION]),
+			"le manifeste s annonce")
+	# ⚠ LE MANIFESTE EST LE CONTRAT ENTRE LES DEUX MOITIES DU PRODUIT. Une seconde moitie
+	# posera le monde dans Godot et dans Unity ; si une regle n'est pas ECRITE ici, elle
+	# vivra dans la tete de celui qui a ecrit le moteur, et le second moteur divergera. On
+	# verifie donc que chaque piece de la regle y est.
+	var contract: Array[String] = [
+		"levels silhouette_per_level", "draw_order bottom_up",
+		"canonicalise corner_needs_both_cardinals", "visible own_level",
+		"faces south_only", "storey_tiles %d" % Walls.STOREY_TILES,
+		"body_rows %d" % Walls.BODY_ROWS, "block_rows %d" % Walls.BLOCK_ROWS,
+		"fall storey_tiles_times_gap probe_below_foot",
+		"trim stop_on_same_level no_foot",
+		"row_for crown_first foot_last body_cycle",
+		"pan west_times_three_plus_east lip_row_comparison per_row",
+		"bits N=%d" % BlobIndex.N,
+	]
+	var absent: PackedStringArray = PackedStringArray()
+	for clause: String in contract:
+		if not manifest.contains(clause):
+			absent.append(clause)
+	_check_equal(absent, PackedStringArray(),
+			"le manifeste porte la REGLE DE POSE en entier, pas seulement la table des cases")
 	var relu: Image = Image.load_from_file(folder.path_join("essai_surface.png"))
 	_check(relu != null and relu.get_width() == TilesetPNG.SURFACE_COLUMNS * 16,
 			"la planche ecrite se relit depuis le disque")
