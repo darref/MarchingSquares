@@ -39,6 +39,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
+  satyron_tiles.gd  lit le tileset de Satyron chez lui, pour le banc d'essai
   guide_render_job.gd  le même dessin, par étapes, pour pouvoir le regarder avancer
   preview.gd      écrit l'illustration sur disque
 ui/           l'éditeur
@@ -339,6 +340,41 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 - **La lumière vient du nord-ouest.** La lèvre nord et le flanc ouest sont éclairés, le sud
   et l'est reculent. L'ombre de contact ne se pose **qu'à l'est** : au sud, c'est déjà une
   robe qui couvre la case.
+
+- **La technique `example` : notre guide assemblé avec un VRAI tileset.** Elle lit celui de
+  Satyron **depuis son projet**, sur ce disque, et pose ses tuiles sur notre relief. Si nos
+  règles sont justes, le paysage se tient ; chaque endroit où il ne se tient pas est une
+  erreur — chez nous, ou chez lui. C'est un banc d'essai, pas un fond de travail : le choix
+  du **style se ferme** quand elle est active, puisque ce ne sont ni nos aplats ni nos traits.
+
+  ⚠ **On lit, on ne copie pas.** Les images restent chez Satyron. Le pack est acheté, sa
+  licence autorise l'usage et interdit la redistribution : sur une machine où le projet
+  n'est pas là, la technique reste **fermée** dans la liste (règle 5). Le chemin se règle
+  par `absolutiles/satyron_path`.
+
+  ⚠ **Ce que le banc éprouve, et ce qu'il n'éprouve pas.** Mesuré avant d'écrire :
+  `icko_tileset.tres` déclare `mode = 1`, c'est-à-dire **Match Corners** — chaque tuile y est
+  définie par ses **4 coins**, pas par les 8 voisins d'une case. Satyron n'a donc **aucune
+  tuile blob 47** : il n'existe rien en face de « l'index 253 ». Les deux grilles sont
+  duales, une de ses tuiles étant à cheval sur quatre des nôtres, et ses sols se posent
+  décalés d'une demi-case. Ce n'est pas une approximation, c'est la géométrie de son système.
+
+  Le banc **éprouve** donc notre relief, nos silhouettes par étage, et surtout nos **règles
+  de falaise** — chutes, choix du pan par rangée, pied ou pas de pied — qui se posent case
+  pour case, sans décalage, puisque c'est à lui qu'on les a prises. Il **n'éprouve pas** la
+  correspondance des 47 index.
+
+  ⚠ **Son kit de falaise n'a qu'une rangée de corps** (`body_rows = 1`) là où nous en posons
+  deux : sa documentation décrit le kit *desert*, mais le kit vivant est l'*icko*. Nos deux
+  corps retombent donc sur la même rangée — on ne montre pas ce qui n'existe pas.
+
+  ⚠ **Un `.tres` d'un autre projet ne se charge pas, il se lit.** Ses textures sont
+  référencées en `res://`, qui pointe chez nous : `load()` échouerait sur la première. Piège
+  rencontré en l'analysant : chercher `id=` tombe sur celui de `uid=`, qui le contient —
+  aucune texture ne se retrouvait, et le rendu sortait vide sans une seule erreur.
+
+  **Première passe** : le paysage se tient. Plateaux herbés, falaises sous leurs bords sud,
+  transitions entre étages, pinacle isolé, lacs d'une case. 258 ms.
 
 - **`render/` n'est pas `core/`.** Le rendu est de la présentation, il a sa propre place.
   Mais il ne dépend d'aucun nœud pour autant : `Image` et `Color` sont des ressources, donc
