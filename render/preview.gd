@@ -20,10 +20,14 @@ func _initialize() -> void:
 		quit(1)
 		return
 	var heights: PackedStringArray = HeightMask.read(guide_path)
-	var style: GuideImage.Style = GuideImage.Style.REPRESENTATIVE
-	if arguments.size() > 2 and arguments[2] == "usable":
-		style = GuideImage.Style.USABLE
-	var image: Image = GuideImage.render(heights, GuideImage.TILE, style)
+	# Troisieme argument : « peint » ou « fil ». Quatrieme : « representatif » ou « utilisable ».
+	var ink: GuideImage.Ink = GuideImage.Ink.PAINTED
+	if arguments.size() > 2 and arguments[2] == "fil":
+		ink = GuideImage.Ink.WIREFRAME
+	var purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
+	if arguments.size() > 3 and arguments[3] == "utilisable":
+		purpose = GuideImage.Purpose.USABLE
+	var image: Image = GuideImage.render(heights, GuideImage.TILE, ink, purpose)
 	var error: Error = image.save_png(ProjectSettings.globalize_path(output_path))
 	if error != OK:
 		printerr("ecriture impossible : %d" % error)

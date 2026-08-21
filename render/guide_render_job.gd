@@ -25,7 +25,8 @@ var done: int = 0
 
 var _heights: PackedStringArray
 var _tile_size: int
-var _style: GuideImage.Style
+var _ink: GuideImage.Ink
+var _purpose: GuideImage.Purpose
 var _image: Image
 var _tops: Dictionary = {}
 var _faces: Dictionary = {}
@@ -38,10 +39,12 @@ var _contacts: Array[Vector2i] = []
 var _finished: bool = false
 
 
-func _init(heights: PackedStringArray, tile_size: int, style: GuideImage.Style) -> void:
+func _init(heights: PackedStringArray, tile_size: int, ink: GuideImage.Ink,
+		purpose: GuideImage.Purpose) -> void:
 	_heights = heights
 	_tile_size = tile_size
-	_style = style
+	_ink = ink
+	_purpose = purpose
 	_prepare()
 
 
@@ -52,7 +55,7 @@ func _prepare() -> void:
 	var rows: int = HeightMask.height(_heights)
 	_image = Image.create_empty(maxi(columns, 1) * _tile_size, maxi(rows, 1) * _tile_size,
 			false, Image.FORMAT_RGBA8)
-	_image.fill(GuideImage.plain_color(_style))
+	_image.fill(GuideImage.plain_color(_ink))
 
 	var wanted: Dictionary = {}
 	for level: int in range(1, HeightMask.top_level(_heights) + 1):
@@ -82,7 +85,7 @@ func _prepare() -> void:
 			if role.y == Walls.ROW_FOOT:
 				_feet.append(Vector2i(key.x, key.y + 1))
 
-	if _style == GuideImage.Style.REPRESENTATIVE:
+	if _ink == GuideImage.Ink.PAINTED:
 		for y: int in range(rows):
 			for x: int in range(columns):
 				if HeightMask.level_at(_heights, x - 1, y) > HeightMask.level_at(_heights, x, y):
@@ -98,13 +101,13 @@ func step(budget_usec: int) -> bool:
 	var deadline: int = Time.get_ticks_usec() + budget_usec
 	while not _top_queue.is_empty():
 		var key: Vector2i = _top_queue.pop_front()
-		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _style)
+		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _ink, _purpose)
 		done += 1
 		if Time.get_ticks_usec() >= deadline:
 			return false
 	while not _wall_queue.is_empty():
 		var role: Vector2i = _wall_queue.pop_front()
-		_faces[role] = GuideImage.make_wall(role, _tile_size, _style)
+		_faces[role] = GuideImage.make_wall(role, _tile_size, _ink, _purpose)
 		done += 1
 		if Time.get_ticks_usec() >= deadline:
 			return false
@@ -119,13 +122,13 @@ func step(budget_usec: int) -> bool:
 func _stamp_everything() -> void:
 	for placement: Array in _placements:
 		GuideImage.stamp(_image, _tops[placement[0]], placement[1], placement[2], _tile_size)
-	if _style == GuideImage.Style.REPRESENTATIVE:
+	if _ink == GuideImage.Ink.PAINTED:
 		var contact: Image = GuideImage.make_contact_shadow(_tile_size)
 		for cell: Vector2i in _contacts:
 			GuideImage.stamp(_image, contact, cell.x, cell.y, _tile_size)
 	for placement: Array in _wall_placements:
 		GuideImage.stamp(_image, _faces[placement[0]], placement[1], placement[2], _tile_size)
-	if _style != GuideImage.Style.REPRESENTATIVE:
+	if _ink != GuideImage.Ink.PAINTED:
 		return
 	var shadow: Image = GuideImage.make_ground_shadow(_tile_size)
 	var occupied: Dictionary = {}

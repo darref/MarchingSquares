@@ -298,19 +298,20 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   identifiable : l'épaulement des crêtes est large, et le plateau aux lacs pourrait
   peut-être se poser sur un massif existant plutôt que sur le sien.
 
-- **`representative` / `usable` et `lit` / `unlit` sont deux axes orthogonaux.** Les
-  confondre est facile — les deux parlent de lumière — et faux.
-  - **`representative` / `usable` qualifie le FOND**, c'est-à-dire ce qu'on regarde en
-    peignant. Ça ne change rien à ce qui sort : c'est une aide à la vue.
-  - **`lit` / `unlit` qualifie le MODE**, c'est-à-dire le tileset qu'on fabrique. Ça change
-    ce qui sort, et c'est ce qui rend les symétries licites ou non.
+- **L'usage du fond et l'encre du mode sont deux axes orthogonaux.** Les confondre est
+  facile et faux.
+  - **`representative` / `usable` qualifie le FOND** : ce qu'on regarde en peignant. Ça ne
+    change rien à ce qui sort.
+  - **`painted` / `wireframe` qualifie le MODE** : le tileset qu'on fabrique. Ça change ce
+    qui sort, et c'est ce qui rend les symétries licites ou non — un tileset au fil de fer
+    n'a pas d'aplat, donc pas de lumière, donc rien ne s'oppose à une rotation.
 
   Les quatre combinaisons ont un sens. On peut peindre un tileset éclairé sur un fond
   `usable` — c'est même le cas courant : on veut le trait sous la main, pas le résultat.
 
-  ⚠ **Le seul lien entre les deux axes** : `representative` promet de montrer ce qu'on
-  obtiendra. Il doit donc **suivre le mode** — éclairé au nord-ouest pour un mode `lit`,
-  sans lumière pour un mode `unlit`. `usable`, lui, ne porte de lumière dans aucun cas :
+  ⚠ **Le seul lien entre les deux axes** : le fond se dessine dans **l'encre du mode**, et
+  l'usage se choisit dans la vue. On peint donc un tileset peint sur un fond peint, et un
+  tileset au fil de fer sur un fond au trait — représentatif ou utilisable au choix. `usable`, lui, ne porte de lumière dans aucun cas :
   la distinction qu'il trace entre bord nord et bord sud est **géométrique** — où est la
   lèvre, où commence la face. Dans un mode éclairé, cette géométrie dit accessoirement où
   le jour se prend ; dans un mode `unlit`, elle ne dit plus que la géométrie, et reste
@@ -354,8 +355,9 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   d'outils repliables, dans un `ScrollContainer` pour qu'on puisse en empiler autant qu'on
   voudra.
 
-- **Le mode `unlit` : les symétries, et seulement là.** Il livre des tuiles **sans
-  direction d'éclairage**, et c'est ce qui rend rotations et miroirs corrects — pas
+- **Le mode `wireframe` : les symétries, et seulement là.** Il livre des tuiles **au
+  trait**, sans aplat donc sans direction d'éclairage, et c'est ce qui rend rotations et
+  miroirs corrects — pas
   pratiques, corrects : rien dans le dessin ne les contredit. Il reprend le guide et le
   vocabulaire de `minimal` ; ce n'est pas le paysage qui change, c'est ce qu'on fabrique.
 
@@ -367,10 +369,8 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Les robes n'ont **que** le miroir : la rotation n'y a aucun sens, un plateau n'a de face
   qu'au sud ; et le miroir vertical non plus, le pied repose sur le sol.
 
-  ⚠ **C'est une propriété du mode, pas une case à cocher.** `Modes.is_lit()` tranche, et
-  l'interface applique. Dans un mode éclairé, seules les jumelles sont offertes — elles ne
-  fabriquent rien, ce sont deux occurrences de la même tuile. Dans `unlit`, la case
-  « jumelles » est grisée : les jumelles sont déjà comprises dans l'orbite.
+  ⚠ **C'est une propriété du mode, pas une case à cocher.** `Modes.ink()` tranche, et l'interface applique. Dans un mode éclairé, seules les jumelles sont offertes — elles ne
+  fabriquent rien, ce sont deux occurrences de la même tuile. Dans `wireframe`, la case « jumelles » est grisée : les jumelles sont déjà comprises dans l'orbite.
 
   ⚠ **Le voisinage et les pixels doivent tourner dans le MÊME sens**, sans quoi la tuile
   posée contredirait sa propre silhouette et aucun compte ne le dirait. C'est asserté :
@@ -414,21 +414,34 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   n'existe pas — est passé au travers jusqu'au lancement. Charger chaque `.gd` suffit à le
   faire analyser par le moteur, et coûte quelques millisecondes.
 
-- **Deux styles de fond : `representative` et `usable`.** Le premier montre le paysage tel
-  qu'il sera une fois peint — c'est ce qu'il faut pour comprendre le guide d'un coup d'œil.
-  Le second montre la **structure** : au trait, teinte neutre, contraste bas. C'est ce qu'il
-  faut pour peindre par-dessus, parce qu'un fond soutenu contamine la lecture des couleurs
-  qu'on pose — on juge faux un vert qu'on essaie sur un aplat vert.
+- **Le fond du guide a deux axes, donc quatre dessins.**
+  - **L'encre** — de quoi la tuile est faite. `painted` : des aplats. `wireframe` : des
+    traits. C'est une propriété du **mode**, pas de la vue : elle dit ce qu'on fabrique.
+  - **L'usage** — à quoi le fond sert. `representative` : rien d'autre que ce que le
+    tileset montrera une fois assemblé. `usable` : le même dessin, **plus les marques** dont
+    on a besoin en peignant. Ça, c'est une aide à la vue, et rien de ce qui sort n'en dépend.
 
-  Ce que `usable` dit, et rien de plus : la **silhouette** de chaque tuile (ses côtés
-  ouverts, ses coins arrondis, ses encoches), quel bord est la lèvre et quel bord est la
-  face, et à quelle rangée de robe on se trouve — un filet en haut pour le chapiteau, en bas
-  pour le pied, un tiret pour le premier corps, deux pour le second, un trait vertical du
-  côté où la falaise s'arrête. Tout est porté par le trait, jamais par un aplat.
+  Les quatre combinaisons existent et sont dessinées. ⚠ **Une marque n'est pas un trait du
+  dessin** : les pastilles de coin rentrant et les tirets de rangée de robe sont d'une autre
+  couleur, pour qu'on ne puisse jamais les prendre pour une côte.
 
-  ⚠ Les deux styles sortent de **la même fonction et du même relief** (`Style` en paramètre
-  de `guide_image.render()`), pour la raison qui fait exister ce fichier : deux dessinateurs
-  finiraient par raconter deux guides différents.
+- **⚠ LA GÉOMÉTRIE NE TRACE JAMAIS UN TRAIT QU'UNE VOISINE NE PEUT PAS RACCORDER.** C'est la
+  règle qui a coûté le plus cher à comprendre, et elle vient d'une propriété du blob 47.
+
+  Un **coin rentrant** — trois cases pleines autour d'un vide — n'est **pas** arrondi. La
+  côte y appartient aux deux voisines qui ont un bord ouvert ; la troisième n'en a aucun et
+  ne doit rien tracer. Or ces deux voisines **ne peuvent pas savoir** qu'il faudrait
+  s'arrondir : la canonicalisation jette précisément ce bit-là. Vérifié en une ligne — une
+  case dont le sud est ouvert porte l'index 64 que son voisin du sud-ouest soit plein ou
+  vide. Arrondir là, c'est poser un arc que personne ne rejoint, et c'est exactement ce que
+  faisait la première version : trois traits qui se croisent sans se joindre.
+
+  Seuls les coins **sortants** s'arrondissent : là, aucune voisine ne dessine quoi que ce
+  soit. Le reste du trait reste **sur le bord de tuile**, donc se raccorde toujours.
+
+  Conséquence assumée : dans un fond `representative`, une tuile 253 et une tuile 255 se
+  ressemblent — et c'est juste, l'assemblage les montre pareilles, le vide qui les distingue
+  étant dessiné par les voisines. C'est le fond `usable` qui les départage, avec une marque.
 
 - **La barre est posée SUR la zone de travail, et translucide au repos.** Elle laisse voir
   le guide à travers elle : c'est ce qui donne l'air d'un calque plutôt que d'un panneau.

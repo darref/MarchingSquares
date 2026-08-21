@@ -60,7 +60,10 @@ var paint_twins: bool = false
 
 ## Ce qu'on regarde en peignant. ⚠ Rien de ce qui sort n'en depend : ce n'est pas
 ## l'eclairage du tileset, c'est le fond de l'ecran.
-var guide_style: GuideImage.Style = GuideImage.Style.REPRESENTATIVE
+var guide_ink: GuideImage.Ink = GuideImage.Ink.PAINTED
+
+## A quoi le fond sert : montrer le resultat, ou porter les marques de travail.
+var guide_purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
 
 ## Largeur occupee par la barre d'outils, qui est posee SUR la zone de travail.
 ## ⚠ ELLE NE SERT QU AU CADRAGE. On ne bride pas le dessin a cette marge : le guide peut
@@ -211,10 +214,11 @@ func set_fill_rules(twins: bool, symmetry: bool) -> void:
 	_targets.clear()
 
 
-func set_guide_style(style: GuideImage.Style) -> void:
-	if style == guide_style:
+func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose) -> void:
+	if ink == guide_ink and purpose == guide_purpose:
 		return
-	guide_style = style
+	guide_ink = ink
+	guide_purpose = purpose
 	_redraw_background()
 	queue_redraw()
 
@@ -227,15 +231,15 @@ func set_guide_style(style: GuideImage.Style) -> void:
 func _redraw_background() -> void:
 	if _heights.is_empty():
 		return
-	_cache_key = "%d:%d:%d" % ["
-".join(_heights).hash(), GUIDE_TILE, int(guide_style)]
+	_cache_key = "%d:%d:%d:%d" % ["
+".join(_heights).hash(), GUIDE_TILE, int(guide_ink), int(guide_purpose)]
 	if _cache.has(_cache_key):
 		_background = _cache[_cache_key]
 		_job = null
 		loading_progress.emit(1, 1)
 		return
 	_background = null
-	_job = RenderJob.new(_heights, GUIDE_TILE, guide_style)
+	_job = RenderJob.new(_heights, GUIDE_TILE, guide_ink, guide_purpose)
 	loading_progress.emit(0, _job.total)
 
 
@@ -267,7 +271,7 @@ func _draw() -> void:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	if _background != null:
-		var tint: Color = GUIDE_TINT_USABLE if guide_style == GuideImage.Style.USABLE else GUIDE_TINT
+		var tint: Color = GUIDE_TINT_USABLE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
 		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
 
 	for cell: Vector2i in _textures.keys():

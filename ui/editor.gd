@@ -135,16 +135,25 @@ func _fill_resolutions() -> void:
 func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
+	# ⚠ L'ENCRE SUIT LE MODE, PAS LA VUE. Peint ou fil de fer, c'est ce qu'on FABRIQUE ;
+	# ici on ne choisit que l'usage du fond -- montrer le resultat, ou porter les marques.
 	choice.add_item("Representatif")
-	choice.set_item_metadata(0, GuideImage.Style.REPRESENTATIVE)
+	choice.set_item_metadata(0, GuideImage.Purpose.REPRESENTATIVE)
 	choice.add_item("Utilisable")
-	choice.set_item_metadata(1, GuideImage.Style.USABLE)
+	choice.set_item_metadata(1, GuideImage.Purpose.USABLE)
 	choice.select(0)
 
 
-func _on_style_selected(index: int) -> void:
+func _on_style_selected(_index: int) -> void:
+	_apply_background_style()
+
+
+## Le fond se dessine dans l'encre du MODE et pour l'usage choisi dans la vue.
+func _apply_background_style() -> void:
 	var choice: OptionButton = %StyleChoice
-	(%WorkArea as Control).set_guide_style(choice.get_item_metadata(index))
+	var purpose: GuideImage.Purpose = choice.get_item_metadata(choice.selected)
+	var ink: GuideImage.Ink = Modes.ink(_current_mode())
+	(%WorkArea as Control).set_guide_style(ink, purpose)
 
 
 func _current_mode() -> StringName:
@@ -168,6 +177,9 @@ func _load_current_mode() -> void:
 	var work: Control = %WorkArea
 	work.pencil = (%PencilColor as ColorPickerButton).color
 	_apply_fill_rules()
+	var choice: OptionButton = %StyleChoice
+	work.guide_ink = Modes.ink(id)
+	work.guide_purpose = choice.get_item_metadata(choice.selected)
 	work.show_guide(_heights, _painting)
 	_refresh_counters()
 
@@ -220,7 +232,8 @@ func _apply_fill_rules() -> void:
 	var note: Label = %ModeNote
 	note.visible = not lit
 	if not lit:
-		note.text = "Sans lumiere : rotations et miroirs sont licites. L outil remplit les orbites, %d tuiles a peindre." % Modes.work_count(_current_mode())
+		note.text = "Fil de fer : sans aplat, donc sans lumiere. Rotations et miroirs sont licites, %d tuiles a peindre." % Modes.work_count(_current_mode())
+	_apply_background_style()
 
 
 func _on_fit_pressed() -> void:

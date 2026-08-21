@@ -16,7 +16,7 @@ extends RefCounted
 
 const MINIMAL: StringName = &"minimal"
 const AMPLE: StringName = &"ample"
-const UNLIT: StringName = &"unlit"
+const WIREFRAME: StringName = &"wireframe"
 
 const MODES: Dictionary = {
 	MINIMAL: {
@@ -36,17 +36,17 @@ const MODES: Dictionary = {
 		"wall_tiles": 12,
 		"min_variants": 3,
 	},
-	# ⚠ SANS LUMIERE, DONC LES SYMETRIES Y SONT LICITES. Meme guide et meme vocabulaire que
+	# ⚠ AU FIL DE FER, DONC SANS LUMIERE, DONC LES SYMETRIES Y SONT LICITES. Meme guide et meme vocabulaire que
 	# `minimal` -- ce n'est pas le paysage qui change, c'est ce qu'on fabrique : des tuiles
 	# sans direction d'eclairage. Rien n'y contredit une rotation, alors l'outil remplit les
 	# orbites, et il ne reste que 22 tuiles a peindre au lieu de 59.
-	UNLIT: {
-		"label": "Sans lumiere",
+	WIREFRAME: {
+		"label": "Fil de fer",
 		"guide_path": "res://guides/minimal.txt",
 		"surface_tiles": 47,
 		"wall_tiles": 12,
 		"min_variants": 1,
-		"lit": false,
+		"ink": "wireframe",
 	},
 }
 
@@ -86,17 +86,29 @@ static func guide_path(id: StringName) -> String:
 	return MODES[id]["guide_path"]
 
 
-## Vrai si le tileset du mode a une direction d'eclairage.
+## De quoi les tuiles du mode sont faites : des aplats, ou des traits.
 ##
-## ⚠ C'EST CE QUI AUTORISE OU INTERDIT LES SYMETRIES. Un tileset eclaire ne se tourne pas :
-## la lumiere tournerait avec lui. Sans lumiere, rien dans le dessin ne s'y oppose, et
-## l'outil peut remplir les orbites -- decide UNE FOIS avec le mode, jamais en cours de
-## dessin.
+## ⚠ C'EST CE QUI AUTORISE OU INTERDIT LES SYMETRIES. Un tileset PEINT porte une direction
+## d'eclairage : le tourner tournerait ses hautes lumieres avec lui. Un tileset AU FIL DE
+## FER n'a pas d'aplat, donc pas de lumiere, donc rien dans le dessin ne s'oppose a une
+## rotation. Decide UNE FOIS avec le mode, jamais en cours de dessin.
+static func ink(id: StringName) -> int:
+	var guide_image: GDScript = load("res://render/guide_image.gd")
+	if not MODES.has(id):
+		push_error("modes: mode inconnu '%s'." % id)
+		return guide_image.Ink.PAINTED
+	if String(MODES[id].get("ink", "painted")) == "wireframe":
+		return guide_image.Ink.WIREFRAME
+	return guide_image.Ink.PAINTED
+
+
+## Vrai si les tuiles du mode sont peintes. Le contraire du fil de fer, et donc le seul cas
+## ou les symetries sont interdites.
 static func is_lit(id: StringName) -> bool:
 	if not MODES.has(id):
 		push_error("modes: mode inconnu '%s'." % id)
 		return true
-	return bool(MODES[id].get("lit", true))
+	return String(MODES[id].get("ink", "painted")) != "wireframe"
 
 
 ## Nombre de tuiles que l'utilisateur devra reellement peindre. ⚠ A NE PAS CONFONDRE AVEC

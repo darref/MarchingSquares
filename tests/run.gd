@@ -200,14 +200,16 @@ func _test_modes_catalogue() -> void:
 	_check_equal(ids.size(), 3, "trois modes au catalogue")
 	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
 	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
-	_check_equal(ids[2], Modes.UNLIT, "le troisieme est sans lumiere")
-	_check(Modes.is_lit(Modes.MINIMAL), "minimal est eclaire")
-	_check(not Modes.is_lit(Modes.UNLIT), "le mode sans lumiere ne l est pas")
+	_check_equal(ids[2], Modes.WIREFRAME, "le troisieme est au fil de fer")
+	_check(Modes.is_lit(Modes.MINIMAL), "minimal est peint, donc eclaire")
+	_check(not Modes.is_lit(Modes.WIREFRAME), "le fil de fer n a pas d aplat, donc pas de lumiere")
+	_check_equal(Modes.ink(Modes.MINIMAL), GuideImage.Ink.PAINTED, "minimal est a l encre peinte")
+	_check_equal(Modes.ink(Modes.WIREFRAME), GuideImage.Ink.WIREFRAME, "et l autre au trait")
 	_check_equal(Modes.work_count(Modes.MINIMAL), 59, "un mode eclaire se peint tuile par tuile : 59")
 	# ⚠ 23, PAS 22. Le 22 serait le compte du groupe complet -- rotations ET miroirs sur les
 	# surfaces. Les miroirs de surface n'y gagnent qu'UNE tuile (15 orbites deviennent 14),
 	# et on les a ecartes pour ca. Les robes, elles, n'ont que le miroir : 12 -> 8.
-	_check_equal(Modes.work_count(Modes.UNLIT), 23, "sans lumiere : 15 surfaces + 8 robes = 23")
+	_check_equal(Modes.work_count(Modes.WIREFRAME), 23, "au fil de fer : 15 surfaces + 8 robes = 23")
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
 	_check(Modes.is_available(Modes.AMPLE), "ample a son guide, il se choisit")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
@@ -590,14 +592,26 @@ func _test_guide_image() -> void:
 	var again: Image = GuideImage.render(heights)
 	_check_equal(again.get_data(), image.get_data(), "le rendu est deterministe")
 
-	# ⚠ LES DEUX STYLES SORTENT DE LA MEME FONCTION ET DU MEME RELIEF, mais ne montrent pas
-	# la meme chose : l un le resultat, l autre la structure.
-	var usable: Image = GuideImage.render(heights, GuideImage.TILE, GuideImage.Style.USABLE)
-	_check_equal(usable.get_size(), image.get_size(), "les deux styles ont la meme taille")
-	_check(usable.get_data() != image.get_data(), "le style utilisable rend autre chose")
-	var neutral: Color = usable.get_pixel(4 * GuideImage.TILE + half, 6 * GuideImage.TILE + half)
+	# ⚠ LES QUATRE FONDS SORTENT DE LA MEME FONCTION ET DU MEME RELIEF, et aucun ne
+	# ressemble a un autre : deux encres, deux usages.
+	var four: Array[PackedByteArray] = []
+	for ink: GuideImage.Ink in [GuideImage.Ink.PAINTED, GuideImage.Ink.WIREFRAME]:
+		for purpose: GuideImage.Purpose in [GuideImage.Purpose.REPRESENTATIVE, GuideImage.Purpose.USABLE]:
+			var drawn: Image = GuideImage.render(heights, GuideImage.TILE, ink, purpose)
+			_check_equal(drawn.get_size(), image.get_size(), "encre %d, usage %d : meme taille" % [ink, purpose])
+			four.append(drawn.get_data())
+	var all_different: bool = true
+	for first: int in range(four.size()):
+		for second: int in range(first + 1, four.size()):
+			if four[first] == four[second]:
+				all_different = false
+	_check(all_different, "les quatre combinaisons donnent quatre dessins differents")
+
+	var wire: Image = GuideImage.render(heights, GuideImage.TILE, GuideImage.Ink.WIREFRAME,
+			GuideImage.Purpose.REPRESENTATIVE)
+	var neutral: Color = wire.get_pixel(4 * GuideImage.TILE + half, 6 * GuideImage.TILE + half)
 	_check(absf(neutral.r - neutral.g) < 0.08 and absf(neutral.g - neutral.b) < 0.08,
-			"le fond utilisable est neutre : il n impose aucune teinte aux couleurs qu on pose")
+			"le fil de fer est neutre : il n impose aucune teinte aux couleurs qu on pose")
 
 
 ## ⚠ LA SUITE NE CHARGE PAS L'INTERFACE PAR AILLEURS, et une faute de frappe dans un script
