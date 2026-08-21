@@ -655,6 +655,41 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **Reste à faire pour l'ouvrir** : le champ `famille` dans la table des modes, la zone de
   travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, et l'exportateur.
 
+- **⚠ LA SUITE EST VOLONTAIREMENT ROUGE : le dessin n'est pas sûr de réussir partout.**
+  Cinq assertions échouent, et elles doivent rester rouges jusqu'à ce que le tracé soit
+  refait. Ce n'est pas une dette oubliée, c'est un chantier ouvert et signé.
+
+  **Le test des raccords** (`_test_seams`) vérifie **tous** les bords partagés, un par un.
+  Pour chaque paire d'index qui peut *réellement* se toucher — 169 est-ouest, 169 nord-sud,
+  énumérées depuis les reliefs et non devinées depuis les bits, puisque la canonicalisation
+  jette des bits de coin — il compare la dernière colonne de pixels de l'une à la première
+  colonne de l'autre.
+
+  **Ce qu'il a trouvé, et que l'œil ne pouvait pas dresser :**
+  - la **matière** est continue partout : zéro trou, dans les trois styles. Ma première
+    hypothèse (les 10 % découpés des pans de bout) ne concernait pas les surfaces.
+  - la **teinte**, elle, saute : **71 des 169 raccords est-ouest** dépassent 6 % d'écart en
+    peint, jusqu'à **18 %** ; **122 sur 169** en fil de fer, jusqu'à **28 %**. Ce n'est pas
+    une poignée de cas ratés, c'est **42 % des voisinages possibles**.
+
+  **La cause est architecturale, pas anecdotique** : les 47 tuiles sont dessinées
+  *indépendamment*, chacune éclairée par rapport à sa propre silhouette. Rien ne fait
+  qu'une tuile-moignon et la tuile pleine qu'elle rejoint s'accordent sur leur bord commun.
+
+  **La règle qui rend le dessin sûr, et pourquoi elle marche :**
+
+  > Aucun effet de dessin ne porte à plus d'une demi-tuile.
+
+  Sous cette contrainte, le bord partagé entre deux tuiles ne dépend que de cases que les
+  **deux** connaissent : chacune voit l'autre dans son propre voisinage 3x3. Et les bits que
+  la canonicalisation jette sont **exactement** ceux qui ne changent pas la silhouette —
+  donc leur ignorance ne peut pas faire diverger deux voisines. La continuité cesse d'être
+  une intention pour devenir une conséquence, et le test la prouve.
+
+  La méthode qui en découle : dessiner chaque tuile en rendant **l'îlot 3x3 de son index**
+  — le même que celui de la planche de preuve — puis en découper la case centrale. Tous les
+  effets se calculent depuis le champ du terrain, jamais depuis la silhouette isolée.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

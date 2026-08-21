@@ -53,6 +53,7 @@ func _initialize() -> void:
 	_test_vocabulary_is_closed()
 	_test_proof_scene()
 	_test_corner_network()
+	_test_seams()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -1117,6 +1118,156 @@ func _test_corner_network() -> void:
 			absent.append("%d = %s" % [index, CornerIndex.describe(index)])
 		print("  %s : %d/15%s" % [Modes.label(id), other["present"].size(),
 				("  absents : " + ", ".join(absent)) if absent.size() > 0 else ""])
+
+
+## Le cote de tuile des essais de raccord. Assez grand pour que les arrondis existent,
+## assez petit pour que quelques milliers de raccords se verifient en un clin d oeil.
+const SEAM_TILE: int = 32
+
+## Au-dela de ce saut de teinte a travers un raccord, l oeil voit une couture.
+const SEAM_TOLERANCE: float = 0.04
+
+
+func _test_seams() -> void:
+	print("RACCORDS : tous les bords partages, verifies un par un")
+	# ⚠ CE TEST EXISTE PARCE QUE CHERCHER LES COUTURES A L OEIL NE DIT JAMAIS SI ON LES A
+	# TOUTES. Deux tuiles voisines decrivent le MEME bord physique : si l une y met de la
+	# matiere et l autre du vide, l une des deux ment. On les compare toutes.
+	for style: Array in [
+			[GuideImage.Ink.PAINTED, GuideImage.Purpose.REPRESENTATIVE, "peint representatif"],
+			[GuideImage.Ink.PAINTED, GuideImage.Purpose.USABLE, "peint utilisable"],
+			[GuideImage.Ink.WIREFRAME, GuideImage.Purpose.REPRESENTATIVE, "fil representatif"]]:
+		_check_surface_seams(style[0], style[1], String(style[2]))
+
+
+func _check_surface_seams(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
+		label: String) -> void:
+	var tiles: Dictionary = {}
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		tiles[index] = GuideImage.make_top(index, 1, SEAM_TILE, ink, purpose)
+
+	var broken_east: Array[String] = []
+	var steps_east: Array[String] = []
+	var steps_south: Array[String] = []
+	var worst_east: float = 0.0
+	var worst_south: float = 0.0
+	var worst_east_pair: String = ""
+	var worst_south_pair: String = ""
+	var pairs_east: Dictionary = _adjacent_pairs(true)
+	for pair: Vector2i in pairs_east.keys():
+		var left: Image = tiles[pair.x]
+		var right: Image = tiles[pair.y]
+		var holes: int = 0
+		for y: int in range(SEAM_TILE):
+			var a: float = left.get_pixel(SEAM_TILE - 1, y).a
+			var b: float = right.get_pixel(0, y).a
+			if (a > 0.5) != (b > 0.5):
+				holes += 1
+		if holes > 0:
+			broken_east.append("%d|%d (%d lignes)" % [pair.x, pair.y, holes])
+		var jump: float = _seam_jump(left, right, true)
+		if jump > worst_east:
+			worst_east = jump
+			worst_east_pair = "%d|%d" % [pair.x, pair.y]
+		if jump > 0.06:
+			steps_east.append("%d|%d (%.0f%%)" % [pair.x, pair.y, jump * 100.0])
+
+	var broken_south: Array[String] = []
+	var pairs_south: Dictionary = _adjacent_pairs(false)
+	for pair: Vector2i in pairs_south.keys():
+		var top: Image = tiles[pair.x]
+		var bottom: Image = tiles[pair.y]
+		var holes: int = 0
+		for x: int in range(SEAM_TILE):
+			var a: float = top.get_pixel(x, SEAM_TILE - 1).a
+			var b: float = bottom.get_pixel(x, 0).a
+			if (a > 0.5) != (b > 0.5):
+				holes += 1
+		if holes > 0:
+			broken_south.append("%d|%d (%d colonnes)" % [pair.x, pair.y, holes])
+		var jump: float = _seam_jump(top, bottom, false)
+		if jump > worst_south:
+			worst_south = jump
+			worst_south_pair = "%d|%d" % [pair.x, pair.y]
+		if jump > 0.06:
+			steps_south.append("%d|%d (%.0f%%)" % [pair.x, pair.y, jump * 100.0])
+
+	print("  %s : %d raccords est-ouest, %d nord-sud" % [label, pairs_east.size(),
+			pairs_south.size()])
+	print("    saut de teinte le pire : est-ouest %.0f%% (%s), nord-sud %.0f%% (%s)"
+			% [worst_east * 100.0, worst_east_pair, worst_south * 100.0, worst_south_pair])
+	print("    raccords qui sautent de plus de 6%% : %d est-ouest, %d nord-sud"
+			% [steps_east.size(), steps_south.size()])
+	if steps_east.size() > 0:
+		print("      %s" % ", ".join(steps_east.slice(0, mini(8, steps_east.size()))))
+	# ⚠ ASSERTION, PAS RELEVE. Tant qu elle est rouge, le dessin n est pas sur de reussir
+	# partout -- et c est exactement ce qu on veut voir.
+	_check(worst_east <= SEAM_TOLERANCE,
+			"%s : aucun saut de teinte est-ouest au-dela de %.0f%% (le pire : %.0f%%, %d fautifs)"
+			% [label, SEAM_TOLERANCE * 100.0, worst_east * 100.0, steps_east.size()])
+	_check(worst_south <= SEAM_TOLERANCE,
+			"%s : aucun saut de teinte nord-sud au-dela de %.0f%% (le pire : %.0f%%, %d fautifs)"
+			% [label, SEAM_TOLERANCE * 100.0, worst_south * 100.0, steps_south.size()])
+	_check_equal(broken_east.size(), 0,
+			"%s : aucune fissure est-ouest%s" % [label, _first_few(broken_east)])
+	_check_equal(broken_south.size(), 0,
+			"%s : aucune fissure nord-sud%s" % [label, _first_few(broken_south)])
+
+
+## Le plus grand saut de teinte a travers un raccord, rapporte au saut NATUREL juste a
+## cote. ⚠ UNE COUTURE, C EST UN SAUT QUE LE DESSIN NE FAIT PAS AILLEURS : comparer dans
+## l absolu accuserait les degrades legitimes, comparer au voisinage immediat ne retient
+## que ce qui tranche.
+func _seam_jump(first: Image, second: Image, east: bool) -> float:
+	var worst: float = 0.0
+	for k: int in range(SEAM_TILE):
+		var a: Color = first.get_pixel(SEAM_TILE - 1, k) if east 				else first.get_pixel(k, SEAM_TILE - 1)
+		var b: Color = second.get_pixel(0, k) if east else second.get_pixel(k, 0)
+		if a.a < 0.5 or b.a < 0.5:
+			continue
+		var inside_a: Color = first.get_pixel(SEAM_TILE - 2, k) if east 				else first.get_pixel(k, SEAM_TILE - 2)
+		var inside_b: Color = second.get_pixel(1, k) if east else second.get_pixel(k, 1)
+		var across: float = _tone_gap(a, b)
+		var natural: float = maxf(_tone_gap(inside_a, a), _tone_gap(b, inside_b))
+		worst = maxf(worst, across - natural)
+	return worst
+
+
+func _tone_gap(left: Color, right: Color) -> float:
+	return maxf(absf(left.r - right.r), maxf(absf(left.g - right.g), absf(left.b - right.b)))
+
+
+## Les paires d index qui peuvent REELLEMENT se toucher.
+##
+## ⚠ ON NE DEVINE PAS LES PAIRES DEPUIS LES BITS. La canonicalisation jette des bits de
+## coin : deux index ne suffisent pas a dire s ils sont compatibles. On enumere donc les
+## reliefs -- toutes les fenetres 4x3 (ou 3x4) -- et on releve ce qui s y touche vraiment.
+func _adjacent_pairs(east: bool) -> Dictionary:
+	var found: Dictionary = {}
+	var columns: int = 4 if east else 3
+	var rows: int = 3 if east else 4
+	for pattern: int in range(1 << (columns * rows)):
+		var mask: PackedStringArray = PackedStringArray()
+		for y: int in range(rows):
+			var line: String = ""
+			for x: int in range(columns):
+				line += "#" if (pattern & (1 << (y * columns + x))) != 0 else "."
+			mask.append(line)
+		var first: Vector2i = Vector2i(1, 1)
+		var second: Vector2i = Vector2i(2, 1) if east else Vector2i(1, 2)
+		var a: int = Coverage.index_at(mask, first.x, first.y)
+		var b: int = Coverage.index_at(mask, second.x, second.y)
+		if a == Coverage.NO_INDEX or b == Coverage.NO_INDEX:
+			continue
+		found[Vector2i(a, b)] = true
+	return found
+
+
+func _first_few(items: Array[String]) -> String:
+	if items.is_empty():
+		return ""
+	var shown: Array[String] = items.slice(0, mini(6, items.size()))
+	return " -- %d cassures, dont %s" % [items.size(), ", ".join(shown)]
 
 
 func _test_guide_image() -> void:
