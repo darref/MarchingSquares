@@ -9,10 +9,16 @@
 # transparents en esperant que personne ne s'en serve : il rend la liste de ce qui manque
 # et n'ecrit rien. Un tileset a moitie peint n'est pas un tileset, c'est un piege.
 #
-# ⚠ LES VARIANTES SONT TASSEES, PAS RECOPIEES A LEUR RANG D'ORIGINE. Si l'utilisateur a
-# peint la troisieme occurrence d'un index sans peindre la premiere, sa tuile devient la
-# variante 0 de la planche. Sinon un moteur qui tire une variante au hasard tomberait sur
-# une case vide -- et le rang dans le guide n'a aucun sens pour qui relit la feuille.
+# ⚠ UNE VARIANTE EST UN DESSIN DIFFERENT, PAS UNE CASE DIFFERENTE. « Peindre les
+# jumelles » est coche d'emblee : les cent cases qui portent le meme index portent alors le
+# MEME dessin. Les exporter toutes gonflerait la planche de cent blocs identiques, pour une
+# feuille cent fois plus lourde qui ne montre rien de plus. On compare donc le CONTENU, et
+# l'on ne garde que ce qui differe vraiment.
+#
+# ⚠ ET ELLES SONT TASSEES, PAS RECOPIEES A LEUR RANG D'ORIGINE. Si l'utilisateur a peint
+# la troisieme occurrence d'un index sans peindre la premiere, sa tuile devient la variante
+# 0 de la planche. Sinon un moteur qui tire une variante au hasard tomberait sur une case
+# vide -- et le rang dans le guide n'a aucun sens pour qui relit la feuille.
 #
 # LA DISPOSITION EST MECANIQUE, ET LE MANIFESTE LA REDIT QUAND MEME. Les 47 index rangent
 # en ordre croissant, huit par rangee ; les 12 robes tombent naturellement en 3 pans x 4
@@ -67,6 +73,13 @@ static func analyse(painting: Painting, heights: PackedStringArray) -> Dictionar
 		elif slot["family"] == "W":
 			_note(wall_ranks, slot["role"], rank)
 
+	# ⚠ LE DEDOUBLONNAGE PASSE AVANT LE COMPTE. Sans lui, `variants` vaudrait le nombre
+	# d'occurrences du guide -- une centaine pour les index courants -- et la planche
+	# ferait cent blocs pour un seul dessin.
+	var by_key: Dictionary = WorkIO.cells_by_key(heights)
+	_dedupe(surface_ranks, "S", painting, by_key)
+	_dedupe(wall_ranks, "W", painting, by_key)
+
 	var missing_surface: Array[int] = []
 	for index: int in BlobIndex.CANONICAL_INDICES:
 		if not surface_ranks.has(index):
@@ -93,6 +106,43 @@ static func analyse(painting: Painting, heights: PackedStringArray) -> Dictionar
 		"tile_size": painting.resolution,
 		"is_exportable": missing_surface.is_empty() and missing_wall.is_empty(),
 	}
+
+
+## Ne garde, parmi les occurrences peintes d'une tuile, que les dessins REELLEMENT
+## differents. La comparaison est exacte -- octet pour octet -- et non par empreinte : une
+## empreinte qui se cognerait ferait disparaitre une variante en silence, et l'utilisateur
+## perdrait un dessin sans que rien ne le dise.
+static func _dedupe(ranks_by_tile: Dictionary, family: String, painting: Painting,
+		by_key: Dictionary) -> void:
+	for tile: Variant in ranks_by_tile.keys():
+		var kept: Array[int] = []
+		var seen: Array[PackedByteArray] = []
+		for rank: int in ranks_by_tile[tile]:
+			if not by_key.has(_key_for(family, tile, rank)):
+				continue
+			var image: Image = painting.image_of(by_key[_key_for(family, tile, rank)])
+			if image == null:
+				continue
+			var data: PackedByteArray = image.get_data()
+			var already: bool = false
+			for other: PackedByteArray in seen:
+				if other == data:
+					already = true
+					break
+			if already:
+				continue
+			seen.append(data)
+			kept.append(rank)
+		ranks_by_tile[tile] = kept
+
+
+## La cle de sauvegarde d'une tuile. Le format appartient a `work_io` ; on le compose ici
+## par la meme regle, une seule fois, plutot que de le reecrire a chaque usage.
+static func _key_for(family: String, tile: Variant, rank: int) -> String:
+	if family == "W":
+		var role: Vector2i = tile
+		return "W%d,%d:%d" % [role.x, role.y, rank]
+	return "S%d:%d" % [int(tile), rank]
 
 
 static func _note(into: Dictionary, key: Variant, rank: int) -> void:
@@ -144,15 +194,8 @@ static func compose(painting: Painting, heights: PackedStringArray, report: Dict
 	for tile: Variant in table.keys():
 		var ranks: Array[int] = table[tile]
 		for slot: int in range(ranks.size()):
-			var key: String = ""
-			var at: Vector2i = Vector2i.ZERO
-			if walls:
-				var role: Vector2i = tile
-				key = "W%d,%d:%d" % [role.x, role.y, ranks[slot]]
-				at = wall_slot(role, slot)
-			else:
-				key = "S%d:%d" % [int(tile), ranks[slot]]
-				at = surface_slot(int(tile), slot)
+			var key: String = _key_for("W" if walls else "S", tile, ranks[slot])
+			var at: Vector2i = wall_slot(tile, slot) if walls 					else surface_slot(int(tile), slot)
 			if at.x < 0 or not by_key.has(key):
 				continue
 			var image: Image = painting.image_of(by_key[key])

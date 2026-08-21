@@ -17,6 +17,7 @@ const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const Assembly := preload("res://render/assembly.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -45,6 +46,7 @@ func _initialize() -> void:
 	_test_symmetry()
 	_test_work_io()
 	_test_export()
+	_test_assembly()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -805,6 +807,58 @@ func _test_export() -> void:
 			"la planche ecrite se relit depuis le disque")
 	for path: String in written:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func _test_assembly() -> void:
+	print("remontage : le paysage rebati, par DEUX chemins qui doivent se rejoindre")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var slots: Dictionary = WorkIO.slots(heights)
+
+	# On peint TOUT le guide comme le feraient les jumelles : toutes les cases qui portent
+	# la meme tuile recoivent le meme dessin. Deux pixels, a deux endroits differents, pour
+	# qu'une tuile posee de travers se voie.
+	var painting: Painting = Painting.new(16)
+	for cell: Vector2i in slots.keys():
+		var key: String = String(slots[cell])
+		var tile: String = key.substr(0, key.rfind(":"))
+		painting.paint(cell, 0, 0, _key_colour(tile))
+		painting.paint(cell, 5, 11, _key_colour(tile + "-bis"))
+
+	var report: Dictionary = TilesetPNG.analyse(painting, heights)
+	_check(report["is_exportable"], "le guide entierement peint est exportable")
+	_check_equal(int(report["variants"]), 1,
+			"peindre les jumelles ne fabrique pas cent variantes du meme dessin")
+
+	var surface: Image = TilesetPNG.compose(painting, heights, report, false)
+	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
+	var direct: Image = Assembly.from_painting(heights, painting)
+	var through: Image = Assembly.from_sheets(heights, surface, kit, 16)
+	_check_equal(direct.get_size(), through.get_size(), "les deux remontages ont la meme taille")
+	_check(direct.get_data() == through.get_data(),
+			"LE PAYSAGE REMONTE DEPUIS LES PLANCHES EST IDENTIQUE A CELUI REMONTE DEPUIS LA PEINTURE")
+
+	# Et le remontage n a pas laisse le guide vide : sinon l egalite ci-dessus serait
+	# l egalite de deux images noires.
+	var painted_pixels: int = 0
+	for cell: Vector2i in slots.keys():
+		if direct.get_pixel(cell.x * 16, cell.y * 16) != Assembly.BACKDROP:
+			painted_pixels += 1
+	_check_equal(painted_pixels, slots.size(), "chaque case peignable porte sa tuile au remontage")
+
+	# Deux dessins VRAIMENT differents sur la meme tuile font, eux, deux variantes.
+	var twin_key: String = ""
+	for key: String in slots.values():
+		if key.begins_with("S") and key.ends_with(":1"):
+			twin_key = key
+			break
+	_check(twin_key != "", "le guide offre une seconde occurrence d un index")
+	if twin_key != "":
+		var by_key: Dictionary = WorkIO.cells_by_key(heights)
+		painting.paint(by_key[twin_key], 9, 9, Color.MAGENTA)
+		var two: Dictionary = TilesetPNG.analyse(painting, heights)
+		var index: int = int(WorkIO.describe(twin_key)["index"])
+		_check_equal(two["surface_variants"][index].size(), 2,
+				"un dessin different sur une jumelle donne une vraie seconde variante")
 
 
 func _test_guide_image() -> void:

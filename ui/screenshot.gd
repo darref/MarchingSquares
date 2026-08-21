@@ -4,6 +4,8 @@ var _frames: int = 0
 var _target: String = "shot.png"
 var _technic: int = -1
 var _ink: int = -1
+var _work: String = ""
+var _assembled: bool = false
 var _editor: Node = null
 
 
@@ -18,13 +20,22 @@ func _initialize() -> void:
 		return
 	_editor = scene.instantiate()
 	root.add_child(_editor)
-	# Arguments facultatifs : la technique (« utilisable ») et le style (« fil »).
-	if arguments.size() > 1 and arguments[1] == "utilisable":
-		_technic = 1
-	elif arguments.size() > 1 and arguments[1] == "example":
-		_technic = 2
-	if arguments.size() > 2 and arguments[2] == "fil":
-		_ink = 1
+	# Arguments facultatifs, dans n'importe quel ordre : la technique (« utilisable »,
+	# « example »), le style (« fil »), « remontage », et un travail a ouvrir.
+	for index: int in range(1, arguments.size()):
+		var argument: String = arguments[index]
+		match argument:
+			"utilisable":
+				_technic = 1
+			"example":
+				_technic = 2
+			"fil":
+				_ink = 1
+			"remontage":
+				_assembled = true
+			_:
+				if argument.ends_with(".absolutiles"):
+					_work = argument
 
 
 ## ⚠ ON N'AGIT PAS SUR LA SCENE DEPUIS _initialize(). A ce moment l'arbre n'a pas encore
@@ -40,6 +51,14 @@ func _process(_delta: float) -> bool:
 			var ink: OptionButton = _editor.get_node("%InkChoice")
 			ink.select(_ink)
 			ink.item_selected.emit(_ink)
+		# ⚠ ON APPELLE LE MEME CHEMIN QUE LE BOUTON. Un outil de relecture qui prendrait un
+		# raccourci ne relirait pas ce que l'utilisateur voit.
+		if _work != "":
+			_editor.call("_on_open_chosen", _work)
+		if _assembled:
+			var check: CheckBox = _editor.get_node("%AssembledCheck")
+			check.button_pressed = true
+			check.toggled.emit(true)
 	# ⚠ ON ATTEND QUE LE FOND SOIT DESSINE. Il se calcule par etapes ; capturer trop tot
 	# ne montrerait que la barre de progression.
 	if _frames < 20:

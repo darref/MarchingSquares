@@ -78,6 +78,7 @@ func _ready() -> void:
 	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
+	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
@@ -290,6 +291,16 @@ func _on_grid_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.show_grid = pressed
 	work.queue_redraw()
+
+
+## ⚠ LE REMONTAGE NE TOUCHE A RIEN DE CE QUI SORT. C'est une facon de regarder, au meme
+## titre que la grille : le tileset exporte est le meme, coche ou non.
+func _on_assembled_toggled(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.assembled = pressed
+	work.queue_redraw()
+	_announce("Remontage : vos tuiles seules, sur le relief." if pressed
+			else "Retour au guide.")
 
 
 func _on_fit_pressed() -> void:

@@ -798,6 +798,12 @@ tooltip_text = "La grille des tuiles, et celle des faux pixels quand le zoom la 
 button_pressed = true
 text = "Afficher la grille"
 
+[node name="AssembledCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100011]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "N'affiche plus que vos tuiles, posees sur le relief. Le fond, les grilles et les reperes disparaissent : il ne reste que les raccords."
+text = "Remontage"
+
 [node name="FitButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=794563993]
 unique_name_in_owner = true
 layout_mode = 2

@@ -32,6 +32,13 @@ const MIN_TILE_PX: float = 5.0
 const MAX_TILE_PX: float = 2000.0
 const PIXEL_GRID_FROM: float = 5.0
 
+## Combien de cases au plus remontent au GPU par image.
+## ⚠ SANS PLAFOND, OUVRIR UN TRAVAIL GELE LA FENETRE. Un guide entierement peint compte
+## sept cents cases ; a 256 pixels de cote, les televerser d'un coup ferait cent quatre-vingt
+## mega-octets en une seule image. Etalees, elles apparaissent en quelques dixiemes de
+## seconde et rien ne bloque.
+const UPLOAD_PER_FRAME: int = 48
+
 ## Temps accorde au calcul du fond a chaque image. Une tuile coute environ vingt
 ## millisecondes : le budget en laisse passer une par image, et l'interface reste vivante.
 const LOAD_BUDGET_USEC: int = 12000
@@ -83,6 +90,17 @@ var reserved_right: float = 0.0
 ## on juge une couleur, elle gene.
 var show_grid: bool = true
 
+## LE REMONTAGE : on efface tout ce qui n'est pas les tuiles peintes -- le fond du guide,
+## les deux grilles, les cercles de repere -- et il ne reste que le paysage rebati.
+##
+## ⚠ C'EST LE SEUL CONTROLE QUE LE PROGRAMME NE PEUT PAS FAIRE. Il sait prouver que les
+## 59 tuiles existent ; il ne sait pas juger qu'elles SE RACCORDENT. Un bord est peint d'un
+## cote, son voisin de l'autre, a deux moments differents. Seul l'oeil voit la couture.
+##
+## ⚠ ET UNE CASE NON PEINTE RESTE UN TROU. On ne la remplit pas d'un aplat aimable : le
+## trou est la verite, et c'est exactement ce qu'on veut voir.
+var assembled: bool = false
+
 var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
 var _surface_cells: Dictionary = {}
@@ -131,6 +149,8 @@ func _process(_delta: float) -> void:
 		# image. Les autres attendent d entrer dans le cadre.
 		var done: Array[Vector2i] = []
 		for cell: Vector2i in _stale.keys():
+			if done.size() >= UPLOAD_PER_FRAME:
+				break
 			if _on_screen(cell):
 				_upload_cell(cell)
 				done.append(cell)
@@ -180,6 +200,14 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 		var wall_twins: Array[Vector2i] = group
 		for cell: Vector2i in wall_twins:
 			_twin_of[cell] = wall_twins
+	# ⚠ UN TRAVAIL RELU N'A JAMAIS ETE PEINT DEVANT NOUS. Ses cases doivent etre sales des
+	# le depart : sans ca rien ne s'afficherait tant qu'on n'aurait pas repasse le crayon
+	# par-dessus. L'art serait bien en memoire, les compteurs diraient 47/47, et l'ecran
+	# resterait desesperement vide.
+	if _painting != null:
+		for cell: Vector2i in _painting.painted_cells():
+			_stale[cell] = true
+
 	_redraw_background()
 	# ⚠ ON NE CADRE PAS TOUT DE SUITE. Au premier chargement, le conteneur n'a pas encore
 	# donne sa taille : cadrer ici reviendrait a cadrer sur une fenetre qui n'existe plus.
@@ -283,7 +311,7 @@ func _draw() -> void:
 	if columns <= 0:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
-	if _background != null:
+	if _background != null and not assembled:
 		var tint: Color = GUIDE_TINT_USABLE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
 		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
 
@@ -294,12 +322,12 @@ func _draw() -> void:
 		draw_texture_rect(texture, rect, false)
 		# Trop dezoome pour qu'un faux pixel se voie : on cerne la case, sinon le travail
 		# semble ne rien produire.
-		if pixel_px < TOUCHED_FROM and _painting.is_painted(cell):
+		if not assembled and pixel_px < TOUCHED_FROM and _painting.is_painted(cell):
 			draw_rect(rect, TOUCHED_MARK, false, 1.0)
 
 	# La grille des faux pixels n'apparait que lorsqu'elle est lisible : sinon elle noircit
 	# l'ecran et cache le guide qu'elle est censee servir.
-	if show_grid and _painting != null and pixel_px >= PIXEL_GRID_FROM:
+	if show_grid and not assembled and _painting != null and pixel_px >= PIXEL_GRID_FROM:
 		# ⚠ ON NE TRACE QUE CE QUI EST A L ECRAN. A 256 pixels par tuile, la grille complete
 		# ferait seize mille traits dont la quasi-totalite hors cadre : de quoi mettre une
 		# machine a genoux pour dessiner ce que personne ne voit.
@@ -319,7 +347,7 @@ func _draw() -> void:
 			var y: float = _origin.y + float(i) * step
 			draw_line(Vector2(left, y), Vector2(right, y), PIXEL_LINE, 1.0)
 
-	if show_grid:
+	if show_grid and not assembled:
 		for i: int in range(columns + 1):
 			var gx: float = _origin.x + float(i) * _tile_px
 			draw_line(Vector2(gx, _origin.y), Vector2(gx, _origin.y + span.y), TILE_LINE, 1.0)

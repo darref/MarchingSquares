@@ -42,6 +42,7 @@ render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
   satyron_tiles.gd  lit le tileset de Satyron chez lui, pour le banc d'essai
   guide_render_job.gd  le même dessin, par étapes, pour pouvoir le regarder avancer
+  assembly.gd     le paysage rebâti avec les tuiles peintes, par deux chemins
   preview.gd      écrit l'illustration sur disque
 ui/           l'éditeur
   editor.tscn     la fenêtre : bandeau, barre d'outils, zone de travail
@@ -121,6 +122,13 @@ Et pour se relire dans l'éditeur, style compris :
 
 ```
 godot --path . --script res://ui/screenshot.gd -- sortie.png usable
+```
+
+Et pour se relire avec un travail ouvert, remontage compris — les arguments après
+`--` viennent dans n'importe quel ordre :
+
+```
+godot --path . --script res://ui/screenshot.gd -- sortie.png mon_travail.absolutiles remontage
 ```
 
 ## Décisions prises
@@ -482,6 +490,48 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   D'où `work_io.peek()`, qui lit l'en-tête et s'arrête à la première ligne de tuile — une
   seule de ces lignes pèse plusieurs kilo-octets.
 
+- **Le remontage : le paysage rebâti avec les tuiles peintes** (`render/assembly.gd`, case
+  « Remontage » dans la barre de droite). C'est **le seul contrôle que le programme ne peut
+  pas faire à notre place.** Il sait prouver que les 59 tuiles existent ; il ne sait pas
+  juger qu'elles *se raccordent*. Un bord est peint d'un côté, son voisin de l'autre, à deux
+  moments différents — seul l'œil voit la couture. Cocher la case efface le fond du guide,
+  les deux grilles et les cercles de repère : il ne reste que vos tuiles, posées sur le
+  relief. C'est la règle 6 poussée jusqu'au bout, et c'est ce qui supprime la boucle
+  essai-export-correction que la règle 2 interdit.
+
+  ⚠ **Une case non peinte reste un trou.** On ne la remplit pas d'un aplat aimable : le trou
+  est la vérité, et c'est exactement ce qu'on veut voir.
+
+  ⚠ **DEUX CHEMINS, ET C'EST TOUT L'INTÉRÊT.** `from_painting()` va chercher directement ce
+  qui est peint sur la case ; `from_sheets()` demande son index à la case, l'index donne sa
+  place sur la planche, et l'on relit le pixel là-bas. Le second traverse l'exportateur en
+  entier — disposition, tassement des variantes. Les deux doivent rendre la **même image, au
+  pixel près**, et c'est asserté sur le guide minimal entièrement peint. Un remontage qui ne
+  saurait faire qu'un seul chemin ne prouverait rien : il redirait ce qu'il vient de lire.
+
+  **Ce que le remontage révèle, et qui surprend au premier regard** : un tileset **ignore les
+  étages**. L'index 7 est la même tuile au premier comme au troisième — le blob se calcule
+  par étage, mais la tuile qui en sort n'en garde pas trace. Le paysage remonté est donc plus
+  plat que l'illustration du guide, et c'est juste.
+
+- **Une variante est un DESSIN différent, pas une case différente.** « Peindre les jumelles »
+  est coché d'emblée : les cent cases qui portent le même index portent alors le même dessin.
+  L'exportateur compare donc le **contenu** et ne garde que ce qui diffère vraiment — sans
+  quoi la planche ferait cent blocs identiques. La comparaison est exacte, octet pour octet,
+  jamais par empreinte : une empreinte qui se cognerait ferait disparaître un dessin en
+  silence.
+
+- **Un travail relu doit marquer ses cases sales.** Défaut trouvé en regardant l'écran, pas
+  en lisant les tests : après un chargement, les compteurs disaient 47/47 et la zone de
+  travail restait **vide**. Les textures ne remontent au GPU que pour les cases *salies*, et
+  un fichier relu n'a jamais été peint devant nous. Les tests ne pouvaient pas le voir : ils
+  ne montent aucune texture.
+
+  ⚠ **Et le téléversement se plafonne par image.** Un guide entièrement peint compte sept
+  cents cases ; à 256 pixels de côté, les remonter d'un coup ferait cent quatre-vingts
+  méga-octets en une seule image. Quarante-huit par image suffisent : tout apparaît en
+  quelques dixièmes de seconde et rien ne gèle.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -604,7 +654,9 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **1.0.0** : noyau prouvé, deux paysages complets, quatre fonds, l'éditeur qui peint.
+À **1.1.0** : noyau prouvé, deux paysages complets, quatre fonds, l'éditeur qui peint,
+le travail qui s'enregistre et se rouvre, le tileset qui s'exporte, et le paysage qui se
+remonte sous les yeux.
 
 Quand la monter, et je le proposerai le moment venu :
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
@@ -643,11 +695,9 @@ Quand la monter, et je le proposerai le moment venu :
   `ample` l'a été.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- **Remonter le paysage depuis la feuille exportée**, et le montrer pendant le travail.
-  C'est le seul contrôle que le programme ne peut pas faire à notre place : que les 47
-  tuiles, peintes séparément, se raccordent sans couture. Un bord est peint d'un côté,
-  son voisin de l'autre, et rien ne garantit qu'ils se rejoignent — sauf de le voir.
-  C'est la règle 6 poussée jusqu'au bout, et c'est ce qui supprime la boucle
-  essai-export-correction que la règle 2 interdit.
+- **Un paysage de contrôle qui ne soit pas le guide.** Le remontage se fait aujourd'hui sur
+  le relief du guide — lequel est un banc d'épreuve : lacs d'une case, pinacles isolés,
+  encoches partout. Une couture peut s'y perdre dans le bruit. Un petit relief ordinaire,
+  calme, réutilisant les mêmes tuiles, la ferait sauter aux yeux. Peu de travail, vrai gain.
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
   Faut-il les signaler pendant le dessin (règle 6) ?
