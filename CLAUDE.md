@@ -454,6 +454,25 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   que son voisin du sud-ouest soit plein ou vide. Courber là, ce serait poser un arc que
   personne ne rejoint. Seuls les coins **sortants** s'arrondissent.
 
+- **La lèvre peinte suit le contour, pas les quatre côtés.** Peindre quatre bandes droites
+  laissait la lèvre s'arrêter net avant chaque coin arrondi, et manquer entièrement les
+  coins rentrants — le même trou que le trait avait au fil de fer, en plus sournois : une
+  bande claire qui s'interrompt se lit comme un défaut de peinture, pas comme un choix.
+  `_rim_shade()` mesure la distance au **contour réel** — côtés ouverts, arcs des coins
+  sortants, carré des coins rentrants — et fond la teinte au lieu de poser une bande
+  franche.
+
+- **Une falaise ne doit pas être barrée de coutures.** Deux corrections, toutes deux
+  visibles à l'œil dès qu'on regarde un mur de six cases :
+  - les deux rangées de corps avaient **deux teintes différentes**, ce qui rayait la face
+    d'une bande à chaque changement de rangée. Elles partagent maintenant la même teinte,
+    et ce qui diffère est la **texture** : un décalage de striure, invisible en bande,
+    suffisant pour que l'œil ne lise pas la répétition ;
+  - le chapiteau et le pied **commencent et finissent désormais sur la teinte du corps**.
+    Le chapiteau part de la lumière en haut et la rejoint en bas, le pied part du corps et
+    s'enfonce. Sans ça, deux rangées voisines se raccordaient sur deux teintes
+    différentes, et le raccord se voyait à chaque cran.
+
 - **Le littoral est plus appuyé que les courbes de niveau.** Un dessin où tous les traits
   pèsent pareil se lit comme un plan de cuisine ; en allégeant à mesure qu'on monte,
   l'œil trouve tout de suite le bord de la terre et lit les étages comme un relief.

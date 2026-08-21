@@ -82,8 +82,11 @@ const LEVEL_COLORS: Array[Color] = [
 	Color(0.663, 0.694, 0.510),
 ]
 const STONE_CROWN: Color = Color(0.576, 0.510, 0.420)
-const STONE_BODY_A: Color = Color(0.478, 0.416, 0.337)
-const STONE_BODY_B: Color = Color(0.431, 0.373, 0.302)
+# ⚠ LES DEUX RANGEES DE CORPS ONT LA MEME TEINTE. Les avoir distinguees par la couleur
+# rayait la falaise de bandes horizontales a chaque changement de rangee. Ce qui doit
+# differer, c'est la TEXTURE -- d'ou un decalage de striure, invisible en bande, suffisant
+# pour que l'oeil ne lise pas la repetition.
+const STONE_BODY: Color = Color(0.478, 0.416, 0.337)
 const STONE_FOOT: Color = Color(0.318, 0.278, 0.220)
 const GROUND_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.38)
 const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
@@ -171,7 +174,7 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 			else LEVEL_COLORS[mini(level, LEVEL_COLORS.size() - 1)]
 	var buffer: PackedByteArray = _blank(side, base)
 	var outer: float = OUTER_ROUND * float(side)
-	var lip: float = LIP * float(side)
+	var lip: float = LIP * float(side) * (1.7 if purpose == Purpose.REPRESENTATIVE else 1.0)
 	var weight: float = LEVEL_WEIGHTS[mini(level, LEVEL_WEIGHTS.size() - 1)]
 	var stroke: float = STROKE * float(side) * weight \
 			* (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
@@ -200,20 +203,88 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 					elif not south and py > last - stroke * 2.0:
 						color = WIRE_FACE
 			else:
-				# La lumiere vient du nord-ouest : la levre y est eclairee, l'autre recule.
-				if not north and py < lip:
-					color = base.lightened(0.30)
-				elif not west and px < lip:
-					color = base.lightened(0.18)
-				elif not south and py > last - lip:
-					color = base.darkened(0.26)
-				elif not east and px > last - lip:
-					color = base.darkened(0.16)
+				var shade: float = _rim_shade(px, py, last, outer, lip, index,
+						north, east, south, west)
+				if shade > 0.0:
+					color = base.lightened(0.34 * shade)
+				elif shade < 0.0:
+					color = base.darkened(0.30 * -shade)
 			if purpose == Purpose.REPRESENTATIVE and _on_inner_tick(px, py, last, stroke, index,
 					north, east, south, west):
 				color = mark
 			_put(buffer, side, x, y, color)
 	return _finish(buffer, side, tile_size)
+
+
+## LA LEVRE PEINTE — l'ombre et la lumiere le long du contour, arrondis compris.
+##
+## ⚠ ELLE SUIT LE CONTOUR, PAS LES QUATRE COTES. Peindre quatre bandes droites laissait
+## la levre s'arreter net avant chaque coin arrondi, et manquer entierement les coins
+## rentrants -- le meme trou que le trait avait au fil de fer, en plus sournois parce
+## qu'une bande claire qui s'interrompt se lit comme un defaut de peinture.
+##
+## Rend un nombre entre -1 et 1 : positif du cote eclaire (nord-ouest), negatif du cote
+## qui recule, nul au coeur de la tuile. Le fondu evite la bande franche.
+static func _rim_shade(px: float, py: float, last: float, outer: float, lip: float,
+		index: int, north: bool, east: bool, south: bool, west: bool) -> float:
+	var nearest: float = lip
+	var tone: float = 0.0
+	# Les cotes ouverts.
+	var sides: Array = [
+		[not north, py, 1.0],
+		[not west, px, 0.62],
+		[not south, last - py, -0.86],
+		[not east, last - px, -0.56],
+	]
+	for side: Array in sides:
+		if not bool(side[0]):
+			continue
+		var distance: float = float(side[1])
+		if distance < nearest:
+			nearest = distance
+			tone = float(side[2])
+	# Les coins sortants : la levre epouse l'arc.
+	var corners: Array = [
+		[not north and not east, last, 0.0, 0.22],
+		[not south and not east, last, last, -0.71],
+		[not south and not west, 0.0, last, -0.12],
+		[not north and not west, 0.0, 0.0, 0.81],
+	]
+	for corner: Array in corners:
+		if not bool(corner[0]):
+			continue
+		var cx: float = float(corner[1])
+		var cy: float = float(corner[2])
+		var centre_x: float = cx + (outer if cx == 0.0 else -outer)
+		var centre_y: float = cy + (outer if cy == 0.0 else -outer)
+		var outward_x: bool = (px < centre_x) if cx == 0.0 else (px > centre_x)
+		var outward_y: bool = (py < centre_y) if cy == 0.0 else (py > centre_y)
+		if not outward_x or not outward_y:
+			continue
+		var ox: float = px - centre_x
+		var oy: float = py - centre_y
+		var along: float = outer - sqrt(ox * ox + oy * oy)
+		if along < nearest:
+			nearest = along
+			tone = float(corner[3])
+	# ⚠ ET LES COINS RENTRANTS. Le vide y touche la case par un point : sans ce carre, la
+	# levre des deux voisines s'arrete de part et d'autre et laisse un manque a l'angle.
+	var notches: Array = [
+		[north and east, (index & BlobIndex.NE) != 0, last, 0.0, 0.22],
+		[south and east, (index & BlobIndex.SE) != 0, last, last, -0.71],
+		[south and west, (index & BlobIndex.SW) != 0, 0.0, last, -0.12],
+		[north and west, (index & BlobIndex.NW) != 0, 0.0, 0.0, 0.81],
+	]
+	for notch: Array in notches:
+		if not bool(notch[0]) or bool(notch[1]):
+			continue
+		var reach: float = maxf(absf(px - float(notch[2])), absf(py - float(notch[3])))
+		if reach < nearest:
+			nearest = reach
+			tone = float(notch[4])
+	if nearest >= lip:
+		return 0.0
+	return tone * smoothstep(0.0, 1.0, 1.0 - nearest / lip)
 
 
 ## Vrai si le pixel est hors de la matiere. ⚠ SEULS LES COINS SORTANTS SONT ARRONDIS --
@@ -333,13 +404,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 	var right_end: bool = role.x == Walls.PAN_RIGHT
 	var base: Color = WIRE_WALL
 	if not wire:
-		match role.y:
-			Walls.ROW_CROWN:
-				base = STONE_CROWN
-			Walls.ROW_FOOT:
-				base = STONE_FOOT
-			_:
-				base = STONE_BODY_A if role.y == 1 else STONE_BODY_B
+		base = STONE_BODY
 	var buffer: PackedByteArray = _blank(side, base)
 	var mark: Color = MARK_WIRE if wire else MARK_PAINT
 	var inset: float = last * 0.32
@@ -367,14 +432,20 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 				elif role.y == Walls.ROW_FOOT and py > last - stroke:
 					color = WIRE_FACE
 			else:
+				# ⚠ CHAQUE RANGEE COMMENCE ET FINIT SUR LA TEINTE DU CORPS. Le chapiteau part de
+				# la lumiere en haut et REJOINT le corps en bas ; le pied part du corps et
+				# s'enfonce. Sans ca, deux rangees voisines se raccordent sur deux teintes
+				# differentes, et la falaise est barree d'une couture a chaque cran.
 				var vertical: float = py / last
 				if role.y == Walls.ROW_CROWN:
-					color = base.lightened(0.34 * (1.0 - smoothstep(0.0, 0.42, vertical)))
+					color = base.lightened(0.34 * (1.0 - smoothstep(0.0, 1.0, vertical)))
 				elif role.y == Walls.ROW_FOOT:
-					color = base.darkened(0.30 * smoothstep(0.35, 1.0, vertical))
-				var streak: float = fmod(px / float(side) * 2.0, 1.0)
-				if streak < 0.045:
-					color = color.darkened(0.045)
+					color = base.darkened(0.34 * smoothstep(0.0, 1.0, vertical))
+				# La striure se decale d'une rangee a l'autre : meme teinte, autre grain.
+				var phase: float = 0.0 if role.y == 1 else 0.37
+				var streak: float = fmod(px / float(side) * 2.0 + phase, 1.0)
+				if streak < 0.05:
+					color = color.darkened(0.05)
 				if left_end and px < margin * 2.0:
 					color = color.lightened(0.10)
 				if right_end and px > last - margin * 2.0:
