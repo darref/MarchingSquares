@@ -21,6 +21,8 @@ func _initialize() -> void:
 	# Arguments facultatifs : la technique (« utilisable ») et le style (« fil »).
 	if arguments.size() > 1 and arguments[1] == "utilisable":
 		_technic = 1
+	elif arguments.size() > 1 and arguments[1] == "example":
+		_technic = 2
 	if arguments.size() > 2 and arguments[2] == "fil":
 		_ink = 1
 

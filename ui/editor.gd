@@ -17,6 +17,7 @@ const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Symmetry := preload("res://core/symmetry.gd")
+const Satyron := preload("res://render/satyron_tiles.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -149,6 +150,11 @@ func _fill_styles() -> void:
 	choice.set_item_metadata(0, GuideImage.Purpose.REPRESENTATIVE)
 	choice.add_item("Utilisable")
 	choice.set_item_metadata(1, GuideImage.Purpose.USABLE)
+	# ⚠ LE BANC D'ESSAI NE S'OUVRE QUE SI SATYRON EST LA. On lit son tileset chez lui, on ne
+	# le copie pas : sur une machine sans lui, la technique reste fermee (charte, regle 5).
+	choice.add_item("Example")
+	choice.set_item_metadata(2, GuideImage.Purpose.EXAMPLE)
+	choice.set_item_disabled(2, not Satyron.is_available())
 	choice.select(0)
 
 
@@ -169,8 +175,11 @@ func _on_style_selected(_index: int) -> void:
 func _apply_background_style() -> void:
 	var technic: OptionButton = %StyleChoice
 	var style: OptionButton = %InkChoice
-	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected),
-			technic.get_item_metadata(technic.selected))
+	var purpose: GuideImage.Purpose = technic.get_item_metadata(technic.selected)
+	# ⚠ LE STYLE N'A PAS DE SENS SUR LE BANC D'ESSAI : ce ne sont ni nos aplats ni nos traits,
+	# ce sont les tuiles de quelqu'un d'autre. On ferme le choix plutot que de l'ignorer.
+	style.disabled = purpose == GuideImage.Purpose.EXAMPLE
+	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected), purpose)
 
 
 func _current_mode() -> StringName:

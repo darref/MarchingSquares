@@ -16,6 +16,7 @@ const GuideImage := preload("res://render/guide_image.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
+const Satyron := preload("res://render/satyron_tiles.gd")
 
 ## Nombre de tuiles a dessiner, plus une etape pour le tamponnage.
 var total: int = 1
@@ -51,6 +52,9 @@ func _init(heights: PackedStringArray, tile_size: int, ink: GuideImage.Ink,
 ## Prepare la liste du travail. Tout ce qui est rapide se fait ici : on ne veut compter
 ## que ce qui coute, sinon la barre mentirait sur ce qu'il reste.
 func _prepare() -> void:
+	if _purpose == GuideImage.Purpose.EXAMPLE:
+		_prepare_example()
+		return
 	var columns: int = HeightMask.width(_heights)
 	var rows: int = HeightMask.height(_heights)
 	_image = Image.create_empty(maxi(columns, 1) * _tile_size, maxi(rows, 1) * _tile_size,
@@ -94,6 +98,75 @@ func _prepare() -> void:
 	total = _top_queue.size() + _wall_queue.size() + 1
 
 
+## LE BANC D'ESSAI — le guide assemble avec les vraies tuiles de Satyron.
+##
+## ⚠ DEUX GRILLES DUALES. Satyron peint ses sols par les COINS : une de ses tuiles est a
+## cheval sur quatre des notres, et se pose donc decalee d'une demi-case. Ce n'est pas une
+## approximation, c'est la geometrie de son systeme. Les falaises, elles, se posent case
+## pour case : leur vocabulaire est le meme que le notre, puisque nous le lui avons pris.
+##
+## ⚠ SON KIT DE FALAISE N'A QU'UNE RANGEE DE CORPS la ou nous en avons deux. Nos deux
+## corps retombent donc sur la meme : on ne peut pas montrer une rangee qui n'existe pas.
+func _prepare_example() -> void:
+	var columns: int = HeightMask.width(_heights)
+	var rows: int = HeightMask.height(_heights)
+	var side: int = Satyron.SOURCE_TILE
+	_image = Image.create_empty(maxi(columns, 1) * side, maxi(rows, 1) * side,
+			false, Image.FORMAT_RGBA8)
+	_image.fill(Color(0.086, 0.094, 0.102))
+	total = 1
+	if not Satyron.is_available():
+		return
+	var kit: Dictionary = Satyron.read()
+	var images: Dictionary = kit["images"]
+	var corners: Dictionary = kit["corners"]
+	var resolved: Dictionary = {}
+
+	# Les sols, sur la grille duale.
+	for j: int in range(rows + 1):
+		for i: int in range(columns + 1):
+			var signature: String = "%d,%d,%d,%d" % [
+					_terrain_at(i - 1, j - 1), _terrain_at(i, j - 1),
+					_terrain_at(i - 1, j), _terrain_at(i, j)]
+			var tile: Array = Satyron.floor_tile(corners, signature, resolved)
+			if tile.is_empty():
+				continue
+			_blit(images, int(tile[0]), tile[1], i * side - side / 2, j * side - side / 2, side)
+
+	# Les falaises, case pour case.
+	var cliff: Dictionary = kit["cliff"]
+	var body_rows: int = maxi(1, int(cliff["body_rows"]))
+	var origin: Vector2i = cliff["origin"]
+	var source: int = int(cliff["source"])
+	var visible: Dictionary = Walls.visible_roles(_heights)
+	for cell: Vector2i in visible.keys():
+		var role: Vector2i = visible[cell]
+		var row: int = 0
+		if role.y == Walls.ROW_FOOT:
+			row = body_rows + 1
+		elif role.y > 0:
+			row = 1 + (role.y - 1) % body_rows
+		_blit(images, source, origin + Vector2i(role.x, row), cell.x * side, cell.y * side, side)
+
+
+## La matiere de Satyron qui tient lieu de notre etage a cet endroit.
+func _terrain_at(x: int, y: int) -> int:
+	var level: int = HeightMask.level_at(_heights, x, y)
+	return Satyron.LEVEL_TERRAIN[mini(level, Satyron.LEVEL_TERRAIN.size() - 1)]
+
+
+## Recopie une case d'atlas, en coupant ce qui sort du cadre.
+func _blit(images: Dictionary, source: int, coord: Vector2i, x: int, y: int, side: int) -> void:
+	if not images.has(source):
+		return
+	var atlas: Image = images[source]
+	var from: Rect2i = Rect2i(coord * side, Vector2i(side, side))
+	if from.position.x < 0 or from.position.y < 0 \
+			or from.end.x > atlas.get_width() or from.end.y > atlas.get_height():
+		return
+	_image.blend_rect(atlas, from, Vector2i(x, y))
+
+
 ## Avance d'au plus [param budget_usec] microsecondes. Rend vrai quand tout est fini.
 func step(budget_usec: int) -> bool:
 	if _finished:
@@ -120,6 +193,9 @@ func step(budget_usec: int) -> bool:
 ## Le tamponnage : mille cases qui reutilisent les memes cent cinquante tuiles. C'est
 ## rapide, et ca ne vaut pas la peine d'etre decoupe -- une seule etape de la barre.
 func _stamp_everything() -> void:
+	# Le banc d'essai a tout pose dans _prepare_example() : rien a tamponner ici.
+	if _purpose == GuideImage.Purpose.EXAMPLE:
+		return
 	for placement: Array in _placements:
 		GuideImage.stamp(_image, _tops[placement[0]], placement[1], placement[2], _tile_size)
 	if _ink == GuideImage.Ink.PAINTED:

@@ -44,6 +44,10 @@ enum Purpose {
 	## Rien qui paraisse irreel, rien qu'on regarde : le dessin seul, tel que le tileset
 	## le montrera une fois assemble. Aucune marque, aucune exageration.
 	USABLE,
+	## Le guide assemble avec un VRAI tileset, celui de Satyron, lu depuis son projet.
+	## ⚠ L'encre n'a plus de sens ici : ce ne sont ni nos aplats ni nos traits, ce sont les
+	## tuiles de quelqu'un d'autre. C'est un banc d'essai, pas un fond de travail.
+	EXAMPLE,
 }
 
 const HeightMask := preload("res://core/height_mask.gd")
