@@ -404,8 +404,16 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 	var last: float = float(side - 1)
 	var stroke: float = STROKE * float(side) * (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
 	var margin: float = 0.10 * float(side)
-	var left_end: bool = role.x == Walls.PAN_LEFT
-	var right_end: bool = role.x == Walls.PAN_RIGHT
+	# ⚠ TROIS ETATS PAR FLANC, ET CHACUN A SON TRACE.
+	#   VIDE   la roche s'arrete : la face est mise en retrait, et la plaine se voit a cote.
+	#   MUET   rien : ou la meme face continue, ou c'est le voisin qui portera l'angle.
+	#   DEVANT je suis le bloc qui avance : je porte mon angle, POSE JUSQU'AU BORD, sans
+	#          decoupe -- sinon on verrait la plaine a travers la roche du voisin.
+	# ⚠ ET L'ANGLE N'EST PAS SYMETRIQUE : lumiere du nord-ouest, donc l'angle ouest accroche
+	# le jour et l'angle est recule. C'est ce qui fait qu'on lit DE QUEL COTE est le retrait.
+	var west: int = Walls.pan_west(role.x)
+	var east: int = Walls.pan_east(role.x)
+	var edge: float = stroke * 1.5
 	var base: Color = WIRE_WALL
 	if not wire:
 		base = STONE_BODY
@@ -416,10 +424,10 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 		for x: int in range(side):
 			var px: float = float(x)
 			var py: float = float(y)
-			# Un pan de bout dit « il n'y a rien de ce cote » : la face s'y arrete.
-			if left_end and px < margin:
+			# Le flanc vide dit « il n'y a rien de ce cote » : la face s'y arrete.
+			if west == Walls.SIDE_VOID and px < margin:
 				continue
-			if right_end and px > last - margin:
+			if east == Walls.SIDE_VOID and px > last - margin:
 				continue
 			var color: Color = base
 			if wire:
@@ -427,10 +435,14 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 				# bas du pied est le sol ; entre deux rangees de corps il n'y a AUCUNE
 				# ligne, la face est continue -- sans quoi la falaise serait rayee de traits
 				# que rien ne justifie.
-				if left_end and px < margin + stroke:
+				if west == Walls.SIDE_VOID and px < margin + stroke:
 					color = WIRE_EDGE
-				elif right_end and px > last - margin - stroke:
+				elif east == Walls.SIDE_VOID and px > last - margin - stroke:
 					color = WIRE_EDGE
+				elif west == Walls.SIDE_FRONT and px < edge:
+					color = WIRE_LIP
+				elif east == Walls.SIDE_FRONT and px > last - edge:
+					color = WIRE_FACE
 				elif role.y == Walls.ROW_CROWN and py < stroke:
 					color = WIRE_LIP
 				elif role.y == Walls.ROW_FOOT and py > last - stroke:
@@ -460,10 +472,14 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 					var ledge: float = 0.40 if role.y == 1 else 0.62
 					if absf(vertical - ledge) < 0.055:
 						color = color.darkened(0.07)
-				if left_end and px < margin * 2.0:
+				if west == Walls.SIDE_VOID and px < margin * 2.0:
 					color = color.lightened(0.10)
-				if right_end and px > last - margin * 2.0:
+				elif west == Walls.SIDE_FRONT and px < edge:
+					color = color.lightened(0.22)
+				if east == Walls.SIDE_VOID and px > last - margin * 2.0:
 					color = color.darkened(0.12)
+				elif east == Walls.SIDE_FRONT and px > last - edge:
+					color = color.darkened(0.28)
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.

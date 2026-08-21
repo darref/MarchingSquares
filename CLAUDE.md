@@ -263,7 +263,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Il figure au catalogue et à la liste déroulante, **grisé**, tant que son guide n'existe
   pas : ce qui n'est pas garanti ne se choisit pas (règle 5). `Modes.is_available()` tranche.
 
-- **Le mode minimal livre deux familles : 47 + 12 = 59 tuiles.** `coverage.gd` prouve la
+- **Le mode minimal livre deux familles : 47 + 36 = 83 tuiles.** `coverage.gd` prouve la
   première, `walls.analyse()` la seconde.
 
 - **La plaine est le niveau 0, il n'y a pas de gouffre.** Toute case est à la plaine ou
@@ -694,6 +694,75 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   horizontale légère, tenue à distance des deux bords, donc **incapable de se voir au
   raccord**, quelle que soit la rangée qui suit. Le grain varie sans que la roche se brise.
 
+- **NEUF PANS, PAS TROIS : l'arête appartient à celui qui est devant.** C'est le changement
+  le plus lourd du projet, et il vient d'un défaut que l'utilisateur a su nommer : *« 1, 2, 3
+  dessinent bien une manière de voir quelle falaise est devant laquelle, alors que 4 et 5 ne
+  le font pas »*.
+
+  **La cause.** `assemble()` notait `covered[case] = true` — un simple « il y a une robe
+  ici ». Donc une robe voisine comptait comme « la même face continue », **quelle que soit
+  la lèvre qui l'avait lancée**. Deux faces mitoyennes issues de lèvres décalées recevaient
+  toutes deux `courant` — une tuile **muette sur ses flancs par définition**. On demandait à
+  une seule tuile d'être juste dans une situation qu'elle ne peut pas exprimer, et aucun
+  talent de peintre ne rattrape ça.
+
+  **La règle.** Trois états par flanc — `vide` (ma roche s'arrête) · `muet` (même face, **ou**
+  mon voisin est devant : c'est lui qui tracera) · `devant` (mon voisin est en retrait, je
+  porte mon angle). Le pan est le couple (ouest, est) : **9 pans × 4 rangées = 36 tuiles de
+  mur. 47 + 36 = 83.**
+
+  ⚠ **La dissymétrie est le tout.** Si les deux faces traçaient leur arête, on saurait qu'il
+  y a une frontière sans savoir laquelle est proche. En donnant l'angle au seul bloc qui
+  avance, **le côté qui le porte dit lequel est devant.** Et l'angle ouest est éclairci
+  quand l'angle est est assombri — lumière du nord-ouest — ce qui redouble la lecture.
+
+  ⚠ **Ce qui n'a PAS bougé : `row_for`, `fall_at`, `_trim`.** La chute et ses rangées
+  tiennent déjà sur un monde réellement joué (Satyron). Seule la lecture des flancs change.
+
+  **Le prix, mesuré avant de décider** : 150 des 342 cases de robe du guide (**44 %**) ont un
+  flanc contre une autre face. Ce n'est pas un cas de coin. Et la version *pleinement*
+  directionnelle — où la face en retrait marquerait aussi son flanc — demandait **16 pans =
+  64 tuiles = 111 au total**. Refusée : c'est du raffinement, pas de l'information ; le coin
+  du bloc qui avance suffit à l'œil. **+28 tuiles pour une ombre.**
+
+- **Le guide passe à 57x28, et gagne DEUX PEIGNES.** Un peigne est un plateau d'étage 2 dont
+  le bord sud est **denté** : une dent avance d'une rangée sur ses voisines, elle est donc
+  *devant*, et porte son angle. Le motif `T . T T . T . T` produit les cinq pans à angle.
+
+  ⚠ **Deux peignes, pas un.** À gauche les dents atterrissent sur une **banquette** : elles
+  tombent de trois cases et posent leur **pied** pendant que la voisine est encore en plein
+  corps — sans ça, au pied de la dent la robe d'à côté s'est déjà arrêtée et le flanc
+  redevient `vide`. À droite, pas de banquette : les dents tombent de six et passent donc par
+  le **corps 1**, ce que trois cases ne font jamais. Ni l'un ni l'autre ne suffit seul.
+
+  ⚠ **Et la banquette est QUATRE rangées sous la lèvre, pas trois.** `fall_at` sonde la case
+  *juste sous le pied*, jamais celles que la robe traverse — c'est la règle « l'étage N-1
+  continue sous la robe de l'étage N ». Une banquette posée sur le trajet ne l'arrête pas.
+
+  Vérifié : **47/47 surfaces, 36/36 rôles VISIBLES, 15/15 croisements, zéro robe hors grille.**
+
+- **`ample` est fermé.** Son guide ne couvre que 25 des 36 rôles, et il promet **trois**
+  occurrences de chacun — une barre bien plus haute que `minimal`. Il reste au catalogue,
+  grisé, jusqu'à ce que son guide soit refait (règle 5). C'est au TODO.
+
+- **La sauvegarde passe en version 2, et les robes v1 sont RENDUES, pas reposées.** Un pan v1
+  valait 0..2 ; un pan v2 vaut 0..8. Les reposer les mettrait de travers **en silence** —
+  exactement ce que `work_io` existe pour éviter. Les clés `S` de surface, elles, n'ont pas
+  bougé et se relisent sans rien perdre.
+
+  ⚠ **C'est la ligne « le sens d'une tuile change → cette tuile est perdue » de la table des
+  risques.** Elle ne coûte rien aujourd'hui puisque rien n'est encore peint. C'était le
+  dernier moment où c'était gratuit.
+
+- **Le manifeste devient un CONTRAT, pas une notice.** Une seconde moitié du projet posera le
+  monde dans Godot et Unity, en autotiling complet — comme Satyron, mais exact. C'est donc
+  **nous** qui écrirons le lecteur du manifeste, deux fois. Il doit porter la **règle de
+  pose**, pas seulement la table des cases : placer trois pans était trivial, placer neuf
+  demande de connaître la lèvre de son voisin.
+
+  **Le but final** : l'artiste peint une fois, bien guidé ; l'export est toujours exact ; le
+  game dev peint son monde sans penser à rien d'autre.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -839,6 +908,8 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
+- **Refaire le guide d'`ample`.** Il est fermé : 25 des 36 rôles seulement, et il promet
+  trois occurrences de chacun. Il lui faut ses propres peignes, en triple.
 - **Ouvrir le réseau dual dans l'interface.** Le noyau est là et prouvé (voir la décision
   ci-dessus) ; il manque la plomberie : le champ `famille` dans la table des modes, la zone
   de travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, l'exportateur des 15,

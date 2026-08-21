@@ -24,7 +24,7 @@ const MODES: Dictionary = {
 		"label": "Minimal",
 		"guide_path": "res://guides/minimal.txt",
 		"surface_tiles": 47,
-		"wall_tiles": 12,
+		"wall_tiles": 36,
 		"min_variants": 1,
 	},
 	# Meme completude que `minimal`, mais volontairement plus de repetitions : chaque tuile
@@ -33,8 +33,13 @@ const MODES: Dictionary = {
 	AMPLE: {
 		"label": "Ample",
 		"guide_path": "res://guides/ample.txt",
+		# ⚠ FERME. Son guide ne couvre que 25 des 36 roles de mur depuis que le vocabulaire
+		# distingue les faces en retrait, et il promet TROIS occurrences de chacun -- une
+		# barre bien plus haute que `minimal`. Ce qui n'est pas garanti ne se choisit pas
+		# (regle 5) : il reste au catalogue, grise, jusqu'a ce que son guide soit refait.
+		"closed": true,
 		"surface_tiles": 47,
-		"wall_tiles": 12,
+		"wall_tiles": 36,
 		"min_variants": 3,
 	},
 }
@@ -56,7 +61,9 @@ static func has(id: StringName) -> bool:
 ## ⚠ UN MODE SANS GUIDE NE SE CHOISIT PAS (charte, regle 5). Il figure au catalogue parce
 ## qu'il est decide et nomme, mais il reste ferme tant qu'on ne peut rien prouver dessus.
 static func is_available(id: StringName) -> bool:
-	return MODES.has(id) and FileAccess.file_exists(guide_path(id))
+	if not MODES.has(id) or bool(MODES[id].get("closed", false)):
+		return false
+	return FileAccess.file_exists(guide_path(id))
 
 
 ## Libelle affichable du mode.

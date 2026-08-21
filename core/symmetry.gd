@@ -103,10 +103,9 @@ static func mirror_index(index: int) -> int:
 ## pan courant ne bouge pas, et la rangee est inchangee -- le haut reste en haut.
 static func mirror_role(role: Vector2i) -> Vector2i:
 	var pan: int = role.x
-	if pan == Walls.PAN_LEFT:
-		pan = Walls.PAN_RIGHT
-	elif pan == Walls.PAN_RIGHT:
-		pan = Walls.PAN_LEFT
+	# ⚠ LE MIROIR ECHANGE LES DEUX FLANCS, il ne renomme pas un pan. Un pan est le couple
+	# (ouest, est) : le retourner, c'est lire le couple a l'envers.
+	pan = Walls.pan_of(Walls.pan_east(pan), Walls.pan_west(pan))
 	return Vector2i(pan, role.y)
 
 

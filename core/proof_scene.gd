@@ -27,12 +27,32 @@ const COLUMNS: int = 8
 const PITCH_X: int = ISLAND + 1
 const PITCH_Y: int = ISLAND + 4
 
-## La demonstration de falaise : une butte a deux etages, assez large pour montrer les trois
-## pans, assez haute pour que la chute de six cases fasse passer les DEUX rangees de corps.
-## C'est la seule facon d'obtenir les douze roles d'un seul bloc.
-const WALL_WIDTH: int = 5
-const WALL_HEIGHT: int = 2
-const WALL_LEVEL: int = 2
+## LA DEMONSTRATION DE FALAISE : deux peignes.
+##
+## Une simple butte ne montrait que trois pans. Depuis que le pan est le couple de ses deux
+## flancs, il en faut neuf, et pour cela des faces MITOYENNES DE PROFONDEURS DIFFERENTES --
+## c'est-a-dire un bord sud dente. Le motif des dents produit les neuf pans.
+##
+## ⚠ DEUX PEIGNES, PAS UN. A gauche les dents atterrissent sur une banquette : elles tombent
+## de trois cases et posent leur PIED pendant que la voisine est encore en plein corps. A
+## droite, pas de banquette : elles tombent de six et passent donc par le CORPS 1, ce que
+## trois cases ne font jamais. Ni l'un ni l'autre ne suffit seul.
+##
+## ⚠ ET LA BANQUETTE EST QUATRE RANGEES SOUS LA LEVRE, pas trois : `fall_at` sonde la case
+## juste sous le pied, jamais celles que la robe traverse.
+const WALL_DEMO: Array[String] = [
+	"22222222..22222222",
+	"22222222..22222222",
+	"2.22.2.2..2.22.2.2",
+	"..................",
+	"..................",
+	"..................",
+	"1.11.1.1..........",
+	"..................",
+	"..................",
+	"..................",
+	"..................",
+]
 
 ## Le code du caractere « 0 » : un etage N s'ecrit ZERO + N.
 const ZERO: int = 48
@@ -44,8 +64,8 @@ static func relief() -> PackedStringArray:
 	var island_rows: int = (indices.size() + COLUMNS - 1) / COLUMNS
 	var width: int = COLUMNS * PITCH_X
 	var wall_top: int = island_rows * PITCH_Y
-	# La butte tombe de STOREY_TILES x son etage : il lui faut ce vide sous sa levre.
-	var height: int = wall_top + WALL_HEIGHT + Walls.STOREY_TILES * WALL_LEVEL + 1
+	width = maxi(width, WALL_DEMO[0].length() + 2)
+	var height: int = wall_top + WALL_DEMO.size() + 1
 
 	var blank: String = ".".repeat(width)
 	var cells: Array = []
@@ -57,10 +77,12 @@ static func relief() -> PackedStringArray:
 		var origin: Vector2i = island_origin(order)
 		_stamp_island(cells, indices[order], origin)
 
-	var wall_left: int = maxi(0, (width - WALL_WIDTH) / 2)
-	for y: int in range(WALL_HEIGHT):
-		for x: int in range(WALL_WIDTH):
-			_put(cells, wall_left + x, wall_top + 1 + y, WALL_LEVEL)
+	var wall_left: int = maxi(0, (width - WALL_DEMO[0].length()) / 2)
+	for y: int in range(WALL_DEMO.size()):
+		for x: int in range(WALL_DEMO[y].length()):
+			var glyph: String = WALL_DEMO[y][x]
+			if glyph != ".":
+				_put(cells, wall_left + x, wall_top + 1 + y, glyph.to_int())
 
 	var rows: PackedStringArray = PackedStringArray()
 	for row: PackedByteArray in cells:

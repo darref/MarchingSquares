@@ -6,16 +6,29 @@
 # rien a voir avec celui de la surface : ni coins, ni transitions. Trois pans et une
 # descente verticale, c'est tout.
 #
-#        pan GAUCHE   pan COURANT   pan DROIT
-#      ┌────────────┬────────────┬────────────┐
-#      │  CHAPITEAU │  CHAPITEAU │  CHAPITEAU │  la premiere case sous la levre
-#      ├────────────┼────────────┼────────────┤
-#      │   corps 0  │   corps 0  │   corps 0  │  ┐ repetes autant de fois
-#      ├────────────┼────────────┼────────────┤  ┘ que la chute l'exige
-#      │   corps 1  │   corps 1  │   corps 1  │
-#      ├────────────┼────────────┼────────────┤
-#      │    PIED    │    PIED    │    PIED    │  la case qui touche le sol d'en bas
-#      └────────────┴────────────┴────────────┘
+# NEUF PANS, PAS TROIS. Chaque flanc d'une case de robe est dans l'un de trois etats, et
+# le pan est le couple des deux :
+#
+#   VIDE   ma roche s'arrete la, il n'y a rien a cote ;
+#   MUET   rien a dire : ou bien la meme face continue, ou bien mon voisin est DEVANT moi
+#          -- et dans ce cas c'est LUI qui tracera son angle, pas moi ;
+#   DEVANT mon voisin est en retrait : je suis le bloc qui avance, je trace mon angle ici.
+#
+# ⚠ L'ARETE APPARTIENT A CELUI QUI EST DEVANT. C'est toute la regle, et c'est elle qui rend
+# le relief LISIBLE : le cote qui porte l'angle dit lequel des deux blocs est le plus
+# proche. Avec trois pans, deux faces mitoyennes issues de levres differentes recevaient
+# toutes deux « courant » -- une tuile MUETTE SUR SES FLANCS PAR DEFINITION. On demandait
+# donc a une seule tuile d'etre juste dans une situation qu'elle ne peut pas exprimer, et
+# aucun talent de peintre ne rattrape ca.
+#
+#        9 pans (ouest x est)          x  4 rangees
+#      ┌──────────────────────────┐  ┌────────────┐
+#      │ vide/vide  vide/muet ... │  │  CHAPITEAU │  la premiere case sous la levre
+#      │ muet/vide  muet/muet ... │  │   corps 0  │  ┐ repetes autant de fois
+#      │ dev./vide  dev./muet ... │  │   corps 1  │  ┘ que la chute l'exige
+#      └──────────────────────────┘  │    PIED    │  la case qui touche le sol d'en bas
+#                                    └────────────┘
+#                        = 36 tuiles de mur
 #
 # ⚠ DEUX RANGEES DE CORPS, PAS UNE. Avec une seule, une chute de six cases montre quatre
 # fois la meme case l'une sur l'autre et l'oeil lit la repetition avant de lire la falaise.
@@ -29,16 +42,22 @@
 # l'etage le plus haut qu'on atteigne vraiment, et la chute vaut STOREY_TILES x (N - M).
 #
 # Modele repris de Satyron, ou il a ete etabli empiriquement puis eprouve sur une vraie
-# carte. Ce fichier le rejoue sur un relief, sans dependance a un TileSet ni a un noeud.
+# carte -- c'est la meilleure raison de ne toucher NI a `row_for` NI a `fall_at` : la chute
+# et ses rangees tiennent deja sur un monde reellement joue. Seule la lecture des FLANCS
+# change. Ce fichier rejoue le modele sur un relief, sans dependance a un TileSet ni a un
+# noeud.
 extends RefCounted
 
 const HeightMask := preload("res://core/height_mask.gd")
 
-## Les trois pans, en colonnes du bloc.
-const PAN_LEFT: int = 0    ## Rien de haut a l'ouest : la falaise commence ici.
-const PAN_MIDDLE: int = 1  ## Le pan courant, celui qui se repete.
-const PAN_RIGHT: int = 2   ## Rien de haut a l'est.
-const PAN_COUNT: int = 3
+## Les trois etats d'un flanc.
+const SIDE_VOID: int = 0   ## Ma roche s'arrete : rien a cote.
+const SIDE_MUTE: int = 1   ## Meme face, ou voisin DEVANT moi -- rien a tracer de ce cote.
+const SIDE_FRONT: int = 2  ## Voisin en retrait : je suis devant, je trace mon angle.
+const SIDE_COUNT: int = 3
+
+## Le pan est le couple (ouest, est).
+const PAN_COUNT: int = SIDE_COUNT * SIDE_COUNT
 
 ## Les rangees du bloc.
 const ROW_CROWN: int = 0
@@ -49,10 +68,10 @@ const BLOCK_ROWS: int = ROW_FOOT + 1
 ## De combien de cases de mur descend un etage.
 const STOREY_TILES: int = 3
 
-const PAN_NAMES: Array[String] = ["gauche", "courant", "droit"]
+const SIDE_NAMES: Array[String] = ["vide", "muet", "devant"]
 const ROW_NAMES: Array[String] = ["chapiteau", "corps 0", "corps 1", "pied"]
 
-## Les 12 roles (pan, rangee) qu'un guide doit faire apparaitre.
+## Les 36 roles (pan, rangee) qu'un guide doit faire apparaitre.
 ## Calcules au chargement, jamais ecrits en dur.
 static var ALL_ROLES: Array[Vector2i] = []
 
@@ -62,8 +81,25 @@ static func _static_init() -> void:
 			ALL_ROLES.append(Vector2i(pan, row))
 
 
+## Le pan forme par ses deux flancs.
+static func pan_of(west: int, east: int) -> int:
+	return west * SIDE_COUNT + east
+
+
+static func pan_west(pan: int) -> int:
+	return pan / SIDE_COUNT
+
+
+static func pan_east(pan: int) -> int:
+	return pan % SIDE_COUNT
+
+
+static func pan_name(pan: int) -> String:
+	return "%s|%s" % [SIDE_NAMES[pan_west(pan)], SIDE_NAMES[pan_east(pan)]]
+
+
 static func role_name(role: Vector2i) -> String:
-	return "%s / %s" % [PAN_NAMES[role.x], ROW_NAMES[role.y]]
+	return "%s / %s" % [pan_name(role.x), ROW_NAMES[role.y]]
 
 
 ## La rangee employee a la marche [param step] d'une chute de [param drop] cases.
@@ -120,33 +156,42 @@ static func _trim(heights: PackedStringArray, level: int, cell: Vector2i, drop: 
 ## montre mon pan gauche. Evalue par rangee, le vocabulaire a trois pans habille les
 ## escaliers sans une seule tuile d'angle. Evalue une fois pour toute la colonne, il aurait
 ## cousu deux robes de hauteurs differentes bord a bord, et la couture se verrait.
-static func pan_at(heights: PackedStringArray, level: int, covered: Dictionary, at: Vector2i, step: int) -> int:
+## Le pan d'une case de robe : l'etat de son flanc ouest et celui de son flanc est.
+##
+## [param lip_of] dit, pour chaque case deja couverte par une robe de CET etage, la rangee
+## de la levre qui l'a lancee. C'est la seule donnee qui manquait au modele a trois pans :
+## sans elle, deux faces mitoyennes issues de levres differentes se croyaient la meme.
+static func pan_at(heights: PackedStringArray, level: int, lip_of: Dictionary, at: Vector2i,
+		step: int, my_lip: int) -> int:
+	return pan_of(_side(heights, lip_of, at + Vector2i.LEFT, level, step, my_lip),
+			_side(heights, lip_of, at + Vector2i.RIGHT, level, step, my_lip))
+
+
+## L'etat d'un flanc.
+##
+## ⚠ L'ARETE APPARTIENT A CELUI QUI EST DEVANT. Une levre plus au NORD est une face en
+## RETRAIT : c'est moi qui avance, et c'est donc moi qui porte l'angle. Une levre plus au
+## sud est une face devant moi : elle portera le sien, je me tais. Sans cette dissymetrie,
+## deux aretes se dessineraient au meme endroit et rien ne dirait laquelle est proche.
+##
+## ⚠ ET ON NE SONDE JAMAIS L'ETAGE 0. Dans un relief, toute case est a la plaine ou
+## au-dessus : le tester rendrait « haut » partout et tous les flancs seraient muets.
+static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, level: int,
+		step: int, my_lip: int) -> int:
+	if lip_of.has(at):
+		return SIDE_FRONT if int(lip_of[at]) < my_lip else SIDE_MUTE
+	# Le sommet d'un plateau a cote : sa propre face tombe plus au sud, donc il est devant
+	# moi -- c'est a lui de tracer, pas a moi.
+	if HeightMask.level_at(heights, at.x, at.y) >= level:
+		return SIDE_MUTE
+	# ⚠ L'ETAGE QU'ON BORDE COMPTE A TOUTES LES RANGEES, pas seulement au premier cran :
+	# c'est l'angle rentrant, deux morceaux du meme plateau separes d'un creux dont la robe
+	# longe le second.
 	var span: int = (maxi(1, step) - 1) / STOREY_TILES
 	var beside: int = level - span
-	var west: bool = _has_high_neighbour(heights, covered, at + Vector2i.LEFT, level, beside)
-	var east: bool = _has_high_neighbour(heights, covered, at + Vector2i.RIGHT, level, beside)
-	if west and east:
-		return PAN_MIDDLE
-	if east:
-		return PAN_LEFT
-	if west:
-		return PAN_RIGHT
-	# Une falaise d'UNE case de large. Elle n'a pas de pan courant : on prend le gauche.
-	return PAN_LEFT
-
-
-## ⚠ L'ETAGE QU'ON BORDE COMPTE A TOUTES LES RANGEES, pas seulement au premier cran : c'est
-## l'angle rentrant, deux morceaux du meme plateau separes d'un creux dont la robe longe le
-## second.
-## ⚠ ET ON NE SONDE JAMAIS L'ETAGE 0. Dans un relief, toute case est a la plaine ou
-## au-dessus : le tester rendrait « haut » partout et tous les pans seraient courants.
-static func _has_high_neighbour(heights: PackedStringArray, covered: Dictionary, at: Vector2i, level: int, beside: int) -> bool:
-	if covered.has(at):
-		return true
-	var neighbour_level: int = HeightMask.level_at(heights, at.x, at.y)
-	if neighbour_level >= level:
-		return true
-	return beside >= 1 and neighbour_level >= beside
+	if beside >= 1 and HeightMask.level_at(heights, at.x, at.y) >= beside:
+		return SIDE_MUTE
+	return SIDE_VOID
 
 
 ## Deroule toutes les robes du relief.
@@ -168,7 +213,8 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 		# VOISINES couvrent a cette hauteur-la : en posant, on ne connaitrait que la
 		# moitie gauche.
 		var drops: Dictionary = {}
-		var covered: Dictionary = {}
+		# case couverte -> rangee de la levre qui l'a lancee.
+		var lip_of: Dictionary = {}
 		for y: int in range(grid_height):
 			for x: int in range(grid_width):
 				if HeightMask.level_at(heights, x, y) < level:
@@ -179,7 +225,7 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 				var fall: Vector2i = fall_at(heights, level, cell)
 				drops[cell] = fall
 				for step: int in range(1, fall.x + 1):
-					covered[cell + Vector2i(0, step)] = true
+					lip_of[cell + Vector2i(0, step)] = y
 		# SECONDE PASSE -- la pose.
 		for cell: Vector2i in drops:
 			var fall: Vector2i = drops[cell]
@@ -189,7 +235,9 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 			var landed: bool = fall.y == 1
 			for step: int in range(1, drop + 1):
 				var at: Vector2i = cell + Vector2i(0, step)
-				var role: Vector2i = Vector2i(pan_at(heights, level, covered, at, step), row_for(step, drop, landed))
+				var role: Vector2i = Vector2i(
+						pan_at(heights, level, lip_of, at, step, cell.y),
+						row_for(step, drop, landed))
 				roles[Vector3i(at.x, at.y, level)] = role
 				if at.y >= grid_height or at.x < 0 or at.x >= grid_width:
 					outside.append(Vector3i(at.x, at.y, level))

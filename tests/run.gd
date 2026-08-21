@@ -217,13 +217,15 @@ func _test_modes_catalogue() -> void:
 	_check_equal(ids.size(), 2, "deux paysages au catalogue")
 	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
 	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
-	# ⚠ 23, PAS 22. Le 22 serait le compte du groupe complet -- rotations ET miroirs sur
-	# les surfaces. Les miroirs de surface n y gagnent qu UNE tuile (15 orbites deviennent
-	# 14), et on les a ecartes pour ca. Les robes, elles, n ont que le miroir : 12 -> 8.
-	_check_equal(Symmetry.surface_work_count() + Symmetry.wall_work_count(), 23,
-			"avec les rotations : 15 surfaces + 8 robes = 23, contre 59")
+	# ⚠ LES MIROIRS DE SURFACE N Y GAGNERAIENT QU UNE TUILE (15 orbites deviennent 14) : on
+	# les a ecartes pour ca. Les robes, elles, n ont que le miroir -- et depuis que le pan
+	# est le couple de ses deux flancs, le miroir les ECHANGE : 36 roles, 24 orbites.
+	_check_equal(Symmetry.surface_work_count() + Symmetry.wall_work_count(), 39,
+			"avec les rotations : %d surfaces + %d robes = %d, contre %d" % [Symmetry.surface_work_count(), Symmetry.wall_work_count(), Symmetry.surface_work_count() + Symmetry.wall_work_count(), BLOB_TILE_COUNT + Walls.ALL_ROLES.size()])
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
-	_check(Modes.is_available(Modes.AMPLE), "ample a son guide, il se choisit")
+		# ⚠ FERME, ET C EST VOULU : son guide ne couvre plus les 36 roles. Ce qui n est pas
+	# garanti ne se choisit pas (regle 5).
+	_check(not Modes.is_available(Modes.AMPLE), "ample est ferme tant que son guide n est pas refait")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
 	_check_equal(Modes.surface_tile_count(Modes.MINIMAL), BLOB_TILE_COUNT, "47 tuiles de surface")
 	_check_equal(Modes.wall_tile_count(Modes.MINIMAL), Walls.ALL_ROLES.size(), "12 tuiles de mur")
@@ -269,7 +271,8 @@ func _test_height_mask() -> void:
 
 func _test_wall_rows() -> void:
 	print("walls : la rangee suit la marche et la chute")
-	_check_equal(Walls.ALL_ROLES.size(), 12, "douze roles : trois pans par quatre rangees")
+	_check_equal(Walls.ALL_ROLES.size(), Walls.PAN_COUNT * Walls.BLOCK_ROWS, "trente-six roles : neuf pans par quatre rangees")
+	_check_equal(Walls.PAN_COUNT, 9, "neuf pans : trois etats de flanc, au carre")
 	# Une chute d un etage : chapiteau, corps 0, pied. Le corps 1 n y apparait jamais.
 	_check_equal(Walls.row_for(1, 3, true), Walls.ROW_CROWN, "premiere case sous la levre : chapiteau")
 	_check_equal(Walls.row_for(2, 3, true), 1, "deuxieme case : corps 0")
@@ -296,11 +299,11 @@ func _test_wall_assembly() -> void:
 .....")
 	var shallow: Dictionary = Walls.analyse(one_storey)
 	var roles: Dictionary = Walls.assemble(one_storey)["roles"]
-	_check_equal(roles[Vector3i(1, 2, 1)], Vector2i(Walls.PAN_LEFT, Walls.ROW_CROWN), "le bout gauche montre son pan gauche")
-	_check_equal(roles[Vector3i(2, 2, 1)], Vector2i(Walls.PAN_MIDDLE, Walls.ROW_CROWN), "le milieu montre le pan courant")
-	_check_equal(roles[Vector3i(3, 4, 1)], Vector2i(Walls.PAN_RIGHT, Walls.ROW_FOOT), "le bout droit pose son pied")
+	_check_equal(roles[Vector3i(1, 2, 1)], Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le bout gauche a le vide a l ouest")
+	_check_equal(roles[Vector3i(2, 2, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le milieu est muet des deux cotes")
+	_check_equal(roles[Vector3i(3, 4, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_VOID), Walls.ROW_FOOT), "le bout droit a le vide a l est")
 	var expected_missing: Array[Vector2i] = [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2)]
-	_check_equal(shallow["missing"], expected_missing, "ce plateau isole d un etage ne montre pas le corps 1")
+	_check(not shallow["present"].has(Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), 2)), "ce plateau isole d un etage ne montre pas le corps 1")
 	_check(shallow["outside"].is_empty(), "aucune robe ne tombe hors de la grille")
 
 	# DEUX ETAGES : la chute de six cases fait apparaitre les douze roles.
@@ -313,10 +316,10 @@ func _test_wall_assembly() -> void:
 .....
 .....")
 	var deep: Dictionary = Walls.analyse(two_storeys)
-	_check(deep["is_complete"], "un plateau de deux etages couvre les douze roles")
+	_check(deep["present"].size() >= 9, "un plateau de deux etages couvre deja neuf roles (%d)" % deep["present"].size())
 	var deep_roles: Dictionary = Walls.assemble(two_storeys)["roles"]
-	_check_equal(deep_roles[Vector3i(2, 4, 2)], Vector2i(Walls.PAN_MIDDLE, 2), "la troisieme case de la chute est le corps 1")
-	_check_equal(deep_roles[Vector3i(2, 7, 2)], Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT), "la sixieme case pose le pied")
+	_check_equal(deep_roles[Vector3i(2, 4, 2)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), 2), "la troisieme case de la chute est le corps 1")
+	_check_equal(deep_roles[Vector3i(2, 7, 2)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_FOOT), "la sixieme case pose le pied")
 	_check(deep_roles.has(Vector3i(2, 2, 1)), "l etage du dessous deroule sa robe sous celle du haut")
 
 	# UNE ROBE RACCOURCIE PAR SON PROPRE ETAGE NE POSE PAS SON PIED.
@@ -357,8 +360,8 @@ func _test_wall_assembly() -> void:
 ........
 ........")
 	var stair_roles: Dictionary = Walls.assemble(stair)["roles"]
-	_check_equal(stair_roles[Vector3i(2, 2, 2)].x, Walls.PAN_RIGHT, "en haut, rien de haut a l est : pan droit")
-	_check_equal(stair_roles[Vector3i(2, 5, 2)].x, Walls.PAN_MIDDLE, "plus bas, l etage voisin borde : pan courant")
+	_check_equal(Walls.pan_east(stair_roles[Vector3i(2, 2, 2)].x), Walls.SIDE_VOID, "en haut, rien a l est : flanc vide")
+	_check_equal(Walls.pan_east(stair_roles[Vector3i(2, 5, 2)].x), Walls.SIDE_MUTE, "plus bas, l etage voisin borde : flanc muet")
 
 
 ## ⚠ TOUT MODE OUVERT DOIT PROUVER SON GUIDE. La boucle vaut declaration : ajouter un mode
@@ -427,7 +430,7 @@ func _check_one_guide_walls(id: StringName) -> void:
 	_check(HeightMask.top_level(heights) >= 2, "le guide a du relief : au moins deux etages")
 	var report: Dictionary = Walls.analyse(heights)
 	var present: Array[Vector2i] = report["present"]
-	_check_equal(present.size(), Modes.wall_tile_count(id), "les 12 roles de mur sont couverts")
+	_check_equal(present.size(), Modes.wall_tile_count(id), "les %d roles de mur sont couverts" % Modes.wall_tile_count(id))
 	_check(report["is_complete"], "aucun role de mur manquant")
 	# ⚠ UNE ROBE QUI TOMBE HORS DE LA GRILLE EST UNE TUILE QU ON NE PEUT PAS PEINDRE.
 	# Un guide en relief doit garder de la plaine sous ses falaises.
@@ -532,19 +535,23 @@ func _test_wall_variants() -> void:
 .....")
 	var roles: Dictionary = Walls.visible_roles(heights)
 	_check(roles.size() > 0, "le relief produit des cases de robe")
-	_check_equal(roles[Vector2i(2, 2)], Vector2i(Walls.PAN_MIDDLE, Walls.ROW_CROWN), "la robe du haut masque celle du bas")
+	_check_equal(roles[Vector2i(2, 2)].y, Walls.ROW_CROWN, "la robe du haut masque celle du bas")
 
 	var nothing: Array[Vector2i] = []
 	var untouched: Dictionary = Walls.resolve_roles(roles, nothing)
 	_check_equal(untouched["delivered"].size(), 0, "sans peinture, aucun role livre")
-	_check_equal(untouched["missing"].size(), Walls.ALL_ROLES.size(), "les douze roles manquent")
+	_check_equal(untouched["missing"].size(), Walls.ALL_ROLES.size(), "les %d roles manquent" % Walls.ALL_ROLES.size())
 	_check_equal(untouched["is_exportable"], false, "rien de peint : rien a exporter")
 
 	var every_cell: Array[Vector2i] = []
 	for cell: Vector2i in roles.keys():
 		every_cell.append(cell)
 	var full: Dictionary = Walls.resolve_roles(roles, every_cell)
-	_check(full["is_exportable"], "tout peindre livre les douze roles")
+	var here: Dictionary = {}
+	for role: Vector2i in roles.values():
+		here[role] = true
+	_check_equal(full["delivered"].size(), here.size(),
+			"tout peindre livre exactement les roles que CE relief porte (%d)" % here.size())
 	_check(full["unused"].is_empty(), "aucune case de robe inutilisee quand tout est peint")
 
 
@@ -568,7 +575,10 @@ func _test_twins() -> void:
 .....")
 	var roles: Dictionary = Walls.visible_roles(relief)
 	var wall_groups: Dictionary = Walls.cells_by_role(roles)
-	_check_equal(wall_groups.size(), Walls.ALL_ROLES.size(), "les douze roles forment douze groupes")
+	var distinct: Dictionary = {}
+	for role: Vector2i in roles.values():
+		distinct[role] = true
+	_check_equal(wall_groups.size(), distinct.size(), "chaque role present a son groupe")
 	var consistent: bool = true
 	var counted: int = 0
 	for role: Vector2i in wall_groups.keys():
@@ -588,7 +598,7 @@ func _test_symmetry() -> void:
 	for orbit: PackedInt32Array in Symmetry.ROTATION_ORBITS:
 		counted += orbit.size()
 	_check_equal(counted, BLOB_TILE_COUNT, "les orbites couvrent les 47 index, sans doublon")
-	_check_equal(Symmetry.MIRROR_ORBITS.size(), 8, "les 12 roles se rangent en 8 paires")
+	_check_equal(Symmetry.MIRROR_ORBITS.size(), 24, "les 36 roles se rangent en 24 orbites de miroir")
 
 	# Un tour complet ramene chaque index a lui-meme.
 	var closes: bool = true
@@ -621,10 +631,10 @@ func _test_symmetry() -> void:
 			"le miroir echange la gauche et la droite, jamais le haut et le bas")
 
 	# Le miroir des robes : les bouts s echangent, le pan courant ne bouge pas.
-	_check_equal(Symmetry.mirror_role(Vector2i(Walls.PAN_LEFT, Walls.ROW_CROWN)),
-			Vector2i(Walls.PAN_RIGHT, Walls.ROW_CROWN), "le pan gauche devient le pan droit")
-	_check_equal(Symmetry.mirror_role(Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT)),
-			Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT), "le pan courant est son propre miroir")
+	_check_equal(Symmetry.mirror_role(Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_MUTE), Walls.ROW_CROWN)),
+			Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_VOID), Walls.ROW_CROWN), "le miroir echange les deux flancs")
+	_check_equal(Symmetry.mirror_role(Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_FOOT)),
+			Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_FOOT), "un pan symetrique est son propre miroir")
 
 
 func _test_work_io() -> void:
@@ -654,7 +664,7 @@ func _test_work_io() -> void:
 		painting.paint(cell, 0, 0, _key_colour(String(slots_a[cell])))
 
 	var text: String = WorkIO.serialize(painting, guide_a, Modes.MINIMAL)
-	_check(text.begins_with("absolutiles 1"), "le fichier s annonce des sa premiere ligne")
+	_check(text.begins_with("%s %d" % [WorkIO.MAGIC, WorkIO.VERSION]), "le fichier s annonce des sa premiere ligne")
 
 	var back: Dictionary = WorkIO.parse(text, guide_a)
 	_check_equal(back["error"], OK, "relecture sans erreur")
@@ -890,8 +900,15 @@ func _test_preview_scene() -> void:
 	var seen: Dictionary = {}
 	for role: Vector2i in roles.values():
 		seen[role] = true
-	_check_equal(seen.size(), Walls.ALL_ROLES.size(),
-			"le decor montre les DOUZE tuiles de falaise : c est la que le banding se voit")
+	# ⚠ ON N EXIGE PLUS QUE LE DECOR MONTRE TOUT. Depuis que le vocabulaire distingue les
+	# faces en retrait, il faudrait y entasser des peignes pour atteindre les 36 -- et un
+	# decor entasse n est plus un decor. Il doit montrer les QUATRE rangees, dont le corps 1,
+	# parce que c est la que le banding se repere ; le reste est le travail de la preuve.
+	var rows_shown: Dictionary = {}
+	for role: Vector2i in roles.values():
+		rows_shown[role.y] = true
+	_check_equal(rows_shown.size(), Walls.BLOCK_ROWS,
+			"le decor montre les quatre rangees, corps 1 compris : c est la que le banding se voit")
 
 	# ⚠ LA PROPRIETE QUI COMPTE : le decor ne peut RIEN reclamer que le guide n ait.
 	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
@@ -918,7 +935,7 @@ func _test_preview_scene() -> void:
 	var shown: Dictionary = {}
 	for index: int in indices.values():
 		shown[index] = true
-	print("  (le decor montre %d des 47 index et %d des 12 roles)" % [shown.size(), seen.size()])
+	print("  (le decor montre %d des 47 index et %d des %d roles)" % [shown.size(), seen.size(), Walls.ALL_ROLES.size()])
 
 
 ## Combien de reliefs tires au sort. Assez pour que l absence de contre-exemple pese, assez
@@ -985,7 +1002,7 @@ func _test_vocabulary_is_closed() -> void:
 	# ⚠ ET LA RECHERCHE DOIT AVOIR VRAIMENT CHERCHE. Une battue qui ne rencontre aucun des
 	# douze roles ne prouve rien du tout : elle prouve qu elle n a rien regarde.
 	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
-			"et la battue a bien RENCONTRE les douze roles : elle cherche pour de bon")
+			"et la battue a bien RENCONTRE les %d roles : elle cherche pour de bon" % Walls.ALL_ROLES.size())
 
 
 ## Une fenetre 3x3 binaire, une par bit du motif.

@@ -34,7 +34,11 @@ const EXTENSION: String = "absolutiles"
 ## En-tete du fichier. Le numero monte le jour ou le format change, et il ne changera que
 ## si les CLES changent -- pas pour un guide retouche, c'est tout l'interet.
 const MAGIC: String = "absolutiles"
-const VERSION: int = 1
+## ⚠ VERSION 2 : LE VOCABULAIRE DES ROBES A CHANGE. Un pan v1 valait 0..2 (gauche, courant,
+## droit) ; un pan v2 vaut 0..8 (le couple des deux flancs). Reposer une cle `W` de v1 sous
+## v2 la mettrait de travers en silence -- exactement ce que ce fichier existe pour eviter.
+## Les cles `S` de surface, elles, n'ont pas bouge et se relisent sans rien perdre.
+const VERSION: int = 2
 
 
 ## La cle de la tuile portee par chaque case du guide.
@@ -181,7 +185,8 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 		push_error("work_io: ce fichier n'est pas un travail AbsoluTiles.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
-	if lines[0].get_slice(" ", 1).to_int() > VERSION:
+	var written_with: int = lines[0].get_slice(" ", 1).to_int()
+	if written_with > VERSION:
 		push_error("work_io: fichier ecrit par une version plus recente.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
@@ -216,6 +221,11 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 					% [number + 1, head, image.get_width(), image.get_height(),
 					painting.resolution])
 			result["error"] = ERR_FILE_CORRUPT
+			continue
+		# ⚠ LES ROBES D'UN FICHIER v1 SONT RENDUES, JAMAIS REPOSEES. Leur numero de pan ne
+		# veut plus la meme chose ; les placer serait un mensonge silencieux.
+		if written_with < 2 and head.begins_with("W"):
+			unplaced.append(head)
 			continue
 		if not by_key.has(head):
 			unplaced.append(head)
