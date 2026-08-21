@@ -13,6 +13,7 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
+const Symmetry := preload("res://core/symmetry.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
 
@@ -47,6 +48,11 @@ const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
 
 var pencil: Color = Color(0.906, 0.855, 0.671)
 
+## Peindre une case remplit aussi toutes ses symetriques, avec le dessin tourne ou
+## retourne comme il faut. ⚠ CE N'EST PAS UNE CASE A COCHER : c'est le mode qui le decide,
+## et seulement s'il livre des tuiles sans direction d'eclairage.
+var paint_symmetry: bool = false
+
 ## Peindre une case peint aussi toutes celles qui portent la meme tuile.
 ## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT, c'est une aide au geste : elle ne change rien a ce
 ## qui sort, seulement au nombre de fois qu'il faut refaire le meme dessin.
@@ -77,6 +83,9 @@ var _stale: Dictionary = {}
 var _changed: bool = false
 var _twin_of: Dictionary = {}
 var _wall_roles: Dictionary = {}
+var _by_index: Dictionary = {}
+var _by_role: Dictionary = {}
+var _targets: Dictionary = {}
 var _needs_fit: bool = false
 var _job: RefCounted = null
 var _cache: Dictionary = {}
@@ -144,11 +153,14 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
-	for group: Array in Coverage.cells_by_index(_surface_cells).values():
+	_targets.clear()
+	_by_index = Coverage.cells_by_index(_surface_cells)
+	_by_role = Walls.cells_by_role(_wall_roles)
+	for group: Array in _by_index.values():
 		var surface_twins: Array[Vector2i] = group
 		for cell: Vector2i in surface_twins:
 			_twin_of[cell] = surface_twins
-	for group: Array in Walls.cells_by_role(_wall_roles).values():
+	for group: Array in _by_role.values():
 		var wall_twins: Array[Vector2i] = group
 		for cell: Vector2i in wall_twins:
 			_twin_of[cell] = wall_twins
@@ -191,6 +203,14 @@ func _filter_painted(among: Dictionary) -> Array[Vector2i]:
 
 
 ## Change le style du fond. Le relief ne bouge pas : seule sa representation change.
+## ⚠ CHANGER LA REGLE DE REMPLISSAGE VIDE LE CACHE DES CIBLES. Sans ca, un coup de crayon
+## continuerait a suivre l'ancienne regle sur toutes les cases deja touchees.
+func set_fill_rules(twins: bool, symmetry: bool) -> void:
+	paint_twins = twins
+	paint_symmetry = symmetry
+	_targets.clear()
+
+
 func set_guide_style(style: GuideImage.Style) -> void:
 	if style == guide_style:
 		return
@@ -378,18 +398,49 @@ func _touch(position: Vector2) -> bool:
 	var inside: Vector2 = (local - Vector2(float(cell.x), float(cell.y))) * float(_painting.resolution)
 	var px: int = clampi(floori(inside.x), 0, _painting.resolution - 1)
 	var py: int = clampi(floori(inside.y), 0, _painting.resolution - 1)
-	var targets: Array[Vector2i] = [cell]
-	if paint_twins and _twin_of.has(cell):
-		targets = _twin_of[cell]
 	var changed: bool = false
-	for target: Vector2i in targets:
-		var touched: bool = _painting.paint(target, px, py, pencil) if _stroke > 0 else _painting.erase(target, px, py)
+	for target: Array in _targets_for(cell):
+		var to: Vector2i = target[0]
+		var moved: Vector2i = Symmetry.transform_pixel(px, py, _painting.resolution, int(target[1]))
+		var touched: bool = _painting.paint(to, moved.x, moved.y, pencil) if _stroke > 0 				else _painting.erase(to, moved.x, moved.y)
 		if touched:
-			_stale[target] = true
+			_stale[to] = true
 			changed = true
 	if changed:
 		_changed = true
 	return changed
+
+
+## Les cases qu'un coup de crayon touche, chacune avec la transformation a appliquer a ses
+## pixels. Calcule une fois par case, puis garde : un trait repasse cent fois au meme
+## endroit, et rien n'y bouge entre deux passages.
+func _targets_for(cell: Vector2i) -> Array:
+	if _targets.has(cell):
+		return _targets[cell]
+	var list: Array = []
+	if paint_symmetry and _surface_cells.has(cell):
+		var source: int = int(_surface_cells[cell])
+		for target_index: int in Symmetry.ORBIT_OF[source]:
+			if not _by_index.has(target_index):
+				continue
+			var turns: int = Symmetry.turns_between(source, target_index)
+			for twin: Vector2i in _by_index[target_index]:
+				list.append([twin, turns])
+	elif paint_symmetry and _wall_roles.has(cell):
+		var role: Vector2i = _wall_roles[cell]
+		var mirrored: Vector2i = Symmetry.mirror_role(role)
+		for twin: Vector2i in _by_role.get(role, [] as Array[Vector2i]):
+			list.append([twin, Symmetry.TURN_NONE])
+		if mirrored != role:
+			for twin: Vector2i in _by_role.get(mirrored, [] as Array[Vector2i]):
+				list.append([twin, Symmetry.MIRROR])
+	elif paint_twins and _twin_of.has(cell):
+		for twin: Vector2i in _twin_of[cell]:
+			list.append([twin, Symmetry.TURN_NONE])
+	else:
+		list.append([cell, Symmetry.TURN_NONE])
+	_targets[cell] = list
+	return list
 
 
 func _upload_cell(cell: Vector2i) -> void:

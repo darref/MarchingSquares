@@ -16,6 +16,7 @@ extends RefCounted
 
 const MINIMAL: StringName = &"minimal"
 const AMPLE: StringName = &"ample"
+const UNLIT: StringName = &"unlit"
 
 const MODES: Dictionary = {
 	MINIMAL: {
@@ -34,6 +35,18 @@ const MODES: Dictionary = {
 		"surface_tiles": 47,
 		"wall_tiles": 12,
 		"min_variants": 3,
+	},
+	# ⚠ SANS LUMIERE, DONC LES SYMETRIES Y SONT LICITES. Meme guide et meme vocabulaire que
+	# `minimal` -- ce n'est pas le paysage qui change, c'est ce qu'on fabrique : des tuiles
+	# sans direction d'eclairage. Rien n'y contredit une rotation, alors l'outil remplit les
+	# orbites, et il ne reste que 22 tuiles a peindre au lieu de 59.
+	UNLIT: {
+		"label": "Sans lumiere",
+		"guide_path": "res://guides/minimal.txt",
+		"surface_tiles": 47,
+		"wall_tiles": 12,
+		"min_variants": 1,
+		"lit": false,
 	},
 }
 
@@ -71,6 +84,31 @@ static func guide_path(id: StringName) -> String:
 		push_error("modes: mode inconnu '%s'." % id)
 		return ""
 	return MODES[id]["guide_path"]
+
+
+## Vrai si le tileset du mode a une direction d'eclairage.
+##
+## ⚠ C'EST CE QUI AUTORISE OU INTERDIT LES SYMETRIES. Un tileset eclaire ne se tourne pas :
+## la lumiere tournerait avec lui. Sans lumiere, rien dans le dessin ne s'y oppose, et
+## l'outil peut remplir les orbites -- decide UNE FOIS avec le mode, jamais en cours de
+## dessin.
+static func is_lit(id: StringName) -> bool:
+	if not MODES.has(id):
+		push_error("modes: mode inconnu '%s'." % id)
+		return true
+	return bool(MODES[id].get("lit", true))
+
+
+## Nombre de tuiles que l'utilisateur devra reellement peindre. ⚠ A NE PAS CONFONDRE AVEC
+## LA TAILLE DU VOCABULAIRE : le guide couvre toujours 47 index et 12 roles ; c'est la
+## QUANTITE DE TRAVAIL qui tombe quand les symetries sont licites.
+static func work_count(id: StringName) -> int:
+	if not MODES.has(id):
+		return 0
+	if is_lit(id):
+		return surface_tile_count(id) + wall_tile_count(id)
+	var symmetry: GDScript = load("res://core/symmetry.gd")
+	return symmetry.surface_work_count() + symmetry.wall_work_count()
 
 
 ## Nombre minimal d'occurrences que chaque tuile doit avoir dans le guide du mode.

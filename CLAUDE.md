@@ -29,6 +29,7 @@ Ces règles arbitrent toutes les décisions techniques.
 ```
 core/         logique pure, zéro dépendance UI, utilisable en headless
   blob_index.gd   voisinage 8 bits, canonicalisation, les 47 index
+  symmetry.gd     rotations et miroirs, et les conditions qui les rendent licites
   painting.gd     les faux pixels posés dans chaque tuile
   mask_io.gd      lecture / écriture / accès d'un masque de guide (texte)
   coverage.gd     rapport de couverture d'un masque
@@ -353,6 +354,29 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   d'outils repliables, dans un `ScrollContainer` pour qu'on puisse en empiler autant qu'on
   voudra.
 
+- **Le mode `unlit` : les symétries, et seulement là.** Il livre des tuiles **sans
+  direction d'éclairage**, et c'est ce qui rend rotations et miroirs corrects — pas
+  pratiques, corrects : rien dans le dessin ne les contredit. Il reprend le guide et le
+  vocabulaire de `minimal` ; ce n'est pas le paysage qui change, c'est ce qu'on fabrique.
+
+  Ce que ça coûte, mesuré : **47 index → 15 orbites** sous la rotation, **12 rôles → 8**
+  sous le miroir est-ouest. Soit **23 tuiles à peindre au lieu de 59**. Pas 22 : le 22
+  serait le compte du groupe complet, miroirs de surface compris — écartés, puisqu'ils n'y
+  gagnent qu'une tuile (15 → 14) pour tout un mécanisme de plus.
+
+  Les robes n'ont **que** le miroir : la rotation n'y a aucun sens, un plateau n'a de face
+  qu'au sud ; et le miroir vertical non plus, le pied repose sur le sol.
+
+  ⚠ **C'est une propriété du mode, pas une case à cocher.** `Modes.is_lit()` tranche, et
+  l'interface applique. Dans un mode éclairé, seules les jumelles sont offertes — elles ne
+  fabriquent rien, ce sont deux occurrences de la même tuile. Dans `unlit`, la case
+  « jumelles » est grisée : les jumelles sont déjà comprises dans l'orbite.
+
+  ⚠ **Le voisinage et les pixels doivent tourner dans le MÊME sens**, sans quoi la tuile
+  posée contredirait sa propre silhouette et aucun compte ne le dirait. C'est asserté :
+  un quart de tour envoie le nord du voisinage sur l'est, et la rangée du haut de l'image
+  sur la colonne de droite.
+
 - **`guides/ample.txt` : relief 66x31, et sa promesse est chiffrée.** Même complétude que
   `minimal` — 47/47 et 12/12 — mais **chaque index y est vu au moins trois fois**, contre
   une seule pour vingt d'entre eux dans `minimal`. Ce n'est pas une impression : la table
@@ -516,44 +540,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   - `CLAUDE.md`, section « Les colonnes — la seule verticalité qu'on automatise ».
 
 ## Questions ouvertes
-
-- **Un mode sans lumière, où rotations et miroirs deviennent licites.** Mesuré, et les deux
-  familles ne se comportent pas du tout pareil — c'est le résultat utile de cette fiche :
-
-  | | tuiles à peindre |
-  |---|---|
-  | surfaces, telles quelles | 47 |
-  | surfaces, rotations seules (C4) | **15** |
-  | surfaces, miroir est-ouest seul | 30 |
-  | surfaces, rotations + miroirs (D4) | **14** |
-  | robes, telles quelles | 12 |
-  | robes, miroir est-ouest | **8** |
-
-  ⚠ **Pour les surfaces, les miroirs n'apportent presque rien par-dessus les rotations :
-  15 → 14, une seule tuile.** Le jeu des 47 est déjà quasi clos par réflexion dès qu'on a
-  les rotations. Inutile donc d'implémenter les miroirs *pour les surfaces* : c'est de la
-  complexité pour une tuile.
-
-  ⚠ **Pour les robes, c'est l'inverse.** La rotation n'y a aucun sens — un plateau n'a de
-  face qu'au sud — et le miroir vertical non plus, puisque le chapiteau et le pied ne sont
-  pas interchangeables : le pied repose sur le sol, il y a une gravité. Seul le miroir
-  est-ouest agit, et il agit bien : pan gauche ↔ pan droit, pan courant fixe. **12 → 8.**
-
-  Total dans un tel mode : **22 tuiles au lieu de 59.**
-
-  Conséquences à traiter le jour où on l'écrit :
-  - **Le mode n'a pas besoin d'un nouveau guide** : il peut reprendre `guides/minimal.txt`.
-    Ce qui change n'est pas le paysage, c'est ce que le mode *déclare* — pas de direction
-    d'éclairage, donc symétries licites, donc moins de tuiles obligatoires.
-  - ⚠ **`Modes.surface_tile_count()` veut aujourd'hui dire deux choses** qui divergeraient :
-    « le guide doit couvrir 47 index » et « vous devez peindre 47 tuiles ». Sous symétrie,
-    le guide couvre toujours 47, mais on n'en peint que 14. Il faudra séparer la **taille du
-    vocabulaire** de la **quantité de travail**.
-  - L'illustration `representative` devra se passer de lumière dans ce mode —
-    `guide_image.gd` éclaire au nord-ouest, et montrer un relief éclairé pour un tileset
-    qui ne l'est pas serait un mensonge sur le résultat.
-  - Nom proposé : **`unlit`**, précis et sans ambiguïté dans le vocabulaire des tilesets.
-    (`flat` prêterait à confusion avec le relief plat, ce qui est une autre affaire.)
 
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.

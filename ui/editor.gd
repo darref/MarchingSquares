@@ -16,6 +16,7 @@ const Variants := preload("res://core/variants.gd")
 const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
+const Symmetry := preload("res://core/symmetry.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -166,7 +167,7 @@ func _load_current_mode() -> void:
 	_painting = Painting.new(_current_resolution())
 	var work: Control = %WorkArea
 	work.pencil = (%PencilColor as ColorPickerButton).color
-	work.paint_twins = (%TwinsCheck as CheckBox).button_pressed
+	_apply_fill_rules()
 	work.show_guide(_heights, _painting)
 	_refresh_counters()
 
@@ -202,8 +203,24 @@ func _on_loading_progress(done: int, total: int) -> void:
 	(%LoadingCount as Label).text = "%d / %d tuiles" % [done, total]
 
 
-func _on_twins_toggled(pressed: bool) -> void:
-	(%WorkArea as Control).paint_twins = pressed
+func _on_twins_toggled(_pressed: bool) -> void:
+	_apply_fill_rules()
+
+
+## ⚠ QUI REMPLIT QUOI SE DECIDE ICI, ET LE MODE A LE DERNIER MOT. Sans lumiere, les
+## symetries sont licites et le mode les applique toujours -- la case a cocher devient sans
+## objet, puisque les jumelles sont deja comprises dans l'orbite. Eclaire, seules les
+## jumelles sont offertes : elles ne fabriquent rien.
+func _apply_fill_rules() -> void:
+	var lit: bool = Modes.is_lit(_current_mode())
+	var check: CheckBox = %TwinsCheck
+	check.disabled = not lit
+	var work: Control = %WorkArea
+	work.set_fill_rules(check.button_pressed, not lit)
+	var note: Label = %ModeNote
+	note.visible = not lit
+	if not lit:
+		note.text = "Sans lumiere : rotations et miroirs sont licites. L outil remplit les orbites, %d tuiles a peindre." % Modes.work_count(_current_mode())
 
 
 func _on_fit_pressed() -> void:

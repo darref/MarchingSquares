@@ -14,6 +14,7 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Painting := preload("res://core/painting.gd")
+const Symmetry := preload("res://core/symmetry.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -38,6 +39,7 @@ func _initialize() -> void:
 	_test_painting()
 	_test_wall_variants()
 	_test_twins()
+	_test_symmetry()
 	_test_guide_image()
 	_test_every_script_parses()
 	_report_candidate_guide()
@@ -195,9 +197,17 @@ func _test_variant_selection() -> void:
 func _test_modes_catalogue() -> void:
 	print("modes : catalogue")
 	var ids: Array[StringName] = Modes.ids()
-	_check_equal(ids.size(), 2, "deux modes au catalogue")
+	_check_equal(ids.size(), 3, "trois modes au catalogue")
 	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
 	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
+	_check_equal(ids[2], Modes.UNLIT, "le troisieme est sans lumiere")
+	_check(Modes.is_lit(Modes.MINIMAL), "minimal est eclaire")
+	_check(not Modes.is_lit(Modes.UNLIT), "le mode sans lumiere ne l est pas")
+	_check_equal(Modes.work_count(Modes.MINIMAL), 59, "un mode eclaire se peint tuile par tuile : 59")
+	# ⚠ 23, PAS 22. Le 22 serait le compte du groupe complet -- rotations ET miroirs sur les
+	# surfaces. Les miroirs de surface n'y gagnent qu'UNE tuile (15 orbites deviennent 14),
+	# et on les a ecartes pour ca. Les robes, elles, n'ont que le miroir : 12 -> 8.
+	_check_equal(Modes.work_count(Modes.UNLIT), 23, "sans lumiere : 15 surfaces + 8 robes = 23")
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
 	_check(Modes.is_available(Modes.AMPLE), "ample a son guide, il se choisit")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
@@ -505,6 +515,52 @@ func _test_twins() -> void:
 				consistent = false
 	_check(consistent, "un groupe ne rassemble que des cases du meme role")
 	_check_equal(counted, roles.size(), "aucune case de robe n est oubliee ni comptee deux fois")
+
+
+func _test_symmetry() -> void:
+	print("symetries : ce que la rotation et le miroir font, et dans quel sens")
+	_check_equal(Symmetry.ROTATION_ORBITS.size(), 15, "les 47 index se rangent en 15 orbites")
+	var counted: int = 0
+	for orbit: PackedInt32Array in Symmetry.ROTATION_ORBITS:
+		counted += orbit.size()
+	_check_equal(counted, BLOB_TILE_COUNT, "les orbites couvrent les 47 index, sans doublon")
+	_check_equal(Symmetry.MIRROR_ORBITS.size(), 8, "les 12 roles se rangent en 8 paires")
+
+	# Un tour complet ramene chaque index a lui-meme.
+	var closes: bool = true
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		var walker: int = index
+		for turn: int in range(4):
+			walker = Symmetry.rotate_index(walker)
+		if walker != index:
+			closes = false
+	_check(closes, "quatre quarts de tour ramenent chaque index a lui-meme")
+	_check_equal(Symmetry.rotate_index(7), 28, "N+NE+E tourne en E+SE+S")
+
+	# ⚠ LA VERIFICATION QUI COMPTE : le voisinage et les pixels doivent tourner dans le MEME
+	# sens. Si l un tournait a l envers, la tuile posee contredirait sa propre silhouette, et
+	# rien dans les comptes ne le dirait.
+	var same_hand: bool = true
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		var turned: int = Symmetry.rotate_index(index)
+		if ((turned & BlobIndex.E) != 0) != ((index & BlobIndex.N) != 0):
+			same_hand = false
+	_check(same_hand, "un quart de tour envoie le nord du voisinage sur l est")
+	_check_equal(Symmetry.transform_pixel(2, 0, 8, Symmetry.TURN_QUARTER), Vector2i(7, 2),
+			"et la rangee du haut sur la colonne de droite : meme sens")
+
+	var back: Vector2i = Vector2i(3, 5)
+	for turn: int in range(4):
+		back = Symmetry.transform_pixel(back.x, back.y, 8, Symmetry.TURN_QUARTER)
+	_check_equal(back, Vector2i(3, 5), "quatre quarts de tour ramenent le pixel a sa place")
+	_check_equal(Symmetry.transform_pixel(1, 5, 8, Symmetry.MIRROR), Vector2i(6, 5),
+			"le miroir echange la gauche et la droite, jamais le haut et le bas")
+
+	# Le miroir des robes : les bouts s echangent, le pan courant ne bouge pas.
+	_check_equal(Symmetry.mirror_role(Vector2i(Walls.PAN_LEFT, Walls.ROW_CROWN)),
+			Vector2i(Walls.PAN_RIGHT, Walls.ROW_CROWN), "le pan gauche devient le pan droit")
+	_check_equal(Symmetry.mirror_role(Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT)),
+			Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT), "le pan courant est son propre miroir")
 
 
 func _test_guide_image() -> void:
