@@ -503,13 +503,27 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   du dock et ignore tout redimensionnement. Pour voir les 95 %, lancer depuis un terminal
   ou désactiver l'incrustation.
 
-- **Clic droit pose, clic gauche efface.** C'est l'inverse de l'habitude, et c'est voulu :
-  la main droite pose la matière, la gauche la retire.
+- **Clic gauche pose, clic droit efface.** Éprouvé à la main : l'inverse se trompait de
+  réflexe à chaque geste. L'effacement suit les mêmes règles de remplissage que la pose —
+  effacer une case efface ses jumelles, sinon l'état divergerait.
 
 - **Le crayon refuse ce qui n'est pas une tuile** (règle 5). Seules les cases qui portent
   quelque chose — surface visible ou case de robe — se peignent ; la plaine n'est pas une
   tuile du tileset. La case survolée est cerclée de blanc si elle se peint, de rouge sinon :
   le refus se voit avant le clic.
+
+- **⚠ EN VUE D'ENSEMBLE, UN FAUX PIXEL MESURE MOINS D'UN PIXEL D'ÉCRAN**, et l'on croit
+  alors que rien ne se passe. À la taille qui montre tout le guide, une case fait une
+  trentaine de pixels et en porte soixante-quatre : ce qu'on pose est littéralement
+  invisible. Le symptôme est trompeur — « la fonction ne marche pas » — alors que la
+  mesure disait le contraire : un seul trait peignait **204 cases** par les jumelles et
+  faisait monter les jauges. En dessous du seuil, les cases qui portent de la peinture
+  sont donc **cerclées**, et le travail se voit.
+
+- **« Peindre les jumelles » est coché d'emblée.** Deux jumelles ne sont pas deux tuiles
+  qui se ressemblent : c'est la même tuile, vue à plusieurs endroits. Les remplir ensemble
+  ne peut donc jamais être faux, et l'avoir à zéro par défaut donnait l'impression que la
+  fonction n'existait pas.
 
 - **Les deux jauges se recalculent à chaque coup de crayon** (règle 6), depuis les mêmes
   fonctions que la suite de tests. Ce que l'écran affiche est ce que les tests prouvent.
@@ -581,6 +595,20 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   d'un pixel une fois la tuile créée : 1,1 µs à 64 px, 1,9 µs à 256. La première pose dans
   une tuile neuve coûte 112 µs à 256 px, le temps d'allouer son image : une fois par tuile,
   pas par pixel.
+
+## Version
+
+Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
+le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
+
+À **1.0.0** : noyau prouvé, deux paysages complets, quatre fonds, l'éditeur qui peint.
+
+Quand la monter, et je le proposerai le moment venu :
+- **correctif** — un défaut réparé, rien de neuf à l'écran ;
+- **mineure** — une capacité de plus que l'utilisateur voit : un paysage, un outil, un
+  exporteur ;
+- **majeure** — ce qui périme l'existant : un format de guide qui change, un export dont
+  la sortie n'est plus la même.
 
 ## Références
 

@@ -42,6 +42,9 @@ var _elapsed: float = PROMISE_SECONDS
 
 
 func _ready() -> void:
+	# ⚠ LA VERSION SE LIT DANS project.godot, elle ne se recopie pas ici. Deux endroits, et
+	# ils finissent toujours par se contredire.
+	(%Version as Label).text = String(ProjectSettings.get_setting("application/config/version", "?"))
 	_apply_window_size()
 	_fill_modes()
 	_fill_resolutions()

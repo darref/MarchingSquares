@@ -46,6 +46,14 @@ const PIXEL_LINE: Color = Color(1.0, 1.0, 1.0, 0.05)
 const HOVER_OK: Color = Color(1.0, 1.0, 1.0, 0.85)
 const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
 
+## ⚠ EN VUE D'ENSEMBLE, UN FAUX PIXEL MESURE MOINS D'UN PIXEL D'ECRAN. A la taille qui
+## montre tout le guide, une case fait une trentaine de pixels et en porte soixante-quatre :
+## ce qu'on pose est litteralement invisible, et l'on croit que rien ne se passe -- surtout
+## quand le remplissage des jumelles touche cent cases d'un coup. En dessous de ce seuil, on
+## cerne donc les cases qui portent de la peinture.
+const TOUCHED_FROM: float = 1.6
+const TOUCHED_MARK: Color = Color(0.949, 0.792, 0.475, 0.85)
+
 var pencil: Color = Color(0.906, 0.855, 0.671)
 
 ## Peindre une case remplit aussi toutes ses symetriques, avec le dessin tourne ou
@@ -274,17 +282,23 @@ func _draw() -> void:
 		var tint: Color = GUIDE_TINT_USABLE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
 		draw_texture_rect(_background, Rect2(_origin, span), false, tint)
 
+	var pixel_px: float = _tile_px / float(_painting.resolution) if _painting != null else 1.0
 	for cell: Vector2i in _textures.keys():
 		var texture: ImageTexture = _textures[cell]
-		draw_texture_rect(texture, Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px)), false)
+		var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
+		draw_texture_rect(texture, rect, false)
+		# Trop dezoome pour qu'un faux pixel se voie : on cerne la case, sinon le travail
+		# semble ne rien produire.
+		if pixel_px < TOUCHED_FROM and _painting.is_painted(cell):
+			draw_rect(rect, TOUCHED_MARK, false, 1.0)
 
 	# La grille des faux pixels n'apparait que lorsqu'elle est lisible : sinon elle noircit
 	# l'ecran et cache le guide qu'elle est censee servir.
-	if _painting != null and _tile_px / float(_painting.resolution) >= PIXEL_GRID_FROM:
+	if _painting != null and pixel_px >= PIXEL_GRID_FROM:
 		# ⚠ ON NE TRACE QUE CE QUI EST A L ECRAN. A 256 pixels par tuile, la grille complete
 		# ferait seize mille traits dont la quasi-totalite hors cadre : de quoi mettre une
 		# machine a genoux pour dessiner ce que personne ne voit.
-		var step: float = _tile_px / float(_painting.resolution)
+		var step: float = pixel_px
 		var top: float = maxf(_origin.y, 0.0)
 		var bottom: float = minf(_origin.y + span.y, size.y)
 		var left: float = maxf(_origin.x, 0.0)
@@ -333,13 +347,13 @@ func _gui_input(event: InputEvent) -> void:
 					_zoom_at(button.position, 1.0 / 1.12)
 			MOUSE_BUTTON_MIDDLE:
 				_panning = button.pressed
-			MOUSE_BUTTON_RIGHT:
-				# Bouton droit : on pose. Bouton gauche : on efface.
+			MOUSE_BUTTON_LEFT:
+				# Bouton gauche : on pose. Bouton droit : on efface.
 				_stroke = 1 if button.pressed else 0
 				if button.pressed:
 					_last_paint = button.position
 					_apply_stroke(button.position, button.position)
-			MOUSE_BUTTON_LEFT:
+			MOUSE_BUTTON_RIGHT:
 				_stroke = -1 if button.pressed else 0
 				if button.pressed:
 					_last_paint = button.position
