@@ -31,6 +31,8 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const WorkIO := preload("res://core/work_io.gd")
+const ProofScene := preload("res://core/proof_scene.gd")
+const Assembly := preload("res://render/assembly.gd")
 
 const MAGIC: String = "absolutiles-tileset"
 const VERSION: int = 1
@@ -42,6 +44,12 @@ const SURFACE_COLUMNS: int = 8
 const SUFFIX_SURFACE: String = "_surface.png"
 const SUFFIX_WALLS: String = "_walls.png"
 const SUFFIX_MANIFEST: String = "_tileset.txt"
+
+## ⚠ CE QUI PROUVE A L'ACHETEUR QU'IL N'EN MANQUE AUCUNE. Une feuille de 47 dessins ne
+## montre pas qu'elle est complete : on y voit 47 tuiles, pas l'absence d'une 48e. La
+## planche de preuve pose chaque index sur son propre ilot, dans l'ordre de la feuille,
+## et peinte avec les tuiles achetees. On peut pointer du doigt.
+const SUFFIX_PROOF: String = "_preuve.png"
 
 
 ## Ce que l'export donnerait, et s'il peut avoir lieu.
@@ -226,6 +234,11 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 				% [index, slot.x, slot.y, report["surface_variants"][index].size()])
 
 	lines.append("")
+	lines.append("")
+	lines.append("proof %s" % [basename + SUFFIX_PROOF])
+	lines.append("# chaque index sur son propre ilot, dans l'ordre de la planche de surface :")
+	lines.append("# la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.")
+	lines.append("")
 	lines.append("walls %s %d %d" % [basename + SUFFIX_WALLS, Walls.PAN_COUNT, Walls.BLOCK_ROWS])
 	lines.append("# 3 pans (gauche, courant, droit) x 4 rangees (chapiteau, corps 0, corps 1, pied).")
 	lines.append("storey_tiles %d" % Walls.STOREY_TILES)
@@ -277,6 +290,15 @@ static func write(folder: String, basename: String, painting: Painting,
 			report["error"] = saved
 			return report
 		written.append(path)
+
+	var proof: Image = Assembly.from_borrowed(ProofScene.relief(), heights, painting)
+	var proof_path: String = folder.path_join(basename + SUFFIX_PROOF)
+	var proof_saved: Error = proof.save_png(proof_path)
+	if proof_saved != OK:
+		push_error("tileset_png: ecriture impossible de '%s' (erreur %d)." % [proof_path, proof_saved])
+		report["error"] = proof_saved
+		return report
+	written.append(proof_path)
 
 	var manifest_path: String = folder.path_join(basename + SUFFIX_MANIFEST)
 	var file: FileAccess = FileAccess.open(manifest_path, FileAccess.WRITE)

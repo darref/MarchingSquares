@@ -7,6 +7,7 @@ var _ink: int = -1
 var _work: String = ""
 var _assembled: bool = false
 var _preview: bool = false
+var _decor: int = 0
 var _editor: Node = null
 
 
@@ -36,6 +37,9 @@ func _initialize() -> void:
 				_assembled = true
 			"apercu":
 				_preview = true
+			"preuve":
+				_preview = true
+				_decor = 1
 			_:
 				if argument.ends_with(".absolutiles"):
 					_work = argument
@@ -66,6 +70,10 @@ func _process(_delta: float) -> bool:
 			var preview: CheckBox = _editor.get_node("%PreviewCheck")
 			preview.button_pressed = true
 			preview.toggled.emit(true)
+			if _decor > 0:
+				var decor: OptionButton = _editor.get_node("%DecorChoice")
+				decor.select(_decor)
+				decor.item_selected.emit(_decor)
 	# ⚠ ON ATTEND QUE LE FOND SOIT DESSINE. Il se calcule par etapes ; capturer trop tot
 	# ne montrerait que la barre de progression.
 	if _frames < 20:

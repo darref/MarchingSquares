@@ -13,7 +13,11 @@ extends RefCounted
 ## Les resolutions offertes. Le choix se fait une fois, avant de dessiner : c'est ce qu'on
 ## fabrique, pas un reglage (charte, regle 1).
 const RESOLUTIONS: Array[int] = [16, 32, 64, 128, 256]
-const DEFAULT_RESOLUTION: int = 64
+
+## ⚠ SEIZE PAR DEFAUT, ET C'EST UN ARGUMENT DE VENTE AVANT D'ETRE UN REGLAGE. A
+## l'ouverture, l'acheteur doit voir d'un coup d'oeil qu'il y a PEU de faux pixels a peindre.
+## Seize est aussi la taille du marche. Monter est un choix, et il se fait avant de dessiner.
+const DEFAULT_RESOLUTION: int = 16
 
 const TRANSPARENT: Color = Color(0.0, 0.0, 0.0, 0.0)
 

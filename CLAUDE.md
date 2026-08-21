@@ -36,6 +36,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   height_mask.gd  guide en relief : une hauteur par case, silhouette par étage
   walls.gd        le second vocabulaire : les robes de falaise (3 pans × 4 rangées)
   variants.gd     quelles cases peintes deviennent des tuiles
+  proof_scene.gd  la planche de preuve : un ilot par index, calculee
   work_io.gd      lecture / ecriture du travail en cours (.absolutiles)
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
@@ -61,7 +62,7 @@ guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = éta
 tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
-  tileset_png.gd  les deux planches (47 surfaces, 12 robes) et leur manifeste
+  tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
 ```
 
 ## Conventions
@@ -555,6 +556,67 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   méga-octets en une seule image. Quarante-huit par image suffisent : tout apparaît en
   quelques dixièmes de seconde et rien ne gèle.
 
+- **Ce qui est prouvé, ce qui est cherché, et la différence entre les deux.** C'est le cœur
+  du logiciel, donc la formulation doit être exacte.
+
+  **Les surfaces sont démontrées, exhaustivement.** L'index d'une case ne dépend **que** de
+  sa fenêtre 3x3 ; il n'en existe que **512**, et le test les fait toutes. Aucune n'en sort
+  autre chose qu'un des 47, et à elles seules elles les donnent tous les 47 — il n'y a ni
+  48ᵉ ni 46ᵉ. Et comme la silhouette d'un étage **est** un masque binaire, ces 512 couvrent
+  le relief entier, quel que soit le nombre d'étages. C'est un théorème, pas un sondage.
+
+  **Les robes, elles, ne se démontrent pas : elles se cherchent.** `row_for()` et `pan_at()`
+  sont *notre* modèle, repris de Satyron empiriquement. Rien ne démontre qu'aucun relief au
+  monde ne réclame un 13ᵉ rôle. On fait donc ce qu'on peut faire honnêtement — on cherche un
+  contre-exemple :
+  - **exhaustivement** sur les 32 768 reliefs binaires 3x5 ;
+  - **au hasard** sur 2 000 reliefs 8x8 à quatre étages, à chaque exécution de la suite ;
+  - et une fois, hors suite, sur **100 000 reliefs** de 3x3 à 14x14 et jusqu'à quatre étages :
+    **4 899 121 cases de surface et 8 248 365 cases de robe examinées, 47/47 index et 12/12
+    rôles rencontrés, ZÉRO contre-exemple.**
+
+  ⚠ **La battue doit avoir vraiment cherché.** Une recherche qui ne rencontre aucun des douze
+  rôles ne prouve rien : elle prouve qu'elle n'a rien regardé. C'est donc **asserté** aussi.
+
+  La formule juste, celle qu'on peut dire à un acheteur : *les 47 sont démontrés ; les 12
+  n'ont pas de contre-exemple sur treize millions de cases, et voici le programme qui les
+  cherche.*
+
+- **La planche de preuve : chaque cas, isolé, à une place connue d'avance**
+  (`core/proof_scene.gd`, `<nom>_preuve.png`). Un acheteur qui reçoit une feuille de 47
+  dessins ne peut pas vérifier que ce sont **tous** les cas : il voit 47 tuiles, il ne voit
+  pas l'absence d'une 48ᵉ. La planche le lui montre — un îlot de 3x3 par index, et le centre
+  de chaque îlot porte exactement la tuile annoncée. On peut pointer du doigt : « là, c'est
+  l'index 117, N+E+S+SW+W ».
+
+  ⚠ **Elle est calculée, jamais dessinée.** Même raison que `CANONICAL_INDICES` : un relief
+  écrit à la main serait une donnée à maintenir et un endroit où mentir. Ici, si la règle de
+  canonicalisation changeait, la planche changerait avec elle — il n'existe aucun état où la
+  preuve et la règle divergent.
+
+  ⚠ **Les îlots suivent l'ordre de la planche exportée** — index croissant, huit par rangée.
+  Poser la feuille de tuiles à côté de la preuve fait correspondre les cases une à une.
+
+  ⚠ **Un îlot ne doit pas déborder sur son voisin.** Un voisinage porte à une case : une
+  colonne de garde suffit à l'horizontale. À la verticale il en faut **quatre** — trois pour
+  laisser tomber la robe de l'îlot, une pour respirer.
+
+  En bas, une **butte à deux étages**, cinq de large : sa chute de six cases fait passer les
+  deux rangées de corps, et c'est le seul moyen d'obtenir les douze rôles d'un seul bloc.
+
+  ⚠ **Piège rencontré : un `PackedByteArray` se copie quand on l'affecte.** Modifier la copie
+  locale ne touchait pas la rangée rangée dans le tableau, et la planche sortait vierge
+  **sans une seule erreur**.
+
+  Le décor de travail et la planche de preuve répondent à **deux questions différentes** —
+  « comment ça rend » et « est-ce que rien ne manque ». D'où la liste « Décor », posée sous
+  la case « Aperçu en jeu » à laquelle elle appartient.
+
+- **Seize pixels par défaut, et c'est un argument de vente avant d'être un réglage.** À
+  l'ouverture, l'acheteur doit voir d'un coup d'œil qu'il y a **peu** de faux pixels à
+  peindre. Seize est aussi la taille du marché. Monter est un choix, et il se fait avant de
+  dessiner.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -718,8 +780,5 @@ Quand la monter, et je le proposerai le moment venu :
   `ample` l'a été.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- **L'aperçu en jeu ne montre que seize index sur quarante-sept.** Faut-il un second décor,
-  ou un décor qui se décale, pour que chaque tuile finisse par se voir en contexte ? Ou est-ce
-  que ce n'est pas son rôle ?
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
   Faut-il les signaler pendant le dessin (règle 6) ?

@@ -20,6 +20,7 @@ const Symmetry := preload("res://core/symmetry.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const ProofScene := preload("res://core/proof_scene.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -59,6 +60,7 @@ func _ready() -> void:
 	_fill_resolutions()
 	_fill_styles()
 	_fill_inks()
+	_fill_decors()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	work.loading_progress.connect(_on_loading_progress)
@@ -80,6 +82,7 @@ func _ready() -> void:
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
+	(%DecorChoice as OptionButton).item_selected.connect(_on_decor_selected)
 	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
@@ -223,6 +226,7 @@ func _load_current_mode() -> void:
 	work.guide_purpose = technic.get_item_metadata(technic.selected)
 	work.show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
+	_apply_decor()
 	_refresh_counters()
 
 
@@ -300,6 +304,35 @@ func _on_grid_toggled(pressed: bool) -> void:
 ## ne dira jamais si le tileset REND bien. Ce panneau montre les memes tuiles sur un petit
 ## decor ordinaire. ⚠ Il n'invente rien : chaque case y emprunte, par index ou par role, ce
 ## qui est peint dans le guide.
+## Les deux decors. ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT : ils repondent a deux questions
+## differentes -- « comment ca rend » et « est-ce que rien ne manque » -- et ni l'un ni
+## l'autre ne change d'un iota ce qui sort a l'export.
+func _fill_decors() -> void:
+	var choice: OptionButton = %DecorChoice
+	choice.clear()
+	choice.add_item("Decor : la colline")
+	choice.set_item_metadata(0, "colline")
+	choice.add_item("Decor : la preuve")
+	choice.set_item_metadata(1, "preuve")
+	choice.selected = 0
+
+
+func _on_decor_selected(_index: int) -> void:
+	_apply_decor()
+
+
+func _apply_decor() -> void:
+	var choice: OptionButton = %DecorChoice
+	var wanted: String = String(choice.get_item_metadata(choice.selected))
+	var panel: Control = %PreviewPanel
+	if wanted == "preuve":
+		panel.set_scene(ProofScene.relief())
+		_announce("La planche de preuve : un ilot par index, aucun ne manque.")
+	else:
+		panel.set_scene(HeightMask.read(panel.SCENE_PATH))
+		_announce("La colline : comment vos tuiles rendent dans un decor ordinaire.")
+
+
 func _on_preview_toggled(pressed: bool) -> void:
 	var panel: Control = %PreviewPanel
 	panel.visible = pressed

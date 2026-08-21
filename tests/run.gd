@@ -18,6 +18,7 @@ const Symmetry := preload("res://core/symmetry.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const Assembly := preload("res://render/assembly.gd")
+const ProofScene := preload("res://core/proof_scene.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -48,6 +49,8 @@ func _initialize() -> void:
 	_test_export()
 	_test_assembly()
 	_test_preview_scene()
+	_test_vocabulary_is_closed()
+	_test_proof_scene()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -798,7 +801,10 @@ func _test_export() -> void:
 	var done: Dictionary = TilesetPNG.write(folder, "essai", painting, heights, Modes.MINIMAL)
 	_check_equal(done["error"], OK, "la feuille complete s ecrit")
 	var written: PackedStringArray = done["written"]
-	_check_equal(written.size(), 3, "deux planches et un manifeste")
+	_check_equal(written.size(), 4, "deux planches, la preuve, et le manifeste")
+	var preuve: Image = Image.load_from_file(folder.path_join("essai_preuve.png"))
+	_check(preuve != null and preuve.get_width() == HeightMask.width(ProofScene.relief()) * 16,
+			"la planche de preuve est ecrite a la taille du relief de preuve")
 	var manifest: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt"))
 	_check(manifest.begins_with("absolutiles-tileset 1"), "le manifeste s annonce")
 	_check(manifest.contains("storey_tiles %d" % Walls.STOREY_TILES),
@@ -910,6 +916,147 @@ func _test_preview_scene() -> void:
 	for index: int in indices.values():
 		shown[index] = true
 	print("  (le decor montre %d des 47 index et %d des 12 roles)" % [shown.size(), seen.size()])
+
+
+## Combien de reliefs tires au sort. Assez pour que l absence de contre-exemple pese, assez
+## peu pour que la suite reste rapide.
+const RANDOM_RELIEFS: int = 2000
+
+
+func _test_vocabulary_is_closed() -> void:
+	print("le vocabulaire est FERME : rien ne peut sortir des 47 ni des 12")
+
+	var canonical: Dictionary = {}
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		canonical[index] = true
+
+	# --- LES SURFACES SONT EXHAUSTIVEMENT PROUVEES, et c est un vrai « tous les cas ».
+	# L index d une case ne depend QUE de sa fenetre 3x3 : il n en existe que 512, on les
+	# fait toutes. Et comme la silhouette d un etage EST un masque binaire, ceci couvre le
+	# relief aussi, quel que soit le nombre d etages.
+	var strays: int = 0
+	var seen_indices: Dictionary = {}
+	for pattern: int in range(512):
+		var index: int = Coverage.index_at(_window_of(pattern), 1, 1)
+		if index == Coverage.NO_INDEX:
+			continue
+		seen_indices[index] = true
+		if not canonical.has(index):
+			strays += 1
+	_check_equal(strays, 0, "les 512 fenetres 3x3 POSSIBLES ne donnent que des index des 47")
+	_check_equal(seen_indices.size(), BLOB_TILE_COUNT,
+			"et elles les donnent tous les 47 : il n y a pas de 48e, ni de 46e")
+
+	# --- LES ROBES NE SE PROUVENT PAS, ELLES SE CHERCHENT. `row_for` et `pan_at` sont NOTRE
+	# modele, repris de Satyron ; rien ne demontre qu aucun relief ne reclame un 13e role. On
+	# fait donc ce qu on peut faire honnetement : on cherche un contre-exemple, exhaustivement
+	# sur une fenetre bornee, puis au hasard sur des reliefs plus grands et plus hauts.
+	var known: Dictionary = {}
+	for role: Vector2i in Walls.ALL_ROLES:
+		known[role] = true
+	var seen_roles: Dictionary = {}
+	var wall_strays: int = 0
+	for pattern: int in range(1 << 15):
+		for role: Vector2i in Walls.visible_roles(_relief_of(pattern, 3, 5)).values():
+			seen_roles[role] = true
+			if not known.has(role):
+				wall_strays += 1
+	_check_equal(wall_strays, 0,
+			"les 32768 reliefs binaires 3x5 ne donnent que des roles des 12")
+
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260821
+	var wild: int = 0
+	for _attempt: int in range(RANDOM_RELIEFS):
+		var heights: PackedStringArray = _random_relief(rng, 8, 8, 3)
+		for index: int in Coverage.index_map(heights).values():
+			if not canonical.has(index):
+				wild += 1
+		for role: Vector2i in Walls.visible_roles(heights).values():
+			seen_roles[role] = true
+			if not known.has(role):
+				wild += 1
+	_check_equal(wild, 0, "%d reliefs 8x8 sur quatre etages, tires au sort : rien n en sort"
+			% RANDOM_RELIEFS)
+
+	# ⚠ ET LA RECHERCHE DOIT AVOIR VRAIMENT CHERCHE. Une battue qui ne rencontre aucun des
+	# douze roles ne prouve rien du tout : elle prouve qu elle n a rien regarde.
+	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
+			"et la battue a bien RENCONTRE les douze roles : elle cherche pour de bon")
+
+
+## Une fenetre 3x3 binaire, une par bit du motif.
+func _window_of(pattern: int) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	for y: int in range(3):
+		var line: String = ""
+		for x: int in range(3):
+			line += "#" if (pattern & (1 << (y * 3 + x))) != 0 else "."
+		rows.append(line)
+	return rows
+
+
+## Un relief binaire, une case par bit du motif.
+func _relief_of(pattern: int, columns: int, rows_count: int) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	for y: int in range(rows_count):
+		var line: String = ""
+		for x: int in range(columns):
+			line += "1" if (pattern & (1 << (y * columns + x))) != 0 else "."
+		rows.append(line)
+	return rows
+
+
+func _random_relief(rng: RandomNumberGenerator, columns: int, rows_count: int,
+		top: int) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	for y: int in range(rows_count):
+		var line: String = ""
+		for x: int in range(columns):
+			var level: int = rng.randi_range(0, top)
+			line += "." if level == 0 else str(level)
+		rows.append(line)
+	return rows
+
+
+func _test_proof_scene() -> void:
+	print("planche de preuve : chaque cas, isole, a une place connue d avance")
+	var relief: PackedStringArray = ProofScene.relief()
+	print("  %d x %d" % [HeightMask.width(relief), HeightMask.height(relief)])
+
+	# ⚠ CHAQUE ILOT PORTE EN SON CENTRE EXACTEMENT LA TUILE ANNONCEE. C est toute la valeur
+	# de la planche : on peut pointer du doigt. Construit depuis les bits de l index, donc
+	# vrai par construction -- et reverifie quand meme, puisque c est le genre d evidence qui
+	# se revele fausse.
+	var centres: Dictionary = ProofScene.centres()
+	_check_equal(centres.size(), BLOB_TILE_COUNT, "un ilot par index, ni plus ni moins")
+	var misplaced: Array[int] = []
+	for index: int in centres.keys():
+		var at: Vector2i = centres[index]
+		if Coverage.visible_index_at(relief, at.x, at.y) != index:
+			misplaced.append(index)
+	_check_equal(misplaced, [] as Array[int],
+			"les 47 ilots portent chacun SON index, a la case annoncee")
+
+	# Et les ilots ne se contaminent pas : la planche entiere ne montre que les 47.
+	var report: Dictionary = Coverage.analyse_relief(relief)
+	_check(report["is_complete"], "la planche couvre les 47 index")
+	var walls: Dictionary = Walls.analyse(relief)
+	_check(walls["is_complete"], "et les douze roles de falaise, grace a la butte a deux etages")
+	_check_equal(walls["outside"].size(), 0, "aucune robe de la planche ne tombe hors du cadre")
+
+	# La planche doit pouvoir se remplir avec les tuiles du guide, sinon elle montrerait des
+	# trous qu aucun travail ne pourrait combler.
+	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var source_of: Dictionary = Assembly.borrow(relief, guide)
+	var indices: Dictionary = Coverage.index_map(relief)
+	var roles: Dictionary = Walls.visible_roles(relief)
+	var expected: int = roles.size()
+	for cell: Vector2i in indices.keys():
+		if not roles.has(cell):
+			expected += 1
+	_check_equal(source_of.size(), expected,
+			"CHAQUE case de la planche trouve sa tuile dans le guide")
 
 
 func _test_guide_image() -> void:

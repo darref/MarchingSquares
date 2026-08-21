@@ -31,6 +31,7 @@ const EDGE: Color = Color(1.0, 1.0, 1.0, 0.10)
 const MARGIN: float = 10.0
 
 var _scene: PackedStringArray = PackedStringArray()
+var _guide: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
 var _source_of: Dictionary = {}
 var _textures: Dictionary = {}
@@ -51,8 +52,20 @@ func _ready() -> void:
 func show_guide(guide: PackedStringArray, painting: RefCounted) -> void:
 	if _scene.is_empty():
 		_scene = HeightMask.read(SCENE_PATH)
+	_guide = guide
 	_painting = painting
 	_source_of = Assembly.borrow(_scene, guide)
+	_textures.clear()
+	_dirty = true
+	queue_redraw()
+
+
+## Change de decor. La colline dit comment ca REND ; la planche de preuve montre que rien
+## ne manque. Deux questions differentes, deux decors.
+func set_scene(relief: PackedStringArray) -> void:
+	_scene = relief
+	if not _guide.is_empty():
+		_source_of = Assembly.borrow(_scene, _guide)
 	_textures.clear()
 	_dirty = true
 	queue_redraw()

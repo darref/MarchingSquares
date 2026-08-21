@@ -811,6 +811,13 @@ layout_mode = 2
 tooltip_text = "Vos tuiles posees sur un petit decor ordinaire, au lieu du guide. Le guide est un banc d'epreuve : il ne dit pas si le tileset rend bien."
 text = "Apercu en jeu"
 
+[node name="DecorChoice" type="OptionButton" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100014]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "La colline dit comment ca rend. La planche de preuve montre que rien ne manque : un ilot par index, dans l'ordre de la feuille exportee."
+fit_to_longest_item = false
+clip_text = true
+
 [node name="FitButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=794563993]
 unique_name_in_owner = true
 layout_mode = 2
