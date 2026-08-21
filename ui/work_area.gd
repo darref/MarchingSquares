@@ -46,7 +46,15 @@ const UPLOAD_PER_FRAME: int = 48
 ## millisecondes : le budget en laisse passer une par image, et l'interface reste vivante.
 const LOAD_BUDGET_USEC: int = 12000
 
-const BACKDROP: Color = Color(0.106, 0.114, 0.125)
+## L'ETAGE 0, CONCRETISE. Le guide ne dessine pas la plaine -- elle ne lui appartient pas --
+## mais elle EXISTERA dans le jeu : le sol sous les plateaux sera un etage plat du meme
+## tileset, pose par le moteur sur sa propre couche. La zone de travail la montre donc, en
+## aplat, DEBORDANT LARGEMENT DU GUIDE : le relief se lit alors comme un morceau de monde et
+## non comme une decoupe posee sur du vide.
+##
+## ⚠ ELLE EST A L'EDITEUR, PAS AU GUIDE. Aucun pixel de cet aplat ne sort a l'export, et
+## `guide_image` continue de laisser le vide. C'est un fond d'ecran, pas une tuile.
+const GROUND: Color = Color(0.204, 0.235, 0.188)
 # Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
 # Le fond utilisable est deja en teinte basse, il n'a pas besoin d'etre efface.
 const GUIDE_TINT: Color = Color(1.0, 1.0, 1.0, 0.55)
@@ -124,6 +132,7 @@ var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
 var _surface_cells: Dictionary = {}
 var _wall_cells: Dictionary = {}
+var _paintable: Dictionary = {}
 var _background: ImageTexture = null
 var _background_flat: ImageTexture = null
 var _textures: Dictionary = {}
@@ -207,6 +216,13 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_wall_roles = Walls.visible_roles(heights)
 	for cell: Vector2i in _wall_roles.keys():
 		_wall_cells[cell] = true
+	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
+	# la recalculer serait relire tout le relief soixante fois par seconde.
+	_paintable.clear()
+	for cell: Vector2i in _surface_cells.keys():
+		_paintable[cell] = true
+	for cell: Vector2i in _wall_cells.keys():
+		_paintable[cell] = true
 	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
@@ -337,7 +353,7 @@ func _on_resized() -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BACKDROP)
+	draw_rect(Rect2(Vector2.ZERO, size), GROUND)
 	var columns: int = HeightMask.width(_heights)
 	var rows: int = HeightMask.height(_heights)
 	if columns <= 0:
@@ -360,35 +376,8 @@ func _draw() -> void:
 		if not assembled and pixel_px < TOUCHED_FROM and _painting.is_painted(cell):
 			draw_rect(rect, TOUCHED_MARK, false, 1.0)
 
-	# La grille des faux pixels n'apparait que lorsqu'elle est lisible : sinon elle noircit
-	# l'ecran et cache le guide qu'elle est censee servir.
-	if show_grid and not assembled and _painting != null and pixel_px >= PIXEL_GRID_FROM:
-		# ⚠ ON NE TRACE QUE CE QUI EST A L ECRAN. A 256 pixels par tuile, la grille complete
-		# ferait seize mille traits dont la quasi-totalite hors cadre : de quoi mettre une
-		# machine a genoux pour dessiner ce que personne ne voit.
-		var step: float = pixel_px
-		var top: float = maxf(_origin.y, 0.0)
-		var bottom: float = minf(_origin.y + span.y, size.y)
-		var left: float = maxf(_origin.x, 0.0)
-		var right: float = minf(_origin.x + span.x, size.x)
-		var first: int = maxi(0, floori(-_origin.x / step))
-		var last: int = mini(columns * _painting.resolution, ceili((size.x - _origin.x) / step))
-		for i: int in range(first, last + 1):
-			var x: float = _origin.x + float(i) * step
-			draw_line(Vector2(x, top), Vector2(x, bottom), PIXEL_LINE, 1.0)
-		first = maxi(0, floori(-_origin.y / step))
-		last = mini(rows * _painting.resolution, ceili((size.y - _origin.y) / step))
-		for i: int in range(first, last + 1):
-			var y: float = _origin.y + float(i) * step
-			draw_line(Vector2(left, y), Vector2(right, y), PIXEL_LINE, 1.0)
-
 	if show_grid and not assembled:
-		for i: int in range(columns + 1):
-			var gx: float = _origin.x + float(i) * _tile_px
-			draw_line(Vector2(gx, _origin.y), Vector2(gx, _origin.y + span.y), TILE_LINE, 1.0)
-		for i: int in range(rows + 1):
-			var gy: float = _origin.y + float(i) * _tile_px
-			draw_line(Vector2(_origin.x, gy), Vector2(_origin.x + span.x, gy), TILE_LINE, 1.0)
+		_draw_grid(pixel_px)
 
 	if _hover.x >= 0:
 		var accepted: bool = _is_paintable(_hover)
@@ -396,12 +385,53 @@ func _draw() -> void:
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
 
 
+## LA GRILLE, DECOUPEE SUR CE QUI SE PEINT.
+##
+## ⚠ TRACEE SUR TOUT LE RECTANGLE, ELLE QUADRILLAIT SURTOUT CE QUI N'EST PAS LE TRAVAIL.
+## La plaine occupe la plus grande part du cadre et ne se peint pas : la grille y dessinait
+## une feuille de calcul, et le relief s'y noyait. Posee sur les seules cases peignables,
+## elle dessine au contraire la SILHOUETTE de ce qu'il y a a faire -- on voit d'un coup
+## d'oeil ou l'on a le droit de poser un pixel.
+##
+## ⚠ CHAQUE ARETE N'EST TRACEE QU'UNE FOIS. On pose toujours le haut et la gauche, et le
+## bas ou la droite seulement au bord du peignable : une arete interieure appartient ainsi
+## a la case du dessous ou de droite, jamais aux deux.
+func _draw_grid(pixel_px: float) -> void:
+	var fine: float = 0.0
+	if _painting != null and pixel_px >= PIXEL_GRID_FROM:
+		fine = pixel_px
+	var frame: Rect2 = Rect2(Vector2.ZERO, size)
+	for cell: Vector2i in _paintable.keys():
+		var at: Vector2 = _cell_origin(cell)
+		var box: Rect2 = Rect2(at, Vector2(_tile_px, _tile_px))
+		# ⚠ ON NE TRACE QUE CE QUI EST A L'ECRAN. A fort zoom, la grille fine d'un guide
+		# entier ferait des dizaines de milliers de traits dont la quasi-totalite hors cadre.
+		if not frame.intersects(box):
+			continue
+		draw_line(at, at + Vector2(_tile_px, 0.0), TILE_LINE, 1.0)
+		draw_line(at, at + Vector2(0.0, _tile_px), TILE_LINE, 1.0)
+		if not _paintable.has(cell + Vector2i.DOWN):
+			draw_line(at + Vector2(0.0, _tile_px), at + Vector2(_tile_px, _tile_px),
+					TILE_LINE, 1.0)
+		if not _paintable.has(cell + Vector2i.RIGHT):
+			draw_line(at + Vector2(_tile_px, 0.0), at + Vector2(_tile_px, _tile_px),
+					TILE_LINE, 1.0)
+		if fine <= 0.0:
+			continue
+		for i: int in range(1, _painting.resolution):
+			var offset: float = float(i) * fine
+			draw_line(at + Vector2(offset, 0.0), at + Vector2(offset, _tile_px),
+					PIXEL_LINE, 1.0)
+			draw_line(at + Vector2(0.0, offset), at + Vector2(_tile_px, offset),
+					PIXEL_LINE, 1.0)
+
+
 func _cell_origin(cell: Vector2i) -> Vector2:
 	return _origin + Vector2(float(cell.x), float(cell.y)) * _tile_px
 
 
 func _is_paintable(cell: Vector2i) -> bool:
-	return _surface_cells.has(cell) or _wall_cells.has(cell)
+	return _paintable.has(cell)
 
 
 func _gui_input(event: InputEvent) -> void:

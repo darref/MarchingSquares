@@ -865,6 +865,26 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   surplombe se voit à son ombre — mais leur statut est clair : **pure aide à la lecture**,
   toujours masquable, et jamais quelque chose que le tileset livre.
 
+- **L'étage 0 est concrétisé par l'éditeur, jamais par le guide.** Le guide continue de
+  laisser le vide — la plaine ne lui appartient pas — mais elle **existera** dans le jeu :
+  le sol sous les plateaux sera un étage plat du même tileset. La zone de travail la montre
+  donc en aplat, **débordant largement du guide**, et le relief se lit alors comme un morceau
+  de monde au lieu d'une découpe posée sur du vide.
+
+  ⚠ **Elle est à l'éditeur, pas au guide.** Aucun pixel de cet aplat ne sort à l'export, et
+  `guide_image` continue de rendre `NO_PLAIN`. C'est un fond d'écran, pas une tuile.
+
+- **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
+  quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
+  du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
+  le relief s'y noyait. Posée sur les seules cases peignables, elle dessine au contraire la
+  **silhouette de ce qu'il y a à faire** — on voit d'un coup d'œil où l'on a le droit de
+  poser un pixel.
+
+  ⚠ **Chaque arête n'est tracée qu'une fois** : on pose toujours le haut et la gauche, et le
+  bas ou la droite seulement au bord du peignable. Une arête intérieure appartient ainsi à la
+  case du dessous ou de droite, jamais aux deux.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
