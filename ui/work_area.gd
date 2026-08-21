@@ -24,6 +24,9 @@ signal painting_changed
 ## distinctes deja dessinees, sur le nombre a dessiner.
 signal loading_progress(done: int, total: int)
 
+## Emis quand la case survolee change. L'editeur en fait un releve lisible.
+signal hover_changed(cell: Vector2i)
+
 ## Finesse du fond. Il est mis a l'echelle a l'affichage : plus fin coute cher pour rien,
 ## un guide se regarde, il ne se compte pas au pixel.
 const GUIDE_TILE: int = 32
@@ -443,6 +446,7 @@ func _set_hover(position: Vector2) -> bool:
 	if cell == _hover:
 		return false
 	_hover = cell
+	hover_changed.emit(cell)
 	return true
 
 

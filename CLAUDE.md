@@ -29,6 +29,7 @@ Ces règles arbitrent toutes les décisions techniques.
 ```
 core/         logique pure, zéro dépendance UI, utilisable en headless
   blob_index.gd   voisinage 8 bits, canonicalisation, les 47 index
+  corner_index.gd le reseau dual : une tuile a cheval sur quatre cases, 15 index
   symmetry.gd     rotations et miroirs, et les conditions qui les rendent licites
   painting.gd     les faux pixels posés dans chaque tuile
   mask_io.gd      lecture / écriture / accès d'un masque de guide (texte)
@@ -617,6 +618,43 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   peindre. Seize est aussi la taille du marché. Monter est un choix, et il se fait avant de
   dessiner.
 
+- **Le réseau dual livre QUINZE tuiles, pas seize** (`core/corner_index.gd`). Une tuile « à
+  cheval » n'est pas posée sur une case, elle est posée sur le **croisement** de quatre
+  cases, et son dessin ne dépend que de ces quatre-là. Quatre cases, deux états : seize
+  combinaisons — mais le **croisement vide ne dessine rien**, exactement comme la plaine
+  n'est pas une tuile du blob. Donc **15 tuiles**, et avec les douze robes : **27 pour un
+  tileset complet**, contre 59.
+
+  ⚠ **LES DEUX VOCABULAIRES DIVERGENT, ET J'AI TROUVÉ OÙ.** La canonicalisation du blob
+  **jette** le contact diagonal isolé — « un coin diagonal isolé ne change pas la silhouette
+  de la tuile ». Le réseau dual, lui, **a une tuile pour ça** : deux quadrants opposés
+  pleins, les deux autres vides. Mesuré avant d'écrire une ligne : `minimal` couvrait
+  **15/16** configurations de coin et `ample` **14/16**, et les manquantes étaient
+  exactement les deux diagonales. Ce n'est pas un oubli de dessin, c'est structurel — un
+  guide complet en blob 47 n'est **pas** automatiquement complet en dual, et ne peut pas
+  l'être.
+
+  La divergence est **assertée en code** : sur un relief à contact diagonal, `Coverage` voit
+  deux cases isolées (index 0 chacune) là où `CornerIndex` voit sa tuile `NO+SE`.
+
+  **Correctif** : deux cases en diagonale ajoutées au guide minimal en (13,13) et (14,14),
+  choisies par recherche parmi les emplacements qui gardent 47/47, 12/12 et zéro robe hors
+  grille. Le guide couvre désormais **15/15 croisements en surface visible**, sur 665
+  croisements peignables. Asserté.
+
+  ⚠ **Et les autres reliefs ne suivent pas encore** : `ample`, le décor de l'aperçu et la
+  planche de preuve sont à 13/15, les deux diagonales manquantes. Le réseau dual reste donc
+  **fermé** partout sauf sur `minimal` (règle 5). C'est affiché par le runner, pas asserté :
+  ce sont des travaux en cours, et une assertion les rendrait rouges en permanence.
+
+  ⚠ **On ne voit que le sommet, ici aussi.** Un croisement touche quatre cases qui peuvent
+  être à quatre étages ; la tuile visible est celle de l'étage le plus haut des quatre. La
+  couverture se compte là-dessus, jamais sur l'union — même raison que pour le blob : une
+  tuile cachée ne peut ni se viser ni se juger.
+
+  **Reste à faire pour l'ouvrir** : le champ `famille` dans la table des modes, la zone de
+  travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, et l'exportateur.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -762,22 +800,10 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **Un second réseau : la grille à cheval.** Beaucoup de tilesets du marché sont *à
-  cheval* — une tuile couvre quatre cases, définie par ses **4 coins** et non par les 8
-  voisins d'une case. C'est le système de Satyron (`mode = 1`, Match Corners), et c'est
-  **16 tuiles au lieu de 47**. Avec les 12 robes : **28 tuiles pour un tileset complet**,
-  contre 59. C'est le mode d'entrée évident.
-
-  Faisable en l'état, et le chiffrage est fait : un `core/corner_index.gd` (4 bits, ~60
-  lignes), une variante de `coverage` qui compte sur le réseau dual (W+1)×(H+1), la zone
-  de travail décalée d'une demi-case. **Les robes ne changent pas** — une falaise se pose
-  case pour case, quel que soit le réseau du sol. `work_io.gd` accueille la famille par une
-  clé `C<index>:<n>` à côté de `S` et `W`.
-
-  À trancher avant d'écrire : est-ce un mode de plus, ou un champ `famille` dans la table
-  des modes ? Le paysage et la famille de tuiles sont deux choses ; le champ semble juste.
-  Fermé tant que la complétude 16/16 n'est pas prouvée sur un guide (règle 5), comme
-  `ample` l'a été.
+- **Ouvrir le réseau dual dans l'interface.** Le noyau est là et prouvé (voir la décision
+  ci-dessus) ; il manque la plomberie : le champ `famille` dans la table des modes, la zone
+  de travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, l'exportateur des 15,
+  et les diagonales dans `ample`, le décor et la planche de preuve.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.

@@ -18,6 +18,9 @@ const CARDINALS: int = N | E | S | W
 ## Les huit bits, dans l'ordre horaire depuis le nord.
 const BITS: Array[int] = [N, NE, E, SE, S, SW, W, NW]
 
+## Les noms des huit bits, dans le meme ordre.
+const BIT_NAMES: Array[String] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
 ## Decalages (dx, dy) associes aux bits, dans le meme ordre.
 ## Repere ecran : x croit vers l'est, y croit vers le sud.
 const OFFSETS: Array[Vector2i] = [
@@ -66,3 +69,17 @@ static func canonicalize(raw: int) -> int:
 ## Charte, regle 5 : ce qui n'est pas garanti est interdit.
 static func is_canonical(index: int) -> bool:
 	return canonicalize(index) == index
+
+
+## Un index ecrit par ses bits : « 117 = N+E+S+SW+W ».
+##
+## ⚠ UN NUMERO SEUL NE DIT RIEN. « 117 » ne se visualise pas ; « N+E+S+SW+W » donne la
+## silhouette, donc ce qu'il faut dessiner. Partout ou un index s'affiche, il s'affiche
+## avec ses bits -- dans le runner comme dans l'editeur, et depuis cette fonction-ci pour
+## que les deux ne puissent pas diverger.
+static func describe(index: int) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	for bit: int in range(BITS.size()):
+		if (index & BITS[bit]) != 0:
+			parts.append(BIT_NAMES[bit])
+	return "aucun voisin" if parts.is_empty() else "+".join(parts)

@@ -64,6 +64,7 @@ func _ready() -> void:
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	work.loading_progress.connect(_on_loading_progress)
+	work.hover_changed.connect(_on_hover_changed)
 	var mode_choice: OptionButton = %ModeChoice
 	mode_choice.item_selected.connect(_on_mode_selected)
 	var size_choice: OptionButton = %SizeChoice
@@ -349,6 +350,30 @@ func _on_assembled_toggled(pressed: bool) -> void:
 	work.assembled = pressed
 	work.queue_redraw()
 	_announce("Guide masque : vos tuiles seules." if pressed else "Guide revenu.")
+
+
+## LE RELEVE DE LA CASE SURVOLEE. Savoir QUELLE tuile on s'apprete a peindre est utile en
+## soi ; et ca donne de quoi designer une case sans la decrire -- « (12, 7), index 117 ».
+##
+## ⚠ ON DECRIT L'INDEX PAR SES BITS, pas par son numero seul. « 117 » ne dit rien ;
+## « N+E+S+SW+W » dit la forme, donc ce qu'il faut dessiner.
+func _on_hover_changed(cell: Vector2i) -> void:
+	var label: Label = %HoverLabel
+	if cell.x < 0:
+		label.text = "survolez une case"
+		return
+	var work: Control = %WorkArea
+	var roles: Dictionary = work.wall_roles()
+	if roles.has(cell):
+		label.text = "(%d, %d)  robe : %s" % [cell.x, cell.y, Walls.role_name(roles[cell])]
+		return
+	var indices: Dictionary = work.surface_index()
+	if indices.has(cell):
+		var index: int = int(indices[cell])
+		label.text = "(%d, %d)  index %d = %s" % [cell.x, cell.y, index,
+				BlobIndex.describe(index)]
+		return
+	label.text = "(%d, %d)  la plaine : rien a peindre" % [cell.x, cell.y]
 
 
 func _on_fit_pressed() -> void:

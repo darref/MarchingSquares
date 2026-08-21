@@ -823,6 +823,14 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Recadrer le guide"
 
+[node name="HoverLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100015]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.949, 0.792, 0.475, 1)
+autowrap_mode = 2
+text = "survolez une case"
+
 [node name="ViewHint" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=658502172]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12

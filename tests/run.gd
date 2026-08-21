@@ -19,6 +19,7 @@ const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const Assembly := preload("res://render/assembly.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -51,6 +52,7 @@ func _initialize() -> void:
 	_test_preview_scene()
 	_test_vocabulary_is_closed()
 	_test_proof_scene()
+	_test_corner_network()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -1059,6 +1061,64 @@ func _test_proof_scene() -> void:
 			"CHAQUE case de la planche trouve sa tuile dans le guide")
 
 
+func _test_corner_network() -> void:
+	print("reseau dual : quinze tuiles, et l endroit ou les deux systemes divergent")
+	_check_equal(CornerIndex.all_indices().size(), CornerIndex.TILE_COUNT,
+			"quinze tuiles, pas seize : le croisement vide ne dessine rien")
+
+	# Fermeture exhaustive, et elle tient en seize cas : un croisement ne depend QUE de ses
+	# quatre cases. La table des bits est donc epinglee, pas seulement le compte.
+	var wrong: int = 0
+	for pattern: int in range(16):
+		var mask: PackedStringArray = PackedStringArray([
+				("#" if (pattern & CornerIndex.NW) != 0 else ".")
+						+ ("#" if (pattern & CornerIndex.NE) != 0 else "."),
+				("#" if (pattern & CornerIndex.SW) != 0 else ".")
+						+ ("#" if (pattern & CornerIndex.SE) != 0 else "."),
+		])
+		var expected: int = pattern if pattern != 0 else CornerIndex.NO_INDEX
+		if CornerIndex.index_at(mask, 1, 1) != expected:
+			wrong += 1
+	_check_equal(wrong, 0, "les 16 fenetres 2x2 POSSIBLES donnent chacune son propre code")
+
+	# ⚠ LA OU LES DEUX VOCABULAIRES DIVERGENT. Deux cases qui ne se touchent que par un coin :
+	# le blob les voit comme deux cases ISOLEES -- sa canonicalisation jette le contact
+	# diagonal -- tandis que le reseau dual a une tuile pour ca. C est pour cette raison qu un
+	# guide complet en blob 47 n est PAS automatiquement complet en dual.
+	var diagonal: PackedStringArray = HeightMask.parse("1.
+.1
+..
+..
+..")
+	_check_equal(Coverage.visible_index_at(diagonal, 0, 0), 0,
+			"le blob voit la premiere case comme isolee")
+	_check_equal(Coverage.visible_index_at(diagonal, 1, 1), 0,
+			"et la seconde aussi : le contact diagonal ne lui fait rien")
+	_check_equal(CornerIndex.visible_index_at(diagonal, 1, 1),
+			CornerIndex.NW | CornerIndex.SE,
+			"LE RESEAU DUAL, LUI, A UNE TUILE POUR CE CONTACT : c est toute la divergence")
+
+	# Le guide de `minimal` a ete complete pour ca, et c est asserte comme le reste (regle 4).
+	var minimal: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var report: Dictionary = CornerIndex.analyse_relief(minimal)
+	_check(report["is_complete"],
+			"le guide minimal couvre les quinze croisements, en surface VISIBLE")
+	_check_equal(report["present"].size(), CornerIndex.TILE_COUNT, "les quinze sont la")
+	print("  %d croisements peignables dans le guide minimal" % report["filled_count"])
+
+	# ⚠ ET LES AUTRES RELIEFS NE LE SONT PAS. On l affiche plutot que de l asserter : ce sont
+	# des travaux en cours, et une assertion les rendrait rouges en permanence. Mais tant
+	# qu ils manquent une tuile, le reseau dual reste FERME sur eux (regle 5).
+	for id: StringName in Modes.ids():
+		var other: Dictionary = CornerIndex.analyse_relief(
+				HeightMask.read(Modes.guide_path(id)))
+		var absent: PackedStringArray = PackedStringArray()
+		for index: int in other["missing"]:
+			absent.append("%d = %s" % [index, CornerIndex.describe(index)])
+		print("  %s : %d/15%s" % [Modes.label(id), other["present"].size(),
+				("  absents : " + ", ".join(absent)) if absent.size() > 0 else ""])
+
+
 func _test_guide_image() -> void:
 	print("rendu : l illustration se calcule depuis le relief seul")
 	var heights: PackedStringArray = HeightMask.parse(".....
@@ -1202,14 +1262,7 @@ func _report_candidate_guide() -> void:
 
 ## Decomposition d'un index en noms de bits, pour savoir quoi dessiner.
 func _describe_index(index: int) -> String:
-	const NAMES: Array[String] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-	var parts: PackedStringArray = PackedStringArray()
-	for bit_index: int in range(BlobIndex.BITS.size()):
-		if (index & BlobIndex.BITS[bit_index]) != 0:
-			parts.append(NAMES[bit_index])
-	if parts.is_empty():
-		return "aucun voisin"
-	return "+".join(parts)
+	return BlobIndex.describe(index)
 
 
 func _print_summary() -> void:
