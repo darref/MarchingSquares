@@ -419,8 +419,11 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   rendre l'un à la place de l'autre, alors ils sont séparés pour de bon :
   - **Paysage** (`minimal` | `ample`) — quel relief. C'est le **mode**, et c'est tout ce
     qu'un mode est. Il change ce qu'on peint.
-  - **Technique** (`representative` | `usable`) — ce que le fond montre : le résultat
-    seul, ou le résultat **plus les marques** de travail.
+  - **Technique** (`usable` | `representative`) — `usable` : rien qui paraisse irréel,
+    rien qu'on regarde ; le dessin seul, tel que le tileset le montrera assemblé.
+    `representative` : le même dessin **appuyé** — trait plus gras, marque franche aux
+    coins rentrants, code de rangée bien lisible — pour savoir d'un coup ce qu'on attend
+    de la tuile en cours.
   - **Style** (`painted` | `wireframe`) — de quoi le fond est fait : des aplats, ou des
     traits.
 
@@ -433,23 +436,33 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   tirets de rangée de robe sont d'une autre couleur, pour qu'on ne puisse jamais les
   prendre pour une côte.
 
-- **⚠ LA GÉOMÉTRIE NE TRACE JAMAIS UN TRAIT QU'UNE VOISINE NE PEUT PAS RACCORDER.** C'est la
-  règle qui a coûté le plus cher à comprendre, et elle vient d'une propriété du blob 47.
+- **⚠ AUCUNE DISCONTINUITÉ — et j'avais tiré la mauvaise conclusion la première fois.**
+  Chaque trait est tiré à l'intérieur de sa propre tuile. À un coin rentrant — trois cases
+  pleines autour d'un vide — les traits des deux voisines se croisent donc **sans se
+  rejoindre**, et laissent un carré vide de la largeur du trait. C'était ça, la
+  discontinuité visible.
 
-  Un **coin rentrant** — trois cases pleines autour d'un vide — n'est **pas** arrondi. La
-  côte y appartient aux deux voisines qui ont un bord ouvert ; la troisième n'en a aucun et
-  ne doit rien tracer. Or ces deux voisines **ne peuvent pas savoir** qu'il faudrait
-  s'arrondir : la canonicalisation jette précisément ce bit-là. Vérifié en une ligne — une
-  case dont le sud est ouvert porte l'index 64 que son voisin du sud-ouest soit plein ou
-  vide. Arrondir là, c'est poser un arc que personne ne rejoint, et c'est exactement ce que
-  faisait la première version : trois traits qui se croisent sans se joindre.
+  J'en avais conclu que personne ne pouvait la combler, puisque les deux voisines ne
+  savent rien de ce coin. **C'est faux** : le carré manquant tombe chez la TROISIÈME, celle
+  dont les deux cardinaux sont pleins et la diagonale vide — et elle, elle le sait, ce
+  bit-là étant justement le seul bit de coin que la canonicalisation **conserve**. C'est
+  donc elle qui ferme le coude, et le trait devient continu de bout en bout.
 
-  Seuls les coins **sortants** s'arrondissent : là, aucune voisine ne dessine quoi que ce
-  soit. Le reste du trait reste **sur le bord de tuile**, donc se raccorde toujours.
+  ⚠ Ce qui reste vrai de l'ancien raisonnement : **on n'arrondit pas la terre à cet
+  endroit**. Les deux voisines tracent leur côte droit jusqu'au coin et ne peuvent pas
+  savoir qu'il faudrait la courber — une case dont le sud est ouvert porte le même index
+  que son voisin du sud-ouest soit plein ou vide. Courber là, ce serait poser un arc que
+  personne ne rejoint. Seuls les coins **sortants** s'arrondissent.
 
-  Conséquence assumée : dans un fond `representative`, une tuile 253 et une tuile 255 se
-  ressemblent — et c'est juste, l'assemblage les montre pareilles, le vide qui les distingue
-  étant dessiné par les voisines. C'est le fond `usable` qui les départage, avec une marque.
+- **Le littoral est plus appuyé que les courbes de niveau.** Un dessin où tous les traits
+  pèsent pareil se lit comme un plan de cuisine ; en allégeant à mesure qu'on monte,
+  l'œil trouve tout de suite le bord de la terre et lit les étages comme un relief.
+  `LEVEL_WEIGHTS` porte ces poids.
+
+- **On arrondit les canaux, on ne les tronque pas.** Tronquer décale chaque canal d'un
+  demi-pas vers le sombre : invisible à l'œil, mais la teinte rendue n'est alors plus
+  exactement celle qu'on a demandée — et un test qui compare les deux échoue pour une
+  raison qui n'a rien à voir avec le dessin. C'est arrivé.
 
 - **La barre est posée SUR la zone de travail, et translucide au repos.** Elle laisse voir
   le guide à travers elle : c'est ce qui donne l'air d'un calque plutôt que d'un panneau.

@@ -6,20 +6,24 @@
 #               donc les symetries y sont licites (cf. core/symmetry.gd).
 #
 # USAGE — a quoi le fond sert.
-#   REPRESENTATIVE : rien d'autre que ce que le tileset montrera une fois assemble. Les
-#                    jonctions se raccordent, l'oeil lit un dessin.
-#   USABLE         : le meme dessin, plus les MARQUES dont on a besoin en peignant -- quelle
-#                    tuile est-ce, a quelle rangee de robe on est. Ce sont des marques, pas
-#                    des traits du dessin : on ne peut pas les confondre avec la cote.
+#   USABLE         : rien qui paraisse irreel, rien qu'on regarde. Le dessin seul, tel que
+#                    le tileset le montrera assemble -- c'est le fond sur lequel on peint.
+#   REPRESENTATIVE : le meme dessin, mais APPUYE. Trait plus gras sur les cotes ouverts,
+#                    marque franche aux coins rentrants, code de rangee bien lisible : on
+#                    voit d'un coup ce qu'on attend de la tuile en cours.
 #
-# ⚠ LA GEOMETRIE NE TRACE JAMAIS UN TRAIT QU'UNE VOISINE NE PEUT PAS RACCORDER. Un coin
-# rentrant -- trois cases pleines autour d'un vide -- n'est PAS arrondi, et ce n'est pas une
-# facilite : la cote y appartient aux deux voisines qui ont un bord ouvert, et la troisieme
-# n'en a aucun. Or ces voisines ne PEUVENT pas savoir qu'il faudrait s'arrondir, puisque la
-# canonicalisation jette justement ce bit-la -- une case dont le sud est ouvert a le meme
-# index que son voisin du sud-ouest soit plein ou vide. Arrondir la, c'est poser un arc que
-# personne ne rejoint. Seuls les coins SORTANTS s'arrondissent : la, aucune voisine ne
-# dessine quoi que ce soit.
+# ⚠ AUCUNE DISCONTINUITE. Chaque trait est tire A L'INTERIEUR de sa propre tuile, si bien
+# qu'a un coin rentrant -- trois cases pleines autour d'un vide -- il manque un carre de la
+# largeur du trait, que ni l'une ni l'autre des deux voisines ne couvre. Ce carre tombe chez
+# la TROISIEME, celle dont les deux cardinaux sont pleins et la diagonale vide -- et elle le
+# SAIT, ce bit-la etant justement celui que la canonicalisation conserve. C'est donc elle qui
+# ferme le coude, et le trait devient continu de bout en bout.
+#
+# ⚠ EN REVANCHE ON N'ARRONDIT PAS LA TERRE A CET ENDROIT. Les deux voisines tracent leur
+# cote droit jusqu'au coin et ne peuvent pas savoir qu'il faudrait la courber : une case dont
+# le sud est ouvert porte le meme index que son voisin du sud-ouest soit plein ou vide.
+# Courber la, ce serait poser un arc que personne ne rejoint. Seuls les coins SORTANTS
+# s'arrondissent : la, aucune voisine ne dessine quoi que ce soit.
 #
 # ⚠ ON DESSINE ETAGE PAR ETAGE, DU BAS VERS LE HAUT. Chaque couche recouvre la precedente.
 #
@@ -33,8 +37,13 @@ enum Ink {
 }
 
 enum Purpose {
-	REPRESENTATIVE,  ## Ce que le tileset montrera, et rien de plus.
-	USABLE,          ## Le meme dessin, plus les marques de travail.
+	## Des formes volontairement APPUYEES, pour qu'on sache tout de suite ce qu'on attend
+	## de la tuile qu'on peint : trait plus gras sur les cotes ouverts, marque franche aux
+	## coins rentrants, code de rangee bien lisible.
+	REPRESENTATIVE,
+	## Rien qui paraisse irreel, rien qu'on regarde : le dessin seul, tel que le tileset
+	## le montrera une fois assemble. Aucune marque, aucune exageration.
+	USABLE,
 }
 
 const HeightMask := preload("res://core/height_mask.gd")
@@ -57,6 +66,11 @@ const LIP: float = 0.11
 
 ## Epaisseur du trait, en fraction de case.
 const STROKE: float = 0.055
+
+## ⚠ LE LITTORAL EST PLUS APPUYE QUE LES COURBES DE NIVEAU. Un dessin ou tous les traits
+## pesent pareil se lit comme un plan de cuisine ; en allegeant a mesure qu'on monte, l'oeil
+## trouve tout de suite le bord de la terre et lit les etages comme un relief.
+const LEVEL_WEIGHTS: Array[float] = [1.0, 1.35, 1.0, 0.78]
 
 # ⚠ LA PLAINE EST PLUS SOMBRE ET PLUS FROIDE QUE TOUT LE RESTE, et les falaises plus
 # chaudes que les herbes : sans cet ecart, trois verts voisins donnent une purée.
@@ -132,12 +146,16 @@ static func _blank(side: int, tint: Color) -> PackedByteArray:
 	return buffer
 
 
+## ⚠ ON ARRONDIT, ON NE TRONQUE PAS. Tronquer decale chaque canal d un demi-pas vers le
+## sombre : invisible sur une couleur, mais la teinte rendue n est alors plus exactement
+## celle qu on a demandee, et un test qui compare les deux echoue pour une raison qui n a
+## rien a voir avec le dessin.
 static func _put(buffer: PackedByteArray, side: int, x: int, y: int, color: Color) -> void:
 	var offset: int = (y * side + x) * 4
-	buffer[offset] = int(clampf(color.r, 0.0, 1.0) * 255.0)
-	buffer[offset + 1] = int(clampf(color.g, 0.0, 1.0) * 255.0)
-	buffer[offset + 2] = int(clampf(color.b, 0.0, 1.0) * 255.0)
-	buffer[offset + 3] = int(clampf(color.a, 0.0, 1.0) * 255.0)
+	buffer[offset] = roundi(clampf(color.r, 0.0, 1.0) * 255.0)
+	buffer[offset + 1] = roundi(clampf(color.g, 0.0, 1.0) * 255.0)
+	buffer[offset + 2] = roundi(clampf(color.b, 0.0, 1.0) * 255.0)
+	buffer[offset + 3] = roundi(clampf(color.a, 0.0, 1.0) * 255.0)
 
 
 static func _finish(buffer: PackedByteArray, side: int, tile_size: int) -> Image:
@@ -154,7 +172,9 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 	var buffer: PackedByteArray = _blank(side, base)
 	var outer: float = OUTER_ROUND * float(side)
 	var lip: float = LIP * float(side)
-	var stroke: float = STROKE * float(side)
+	var weight: float = LEVEL_WEIGHTS[mini(level, LEVEL_WEIGHTS.size() - 1)]
+	var stroke: float = STROKE * float(side) * weight \
+			* (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
 	var north: bool = (index & BlobIndex.N) != 0
 	var east: bool = (index & BlobIndex.E) != 0
 	var south: bool = (index & BlobIndex.S) != 0
@@ -169,7 +189,11 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 				continue
 			var color: Color = base
 			if wire:
-				if _on_edge(px, py, last, outer, stroke, north, east, south, west):
+				var on_line: bool = _on_edge(px, py, last, outer, stroke, north, east, south, west)
+				# Le coude d'un coin rentrant : c'est ce qui rend le trait continu.
+				if not on_line:
+					on_line = _on_inner_elbow(px, py, last, stroke, index, north, east, south, west)
+				if on_line:
 					color = WIRE_EDGE
 					if not north and py < stroke * 2.0:
 						color = WIRE_LIP
@@ -185,7 +209,7 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, purpose: 
 					color = base.darkened(0.26)
 				elif not east and px > last - lip:
 					color = base.darkened(0.16)
-			if purpose == Purpose.USABLE and _on_inner_tick(px, py, last, stroke, index,
+			if purpose == Purpose.REPRESENTATIVE and _on_inner_tick(px, py, last, stroke, index,
 					north, east, south, west):
 				color = mark
 			_put(buffer, side, x, y, color)
@@ -241,13 +265,36 @@ static func _in_outer_corner(px: float, py: float, cx: float, cy: float,
 	return absf(distance - outer) < band
 
 
+## LE COUDE D'UN COIN RENTRANT — le petit carre qui ferme la jonction.
+##
+## ⚠ SANS LUI, LE TRAIT EST TROUE. Chaque cote ouvert est tire a l'interieur de sa propre
+## tuile ; au coin, les deux traits voisins se croisent sans se rejoindre et laissent un
+## carre vide de la largeur du trait. Ce carre tombe ici, chez la case dont les deux
+## cardinaux sont pleins et la diagonale vide -- la seule qui sache que le vide touche son
+## angle, et le seul bit de coin que la canonicalisation conserve.
+static func _on_inner_elbow(px: float, py: float, last: float, stroke: float, index: int,
+		north: bool, east: bool, south: bool, west: bool) -> bool:
+	var diagonals: Array = [
+		[north and east, (index & BlobIndex.NE) != 0, last, 0.0],
+		[south and east, (index & BlobIndex.SE) != 0, last, last],
+		[south and west, (index & BlobIndex.SW) != 0, 0.0, last],
+		[north and west, (index & BlobIndex.NW) != 0, 0.0, 0.0],
+	]
+	for corner: Array in diagonals:
+		if not bool(corner[0]) or bool(corner[1]):
+			continue
+		if absf(px - float(corner[2])) < stroke and absf(py - float(corner[3])) < stroke:
+			return true
+	return false
+
+
 ## La MARQUE d'un coin rentrant : un petit carre pose en retrait de l'angle, la ou le vide
 ## touche la case par un point. ⚠ C'est une marque, pas un trait du dessin -- elle dit
 ## « cette tuile n'est pas la meme que sa voisine » sans pretendre etre une cote.
 static func _on_inner_tick(px: float, py: float, last: float, stroke: float, index: int,
 		north: bool, east: bool, south: bool, west: bool) -> bool:
-	var gap: float = stroke * 2.6
-	var half: float = stroke * 0.9
+	var gap: float = stroke * 2.2
+	var half: float = stroke * 1.15
 	var diagonals: Array = [
 		[north and east, (index & BlobIndex.NE) != 0, last, 0.0],
 		[south and east, (index & BlobIndex.SE) != 0, last, last],
@@ -280,7 +327,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 	var side: int = tile_size * SUPERSAMPLE
 	var wire: bool = ink == Ink.WIREFRAME
 	var last: float = float(side - 1)
-	var stroke: float = STROKE * float(side)
+	var stroke: float = STROKE * float(side) * (1.9 if purpose == Purpose.REPRESENTATIVE else 1.0)
 	var margin: float = 0.10 * float(side)
 	var left_end: bool = role.x == Walls.PAN_LEFT
 	var right_end: bool = role.x == Walls.PAN_RIGHT
@@ -335,7 +382,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.
-			if purpose == Purpose.USABLE and px > inset and px < last - inset:
+			if purpose == Purpose.REPRESENTATIVE and px > inset and px < last - inset:
 				if role.y == 1 and absf(py - last * 0.5) < stroke * 0.6:
 					color = mark
 				elif role.y == 2 and (absf(py - last * 0.35) < stroke * 0.6 \

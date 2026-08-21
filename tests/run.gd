@@ -41,6 +41,7 @@ func _initialize() -> void:
 	_test_twins()
 	_test_symmetry()
 	_test_guide_image()
+	_test_wireframe_joins()
 	_test_every_script_parses()
 	_report_candidate_guide()
 	_print_summary()
@@ -618,6 +619,41 @@ func _test_guide_image() -> void:
 ## ⚠ LA SUITE NE CHARGE PAS L'INTERFACE PAR AILLEURS, et une faute de frappe dans un script
 ## d'ui passait donc au travers -- decouvert en dur, sur un `PackedStringArray.hash()` qui
 ## n'existe pas. Charger chaque script suffit a les faire analyser par le moteur.
+func _test_wireframe_joins() -> void:
+	print("rendu : le trait se raccorde, sans trou aux coins rentrants")
+	var side: int = 48
+	# ⚠ CHAQUE TRAIT EST TIRE A L'INTERIEUR DE SA PROPRE TUILE. Au coin rentrant, les deux
+	# voisines se croisent sans se rejoindre : c'est la tuile qui CONNAIT le coin -- deux
+	# cardinaux pleins, diagonale vide -- qui doit fermer le coude. Sans elle, un carre vide
+	# de la largeur du trait apparait a chaque angle, et le dessin se troue.
+	var notched: Image = GuideImage.make_top(253, 1, side, GuideImage.Ink.WIREFRAME,
+			GuideImage.Purpose.USABLE)
+	var solid: Image = GuideImage.make_top(255, 1, side, GuideImage.Ink.WIREFRAME,
+			GuideImage.Purpose.USABLE)
+	var base: Color = GuideImage.WIRE_LEVELS[1]
+	var notched_corner: Color = notched.get_pixel(side - 1, 0)
+	var solid_corner: Color = solid.get_pixel(side - 1, 0)
+	_check(not _same_ink(notched_corner, base),
+			"l index 253 ferme son coude au nord-est : le vide y touche son angle")
+	_check(_same_ink(solid_corner, base),
+			"l index 255 ne trace rien : aucune de ses diagonales n est vide")
+
+	# Un cote ouvert doit etre trace d'un bord a l'autre, sinon il ne rejoint pas la voisine.
+	var open_north: Image = GuideImage.make_top(20, 1, side, GuideImage.Ink.WIREFRAME,
+			GuideImage.Purpose.USABLE)
+	var reaches: bool = true
+	for x: int in range(side):
+		if open_north.get_pixel(x, 0).a > 0.0 and _same_ink(open_north.get_pixel(x, 0), base):
+			reaches = false
+	_check(reaches, "un cote ouvert est trace d un bord a l autre")
+
+
+## Deux couleurs sont-elles la meme, au pas du 8 bits pres ? Comparer a l egalite stricte
+## echouerait sur la quantification, pour une raison etrangere au dessin.
+func _same_ink(left: Color, right: Color) -> bool:
+	return absf(left.r - right.r) < 0.02 and absf(left.g - right.g) < 0.02 			and absf(left.b - right.b) < 0.02
+
+
 func _test_every_script_parses() -> void:
 	print("tous les scripts du depot s analysent")
 	var scripts: PackedStringArray = PackedStringArray()
