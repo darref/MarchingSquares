@@ -763,6 +763,17 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **Le but final** : l'artiste peint une fois, bien guidé ; l'export est toujours exact ; le
   game dev peint son monde sans penser à rien d'autre.
 
+- **⚠ UNE CASE DE FALAISE EST UNE CASE DE ROCHE.** Le flanc `vide` rentrait de 10 % — un
+  retrait décoratif, hérité du temps où il servait à laisser voir l'étage du dessous. Il
+  était faux deux fois. D'abord parce qu'il **fait disparaître de la matière que le modèle
+  affirme** : la case voisine dessine déjà la plaine, la falaise n'a pas à s'amincir pour
+  lui faire place. Ensuite et surtout : dès qu'une colonne descend plus bas que ses voisines
+  — ce qui arrive dès que deux chutes n'ont pas la même hauteur, donc **partout** — ses
+  flancs passent de `muet` à `vide` en cours de route, et **la face changeait d'épaisseur en
+  descendant**. L'utilisateur l'a repéré sur dix-huit cases ; c'était un seul défaut.
+
+  Le vide se dit désormais par **l'ombre du bord**, jamais en mangeant la roche.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

@@ -424,20 +424,23 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 		for x: int in range(side):
 			var px: float = float(x)
 			var py: float = float(y)
-			# Le flanc vide dit « il n'y a rien de ce cote » : la face s'y arrete.
-			if west == Walls.SIDE_VOID and px < margin:
-				continue
-			if east == Walls.SIDE_VOID and px > last - margin:
-				continue
+			# ⚠ ON NE RENTRE PLUS LE FLANC VIDE. Il rentrait de 10 %, et c'etait faux deux
+			# fois. D'abord parce qu'UNE CASE DE FALAISE EST UNE CASE DE ROCHE : la mettre a
+			# 80 % de sa case fait disparaitre de la matiere que le modele affirme. Ensuite
+			# et surtout : des qu'une colonne descend plus bas que ses voisines -- ce qui
+			# arrive des que deux chutes ne font pas la meme hauteur, donc partout -- ses
+			# flancs passent de MUET a VIDE en cours de route, et la face CHANGEAIT
+			# D'EPAISSEUR EN DESCENDANT. Le vide se dit par l'ombre du bord, pas en mangeant
+			# la roche.
 			var color: Color = base
 			if wire:
 				# ⚠ SEULS LES VRAIS BORDS SE TRACENT. Le haut du chapiteau est la levre, le
 				# bas du pied est le sol ; entre deux rangees de corps il n'y a AUCUNE
 				# ligne, la face est continue -- sans quoi la falaise serait rayee de traits
 				# que rien ne justifie.
-				if west == Walls.SIDE_VOID and px < margin + stroke:
+				if west == Walls.SIDE_VOID and px < stroke:
 					color = WIRE_EDGE
-				elif east == Walls.SIDE_VOID and px > last - margin - stroke:
+				elif east == Walls.SIDE_VOID and px > last - stroke:
 					color = WIRE_EDGE
 				elif west == Walls.SIDE_FRONT and px < edge:
 					color = WIRE_LIP
@@ -472,12 +475,12 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, purpose: Purpose
 					var ledge: float = 0.40 if role.y == 1 else 0.62
 					if absf(vertical - ledge) < 0.055:
 						color = color.darkened(0.07)
-				if west == Walls.SIDE_VOID and px < margin * 2.0:
-					color = color.lightened(0.10)
+				if west == Walls.SIDE_VOID and px < margin:
+					color = color.lightened(0.16)
 				elif west == Walls.SIDE_FRONT and px < edge:
 					color = color.lightened(0.22)
-				if east == Walls.SIDE_VOID and px > last - margin * 2.0:
-					color = color.darkened(0.12)
+				if east == Walls.SIDE_VOID and px > last - margin:
+					color = color.darkened(0.20)
 				elif east == Walls.SIDE_FRONT and px > last - edge:
 					color = color.darkened(0.28)
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
