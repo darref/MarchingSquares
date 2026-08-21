@@ -854,6 +854,17 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **Et celui-là est légitime là où les ombres portées ne l'étaient pas** : il vit **dans**
   la tuile de surface, donc une tuile exportée peut le porter.
 
+- **LA PLAINE NE SE DESSINE PAS. Le logiciel n'a aucun fond.** Elle ne nous appartient pas :
+  dans le jeu, le sol sous les plateaux sera **un étage plat du même tileset**, posé par le
+  moteur sur sa propre couche. En peindre un ici reviendrait à livrer un fond que le tileset
+  ne contient pas — exactement la faute des ombres portées, en beaucoup plus large. Le guide
+  laisse donc le vide, et la zone de travail y montre son propre fond.
+
+  ⚠ **Conséquence sur les ombres portées** : elles tombent désormais sur un sol qu'on ne
+  dessine plus. Elles restent, parce qu'elles aident à lire le relief — un plateau qui
+  surplombe se voit à son ombre — mais leur statut est clair : **pure aide à la lecture**,
+  toujours masquable, et jamais quelque chose que le tileset livre.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

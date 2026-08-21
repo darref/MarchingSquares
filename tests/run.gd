@@ -1380,10 +1380,13 @@ func _test_guide_image() -> void:
 	var summit: Color = image.get_pixel(2 * GuideImage.TILE + half, 1 * GuideImage.TILE + half)
 	var face: Color = image.get_pixel(2 * GuideImage.TILE + half, 3 * GuideImage.TILE + half)
 	# Le sommet d un plateau est plus clair que la plaine : c est ce qui fait lire l altitude.
-	_check(summit.get_luminance() > plain.get_luminance(), "le plateau ressort sur la plaine")
+	_check(summit.a > 0.9, "le sommet d un plateau, lui, est bien pose")
 	# Une face de falaise est chaude ; les herbes sont vertes. On les distingue sans les nommer.
 	_check(face.r > face.g, "la falaise est plus chaude que l herbe")
-	_check(plain.g > plain.r, "la plaine est verte")
+	# ⚠ LA PLAINE NE SE DESSINE PAS. Elle ne nous appartient pas : dans le jeu, le sol sous
+	# les plateaux sera un ETAGE PLAT DU MEME TILESET, pose par le moteur sur sa propre
+	# couche. En peindre un ici reviendrait a livrer un fond que le tileset ne contient pas.
+	_check_equal(plain.a, 0.0, "la plaine ne se dessine pas : elle ne nous appartient pas")
 	# Rien d aleatoire : deux rendus du meme relief donnent la meme image.
 	var again: Image = GuideImage.render(heights)
 	_check_equal(again.get_data(), image.get_data(), "le rendu est deterministe")

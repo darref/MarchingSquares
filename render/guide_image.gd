@@ -75,7 +75,12 @@ const LEVEL_WEIGHTS: Array[float] = [1.0, 1.35, 1.0, 0.78]
 
 # ⚠ LA PLAINE EST PLUS SOMBRE ET PLUS FROIDE QUE TOUT LE RESTE, et les falaises plus
 # chaudes que les herbes : sans cet ecart, trois verts voisins donnent une purée.
-const PLAIN_COLOR: Color = Color(0.243, 0.282, 0.224)
+## ⚠ LA PLAINE NE SE DESSINE PAS. Elle ne nous appartient pas : dans le jeu, le sol sous
+## les plateaux sera un ETAGE PLAT DU MEME TILESET, pose par le moteur sur sa propre couche.
+## En peindre un ici reviendrait a livrer un fond que le tileset ne contient pas -- la meme
+## faute que les ombres portees, en plus large. Le guide laisse donc le vide, et la zone de
+## travail y montre son propre fond.
+const NO_PLAIN: Color = Color(0.0, 0.0, 0.0, 0.0)
 const LEVEL_COLORS: Array[Color] = [
 	Color(0.243, 0.282, 0.224),
 	Color(0.400, 0.451, 0.278),
@@ -106,7 +111,6 @@ const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
 
 # ⚠ TOUT L'ECART DU FIL DE FER TIENT DANS UNE BANDE ETROITE. Les etages doivent se
 # distinguer, mais aucun ne doit peser assez pour qu'on juge mal la couleur qu'on pose.
-const WIRE_PLAIN: Color = Color(0.145, 0.153, 0.169)
 const WIRE_LEVELS: Array[Color] = [
 	Color(0.145, 0.153, 0.169),
 	Color(0.204, 0.216, 0.235),
@@ -138,8 +142,9 @@ static func render(heights: PackedStringArray, tile_size: int = TILE,
 
 
 ## La couleur hors de tout relief.
-static func plain_color(ink: Ink) -> Color:
-	return WIRE_PLAIN if ink == Ink.WIREFRAME else PLAIN_COLOR
+## Ce qu'on pose la ou il n'y a rien. ⚠ Rien, justement : voir NO_PLAIN.
+static func plain_color(_ink: Ink) -> Color:
+	return NO_PLAIN
 
 
 static func stamp(image: Image, tile: Image, x: int, y: int, tile_size: int) -> void:
