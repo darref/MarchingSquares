@@ -90,6 +90,28 @@ func image_of(cell: Vector2i) -> Image:
 	return _images.get(cell, null)
 
 
+## Repose une image entiere dans une case. C'est par la qu'un travail relu revient.
+##
+## ⚠ CE N'EST PAS UN COUP DE CRAYON, ET CA NE SE DEFAIT PAS. Recharger un fichier n'est
+## pas un geste de dessin : le journal serait faux d'y voir une passe, et « annuler » juste
+## apres une ouverture devrait ramener a la passe d'AVANT la sauvegarde, pas vider l'ecran.
+## Le compteur de pixels est donc refait ici, a la main, puisque `paint()` n'est pas passe.
+func set_image(cell: Vector2i, image: Image) -> bool:
+	if image == null or image.get_width() != resolution or image.get_height() != resolution:
+		return false
+	var copy: Image = image.duplicate()
+	if copy.get_format() != Image.FORMAT_RGBA8:
+		copy.convert(Image.FORMAT_RGBA8)
+	var opaque: int = 0
+	for y: int in range(resolution):
+		for x: int in range(resolution):
+			if copy.get_pixel(x, y).a > 0.0:
+				opaque += 1
+	_images[cell] = copy
+	_counts[cell] = opaque
+	return true
+
+
 func clear_cell(cell: Vector2i) -> void:
 	_images.erase(cell)
 	_counts.erase(cell)

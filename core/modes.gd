@@ -11,9 +11,9 @@
 # C'est le choix de ce qu'on fabrique, fait une fois avant de dessiner, pas un reglage a
 # ajuster en cours de route (charte, regle 1).
 #
-# Les regles d'exportation ne figurent pas encore ici : exporters/ est vide, et les
-# inventer maintenant reviendrait a decider a la place de l'usage. Elles rejoindront
-# l'entree du mode quand le premier exporteur existera.
+# La disposition de la feuille exportee ne figure pas ici : elle est la MEME pour tous
+# les modes, puisque tous livrent les memes 59 tuiles. Elle vit donc dans
+# `exporters/tileset_png.gd`, une fois, plutot que recopiee dans chaque entree.
 extends RefCounted
 
 const MINIMAL: StringName = &"minimal"

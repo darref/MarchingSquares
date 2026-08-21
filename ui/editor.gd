@@ -18,6 +18,8 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
+const WorkIO := preload("res://core/work_io.gd")
+const TilesetPNG := preload("res://exporters/tileset_png.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -38,6 +40,12 @@ const PROMISE_SECONDS: float = 6.0
 
 var _heights: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
+
+## Le fichier de travail en cours, vide tant qu on n a pas enregistre une fois.
+var _work_path: String = ""
+var _open_dialog: FileDialog = null
+var _save_dialog: FileDialog = null
+var _export_dialog: FileDialog = null
 var _promise: int = 0
 var _elapsed: float = PROMISE_SECONDS
 
@@ -71,6 +79,9 @@ func _ready() -> void:
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
+	(%OpenButton as Button).pressed.connect(_on_open_pressed)
+	(%SaveButton as Button).pressed.connect(_on_save_pressed)
+	_build_dialogs()
 	_apply_margins()
 	_load_current_mode()
 	# ⚠ ON REPOSE LA TAILLE APRES LA PREMIERE IMAGE. Selon la facon dont on lance -- depuis
@@ -285,12 +296,135 @@ func _on_fit_pressed() -> void:
 	(%WorkArea as Control).fit()
 
 
+# --- Ouvrir, enregistrer, exporter -----------------------------------------
+
+## Les trois selecteurs de fichiers, fabriques une fois. On demande le selecteur NATIF :
+## c'est un outil de bureau, et celui du systeme connait les dossiers de l'utilisateur.
+func _build_dialogs() -> void:
+	var work_filter: PackedStringArray = PackedStringArray(
+			["*.%s ; Travail AbsoluTiles" % WorkIO.EXTENSION])
+	_open_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_FILE, "Ouvrir un travail", work_filter)
+	_open_dialog.file_selected.connect(_on_open_chosen)
+	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Enregistrer le travail", work_filter)
+	_save_dialog.file_selected.connect(_write_work)
+	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Exporter le tileset",
+			PackedStringArray())
+	_export_dialog.dir_selected.connect(_on_export_chosen)
+
+
+func _make_dialog(mode: FileDialog.FileMode, title: String,
+		filters: PackedStringArray) -> FileDialog:
+	var dialog: FileDialog = FileDialog.new()
+	dialog.file_mode = mode
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.title = title
+	dialog.filters = filters
+	dialog.use_native_dialog = true
+	add_child(dialog)
+	return dialog
+
+
+func _on_open_pressed() -> void:
+	_open_dialog.popup_centered_ratio(0.6)
+
+
+## ⚠ ON LIT EN DEUX TEMPS. Le fichier dit dans quel paysage et a quelle taille il a ete
+## peint ; il faut charger ce paysage AVANT de pouvoir y reposer quoi que ce soit. D'ou
+## l'en-tete d'abord, le guide ensuite, les tuiles en dernier.
+func _on_open_chosen(path: String) -> void:
+	var header: Dictionary = WorkIO.peek(path)
+	if int(header["error"]) != OK:
+		_announce("Ce fichier n'est pas un travail AbsoluTiles.")
+		return
+	_select_metadata(%ModeChoice, header["mode"])
+	_select_metadata(%SizeChoice, int(header["resolution"]))
+	_load_current_mode()
+
+	var report: Dictionary = WorkIO.read(path, _heights)
+	if int(report["error"]) != OK:
+		_announce("Fichier illisible.")
+		return
+	_painting = report["painting"]
+	(%WorkArea as Control).show_guide(_heights, _painting)
+	_work_path = path
+	_refresh_counters()
+
+	var orphans: int = PackedStringArray(report["unplaced"]).size()
+	if orphans > 0:
+		_announce("%d tuiles reposees ; %d n'ont pas de place dans ce paysage."
+				% [int(report["placed"]), orphans])
+	else:
+		_announce("%d tuiles reposees." % int(report["placed"]))
+
+
+func _on_save_pressed() -> void:
+	if _work_path != "":
+		_write_work(_work_path)
+		return
+	_save_dialog.current_file = "%s.%s" % [_current_mode(), WorkIO.EXTENSION]
+	_save_dialog.popup_centered_ratio(0.6)
+
+
+func _write_work(path: String) -> void:
+	if _painting == null:
+		return
+	if WorkIO.write(path, _painting, _heights, _current_mode()) != OK:
+		_announce("Enregistrement impossible.")
+		return
+	_work_path = path
+	(%WorkHint as Label).text = path.get_file()
+	_announce("Enregistre dans %s" % path.get_file())
+
+
 func _on_export_pressed() -> void:
-	# ⚠ IL N'Y A PAS ENCORE D'EXPORTEUR, et on le dit plutot que d'ecrire un fichier a
-	# moitie juste. exporters/ est vide tant que les regles d'exportation d'un mode ne
-	# sont pas arretees.
-	(%Ticker as Label).text = "Aucun exporteur pour l'instant : exporters/ est vide."
+	_export_dialog.popup_centered_ratio(0.6)
+
+
+func _on_export_chosen(folder: String) -> void:
+	if _painting == null:
+		return
+	var basename: String = _work_path.get_file().get_basename()
+	if basename == "":
+		basename = String(_current_mode())
+	var report: Dictionary = TilesetPNG.write(folder, basename, _painting, _heights,
+			_current_mode())
+	if int(report["error"]) == ERR_UNAVAILABLE:
+		# Le bouton est cense etre grise ; si on arrive ici, c'est qu'il ne l'etait pas.
+		var left: int = report["missing_surface"].size() + report["missing_wall"].size()
+		_announce("Il manque %d tuiles : rien n'est ecrit." % left)
+		return
+	if int(report["error"]) != OK:
+		_announce("Export impossible dans ce dossier.")
+		return
+	_announce("Exporte dans %s : deux planches et leur manifeste." % folder.get_file())
+
+
+## Choisit dans une liste deroulante l'entree qui porte [param value]. Sans effet si elle
+## n'y est pas -- un fichier peut nommer un mode que cette version ne connait plus.
+func _select_metadata(choice: OptionButton, value: Variant) -> void:
+	for index: int in range(choice.item_count):
+		if choice.get_item_metadata(index) == value:
+			choice.selected = index
+			return
+
+
+func _announce(text: String) -> void:
+	(%Ticker as Label).text = text
 	_elapsed = 0.0
+
+
+## ⚠ CTRL+S EST UN REFLEXE, PAS UN CONFORT. Un outil de dessin qui ne le prend pas se fait
+## perdre du travail par la main de l'utilisateur lui-meme.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or not key.ctrl_pressed:
+		return
+	if key.keycode == KEY_S:
+		_on_save_pressed()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_O:
+		_on_open_pressed()
+		get_viewport().set_input_as_handled()
 
 
 ## Recalcule les deux jauges depuis le noyau. Aucune regle n'est reecrite ici.

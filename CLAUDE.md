@@ -36,6 +36,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   height_mask.gd  guide en relief : une hauteur par case, silhouette par étage
   walls.gd        le second vocabulaire : les robes de falaise (3 pans × 4 rangées)
   variants.gd     quelles cases peintes deviennent des tuiles
+  work_io.gd      lecture / ecriture du travail en cours (.absolutiles)
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
@@ -56,7 +57,8 @@ guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = éta
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
 tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
-exporters/    vide pour l'instant
+exporters/
+  tileset_png.gd  les deux planches (47 surfaces, 12 robes) et leur manifeste
 ```
 
 ## Conventions
@@ -411,6 +413,75 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   passe ne se défont correctement que dans l'ordre inverse — dans l'ordre, le second
   écraserait le premier et la case resterait peinte. C'est asserté.
 
+- **La sauvegarde range l'art par TUILE, jamais par case** (`core/work_io.gd`). C'est la
+  seule décision du fichier, et elle porte tout le reste. Une case du guide n'est qu'un
+  *endroit* où l'on a peint ; ce qui a de la valeur, c'est la **tuile** — l'index de
+  surface, ou le rôle de robe. Rangée par case, une sauvegarde mourrait au premier
+  retouchage du guide : compacter `minimal.txt` d'une ligne décalerait tout, et l'art
+  serait perdu. Rangée par tuile, le guide peut être redessiné, agrandi, compacté,
+  remplacé — l'art retombe sur ses pieds, puisqu'il est rangé sous le nom de ce qu'il
+  représente. C'est **asserté** : le test repeint un guide entier, recharge le fichier sur
+  un paysage qui n'a rien à voir, et vérifie que chaque tuile atterrit au bon endroit.
+
+  Conséquence gratuite et heureuse : **un travail commencé en `minimal` se recharge en
+  `ample`**. Les deux modes livrent les mêmes 59 tuiles ; seul le nombre d'exemplaires
+  change.
+
+  Une clé nomme une tuile et son rang de variante : `S<index>:<n>` pour une surface,
+  `W<pan>,<rangée>:<n>` pour une robe. Le rang est la position de la case dans son groupe,
+  **en ordre de lecture** — le seul ordre qui ne dépende que du guide et jamais du
+  remplissage d'un dictionnaire.
+
+  ⚠ **Ce qui ne retombe pas sur ses pieds est dit, pas jeté.** Si le nouveau guide offre
+  moins d'exemplaires d'une tuile que le fichier n'en portait, les variantes en trop sont
+  rendues dans `unplaced`. Même règle que les pixels peints hors du guide.
+
+  ⚠ **Recharger n'est pas un coup de crayon.** `painting.set_image()` ne journalise rien :
+  « annuler » juste après une ouverture doit ramener à la passe d'avant la sauvegarde, pas
+  vider l'écran.
+
+  Le fichier est un texte : en-tête lisible, puis une ligne par tuile, image en PNG encodé
+  en base64. Le PNG compresse — un aplat coûte quelques octets au lieu de soixante-cinq
+  mille.
+
+- **L'export livre DEUX planches, jamais une** (`exporters/tileset_png.gd`). Un terrain
+  Wang résout les coins d'un plan ; une falaise sort du plan. Les mêlant dans une seule
+  image, on obligerait celui qui la relit à savoir où l'une s'arrête — c'est exactement
+  pourquoi Satyron garde `icko_tileset.tres` d'un côté et `cliff_kits.tres` de l'autre.
+  Sortent donc `<nom>_surface.png`, `<nom>_walls.png` et `<nom>_tileset.txt`.
+
+  **La disposition est mécanique** : les 47 index en ordre croissant, huit par rangée, six
+  rangées, la dernière case vide ; les 12 robes en 3 pans × 4 rangées, c'est-à-dire la
+  forme même du vocabulaire. Le manifeste redit quand même la table en clair : le fichier
+  dit ce qui est vrai, il n'oblige pas à le redémontrer. Il porte aussi `storey_tiles` et
+  `body_rows`, sans quoi on ne remonte pas une falaise.
+
+  ⚠ **Une feuille incomplète est refusée, et rien n'est écrit** (règle 5). Un tileset à
+  moitié peint n'est pas un tileset, c'est un piège — des trous transparents qu'on
+  découvrirait dans le jeu.
+
+  ⚠ **Mais un refus n'est pas une erreur.** Incomplet est l'état *normal* pendant tout le
+  travail : le bouton est grisé, le compte s'affiche, et c'est tout. Le signaler par
+  `push_error` remplirait la console de rouge pendant des heures et apprendrait à ignorer
+  le rouge.
+
+  ⚠ **Les variantes sont tassées, pas recopiées à leur rang d'origine.** Une tuile peinte à
+  sa troisième occurrence sans l'avoir été à la première devient la variante 0 de la
+  planche. Sinon un moteur qui tire une variante au hasard tomberait sur du vide — et le
+  rang dans le guide ne veut rien dire pour qui relit la feuille.
+
+  **Il n'a jamais fallu peindre tout le guide.** Une occurrence de chaque tuile suffit :
+  59 cases sur les 810 peignables. C'est asserté.
+
+- **Ouvrir, enregistrer, exporter vivent dans la barre de droite**, section « Travail ».
+  `Ctrl+S` enregistre, `Ctrl+O` ouvre — un outil de dessin qui ne prend pas `Ctrl+S` se
+  fait perdre du travail par la main de l'utilisateur lui-même.
+
+  ⚠ **Ouvrir lit en deux temps.** Le fichier dit dans quel paysage et à quelle taille il a
+  été peint ; il faut charger ce paysage **avant** de pouvoir y reposer quoi que ce soit.
+  D'où `work_io.peek()`, qui lit l'en-tête et s'arrête à la première ligne de tuile — une
+  seule de ces lignes pèse plusieurs kilo-octets.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -554,9 +625,29 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
+- **Un second réseau : la grille à cheval.** Beaucoup de tilesets du marché sont *à
+  cheval* — une tuile couvre quatre cases, définie par ses **4 coins** et non par les 8
+  voisins d'une case. C'est le système de Satyron (`mode = 1`, Match Corners), et c'est
+  **16 tuiles au lieu de 47**. Avec les 12 robes : **28 tuiles pour un tileset complet**,
+  contre 59. C'est le mode d'entrée évident.
+
+  Faisable en l'état, et le chiffrage est fait : un `core/corner_index.gd` (4 bits, ~60
+  lignes), une variante de `coverage` qui compte sur le réseau dual (W+1)×(H+1), la zone
+  de travail décalée d'une demi-case. **Les robes ne changent pas** — une falaise se pose
+  case pour case, quel que soit le réseau du sol. `work_io.gd` accueille la famille par une
+  clé `C<index>:<n>` à côté de `S` et `W`.
+
+  À trancher avant d'écrire : est-ce un mode de plus, ou un champ `famille` dans la table
+  des modes ? Le paysage et la famille de tuiles sont deux choses ; le champ semble juste.
+  Fermé tant que la complétude 16/16 n'est pas prouvée sur un guide (règle 5), comme
+  `ample` l'a été.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- Règles d'exportation du mode minimal : format de sortie, ordre des tuiles, taille de
-  tuile. Rien n'est décidé, `exporters/` est vide exprès.
+- **Remonter le paysage depuis la feuille exportée**, et le montrer pendant le travail.
+  C'est le seul contrôle que le programme ne peut pas faire à notre place : que les 47
+  tuiles, peintes séparément, se raccordent sans couture. Un bord est peint d'un côté,
+  son voisin de l'autre, et rien ne garantit qu'ils se rejoignent — sauf de le voir.
+  C'est la règle 6 poussée jusqu'au bout, et c'est ce qui supprime la boucle
+  essai-export-correction que la règle 2 interdit.
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
   Faut-il les signaler pendant le dessin (règle 6) ?

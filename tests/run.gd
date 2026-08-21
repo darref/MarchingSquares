@@ -15,6 +15,8 @@ const Walls := preload("res://core/walls.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
+const WorkIO := preload("res://core/work_io.gd")
+const TilesetPNG := preload("res://exporters/tileset_png.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -41,6 +43,8 @@ func _initialize() -> void:
 	_test_wall_variants()
 	_test_twins()
 	_test_symmetry()
+	_test_work_io()
+	_test_export()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -612,6 +616,195 @@ func _test_symmetry() -> void:
 			Vector2i(Walls.PAN_RIGHT, Walls.ROW_CROWN), "le pan gauche devient le pan droit")
 	_check_equal(Symmetry.mirror_role(Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT)),
 			Vector2i(Walls.PAN_MIDDLE, Walls.ROW_FOOT), "le pan courant est son propre miroir")
+
+
+func _test_work_io() -> void:
+	print("sauvegarde : l art est range par TUILE, pas par case")
+	# Deux iles isolees, donc deux exemplaires de l index 0 : S0:0 et S0:1.
+	var guide_a: PackedStringArray = HeightMask.parse("#.#
+...
+...
+...")
+	# Le meme vocabulaire, mais un paysage qui n a rien a voir : autre taille, autres cases.
+	var guide_b: PackedStringArray = HeightMask.parse(
+			"....
+.#..
+....
+....
+....
+..#.
+....
+....
+....")
+
+	var slots_a: Dictionary = WorkIO.slots(guide_a)
+	_check(slots_a.size() > 0, "le guide offre des cases a peindre (%d)" % slots_a.size())
+
+	var painting: Painting = Painting.new(16)
+	for cell: Vector2i in slots_a.keys():
+		painting.paint(cell, 0, 0, _key_colour(String(slots_a[cell])))
+
+	var text: String = WorkIO.serialize(painting, guide_a, Modes.MINIMAL)
+	_check(text.begins_with("absolutiles 1"), "le fichier s annonce des sa premiere ligne")
+
+	var back: Dictionary = WorkIO.parse(text, guide_a)
+	_check_equal(back["error"], OK, "relecture sans erreur")
+	_check_equal(back["resolution"], 16, "la resolution relue est celle du fichier")
+	_check_equal(back["mode"], Modes.MINIMAL, "le mode est retenu")
+	_check_equal(int(back["placed"]), slots_a.size(), "toutes les tuiles sont reposees")
+	var reread: Painting = back["painting"]
+	var faithful: bool = true
+	for cell: Vector2i in slots_a.keys():
+		if not _pixel_is(reread, cell, _key_colour(String(slots_a[cell]))):
+			faithful = false
+	_check(faithful, "chaque tuile revient a sa place, pixel pour pixel")
+
+	# LA PROMESSE. Le meme fichier, repose sur un guide redessine de fond en comble.
+	var keys_a: Dictionary = WorkIO.cells_by_key(guide_a)
+	var keys_b: Dictionary = WorkIO.cells_by_key(guide_b)
+	var travelled: Painting = WorkIO.parse(text, guide_b)["painting"]
+	var shared: int = 0
+	var wrong: int = 0
+	var relocated: bool = false
+	for key: String in keys_a.keys():
+		if not keys_b.has(key):
+			continue
+		shared += 1
+		if keys_b[key] != keys_a[key]:
+			relocated = true
+		if not _pixel_is(travelled, keys_b[key], _key_colour(key)):
+			wrong += 1
+	_check(shared > 0, "les deux guides ont des tuiles en commun (%d)" % shared)
+	_check(relocated, "et ces tuiles n occupent pas les memes cases d un guide a l autre")
+	_check_equal(wrong, 0, "l art retombe sur la BONNE TUILE dans un guide redessine")
+
+	# Ce qui n a plus de place est dit, jamais jete en silence.
+	var narrow: PackedStringArray = HeightMask.parse("#..
+...
+...
+...")
+	var trimmed: Dictionary = WorkIO.parse(text, narrow)
+	var orphans: Array = Array(trimmed["unplaced"])
+	_check(orphans.has("S0:1"),
+			"un guide sans la seconde ile rend la variante en trop au lieu de la perdre")
+
+	# Et le meme aller-retour, mais par un vrai fichier.
+	var path: String = "user://test_travail.%s" % WorkIO.EXTENSION
+	_check_equal(WorkIO.write(path, painting, guide_a, Modes.MINIMAL), OK, "ecriture sur disque")
+	var from_disk: Dictionary = WorkIO.read(path, guide_a)
+	_check_equal(int(from_disk["placed"]), slots_a.size(), "relecture depuis le disque")
+
+	# L en-tete seul, sans decoder une image : c'est par la que passe « Ouvrir », puisqu'il
+	# faut charger le bon paysage AVANT de pouvoir y reposer quoi que ce soit.
+	var header: Dictionary = WorkIO.peek(path)
+	_check_equal(header["error"], OK, "l en-tete se lit seul")
+	_check_equal(header["mode"], Modes.MINIMAL, "l en-tete donne le mode")
+	_check_equal(int(header["resolution"]), 16, "l en-tete donne la resolution")
+	_check(WorkIO.peek("user://pas_un_travail.txt")["error"] != OK,
+			"un fichier absent est signale, pas devine")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## Une couleur qui ne depend que de la CLE de la tuile : si l art se retrouve ailleurs
+## qu ou il doit, la couleur ne colle plus et le test le voit.
+func _key_colour(key: String) -> Color:
+	var mixed: int = absi(key.hash())
+	return Color8(mixed & 255, (mixed >> 8) & 255, (mixed >> 16) & 255, 255)
+
+
+func _pixel_is(painting: Painting, cell: Vector2i, colour: Color) -> bool:
+	var image: Image = painting.image_of(cell)
+	return image != null and image.get_pixel(0, 0).is_equal_approx(colour)
+
+
+func _test_export() -> void:
+	print("export : la feuille de tuiles, et le refus de l incomplet")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var by_key: Dictionary = WorkIO.cells_by_key(heights)
+
+	# Le strict necessaire : une seule occurrence de chaque tuile. C'est la definition meme
+	# de « exportable » -- il n'a jamais fallu peindre tout le guide.
+	var painting: Painting = Painting.new(16)
+	var first_keys: Array[String] = []
+	for key: String in by_key.keys():
+		if key.ends_with(":0"):
+			first_keys.append(key)
+	for key: String in first_keys:
+		painting.paint(by_key[key], 0, 0, _key_colour(key))
+	_check_equal(first_keys.size(), BLOB_TILE_COUNT + Walls.ALL_ROLES.size(),
+			"le guide minimal porte exactement 59 tuiles obligatoires")
+
+	var report: Dictionary = TilesetPNG.analyse(painting, heights)
+	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
+	_check_equal(int(report["variants"]), 1, "une seule variante peinte, un seul bloc")
+	_check(report["missing_surface"].is_empty(), "aucune surface manquante")
+	_check(report["missing_wall"].is_empty(), "aucune robe manquante")
+
+	var sheet: Image = TilesetPNG.compose(painting, heights, report, false)
+	_check_equal(sheet.get_width(), TilesetPNG.SURFACE_COLUMNS * 16, "huit tuiles de large")
+	_check_equal(sheet.get_height(), TilesetPNG.surface_rows() * 16, "six rangees de haut")
+	var astray: int = 0
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		var slot: Vector2i = TilesetPNG.surface_slot(index, 0)
+		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
+				_key_colour("S%d:0" % index)):
+			astray += 1
+	_check_equal(astray, 0, "les 47 index tombent chacun sur SA case de la planche")
+
+	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
+	_check_equal(kit.get_width(), Walls.PAN_COUNT * 16, "la planche de robes fait trois pans")
+	_check_equal(kit.get_height(), Walls.BLOCK_ROWS * 16, "et quatre rangees")
+	var roles_astray: int = 0
+	for role: Vector2i in Walls.ALL_ROLES:
+		var at: Vector2i = TilesetPNG.wall_slot(role, 0)
+		if not kit.get_pixel(at.x * 16, at.y * 16).is_equal_approx(
+				_key_colour("W%d,%d:0" % [role.x, role.y])):
+			roles_astray += 1
+	_check_equal(roles_astray, 0, "les douze robes tombent chacune sur SA case")
+
+	# Une tuile peinte a son rang 2 sans son rang 0 devient la variante 0 de la planche :
+	# sinon un moteur qui tire une variante au hasard tomberait sur du vide.
+	var late: String = ""
+	for key: String in by_key.keys():
+		if key.begins_with("S") and key.ends_with(":2"):
+			late = key
+			break
+	_check(late != "", "le guide minimal offre bien une troisieme occurrence")
+	if late != "":
+		var lonely: Painting = Painting.new(16)
+		lonely.paint(by_key[late], 0, 0, Color.BLUE)
+		var packed: Dictionary = TilesetPNG.analyse(lonely, heights)
+		var index: int = int(WorkIO.describe(late)["index"])
+		var at: Vector2i = TilesetPNG.surface_slot(index, 0)
+		var tassee: Image = TilesetPNG.compose(lonely, heights, packed, false)
+		_check(tassee.get_pixel(at.x * 16, at.y * 16).is_equal_approx(Color.BLUE),
+				"le rang 2 peint seul devient la variante 0 de la planche")
+
+	# LE REFUS. Une tuile de moins, et rien ne sort.
+	var folder: String = "user://export_test"
+	var partial: Painting = Painting.new(16)
+	for key: String in first_keys:
+		if key != first_keys[0]:
+			partial.paint(by_key[key], 0, 0, Color.RED)
+	var refused: Dictionary = TilesetPNG.write(folder, "essai", partial, heights, Modes.MINIMAL)
+	_check_equal(refused["error"], ERR_UNAVAILABLE, "une feuille incomplete est REFUSEE")
+	_check(not refused["is_exportable"], "et elle se sait incomplete")
+	_check(PackedStringArray(refused["written"]).is_empty(), "et rien n est ecrit du tout")
+
+	# Et l aller sur disque.
+	var done: Dictionary = TilesetPNG.write(folder, "essai", painting, heights, Modes.MINIMAL)
+	_check_equal(done["error"], OK, "la feuille complete s ecrit")
+	var written: PackedStringArray = done["written"]
+	_check_equal(written.size(), 3, "deux planches et un manifeste")
+	var manifest: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt"))
+	_check(manifest.begins_with("absolutiles-tileset 1"), "le manifeste s annonce")
+	_check(manifest.contains("storey_tiles %d" % Walls.STOREY_TILES),
+			"le manifeste donne la hauteur d etage, sans quoi on ne remonte pas une falaise")
+	var relu: Image = Image.load_from_file(folder.path_join("essai_surface.png"))
+	_check(relu != null and relu.get_width() == TilesetPNG.SURFACE_COLUMNS * 16,
+			"la planche ecrite se relit depuis le disque")
+	for path: String in written:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func _test_guide_image() -> void:
