@@ -47,6 +47,7 @@ func _initialize() -> void:
 	_test_work_io()
 	_test_export()
 	_test_assembly()
+	_test_preview_scene()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_every_script_parses()
@@ -859,6 +860,56 @@ func _test_assembly() -> void:
 		var index: int = int(WorkIO.describe(twin_key)["index"])
 		_check_equal(two["surface_variants"][index].size(), 2,
 				"un dessin different sur une jumelle donne une vraie seconde variante")
+
+
+func _test_preview_scene() -> void:
+	print("apercu en jeu : le decor n emprunte que des tuiles qui existent")
+	var scene: PackedStringArray = HeightMask.read("res://guides/preview.txt")
+	_check(HeightMask.width(scene) > 0, "le decor existe (%d x %d)" % [
+			HeightMask.width(scene), HeightMask.height(scene)])
+	_check_equal(Walls.analyse(scene)["outside"].size(), 0,
+			"aucune falaise du decor ne tombe hors du cadre")
+
+	var indices: Dictionary = Coverage.index_map(scene)
+	var roles: Dictionary = Walls.visible_roles(scene)
+	var wild: int = 0
+	for index: int in indices.values():
+		if not BlobIndex.is_canonical(index):
+			wild += 1
+	_check_equal(wild, 0, "chaque case du decor porte un index des 47")
+
+	var seen: Dictionary = {}
+	for role: Vector2i in roles.values():
+		seen[role] = true
+	_check_equal(seen.size(), Walls.ALL_ROLES.size(),
+			"le decor montre les DOUZE tuiles de falaise : c est la que le banding se voit")
+
+	# ⚠ LA PROPRIETE QUI COMPTE : le decor ne peut RIEN reclamer que le guide n ait.
+	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var source_of: Dictionary = Assembly.borrow(scene, guide)
+	var expected: int = roles.size()
+	for cell: Vector2i in indices.keys():
+		if not roles.has(cell):
+			expected += 1
+	_check_equal(source_of.size(), expected,
+			"CHAQUE case du decor trouve sa tuile dans le guide, sans exception")
+
+	var painting: Painting = Painting.new(16)
+	for cell: Vector2i in WorkIO.slots(guide).keys():
+		painting.paint(cell, 0, 0, Color.RED)
+	var decor: Image = Assembly.from_borrowed(scene, guide, painting)
+	var holes: int = 0
+	for cell: Vector2i in source_of.keys():
+		if not decor.get_pixel(cell.x * 16, cell.y * 16).is_equal_approx(Color.RED):
+			holes += 1
+	_check_equal(holes, 0, "un guide entierement peint remplit le decor sans un seul trou")
+
+	# Et le decor ne montre qu une partie du vocabulaire : c est la verite des tilesets, une
+	# carte ordinaire n use qu une poignee de tuiles. On le chiffre plutot que de le taire.
+	var shown: Dictionary = {}
+	for index: int in indices.values():
+		shown[index] = true
+	print("  (le decor montre %d des 47 index et %d des 12 roles)" % [shown.size(), seen.size()])
 
 
 func _test_guide_image() -> void:

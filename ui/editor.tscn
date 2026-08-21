@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://ui/work_area.gd" id="2_c55ig"]
 [ext_resource type="Script" path="res://ui/sidebar.gd" id="3_4x3iy"]
 [ext_resource type="Script" path="res://ui/tool_section.gd" id="4_cwcei"]
+[ext_resource type="Script" path="res://ui/preview_panel.gd" id="5_prvw"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qfej6"]
 bg_color = Color(0.129, 0.141, 0.149, 1)
@@ -801,8 +802,14 @@ text = "Afficher la grille"
 [node name="AssembledCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100011]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "N'affiche plus que vos tuiles, posees sur le relief. Le fond, les grilles et les reperes disparaissent : il ne reste que les raccords."
-text = "Remontage"
+tooltip_text = "Efface le fond du guide, les grilles et les reperes : il ne reste que vos tuiles. Meme famille que la grille -- on ne juge pas une couleur a travers autre chose."
+text = "Masquer le guide"
+
+[node name="PreviewCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100012]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Vos tuiles posees sur un petit decor ordinaire, au lieu du guide. Le guide est un banc d'epreuve : il ne dit pas si le tileset rend bien."
+text = "Apercu en jeu"
 
 [node name="FitButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=794563993]
 unique_name_in_owner = true
@@ -866,6 +873,20 @@ theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
 text = "Rien d'enregistre pour l'instant."
+
+[node name="PreviewPanel" type="Control" parent="Layout/Body" unique_id=3100013]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 288.0
+offset_top = -392.0
+offset_right = 912.0
+offset_bottom = -16.0
+grow_vertical = 0
+script = ExtResource("5_prvw")
 
 [node name="LoadingPanel" type="PanelContainer" parent="Layout/Body" unique_id=886349748]
 unique_name_in_owner = true

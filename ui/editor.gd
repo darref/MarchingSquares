@@ -79,6 +79,8 @@ func _ready() -> void:
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
+	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
+	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
@@ -220,6 +222,7 @@ func _load_current_mode() -> void:
 	work.guide_ink = style.get_item_metadata(style.selected)
 	work.guide_purpose = technic.get_item_metadata(technic.selected)
 	work.show_guide(_heights, _painting)
+	(%PreviewPanel as Control).show_guide(_heights, _painting)
 	_refresh_counters()
 
 
@@ -293,14 +296,26 @@ func _on_grid_toggled(pressed: bool) -> void:
 	work.queue_redraw()
 
 
-## ⚠ LE REMONTAGE NE TOUCHE A RIEN DE CE QUI SORT. C'est une facon de regarder, au meme
+## L'APERCU EN JEU. Le guide est un banc d'epreuve -- lacs d'une case, pinacles isoles ; il
+## ne dira jamais si le tileset REND bien. Ce panneau montre les memes tuiles sur un petit
+## decor ordinaire. ⚠ Il n'invente rien : chaque case y emprunte, par index ou par role, ce
+## qui est peint dans le guide.
+func _on_preview_toggled(pressed: bool) -> void:
+	var panel: Control = %PreviewPanel
+	panel.visible = pressed
+	if pressed:
+		panel.mark_dirty()
+	_announce("Apercu en jeu : vos tuiles dans un decor ordinaire." if pressed
+			else "Retour au guide seul.")
+
+
+## ⚠ MASQUER LE GUIDE NE TOUCHE A RIEN DE CE QUI SORT. C'est une facon de regarder, au meme
 ## titre que la grille : le tileset exporte est le meme, coche ou non.
 func _on_assembled_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.assembled = pressed
 	work.queue_redraw()
-	_announce("Remontage : vos tuiles seules, sur le relief." if pressed
-			else "Retour au guide.")
+	_announce("Guide masque : vos tuiles seules." if pressed else "Guide revenu.")
 
 
 func _on_fit_pressed() -> void:
@@ -357,6 +372,7 @@ func _on_open_chosen(path: String) -> void:
 		return
 	_painting = report["painting"]
 	(%WorkArea as Control).show_guide(_heights, _painting)
+	(%PreviewPanel as Control).show_guide(_heights, _painting)
 	_work_path = path
 	_refresh_counters()
 

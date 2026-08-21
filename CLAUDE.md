@@ -50,12 +50,14 @@ ui/           l'éditeur
   work_area.gd    grille, zoom, fond du guide, pose des faux pixels
   sidebar.gd      la barre translucide, pleine sous le curseur
   tool_section.gd une section d'outils repliable
+  preview_panel.gd  l'aperçu en jeu : les tuiles peintes sur un décor ordinaire
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : relief 35x28, 47/47 et 12/12
   ample.txt            guide du mode « ample » : relief 66x31, 3 occurrences minimum
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
+  preview.txt          le décor de l'aperçu en jeu : 24x18, une colline et une butte
 tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
@@ -490,29 +492,50 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   D'où `work_io.peek()`, qui lit l'en-tête et s'arrête à la première ligne de tuile — une
   seule de ces lignes pèse plusieurs kilo-octets.
 
-- **Le remontage : le paysage rebâti avec les tuiles peintes** (`render/assembly.gd`, case
-  « Remontage » dans la barre de droite). C'est **le seul contrôle que le programme ne peut
-  pas faire à notre place.** Il sait prouver que les 59 tuiles existent ; il ne sait pas
-  juger qu'elles *se raccordent*. Un bord est peint d'un côté, son voisin de l'autre, à deux
-  moments différents — seul l'œil voit la couture. Cocher la case efface le fond du guide,
-  les deux grilles et les cercles de repère : il ne reste que vos tuiles, posées sur le
-  relief. C'est la règle 6 poussée jusqu'au bout, et c'est ce qui supprime la boucle
-  essai-export-correction que la règle 2 interdit.
+- **« Masquer le guide » n'est qu'un décrassage de l'écran, et il faut le dire.** J'avais
+  d'abord appelé ça « Remontage » en le présentant comme *le contrôle que le programme ne
+  peut pas faire*. C'était faux, et l'utilisateur l'a relevé : **la zone de travail dessine
+  déjà chaque tuile peinte à sa case, en permanence.** Le paysage assemblé était visible
+  depuis le début ; c'était bien à lui de juger, et il jugeait déjà.
 
-  ⚠ **Une case non peinte reste un trou.** On ne la remplit pas d'un aplat aimable : le trou
-  est la vérité, et c'est exactement ce qu'on veut voir.
+  Ce que la case fait est plus petit : elle retire **trois choses posées par-dessus le
+  travail** — le guide à 55 % d'opacité qui teinte les couleurs, la grille des tuiles qui
+  coupe les traits là même où l'on vérifie qu'ils se rejoignent, et les cercles de repère.
+  Même famille que « Afficher la grille », et pour la même raison déjà écrite ici : *une
+  grille est une aide à viser, pas un décor.* Rien de plus, et le libellé doit le dire.
 
-  ⚠ **DEUX CHEMINS, ET C'EST TOUT L'INTÉRÊT.** `from_painting()` va chercher directement ce
-  qui est peint sur la case ; `from_sheets()` demande son index à la case, l'index donne sa
-  place sur la planche, et l'on relit le pixel là-bas. Le second traverse l'exportateur en
-  entier — disposition, tassement des variantes. Les deux doivent rendre la **même image, au
-  pixel près**, et c'est asserté sur le guide minimal entièrement peint. Un remontage qui ne
-  saurait faire qu'un seul chemin ne prouverait rien : il redirait ce qu'il vient de lire.
+  **Leçon** : un nom qui promet une capacité qui n'existe pas coûte plus cher qu'un nom
+  terne. Il fait chercher à l'utilisateur ce qu'il ne trouvera pas.
 
-  **Ce que le remontage révèle, et qui surprend au premier regard** : un tileset **ignore les
-  étages**. L'index 7 est la même tuile au premier comme au troisième — le blob se calcule
-  par étage, mais la tuile qui en sort n'en garde pas trace. Le paysage remonté est donc plus
-  plat que l'illustration du guide, et c'est juste.
+- **L'aperçu en jeu : les mêmes tuiles sur un décor ordinaire** (`ui/preview_panel.gd`,
+  `guides/preview.txt`). *Ça*, c'est la capacité qui manquait. Le guide est un banc
+  d'épreuve — lacs d'une case, pinacles isolés, encoches partout ; il ne ressemblera jamais
+  à une carte de jeu, donc il ne dira jamais si le tileset **rend** bien. Le décor le dit :
+  24x18, une colline en terrasses, ses falaises en escalier, une butte à deux étages, un
+  rocher isolé et un cordon.
+
+  ⚠ **Il ne fabrique aucune tuile** (règle 3). Chaque case y **emprunte**, par index ou par
+  rôle, ce qui est peint dans le guide — `assembly.borrow()`. Rien de neuf n'est inventé :
+  c'est le même dessin, vu ailleurs. Et il pioche toujours la variante 0, sinon le décor
+  scintillerait à chaque coup de crayon.
+
+  ⚠ **Le décor ne peut rien réclamer que le guide n'ait pas.** C'est la propriété qui
+  compte, et elle est assertée : chaque case du décor trouve sa tuile, sans exception. Un
+  aperçu qui demanderait une tuile inexistante montrerait un trou permanent.
+
+  ⚠ **Le côté de case est arrondi à l'entier, et le filtrage est au plus proche.** Une
+  échelle fractionnaire étalerait chaque tuile sur un nombre non entier de pixels d'écran,
+  et un lissage bilinéaire mélangerait les bords voisins : le panneau montrerait des
+  coutures que le dessin n'a pas — exactement le défaut qu'il existe pour révéler.
+
+  ⚠ **Et il ne montre pas tout : seize index sur quarante-sept.** C'est la vérité des
+  tilesets — une carte ordinaire n'use qu'une poignée de tuiles. Le panneau dit *comment ça
+  rend*, pas *si tout est peint* ; les jauges sont là pour ça. En revanche il montre les
+  **douze** tuiles de falaise, dont la butte à deux étages qui fait tomber six cases : c'est
+  là que le banding se repère.
+
+  Le panneau est **opaque, sans discussion** — on ne juge pas une couleur à travers autre
+  chose — et il arrête la souris, sinon on peindrait « à travers » lui sans voir où.
 
 - **Une variante est un DESSIN différent, pas une case différente.** « Peindre les jumelles »
   est coché d'emblée : les cent cases qui portent le même index portent alors le même dessin.
@@ -695,9 +718,8 @@ Quand la monter, et je le proposerai le moment venu :
   `ample` l'a été.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- **Un paysage de contrôle qui ne soit pas le guide.** Le remontage se fait aujourd'hui sur
-  le relief du guide — lequel est un banc d'épreuve : lacs d'une case, pinacles isolés,
-  encoches partout. Une couture peut s'y perdre dans le bruit. Un petit relief ordinaire,
-  calme, réutilisant les mêmes tuiles, la ferait sauter aux yeux. Peu de travail, vrai gain.
+- **L'aperçu en jeu ne montre que seize index sur quarante-sept.** Faut-il un second décor,
+  ou un décor qui se décale, pour que chaque tuile finisse par se voir en contexte ? Ou est-ce
+  que ce n'est pas son rôle ?
 - Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
   Faut-il les signaler pendant le dessin (règle 6) ?

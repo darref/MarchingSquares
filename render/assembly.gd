@@ -72,6 +72,52 @@ static func from_sheets(heights: PackedStringArray, surface_sheet: Image, wall_s
 	return canvas
 
 
+## L'APERCU EN JEU : ou aller chercher, dans le guide, la tuile que reclame chaque case
+## d'un AUTRE relief.
+##
+## Le guide est un banc d'epreuve -- lacs d'une case, pinacles isoles, encoches partout. Il
+## ne ressemblera jamais a une carte de jeu, donc il ne dira jamais si le tileset REND bien.
+## Un petit relief ordinaire le dit. Il n'a besoin d'aucune tuile de plus : il pioche dans
+## celles du guide, par index et par role.
+##
+## ⚠ ON PIOCHE TOUJOURS LA VARIANTE 0. Le decor doit etre le meme d'une seconde a l'autre ;
+## tirer une variante au hasard le ferait scintiller a chaque coup de crayon.
+##
+## Rend : Dictionary[Vector2i, Vector2i], case du decor -> case du guide.
+static func borrow(target: PackedStringArray, guide: PackedStringArray) -> Dictionary:
+	var source_of: Dictionary = {}
+	var by_key: Dictionary = WorkIO.cells_by_key(guide)
+	var indices: Dictionary = Coverage.index_map(target)
+	var roles: Dictionary = Walls.visible_roles(target)
+	for cell: Vector2i in _order(target):
+		var key: String = ""
+		if roles.has(cell):
+			var role: Vector2i = roles[cell]
+			key = "W%d,%d:0" % [role.x, role.y]
+		elif indices.has(cell):
+			key = "S%d:0" % int(indices[cell])
+		if by_key.has(key):
+			source_of[cell] = by_key[key]
+	return source_of
+
+
+## Le decor, peint avec les tuiles empruntees au guide. La version fichier de ce que le
+## panneau dessine a l'ecran.
+static func from_borrowed(target: PackedStringArray, guide: PackedStringArray,
+		painting: Painting) -> Image:
+	var side: int = painting.resolution
+	var canvas: Image = _canvas(target, side)
+	var source_of: Dictionary = borrow(target, guide)
+	for cell: Vector2i in _order(target):
+		if not source_of.has(cell):
+			continue
+		var tile: Image = painting.image_of(source_of[cell])
+		if tile == null:
+			continue
+		canvas.blend_rect(tile, Rect2i(0, 0, side, side), cell * side)
+	return canvas
+
+
 ## Les cases dans l'ordre ou elles se posent : les surfaces d'abord, les robes par-dessus.
 ##
 ## ⚠ LA ROBE PASSE DEVANT, comme partout ailleurs. Une case peut appartenir au sol d'un

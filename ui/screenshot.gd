@@ -6,6 +6,7 @@ var _technic: int = -1
 var _ink: int = -1
 var _work: String = ""
 var _assembled: bool = false
+var _preview: bool = false
 var _editor: Node = null
 
 
@@ -33,6 +34,8 @@ func _initialize() -> void:
 				_ink = 1
 			"remontage":
 				_assembled = true
+			"apercu":
+				_preview = true
 			_:
 				if argument.ends_with(".absolutiles"):
 					_work = argument
@@ -59,6 +62,10 @@ func _process(_delta: float) -> bool:
 			var check: CheckBox = _editor.get_node("%AssembledCheck")
 			check.button_pressed = true
 			check.toggled.emit(true)
+		if _preview:
+			var preview: CheckBox = _editor.get_node("%PreviewCheck")
+			preview.button_pressed = true
+			preview.toggled.emit(true)
 	# ⚠ ON ATTEND QUE LE FOND SOIT DESSINE. Il se calcule par etapes ; capturer trop tot
 	# ne montrerait que la barre de progression.
 	if _frames < 20:
