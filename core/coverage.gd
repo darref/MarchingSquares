@@ -77,9 +77,12 @@ static func analyse(mask: PackedStringArray) -> Dictionary:
 ## ne voit que le sommet : la tuile qu'une case porte est celle de son PROPRE etage, lue
 ## dans la silhouette de cet etage. Compter l'union de tous les etages gonflerait la
 ## couverture avec des tuiles que personne ne pourra jamais peindre.
+## ⚠ LA PLAINE EN FAIT PARTIE. L'etage 0 est un plateau comme les autres : il a sa
+## silhouette -- tout ce qui n'est pas le vide -- ses 47 index, et ses falaises au bord du
+## monde. Seul le VIDE ne porte rien.
 static func visible_index_at(heights: PackedStringArray, x: int, y: int) -> int:
 	var level: int = HeightMask.level_at(heights, x, y)
-	if level < 1:
+	if level < 0:
 		return NO_INDEX
 	return index_at_level(heights, x, y, level)
 

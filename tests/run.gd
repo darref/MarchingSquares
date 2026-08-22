@@ -258,7 +258,8 @@ func _test_height_mask() -> void:
 	_check_equal(HeightMask.level_at(heights, 2, 1), 2, "le second plateau est a 2")
 	_check_equal(HeightMask.level_at(heights, 0, 2), 1, "'#' vaut le premier plateau")
 	_check_equal(HeightMask.level_at(heights, 1, 2), 0, "'0' vaut la plaine")
-	_check_equal(HeightMask.level_at(heights, -1, 0), 0, "le hors-grille est a la plaine")
+	_check_equal(HeightMask.level_at(heights, -1, 0), HeightMask.VOID,
+			"LE HORS-GRILLE EST DU VIDE, pas de la plaine : c est ce qui dit ou le sol s arrete")
 	_check_equal(HeightMask.top_level(heights), 2, "l etage le plus haut est 2")
 
 	# La silhouette d un etage est un masque binaire : le blob 47 s applique tel quel.
@@ -302,27 +303,40 @@ func _test_wall_rows() -> void:
 
 func _test_wall_assembly() -> void:
 	print("walls : deroulement des robes")
-	# UN ETAGE, PLATEAU ISOLE : les trois pans, mais le corps 1 reste hors d atteinte.
-	# ⚠ Ce n est PAS une regle generale : une robe raccourcie, qui ne pose pas son pied,
-	# montre du corps sur sa derniere case et peut donc rendre le corps 1 a un seul etage.
-	var one_storey: PackedStringArray = HeightMask.parse(".....
-.111.
-.....
-.....
-.....
-.....")
+	# UN ETAGE, PLATEAU ISOLE : les trois pans, mais le corps 1 reste hors d atteinte
+	# A CET ETAGE-LA.
+	# ⚠ Ce n est PAS une regle generale, et deux raisons y suffisent. Une robe raccourcie,
+	# qui ne pose pas son pied, montre du corps sur sa derniere case. Et la PLAINE elle-meme
+	# a sa falaise : au bord du monde elle tombe de trois cases sans jamais atterrir, donc
+	# sa derniere case est du corps 1. On regarde donc l etage 1 seul.
+	# La marge de vide est ce qui rend le bord du monde explicite : sans elle, la falaise
+	# de la plaine tomberait hors du cadre.
+	var one_storey: PackedStringArray = HeightMask.parse("~~~~~~~
+~.....~
+~.111.~
+~.....~
+~.....~
+~.....~
+~.....~
+~~~~~~~
+~~~~~~~
+~~~~~~~")
 	var shallow: Dictionary = Walls.analyse(one_storey)
 	var roles: Dictionary = Walls.assemble(one_storey)["roles"]
-	_check_equal(roles[Vector3i(1, 2, 1)], Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le bout gauche a le vide a l ouest")
-	_check_equal(roles[Vector3i(2, 2, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le milieu est muet des deux cotes")
-	_check_equal(roles[Vector3i(3, 4, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_VOID), Walls.ROW_FOOT), "le bout droit a le vide a l est")
-	var expected_missing: Array[Vector2i] = [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2)]
-	_check(not shallow["present"].has(Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), 2)), "ce plateau isole d un etage ne montre pas le corps 1")
+	_check_equal(roles[Vector3i(2, 3, 1)], Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le bout gauche a le vide a l ouest")
+	_check_equal(roles[Vector3i(3, 3, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), Walls.ROW_CROWN), "le milieu est muet des deux cotes")
+	_check_equal(roles[Vector3i(4, 5, 1)], Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_VOID), Walls.ROW_FOOT), "le bout droit a le vide a l est")
+	var storey_one: Dictionary = {}
+	for key: Vector3i in roles.keys():
+		if key.z == 1:
+			storey_one[roles[key]] = true
+	_check(not storey_one.has(Vector2i(Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE), 2)), "ce plateau isole d un etage ne montre pas le corps 1")
 	_check(shallow["outside"].is_empty(), "aucune robe ne tombe hors de la grille")
 
 	# DEUX ETAGES : la chute de six cases fait apparaitre les douze roles.
 	var two_storeys: PackedStringArray = HeightMask.parse(".....
 .222.
+.....
 .....
 .....
 .....
@@ -582,8 +596,11 @@ func _test_wall_delivery() -> void:
 
 func _test_twins() -> void:
 	print("jumelles : les cases qui portent la meme tuile")
-	# Deux ilots isoles portent le meme index : ce sont des variantes l une de l autre.
-	var flat: PackedStringArray = HeightMask.parse("#.#")
+	# Deux ilots isoles portent le meme index : ce sont les jumelles l une de l autre.
+	# ⚠ LA CASE DU MILIEU N EST PAS VIDE, C EST DE LA PLAINE, et la plaine est un plateau
+	# comme les autres : elle porte donc son propre index. Pour ne regarder que les ilots,
+	# on met du VIDE entre eux.
+	var flat: PackedStringArray = HeightMask.parse("#~#")
 	var indices: Dictionary = Coverage.index_map(flat)
 	var groups: Dictionary = Coverage.cells_by_index(indices)
 	_check_equal(groups.size(), 1, "un seul index en jeu")
@@ -1647,10 +1664,16 @@ func _test_guide_image() -> void:
 	_check(summit.a > 0.9, "le sommet d un plateau, lui, est bien pose")
 	# Une face de falaise est chaude ; les herbes sont vertes. On les distingue sans les nommer.
 	_check(face.r > face.g, "la falaise est plus chaude que l herbe")
-	# ⚠ LA PLAINE NE SE DESSINE PAS. Elle ne nous appartient pas : dans le jeu, le sol sous
-	# les plateaux sera un ETAGE PLAT DU MEME TILESET, pose par le moteur sur sa propre
-	# couche. En peindre un ici reviendrait a livrer un fond que le tileset ne contient pas.
-	_check_equal(plain.a, 0.0, "la plaine ne se dessine pas : elle ne nous appartient pas")
+	# ⚠ LA PLAINE SE DESSINE, ET C'EST NOUVEAU. Elle est un plateau comme les autres : elle
+	# a sa silhouette, ses 47 index et ses falaises au bord du monde. Ce qui ne se dessine
+	# pas, c'est le VIDE -- et lui seul.
+	_check(plain.a > 0.9, "la plaine se dessine : c'est un plateau comme les autres")
+	_check(plain != summit, "mais elle ne se confond pas avec un sommet : l'altitude se lit")
+	var nothing: Color = GuideImage.render(HeightMask.parse("~~~
+~~~
+~~~")).get_pixel(
+			GuideImage.TILE + half, GuideImage.TILE + half)
+	_check_equal(nothing.a, 0.0, "LE VIDE, LUI, NE SE DESSINE PAS : le monde s'arrete la")
 	# Rien d aleatoire : deux rendus du meme relief donnent la meme image.
 	var again: Image = GuideImage.render(heights)
 	_check_equal(again.get_data(), image.get_data(), "le rendu est deterministe")
@@ -1898,14 +1921,18 @@ func _compare_maps(mine: Dictionary, theirs: Dictionary, seen: Dictionary) -> in
 	return apart
 
 
-## Le relief du noyau, traduit dans la forme que le plugin attend : case -> etage, et rien
-## pour la plaine. Le hors-grille vaut donc la plaine des deux cotes.
+## Le relief du noyau, traduit dans la forme que le plugin attend : case -> etage.
+##
+## ⚠ LA PLAINE EST UNE CASE DU MONDE, ELLE AUSSI. Ce qui est absent du dictionnaire n'est
+## plus « de la plaine » mais du VIDE -- c'est l'inversion qui donne son sol au monde. Ne
+## porter ici que les plateaux reviendrait a dire au plugin que tout le reste est hors-monde,
+## et les deux lecteurs divergeraient des la premiere case plate.
 func _plugin_world(heights: PackedStringArray) -> Dictionary:
 	var world: Dictionary = {}
 	for y: int in range(HeightMask.height(heights)):
 		for x: int in range(HeightMask.width(heights)):
 			var level: int = HeightMask.level_at(heights, x, y)
-			if level > 0:
+			if level >= 0:
 				world[Vector2i(x, y)] = level
 	return world
 
@@ -2096,11 +2123,18 @@ func _test_deep_falls() -> void:
 			unfooted += 1
 
 		var roles: Dictionary = Walls.visible_roles(relief)
-		var rows_used: Dictionary = {}
 		for role: Vector2i in roles.values():
-			rows_used[role.y] = true
 			if not known.has(role):
 				strays += 1
+		# ⚠ ON NE COMPTE LE CORPS 1 QUE SUR LA CHUTE DE CET ETAGE. La PLAINE a elle aussi
+		# sa falaise -- au bord du monde elle tombe de trois cases sans jamais atterrir, donc
+		# sa derniere case est du corps 1. La compter ici dirait « le corps 1 des l etage 1 »
+		# alors que le fait mesure est plus etroit : une chute QUI ATTERRIT de trois cases ne
+		# le montre pas.
+		var rows_used: Dictionary = {}
+		for key: Vector3i in Walls.assemble(relief)["roles"].keys():
+			if key.z == level:
+				rows_used[(Walls.assemble(relief)["roles"][key] as Vector2i).y] = true
 		if rows_used.has(2):
 			body_one_seen += 1
 
@@ -2124,6 +2158,10 @@ func _test_deep_falls() -> void:
 	_check_equal(unfooted, 0, "et toutes posent leur pied : elles atterrissent vraiment")
 	_check_equal(strays, 0,
 			"aucune de ces chutes ne reclame un role hors des %d" % Walls.ALL_ROLES.size())
+	# ⚠ ON NE COMPTE QUE LES CHUTES QUI ATTERRISSENT. La falaise du bord du monde, elle,
+	# ne pose pas son pied : sa troisieme case est du corps 1, et elle apparait des l etage 1.
+	# Le fait mesure ici est plus etroit : une chute QUI ATTERRIT de trois cases ne montre
+	# pas le corps 1.
 	_check_equal(body_one_seen, HeightMask.MAX_LEVEL - 1,
 			"le corps 1 apparait des deux etages, et pas avant : une chute de trois ne le voit pas")
 	_check_equal(drift, 0, "le plugin dit la meme chose jusqu a la chute de %d cases"

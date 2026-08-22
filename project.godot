@@ -15,7 +15,7 @@ config/description="Paint one landscape. Every edge case covered."
 
 ; ⚠ SEULE SOURCE DE VERITE POUR LA VERSION. Le bandeau de l editeur la lit ici ; ne la
 ; recopier nulle part ailleurs, sinon les deux finiront par se contredire.
-config/version="3.1.0"
+config/version="4.0.0"
 run/main_scene="res://ui/editor.tscn"
 config/features=PackedStringArray("4.7")
 

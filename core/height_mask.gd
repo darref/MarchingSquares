@@ -1,7 +1,17 @@
 # Un guide en relief : une hauteur par case.
 #
-# '.' ou '0' = la plaine, niveau 0. '1'..'9' = les plateaux, du plus bas au plus haut.
-# Le hors-grille est a la plaine.
+# '~' = le VIDE, le hors-monde. '.' ou '0' = la plaine, niveau 0. '1'..'9' = les plateaux.
+# Le hors-grille est du vide.
+#
+# ⚠ LE VIDE N'EST PAS LA PLAINE, ET C'EST LA PIECE QUI MANQUAIT AU MOTEUR. Tant que le
+# modele ne savait pas les distinguer, il ne pouvait pas dire OU LE SOL S'ARRETE : le plugin
+# ne posait donc aucun etage 0, et le sol du jeu restait a la charge de l'acheteur. La
+# plaine est un plateau comme les autres -- elle a sa silhouette, ses 47 index, et ses
+# falaises la ou elle borde le vide. Le vide, lui, n'est rien : ni tuile, ni levre.
+#
+# ⚠ ET `level_at` REND -1 SUR LE VIDE, PAS 0. Tout le code qui teste `>= N` avec N >= 1 est
+# donc inchange -- le vide y echoue exactement comme la plaine. Seul ce qui teste `>= 0`
+# voit la difference, et c'est precisement l'etage 0.
 #
 # ⚠ LA SILHOUETTE D'UN ETAGE EST UN MASQUE BINAIRE. Les cases de hauteur >= N forment la
 # silhouette de l'etage N, et cette silhouette est exactement ce que blob_index et coverage
@@ -17,12 +27,16 @@ const MaskIO := preload("res://core/mask_io.gd")
 const PLAIN_CHAR: String = "."
 const MAX_LEVEL: int = 9
 
+## Le hors-monde. Ni un etage, ni une tuile : rien.
+const VOID: int = -1
+const VOID_CHAR: String = "~"
+
 ## Accepte par tolerance dans un guide a deux niveaux : '#' vaut le premier plateau.
 const LEGACY_FILLED_CHAR: String = "#"
 
 
 ## Analyse un texte de guide en relief. Lignes vides ignorees, lignes courtes completees
-## a la plaine, comme pour un masque binaire.
+## au VIDE -- une ligne qui s'arrete dit que le monde s'arrete, pas qu'il continue en plat.
 static func parse(text: String) -> PackedStringArray:
 	var rows: PackedStringArray = PackedStringArray()
 	var widest: int = 0
@@ -40,11 +54,13 @@ static func parse(text: String) -> PackedStringArray:
 	for index: int in range(rows.size()):
 		var missing_columns: int = widest - rows[index].length()
 		if missing_columns > 0:
-			rows[index] = rows[index] + PLAIN_CHAR.repeat(missing_columns)
+			rows[index] = rows[index] + VOID_CHAR.repeat(missing_columns)
 	return rows
 
 
 static func _level_char(character: String, line_number: int, column: int) -> String:
+	if character == VOID_CHAR:
+		return VOID_CHAR
 	if character == PLAIN_CHAR or character == "0":
 		return PLAIN_CHAR
 	if character == LEGACY_FILLED_CHAR:
@@ -95,11 +111,13 @@ static func height(heights: PackedStringArray) -> int:
 ## Hauteur d'une case. Le hors-grille est a la plaine.
 static func level_at(heights: PackedStringArray, x: int, y: int) -> int:
 	if y < 0 or y >= heights.size():
-		return 0
+		return VOID
 	var row: String = heights[y]
 	if x < 0 or x >= row.length():
-		return 0
+		return VOID
 	var character: String = row[x]
+	if character == VOID_CHAR:
+		return VOID
 	if character == PLAIN_CHAR:
 		return 0
 	return character.to_int()

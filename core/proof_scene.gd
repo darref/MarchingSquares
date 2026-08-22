@@ -23,6 +23,7 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const Walls := preload("res://core/walls.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Families := preload("res://core/families.gd")
+const HeightMask := preload("res://core/height_mask.gd")
 
 const ISLAND: int = 3
 const COLUMNS: int = 8
@@ -32,6 +33,10 @@ const PITCH_Y: int = ISLAND + 4
 ## L'ilot de la famille A CHEVAL : un simple bloc de 2 x 2 cases. Une tuile de croisement ne
 ## depend que des quatre cases qu'elle chevauche -- l'ilot EST donc la tuile, sans voisinage
 ## a mettre en scene. Cinq par rangee suffisent a poser les quinze.
+## La marge de vide autour de la planche : une chute entiere, pour que la falaise du bord
+## du monde tombe DANS le cadre.
+const VOID_MARGIN: int = 3
+
 const DUAL_ISLAND: int = 2
 const DUAL_COLUMNS: int = 5
 const DUAL_PITCH_X: int = DUAL_ISLAND + 1
@@ -81,11 +86,19 @@ static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
 	width = maxi(width, WALL_DEMO[0].length() + 2)
 	var height: int = wall_top + WALL_DEMO.size() + 1
 
-	var blank: String = ".".repeat(width)
+	# ⚠ LA PLANCHE S'ENTOURE DE VIDE, ELLE AUSSI. La plaine est un plateau : au bord du
+	# monde elle a une falaise de trois cases, et sans marge celle-ci tomberait hors du
+	# cadre. La marge vaut donc une chute entiere.
+	width += 2 * VOID_MARGIN
+	height += 2 * VOID_MARGIN
+	var blank: String = HeightMask.VOID_CHAR.repeat(width)
 	var cells: Array = []
 	for y: int in range(height):
 		var row: PackedByteArray = blank.to_utf8_buffer()
 		cells.append(row)
+	for y: int in range(VOID_MARGIN, height - VOID_MARGIN):
+		for x: int in range(VOID_MARGIN, width - VOID_MARGIN):
+			_put(cells, x, y, 0)
 
 	for order: int in range(indices.size()):
 		var origin: Vector2i = island_origin(order, family)
@@ -95,6 +108,7 @@ static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
 			_stamp_island(cells, indices[order], origin)
 
 	var wall_left: int = maxi(0, (width - WALL_DEMO[0].length()) / 2)
+	wall_top += VOID_MARGIN
 	for y: int in range(WALL_DEMO.size()):
 		for x: int in range(WALL_DEMO[y].length()):
 			var glyph: String = WALL_DEMO[y][x]
@@ -110,10 +124,11 @@ static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
 ## Le coin haut-gauche de l'ilot de rang [param order].
 static func island_origin(order: int,
 		family: StringName = Families.BY_CELL) -> Vector2i:
+	var shift: Vector2i = Vector2i(VOID_MARGIN, VOID_MARGIN)
 	if family == Families.BY_CORNER:
-		return Vector2i((order % DUAL_COLUMNS) * DUAL_PITCH_X,
+		return shift + Vector2i((order % DUAL_COLUMNS) * DUAL_PITCH_X,
 				(order / DUAL_COLUMNS) * DUAL_PITCH_Y)
-	return Vector2i((order % COLUMNS) * PITCH_X, (order / COLUMNS) * PITCH_Y)
+	return shift + Vector2i((order % COLUMNS) * PITCH_X, (order / COLUMNS) * PITCH_Y)
 
 
 ## Ou lire chaque index sur la planche : index -> case centrale de son ilot.

@@ -89,15 +89,21 @@ const STOREY_TILES: int = 3
 ## Rendu quand une case ne porte aucune tuile.
 const NO_INDEX: int = -1
 
+## Le hors-monde. Ni un etage, ni une tuile : rien.
+const VOID: int = -1
+
 
 # --- LE RELIEF ---------------------------------------------------------------
 
-## L'etage d'une case. Tout ce qui n'est pas au relief est a la plaine.
+## L'etage d'une case. Tout ce qui n'est PAS au relief est du VIDE, pas de la plaine.
 ##
-## ⚠ LA PLAINE N'EST PAS UNE TUILE. L'etage 0 ne sort pas de la planche : dans le jeu, le
-## sol sous les plateaux est un etage plat de plus, pose par le moteur sur sa propre couche.
+## ⚠ C'EST L'INVERSION QUI DONNE SON SOL AU MONDE. Tant qu'une case absente valait la
+## plaine, le relief s'etendait a l'infini et le plugin ne pouvait pas dire ou le sol
+## s'arrete : il ne posait donc aucun etage 0. Une case presente a l'etage 0 est de la
+## plaine, une case absente n'est rien. La plaine devient alors un plateau comme les
+## autres : ses 47 index, et ses falaises la ou elle borde le vide.
 static func level_at(heights: Dictionary, cell: Vector2i) -> int:
-	return int(heights.get(cell, 0))
+	return int(heights.get(cell, VOID))
 
 
 ## L'etage le plus haut du relief.
@@ -146,7 +152,7 @@ static func blob_index_at_level(heights: Dictionary, cell: Vector2i, level: int)
 ## l'union des etages : vue de dessus, une case sous un plateau plus haut est masquee.
 static func surface_index_at(heights: Dictionary, cell: Vector2i) -> int:
 	var level: int = level_at(heights, cell)
-	if level < 1:
+	if level < 0:
 		return NO_INDEX
 	return blob_index_at_level(heights, cell, level)
 
@@ -225,7 +231,11 @@ static func pan_of(west: int, east: int) -> int:
 ## la descente repondrait « touche » des la premiere case, et toutes les falaises feraient
 ## une case de haut.
 static func fall_at(heights: Dictionary, level: int, cell: Vector2i) -> Vector2i:
-	var drop: int = STOREY_TILES * level
+	# ⚠ QUAND RIEN N'EST DESSOUS, LA ROBE NE S'ARRETE PAS A L'ETAGE 0 : elle tombe d'un
+	# etage de plus, dans le vide, et ne pose pas son pied. C'est la falaise du bord du
+	# monde -- celle qui borde le vide -- et c'est aussi celle de la plaine elle-meme, dont
+	# aucun etage ne peut la recevoir.
+	var drop: int = STOREY_TILES * (level + 1)
 	var landed: bool = false
 	for below: int in range(level - 1, -1, -1):
 		var candidate: int = STOREY_TILES * (level - below)
@@ -294,7 +304,9 @@ static func pan_at(heights: Dictionary, level: int, lip_of: Dictionary, at: Vect
 ## case, la plus haute masquant l'autre, exactement comme deux calques.
 static func assemble_walls(heights: Dictionary) -> Dictionary:
 	var roles: Dictionary = {}
-	for level: int in range(1, top_level(heights) + 1):
+	# ⚠ ON PART DE L'ETAGE 0, PAS DE 1. La plaine est un plateau comme les autres : la ou
+	# elle borde le vide, elle a une levre et donc une falaise. C'est le bord du monde.
+	for level: int in range(0, top_level(heights) + 1):
 		# PREMIERE PASSE -- la geometrie seule. Le pan d'une rangee depend de ce que les
 		# robes VOISINES couvrent a cette hauteur-la : en posant au fil de l'eau, on ne
 		# connaitrait que la moitie gauche.

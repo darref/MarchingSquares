@@ -996,46 +996,44 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   surplombe se voit à son ombre — mais leur statut est clair : **pure aide à la lecture**,
   toujours masquable, et jamais quelque chose que le tileset livre.
 
-- **L'ÉTAGE 0 EST UN PLATEAU COMME LES AUTRES, ET L'ÉDITEUR L'ANNONCE.** Dans le jeu, le sol
-  sous les plateaux sera un étage plat du **même tileset**, posé par le moteur sur sa propre
-  couche : le game dev n'a rien de plus à dessiner pour l'avoir. Autant le montrer tout de
-  suite, plutôt que de laisser croire que le guide flotte sur du vide.
+- **LE VIDE, ET LA PLAINE QUI DEVIENT UN PLATEAU.** C'était la première pièce qui manquait
+  côté moteur, et elle en a débloqué trois.
 
-  **Sa silhouette se calcule** : propagation depuis les zones peignables réunies, **quatre
-  cases vers le dehors**, puis l'intérieur est entièrement bouché. Elle est ensuite traitée
-  comme un **relief à part entière** — un plateau parfaitement plat — et ses index sortent
-  du **même code** que ceux du guide. Il n'existe donc aucun état où le sol et le guide se
-  contrediraient.
+  Le modèle ne savait pas distinguer **« case à l'étage 0 »** de **« case hors du monde »**.
+  Il ne pouvait donc pas dire où le sol s'arrête, et AbsoluPaint ne posait aucun étage 0 :
+  le sol du jeu restait à la charge de l'acheteur.
 
-  ⚠ **QUATRE CASES, PAS UNE.** Il faut assez de sol pour qu'on y voie une vraie bordure —
-  un coin, un bord droit, une masse pleine. En dessous on ne montre pas un plateau, on
-  montre un liséré.
+  **`~` est le vide**, `HeightMask.VOID` vaut −1, et **le hors-grille est du vide**. Côté
+  plugin la même inversion : une case **absente du dictionnaire n'est plus de la plaine mais
+  du hors-monde**. La plaine, elle, se déclare.
 
-  ⚠ **ET IL RÉAGIT AU CRAYON, EN TEMPS RÉEL. C'est tout l'intérêt.** Chaque case emprunte
-  la tuile peinte de son index, donc peindre **une** tuile remplit le sol **d'un coup** :
-  l'acheteur voit, sous ses yeux, le peu qu'il aura à dessiner. C'est la même idée que les
-  jumelles, à l'échelle de l'écran entier.
+  ⚠ **`level_at` REND −1, PAS 0, ET C'EST CE QUI REND LE CHANGEMENT SÛR.** Tout le code qui
+  teste `>= N` avec N ≥ 1 est inchangé — le vide y échoue exactement comme la plaine. Seul
+  ce qui teste `>= 0` voit la différence, et c'est précisément l'étage 0.
 
-  ⚠ **CE N'EST QUE DU DÉCOR.** Aucune de ces cases ne se peint, aucune ne porte de grille,
-  rien n'en sort à l'export. Et **tout autour, aucune couleur** : le fond du programme. Le
-  monde s'arrête là, et le dire est plus honnête que de peindre du vert jusqu'au bord.
+  **Conséquence : la plaine est un plateau comme les autres.** Elle a sa silhouette — tout
+  ce qui n'est pas le vide — ses **47 index**, et ses **falaises** là où elle borde le vide.
+  C'est le bord du monde. **Aucune tuile nouvelle** : ce sont les mêmes 47 et les mêmes 36.
 
-  ⚠ **LE SOL SE DESSINE EN UN SEUL COUP, PAS CASE PAR CASE, ET C'EST MESURÉ.** Ma première
-  version posait un `draw_rect` par case : **mille sept cents par image**. Ils ne se groupent
-  pas — l'affichage est tombé à sept images par seconde, et le fond du guide, qui se calcule
-  par étapes dans `_process`, **ne se terminait plus jamais**. Une capture qui prenait sept
-  secondes en prenait deux minutes treize. Le sol est donc composé **une fois** dans une
-  image et posé comme **une** texture ; il ne coûte plus rien tant qu'on ne peint pas.
+  ⚠ **UNE ROBE QUI NE TROUVE RIEN SOUS ELLE TOMBE D'UN ÉTAGE DE PLUS.** `fall_at` partait de
+  `STOREY_TILES × niveau`, ce qui donnait zéro pour la plaine : elle n'aurait jamais eu de
+  falaise. Elle part de `STOREY_TILES × (niveau + 1)` et **ne pose pas son pied** — on ne
+  touche pas le fond d'un gouffre.
 
-  ⚠ **Et sa texture est plafonnée à 32 pixels par case.** À 256 — la résolution de travail
-  la plus haute — ses dix-sept cents cases feraient une image de cent millions de pixels,
-  pour du décor qu'on regarde à vingt pixels de côté.
+  ⚠ **CHAQUE RELIEF DOIT DÉSORMAIS DÉCLARER SON BORD**, et la marge vaut **une chute
+  entière** : trois rangées de vide autour. Sans elle, la falaise du bord du monde tombe
+  hors du cadre — et une robe hors du cadre est une tuile impeignable. Les deux guides, le
+  décor de l'aperçu et la planche de preuve s'entourent donc de `~`.
 
-  ⚠ **Une source par index, pas par case.** Les jumelles portent le même dessin : on
-  redimensionne au plus quarante-sept tuiles, puis on les tamponne dix-sept cents fois.
+  ⚠ **ET LE TABLIER DE SOL DE L'ÉDITEUR A DISPARU.** Il dessinait une plaine décorative
+  autour du guide ; le guide porte maintenant la sienne, avec sa falaise. Garder les deux
+  aurait étendu la plaine **au-delà de la falaise que le guide venait de déclarer** —
+  c'est-à-dire contredit le guide. Hors du monde, c'est le fond du programme, et c'est
+  désormais une vérité du guide, pas une décoration.
 
-  ⚠ **Elle est à l'éditeur, pas au guide.** Aucun pixel de cet aplat ne sort à l'export, et
-  `guide_image` continue de rendre `NO_PLAIN`. C'est un fond d'écran, pas une tuile.
+  ⚠ **Le corps 1 apparaît donc dès l'étage 1**, sur la falaise du bord du monde : elle tombe
+  de trois cases **sans atterrir**, donc sa dernière case est du corps. Le fait qu'on mesure
+  est plus étroit qu'avant : *une chute QUI ATTERRIT de trois cases* ne montre pas le corps 1.
 
 - **⚠ UNE INSERTION QUI SE TROMPE DE FIN DE FONCTION NE SE VOIT NULLE PART.** En ajoutant
   `_build_ground()` j'ai ancré sur la boucle des jumelles, en croyant qu'elle terminait
@@ -1487,9 +1485,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
-- **Le sol du monde.** AbsoluPaint ne pose pas d'etage 0 : le modele ne distingue pas la
-  plaine du hors-monde. Il faut un **marqueur de vide distinct de la plaine** pour que le
-  plugin sache ou le sol s'arrete. C'est la premiere piece qui manque cote moteur.
 - **La regle de pose ne decrit pas la famille a cheval.** Un export `corner` emet bien
   `famille corner` et ses 15 index, mais la section contrat du manifeste ne porte que la
   regle du blob : ni les bits du croisement, ni les quatre cases qu'il touche, ni le decalage

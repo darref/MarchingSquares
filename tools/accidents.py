@@ -42,15 +42,29 @@ class Grille:
                 if 0 <= x < self.w and 0 <= y < self.h:
                     self.g[y][x] = max(self.g[y][x], niveau)
 
-    def texte(self):
-        return '\n'.join(''.join('.' if v == 0 else str(v) for v in row)
-                         for row in self.g) + '\n'
+    def texte(self, marge=3):
+        """⚠ LE RELIEF S'ENTOURE DE VIDE, ET LA MARGE VAUT UNE CHUTE ENTIERE.
+
+        La plaine est un plateau comme les autres : la ou elle borde le vide, elle a une
+        levre, donc une falaise de trois cases. Sans marge, cette falaise du BORD DU MONDE
+        tomberait hors du cadre -- et une robe hors du cadre est une tuile impeignable."""
+        vide = '~' * (self.w + 2 * marge)
+        lignes = [vide] * marge
+        for row in self.g:
+            lignes.append('~' * marge
+                          + ''.join('.' if v == 0 else str(v) for v in row)
+                          + '~' * marge)
+        lignes += [vide] * marge
+        return '\n'.join(lignes) + '\n'
 
     def ecrire(self, nom):
         racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         chemin = os.path.join(racine, 'guides', nom)
-        open(chemin, 'w', encoding='utf-8').write(self.texte())
-        print("guides/%s : %d x %d" % (nom, self.w, self.h))
+        texte = self.texte()
+        open(chemin, 'w', encoding='utf-8').write(texte)
+        lignes = texte.rstrip('\n').split('\n')
+        print("guides/%s : %d x %d (monde %d x %d, borde de vide)"
+              % (nom, len(lignes[0]), len(lignes), self.w, self.h))
 
 
 # ---------------------------------------------------------------- le district lacustre

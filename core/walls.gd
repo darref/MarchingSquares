@@ -117,7 +117,11 @@ static func row_for(step: int, drop: int, landed: bool) -> int:
 
 ## La chute sous une levre : Vector2i(nombre de cases, 1 si elle atterrit).
 static func fall_at(heights: PackedStringArray, level: int, cell: Vector2i) -> Vector2i:
-	var drop: int = STOREY_TILES * level
+	# ⚠ QUAND RIEN N'EST DESSOUS, LA ROBE NE S'ARRETE PAS A L'ETAGE 0 : elle tombe d'un
+	# etage de plus, dans le vide, et ne pose pas son pied. C'est la falaise du bord du
+	# monde -- celle qui borde le vide -- et c'est aussi celle de la plaine elle-meme, dont
+	# aucun etage ne peut la recevoir.
+	var drop: int = STOREY_TILES * (level + 1)
 	var landed: bool = false
 	for below: int in range(level - 1, -1, -1):
 		var candidate: int = STOREY_TILES * (level - below)
@@ -207,7 +211,9 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 	var outside: Array[Vector3i] = []
 	var grid_width: int = HeightMask.width(heights)
 	var grid_height: int = HeightMask.height(heights)
-	for level: int in range(1, HeightMask.top_level(heights) + 1):
+	# ⚠ ON PART DE L'ETAGE 0, PAS DE 1. La plaine est un plateau comme les autres : la ou
+	# elle borde le vide, elle a une levre et donc une falaise. C'est le bord du monde.
+	for level: int in range(0, HeightMask.top_level(heights) + 1):
 		# PREMIERE PASSE -- la geometrie seule. On calcule toutes les chutes avant de poser
 		# quoi que ce soit, parce que le pan d'une rangee depend de ce que les robes
 		# VOISINES couvrent a cette hauteur-la : en posant, on ne connaitrait que la

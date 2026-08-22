@@ -57,16 +57,6 @@ const LOAD_BUDGET_USEC: int = 12000
 ## `guide_image` continue de laisser le vide. C'est du decor, pas une tuile.
 const GROUND: Color = Color(0.204, 0.235, 0.188)
 
-## L'epaisseur du sol autour des zones peignables, en cases.
-## ⚠ QUATRE, PAS UNE. Il faut assez de sol pour qu'on y voie une VRAIE bordure -- un coin,
-## un bord droit, une masse pleine -- sinon on ne montre pas un plateau, on montre un lisere.
-const GROUND_MARGIN: int = 4
-
-## Le cote d'une case du sol dans sa texture, en pixels -- plafonne.
-## ⚠ LE SOL EST DU DECOR, IL N'A PAS BESOIN DE LA RESOLUTION DU TRAVAIL. A 256 pixels de
-## cote, ses dix-sept cents cases feraient une image de cent millions de pixels. Trente-deux
-## suffisent : a l'ecran une case en fait une vingtaine.
-const GROUND_MAX_SIDE: int = 32
 # Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
 # Le fond utilisable est deja en teinte basse, il n'a pas besoin d'etre efface.
 const GUIDE_TINT: Color = Color(1.0, 1.0, 1.0, 0.55)
@@ -152,15 +142,7 @@ var assembled: bool = false
 ## L'inverse de `assembled` : on efface ce qui est peint et on ne garde que le guide.
 ## ⚠ LES DEUX SE COCHENT EN MEME TEMPS SANS SE CONTREDIRE : il ne reste alors rien du tout,
 ## et c'est une reponse honnete plutot qu'un cas interdit.
-## ⚠ LE SOL SUIT, LUI AUSSI. Il emprunte les tuiles peintes ; le masquer sans le recomposer
-## laisserait le paysage peint tout autour de l'ile qu'on vient de vider.
-var hide_work: bool = false:
-	set(value):
-		if hide_work == value:
-			return
-		hide_work = value
-		_ground_dirty = true
-		queue_redraw()
+var hide_work: bool = false
 
 ## ⚠ LA LUMIERE PORTEE EST UNE DECORATION, PAS UN PRODUIT. Les ombres tombent sur des cases
 ## de plaine, et la plaine n'est pas une tuile : aucune tuile exportee ne peut les porter.
@@ -187,14 +169,6 @@ var _changed: bool = false
 var _twin_of: Dictionary = {}
 var _wall_roles: Dictionary = {}
 var _by_index: Dictionary = {}
-## L'etage 0. En coordonnees de MASQUE, decalees de `_ground_offset` par rapport au guide,
-## puisque le sol deborde de quatre cases de tous les cotes.
-var _ground: Dictionary = {}
-var _ground_offset: Vector2i = Vector2i.ZERO
-var _ground_span: Vector2i = Vector2i.ZERO
-var _ground_image: Image = null
-var _ground_texture: ImageTexture = null
-var _ground_dirty: bool = false
 var _by_role: Dictionary = {}
 var _targets: Dictionary = {}
 var _needs_fit: bool = false
@@ -238,15 +212,8 @@ func _process(_delta: float) -> void:
 			queue_redraw()
 	if _changed:
 		_changed = false
-		# ⚠ LE SOL SUIT LE CRAYON, ET C'EST TOUT L'INTERET. Peindre une tuile remplit d'un
-		# coup toutes les cases de sol qui la portent : l'acheteur voit, en temps reel, le
-		# peu qu'il aura a dessiner. On ne recompose qu'une fois par image, jamais par pixel.
-		_ground_dirty = true
 		queue_redraw()
 		painting_changed.emit()
-	if _ground_dirty:
-		_refresh_ground()
-		queue_redraw()
 
 
 func _on_screen(cell: Vector2i) -> bool:
@@ -316,179 +283,6 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# On demande le cadrage, et c'est le premier redimensionnement qui l'execute.
 	_needs_fit = true
 	fit()
-	_build_ground(heights)
-
-
-## L'ETAGE 0 : LA PLAINE EST UN PLATEAU COMME LES AUTRES, ET ON L'ANNONCE.
-##
-## Dans le jeu, le sol sous les plateaux sera un etage plat du MEME tileset, pose par le
-## moteur sur sa propre couche. Le game dev n'a donc rien de plus a dessiner pour l'avoir --
-## autant le montrer tout de suite, plutot que de laisser croire que le guide flotte.
-##
-## Sa silhouette se propage depuis les zones peignables reunies, quatre cases vers le
-## dehors, puis on bouche entierement l'interieur. Elle est ensuite traitee comme un relief
-## a part entiere -- un plateau parfaitement plat -- et ses index sortent du MEME code que
-## le reste. Il n'existe donc aucun etat ou le sol et le guide se contrediraient.
-##
-## ⚠ CE N'EST QUE DU DECOR. Aucune de ces cases ne se peint, aucune ne porte de grille,
-## rien n'en sort a l'export. Mais elle REAGIT au crayon : chaque case emprunte la tuile
-## peinte de son index, donc peindre une tuile remplit le sol d'un coup, sous les yeux.
-## C'est exactement ce qu'on vend -- l'acheteur voit le peu qu'il aura a dessiner.
-func _build_ground(heights: PackedStringArray) -> void:
-	_ground.clear()
-	_ground_texture = null
-	_ground_span = Vector2i.ZERO
-	var columns: int = HeightMask.width(heights)
-	var rows: int = HeightMask.height(heights)
-	if columns <= 0 or rows <= 0:
-		return
-	var wide: int = columns + 2 * GROUND_MARGIN
-	var tall: int = rows + 2 * GROUND_MARGIN
-	_ground_offset = Vector2i(GROUND_MARGIN, GROUND_MARGIN)
-
-	# Les graines : tout ce qui porte quelque chose. Les plateaux, et les cases de robe --
-	# qui sont de la plaine sur la carte, mais ou une falaise se dresse.
-	var inside: PackedByteArray = PackedByteArray()
-	inside.resize(wide * tall)
-	var front: Array[Vector2i] = []
-	for y: int in range(rows):
-		for x: int in range(columns):
-			if HeightMask.level_at(heights, x, y) < 1 and not _wall_cells.has(Vector2i(x, y)):
-				continue
-			var at: Vector2i = Vector2i(x, y) + _ground_offset
-			inside[at.y * wide + at.x] = 1
-			front.append(at)
-	if front.is_empty():
-		return
-
-	# La propagation, en huit voisins : quatre pas donnent quatre cases d'epaisseur, coins
-	# compris. En quatre voisins la bordure serait un losange, et les angles manqueraient.
-	for _step: int in range(GROUND_MARGIN):
-		var next: Array[Vector2i] = []
-		for at: Vector2i in front:
-			for dy: int in range(-1, 2):
-				for dx: int in range(-1, 2):
-					var to: Vector2i = at + Vector2i(dx, dy)
-					if to.x < 0 or to.y < 0 or to.x >= wide or to.y >= tall:
-						continue
-					if inside[to.y * wide + to.x] == 1:
-						continue
-					inside[to.y * wide + to.x] = 1
-					next.append(to)
-		front = next
-
-	# ⚠ ET L'INTERIEUR SE BOUCHE ENTIEREMENT. Une baie etroite ou un lac laisserait sinon
-	# un trou de fond de programme au milieu des terres : le sol d'un jeu n'a pas de trous.
-	# On marque ce que le DEHORS atteint, et tout le reste est du dedans.
-	_fill_enclosed(inside, wide, tall)
-
-	var mask: PackedStringArray = PackedStringArray()
-	for y: int in range(tall):
-		var line: PackedByteArray = PackedByteArray()
-		line.resize(wide)
-		for x: int in range(wide):
-			line[x] = 49 if inside[y * wide + x] == 1 else 46   # « 1 » ou « . »
-		mask.append(line.get_string_from_ascii())
-
-	# Le sol EST un relief : ses index sortent du meme code que ceux du guide.
-	var map: Dictionary = Families.index_map(guide_family, mask)
-	for at: Vector2i in map.keys():
-		_ground[at] = int(map[at])
-	_ground_span = Vector2i(wide + 1, tall + 1)
-	_ground_dirty = true
-
-
-## Marque comme sol tout ce que le dehors n'atteint pas.
-static func _fill_enclosed(inside: PackedByteArray, wide: int, tall: int) -> void:
-	var seen: PackedByteArray = PackedByteArray()
-	seen.resize(wide * tall)
-	var front: Array[Vector2i] = []
-	for x: int in range(wide):
-		for y: int in [0, tall - 1]:
-			if inside[y * wide + x] == 0 and seen[y * wide + x] == 0:
-				seen[y * wide + x] = 1
-				front.append(Vector2i(x, y))
-	for y: int in range(tall):
-		for x: int in [0, wide - 1]:
-			if inside[y * wide + x] == 0 and seen[y * wide + x] == 0:
-				seen[y * wide + x] = 1
-				front.append(Vector2i(x, y))
-	while not front.is_empty():
-		var at: Vector2i = front.pop_back()
-		for step: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
-			var to: Vector2i = at + step
-			if to.x < 0 or to.y < 0 or to.x >= wide or to.y >= tall:
-				continue
-			if inside[to.y * wide + to.x] == 1 or seen[to.y * wide + to.x] == 1:
-				continue
-			seen[to.y * wide + to.x] = 1
-			front.append(to)
-	for k: int in range(wide * tall):
-		if inside[k] == 0 and seen[k] == 0:
-			inside[k] = 1
-
-
-## Recompose la texture du sol.
-##
-## ⚠ UNE SOURCE PAR INDEX, PAS PAR CASE. Les jumelles portent le meme dessin : on
-## redimensionne au plus quarante-sept tuiles, puis on les tamponne dix-sept cents fois.
-func _refresh_ground() -> void:
-	_ground_dirty = false
-	if _ground.is_empty() or _painting == null or _ground_span == Vector2i.ZERO:
-		_ground_texture = null
-		return
-	var side: int = mini(_painting.resolution, GROUND_MAX_SIDE)
-	var wide: int = _ground_span.x * side
-	var tall: int = _ground_span.y * side
-	if _ground_image == null or _ground_image.get_width() != wide \
-			or _ground_image.get_height() != tall:
-		_ground_image = Image.create_empty(wide, tall, false, Image.FORMAT_RGBA8)
-	_ground_image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var flat: Image = Image.create_empty(side, side, false, Image.FORMAT_RGBA8)
-	flat.fill(GROUND)
-	var source: Dictionary = {}
-	var whole: Rect2i = Rect2i(0, 0, side, side)
-	for at: Vector2i in _ground.keys():
-		var index: int = int(_ground[at])
-		if not source.has(index):
-			source[index] = flat if hide_work else _ground_tile(index, side, flat)
-		var to: Vector2i = at * side
-		if to.x < 0 or to.y < 0 or to.x + side > wide or to.y + side > tall:
-			continue
-		_ground_image.blit_rect(source[index], whole, to)
-	_ground_texture = ImageTexture.create_from_image(_ground_image)
-
-
-## Le dessin peint qui porte cet index, ramene au cote du sol.
-## ⚠ N'IMPORTE LAQUELLE DE SES JUMELLES FAIT L'AFFAIRE : elles portent le meme dessin.
-func _ground_tile(index: int, side: int, flat: Image) -> Image:
-	if not _by_index.has(index):
-		return flat
-	for cell: Vector2i in _by_index[index]:
-		var tile: Image = _painting.image_of(cell)
-		if tile == null:
-			continue
-		if tile.get_width() == side:
-			return tile
-		var scaled: Image = tile.duplicate()
-		scaled.resize(side, side, Image.INTERPOLATE_NEAREST)
-		return scaled
-	return flat
-
-
-## ⚠ LE SOL SE DESSINE EN UN SEUL COUP, PAS CASE PAR CASE. Mille sept cents `draw_rect`
-## par image ne se groupent pas : mesure, l'affichage tombait a sept images par seconde et
-## le fond du guide ne se calculait plus jamais. Le sol est donc compose une fois dans une
-## image et pose comme UNE texture -- il ne coute plus rien tant qu'on ne peint pas.
-func _draw_ground() -> void:
-	if _ground_texture == null:
-		return
-	var corner: Vector2 = -Vector2(float(_ground_offset.x), float(_ground_offset.y))
-	if guide_family == Families.BY_CORNER:
-		corner -= Vector2(0.5, 0.5)
-	draw_texture_rect(_ground_texture,
-			Rect2(_origin + corner * _tile_px,
-					Vector2(float(_ground_span.x), float(_ground_span.y)) * _tile_px), false)
 
 
 ## La carte case -> index de surface, et plus bas les roles de robe. Toutes deux calculees
@@ -591,13 +385,15 @@ func _on_resized() -> void:
 
 
 func _draw() -> void:
-	# ⚠ AUCUN APLAT PLEIN. Hors du sol c'est le fond du programme : le monde s'arrete la,
-	# et le dire est plus honnete que de peindre du vert jusqu'au bord du cadre.
+	# ⚠ AUCUN APLAT PLEIN, ET PLUS AUCUN TABLIER. Le guide porte desormais SA PROPRE
+	# plaine -- un plateau comme les autres, avec sa falaise au bord du monde -- et ce qui
+	# l'entoure est du VIDE. Le decor que l'editeur posait autour a disparu : il aurait
+	# etendu la plaine au-dela de la falaise que le guide vient de declarer, c'est-a-dire
+	# contredit le guide. Hors du monde, c'est le fond du programme.
 	var columns: int = HeightMask.width(_heights)
 	var rows: int = HeightMask.height(_heights)
 	if columns <= 0:
 		return
-	_draw_ground()
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	if _background != null and not assembled:
 		var tint: Color = GUIDE_TINT_WIRE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT

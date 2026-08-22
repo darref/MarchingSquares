@@ -68,13 +68,17 @@ func _prepare() -> void:
 	var rows: int = HeightMask.height(_heights)
 	_image = Image.create_empty(maxi(columns, 1) * _tile_size, maxi(rows, 1) * _tile_size,
 			false, Image.FORMAT_RGBA8)
-	_image.fill(GuideImage.plain_color(_ink))
+	# ⚠ LE FOND EST LE VIDE, PLUS LA PLAINE. Celle-ci est desormais dessinee comme un
+	# etage : la remplir d'avance la peindrait la ou le monde s'arrete.
+	_image.fill(GuideImage.NO_PLAIN)
 	_flat = Image.create_empty(_image.get_width(), _image.get_height(), false,
 			Image.FORMAT_RGBA8)
-	_flat.fill(GuideImage.plain_color(_ink))
+	_flat.fill(GuideImage.NO_PLAIN)
 
 	var wanted: Dictionary = {}
-	for level: int in range(1, HeightMask.top_level(_heights) + 1):
+	# ⚠ ON PART DE L'ETAGE 0 : la plaine est un plateau comme les autres, elle a sa
+	# silhouette et ses 47 index. Ce qu'on ne dessine pas, c'est le VIDE.
+	for level: int in range(0, HeightMask.top_level(_heights) + 1):
 		for y: int in range(rows):
 			for x: int in range(columns):
 				var index: int = Coverage.index_at_level(_heights, x, y, level)
@@ -89,7 +93,7 @@ func _prepare() -> void:
 	var assembled: Dictionary = Walls.assemble(_heights)
 	var roles: Dictionary = assembled["roles"]
 	var wanted_roles: Dictionary = {}
-	for level: int in range(1, HeightMask.top_level(_heights) + 1):
+	for level: int in range(0, HeightMask.top_level(_heights) + 1):
 		for key: Vector3i in roles.keys():
 			if key.z != level:
 				continue
