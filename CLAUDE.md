@@ -988,14 +988,54 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   surplombe se voit à son ombre — mais leur statut est clair : **pure aide à la lecture**,
   toujours masquable, et jamais quelque chose que le tileset livre.
 
-- **L'étage 0 est concrétisé par l'éditeur, jamais par le guide.** Le guide continue de
-  laisser le vide — la plaine ne lui appartient pas — mais elle **existera** dans le jeu :
-  le sol sous les plateaux sera un étage plat du même tileset. La zone de travail la montre
-  donc en aplat, **débordant largement du guide**, et le relief se lit alors comme un morceau
-  de monde au lieu d'une découpe posée sur du vide.
+- **L'ÉTAGE 0 EST UN PLATEAU COMME LES AUTRES, ET L'ÉDITEUR L'ANNONCE.** Dans le jeu, le sol
+  sous les plateaux sera un étage plat du **même tileset**, posé par le moteur sur sa propre
+  couche : le game dev n'a rien de plus à dessiner pour l'avoir. Autant le montrer tout de
+  suite, plutôt que de laisser croire que le guide flotte sur du vide.
+
+  **Sa silhouette se calcule** : propagation depuis les zones peignables réunies, **quatre
+  cases vers le dehors**, puis l'intérieur est entièrement bouché. Elle est ensuite traitée
+  comme un **relief à part entière** — un plateau parfaitement plat — et ses index sortent
+  du **même code** que ceux du guide. Il n'existe donc aucun état où le sol et le guide se
+  contrediraient.
+
+  ⚠ **QUATRE CASES, PAS UNE.** Il faut assez de sol pour qu'on y voie une vraie bordure —
+  un coin, un bord droit, une masse pleine. En dessous on ne montre pas un plateau, on
+  montre un liséré.
+
+  ⚠ **ET IL RÉAGIT AU CRAYON, EN TEMPS RÉEL. C'est tout l'intérêt.** Chaque case emprunte
+  la tuile peinte de son index, donc peindre **une** tuile remplit le sol **d'un coup** :
+  l'acheteur voit, sous ses yeux, le peu qu'il aura à dessiner. C'est la même idée que les
+  jumelles, à l'échelle de l'écran entier.
+
+  ⚠ **CE N'EST QUE DU DÉCOR.** Aucune de ces cases ne se peint, aucune ne porte de grille,
+  rien n'en sort à l'export. Et **tout autour, aucune couleur** : le fond du programme. Le
+  monde s'arrête là, et le dire est plus honnête que de peindre du vert jusqu'au bord.
+
+  ⚠ **LE SOL SE DESSINE EN UN SEUL COUP, PAS CASE PAR CASE, ET C'EST MESURÉ.** Ma première
+  version posait un `draw_rect` par case : **mille sept cents par image**. Ils ne se groupent
+  pas — l'affichage est tombé à sept images par seconde, et le fond du guide, qui se calcule
+  par étapes dans `_process`, **ne se terminait plus jamais**. Une capture qui prenait sept
+  secondes en prenait deux minutes treize. Le sol est donc composé **une fois** dans une
+  image et posé comme **une** texture ; il ne coûte plus rien tant qu'on ne peint pas.
+
+  ⚠ **Et sa texture est plafonnée à 32 pixels par case.** À 256 — la résolution de travail
+  la plus haute — ses dix-sept cents cases feraient une image de cent millions de pixels,
+  pour du décor qu'on regarde à vingt pixels de côté.
+
+  ⚠ **Une source par index, pas par case.** Les jumelles portent le même dessin : on
+  redimensionne au plus quarante-sept tuiles, puis on les tamponne dix-sept cents fois.
 
   ⚠ **Elle est à l'éditeur, pas au guide.** Aucun pixel de cet aplat ne sort à l'export, et
   `guide_image` continue de rendre `NO_PLAIN`. C'est un fond d'écran, pas une tuile.
+
+- **⚠ UNE INSERTION QUI SE TROMPE DE FIN DE FONCTION NE SE VOIT NULLE PART.** En ajoutant
+  `_build_ground()` j'ai ancré sur la boucle des jumelles, en croyant qu'elle terminait
+  `show_guide`. Toute la queue de la fonction — dont **`_redraw_background()`** — s'est
+  retrouvée orpheline dans la fonction suivante. Le fichier se chargeait, la suite passait
+  à 289 vérifications sans un échec, et **le fond du guide ne se dessinait plus du tout**.
+  C'est la capture d'écran qui l'a montré, pas les tests : aucun d'eux ne monte l'interface.
+  Quand une édition déplace du code, la relire à l'œil **et** regarder l'écran.
 
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
