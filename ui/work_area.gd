@@ -60,6 +60,12 @@ const GROUND: Color = Color(0.204, 0.235, 0.188)
 const GUIDE_TINT: Color = Color(1.0, 1.0, 1.0, 0.55)
 const GUIDE_TINT_WIRE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const TILE_LINE: Color = Color(1.0, 1.0, 1.0, 0.16)
+
+## ⚠ LA CASE SANS JUMELLE. Quand une tuile n'apparait qu'UNE FOIS dans le guide, sa case
+## est obligatoire : personne d'autre ne la portera, et l'oublier bloque l'export. Vingt-deux
+## cases sur mille vingt-trois sont dans ce cas -- assez peu pour que les marquer se voie,
+## assez pour que les oublier coute. Leur contour vire a l'ambre.
+const LONE_LINE: Color = Color(0.980, 0.760, 0.330, 0.95)
 const PIXEL_LINE: Color = Color(1.0, 1.0, 1.0, 0.05)
 const HOVER_OK: Color = Color(1.0, 1.0, 1.0, 0.85)
 const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
@@ -133,6 +139,7 @@ var _painting: RefCounted = null
 var _surface_cells: Dictionary = {}
 var _wall_cells: Dictionary = {}
 var _paintable: Dictionary = {}
+var _lonely: Dictionary = {}
 var _background: ImageTexture = null
 var _background_flat: ImageTexture = null
 var _textures: Dictionary = {}
@@ -223,6 +230,14 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 		_paintable[cell] = true
 	for cell: Vector2i in _wall_cells.keys():
 		_paintable[cell] = true
+	# Les cases dont la tuile n'apparait qu'une fois : aucune jumelle pour la porter.
+	_lonely.clear()
+	for group: Array in _by_index.values():
+		if group.size() == 1:
+			_lonely[group[0]] = true
+	for group: Array in _by_role.values():
+		if group.size() == 1:
+			_lonely[group[0]] = true
 	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
@@ -408,6 +423,12 @@ func _draw_grid(pixel_px: float) -> void:
 		# entier ferait des dizaines de milliers de traits dont la quasi-totalite hors cadre.
 		if not frame.intersects(box):
 			continue
+		# ⚠ UNE CASE SANS JUMELLE PORTE SON PROPRE CONTOUR, ENTIER. Les aretes partagees
+		# appartiennent d'ordinaire a une seule des deux cases ; ici on les redessine toutes
+		# les quatre, sinon la marque serait rongee par les voisines et ne se lirait pas.
+		if _lonely.has(cell):
+			draw_rect(box, LONE_LINE, false, 1.0)
+			continue
 		draw_line(at, at + Vector2(_tile_px, 0.0), TILE_LINE, 1.0)
 		draw_line(at, at + Vector2(0.0, _tile_px), TILE_LINE, 1.0)
 		if not _paintable.has(cell + Vector2i.DOWN):
@@ -432,6 +453,16 @@ func _cell_origin(cell: Vector2i) -> Vector2:
 
 func _is_paintable(cell: Vector2i) -> bool:
 	return _paintable.has(cell)
+
+
+## Cette case porte-t-elle une tuile qui n'existe nulle part ailleurs dans le guide ?
+func is_lonely(cell: Vector2i) -> bool:
+	return _lonely.has(cell)
+
+
+## Combien de cases sont dans ce cas.
+func lonely_count() -> int:
+	return _lonely.size()
 
 
 func _gui_input(event: InputEvent) -> void:

@@ -942,6 +942,21 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Mesuré : **36 raccords de paroi continue à 0,0 % d'écart, 288 au droit d'une arête sans un
   seul trou**, dans les trois styles.
 
+- **Les cases sans jumelle portent un contour ambre.** Quand une tuile n'apparaît qu'**une
+  fois** dans le guide, sa case est obligatoire : personne d'autre ne la portera, et
+  l'oublier bloque l'export. Mesuré sur le guide livré : **22 tuiles sur 83** sont dans ce
+  cas — 14 index de surface et 8 rôles de robe — soit 22 cases obligatoires sur 1023
+  peignables. Assez peu pour que les marquer se voie, assez pour que les oublier coûte.
+
+  ⚠ **Une case sans jumelle porte son contour ENTIER.** Les arêtes partagées appartiennent
+  d'ordinaire à une seule des deux cases voisines ; ici on redessine les quatre, sinon la
+  marque serait rongée par les voisines et ne se lirait pas.
+
+  Le relevé de survol le dit aussi, en toutes lettres : `[SEULE OCCURRENCE]`.
+
+  ⚠ **Le compte est affiché par le runner, pas asserté.** Il dépend du guide, et le figer
+  interdirait de retoucher celui-ci.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
@@ -1095,5 +1110,3 @@ Quand la monter, et je le proposerai le moment venu :
   et les diagonales dans `ample`, le décor et la planche de preuve.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
-- Les index à occurrence unique n'ont aucune variante : ce sont des cases obligatoires.
-  Faut-il les signaler pendant le dessin (règle 6) ?

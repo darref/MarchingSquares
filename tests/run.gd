@@ -380,6 +380,17 @@ func _check_one_guide(id: StringName) -> void:
 	_check_equal(report["present"].size(), Modes.surface_tile_count(id), "les 47 index de surface visible sont couverts")
 	_check(report["is_complete"], "aucun index de surface manquant")
 	print("  %d surfaces visibles a peindre" % report["filled_count"])
+	# ⚠ UNE TUILE VUE UNE SEULE FOIS N A PAS DE JUMELLE : sa case est obligatoire, personne
+	# d autre ne la portera, et l oublier bloque l export. On l affiche plutot que de
+	# l asserter -- le compte depend du guide, et le figer interdirait de le retoucher.
+	var lonely: int = 0
+	for group: Array in Coverage.cells_by_index(Coverage.index_map(heights)).values():
+		if group.size() == 1:
+			lonely += 1
+	for group: Array in Walls.cells_by_role(Walls.visible_roles(heights)).values():
+		if group.size() == 1:
+			lonely += 1
+	print("  %d tuiles n ont AUCUNE variante : autant de cases obligatoires" % lonely)
 
 	# Tout peindre livre les 47 index : c est la borne haute de ce que le guide permet.
 	var every_cell: Array[Vector2i] = []

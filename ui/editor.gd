@@ -412,15 +412,23 @@ func _on_hover_changed(cell: Vector2i) -> void:
 	var work: Control = %WorkArea
 	var roles: Dictionary = work.wall_roles()
 	if roles.has(cell):
-		label.text = "(%d, %d)  robe : %s" % [cell.x, cell.y, Walls.role_name(roles[cell])]
+		label.text = "(%d, %d)  robe : %s%s" % [cell.x, cell.y,
+				Walls.role_name(roles[cell]), _lonely_note(cell)]
 		return
 	var indices: Dictionary = work.surface_index()
 	if indices.has(cell):
 		var index: int = int(indices[cell])
-		label.text = "(%d, %d)  index %d = %s" % [cell.x, cell.y, index,
-				BlobIndex.describe(index)]
+		label.text = "(%d, %d)  index %d = %s%s" % [cell.x, cell.y, index,
+				BlobIndex.describe(index), _lonely_note(cell)]
 		return
 	label.text = "(%d, %d)  la plaine : rien a peindre" % [cell.x, cell.y]
+
+
+## ⚠ « SEULE OCCURRENCE » N'EST PAS UN DETAIL. Cette tuile n'apparait qu'ici dans tout le
+## guide : aucune jumelle ne la portera, et l'oublier bloque l'export. Le contour ambre de la
+## case le dit d'ensemble, ce releve le dit au survol.
+func _lonely_note(cell: Vector2i) -> String:
+	return "   [SEULE OCCURRENCE]" if (%WorkArea as Control).is_lonely(cell) else ""
 
 
 func _on_fit_pressed() -> void:
