@@ -57,7 +57,7 @@ ui/           l'éditeur
   neighbours_panel.gd  la case survolée et ses voisines, collées
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
-  minimal.txt          guide du mode « minimal » : relief 35x28, 47/47 et 12/12
+  minimal.txt          guide du mode « minimal » : une île 46x27, 47/47, 15/15 et 36/36
   ample.txt            guide du mode « ample » : archipel 84x46, 3 occurrences minimum
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
@@ -67,7 +67,9 @@ tests/        tests headless
 exporters/
   tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
 tools/            outils de fabrication, jamais lus par le logiciel
-  build_ample.py  le générateur du guide d'`ample`, accident par accident
+  accidents.py      le vocabulaire de terrain : lacs, crêtes, coudes, escarpements
+  build_minimal.py  une île qui porte tout, un exemplaire de chaque accident
+  build_ample.py    trois îles, donc trois exemplaires
 ```
 
 ## Conventions
@@ -296,33 +298,58 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   zéro. Un guide en relief doit garder de la plaine sous ses falaises, sur toute la hauteur
   de la chute.
 
-- **`guides/minimal.txt` : relief 35x28, trois étages, complet sur les deux familles.**
-  47/47 en surface visible, 12/12 en vocabulaire de mur, aucune robe hors grille — asserté
-  par le runner, pas affiché (règle 4). 534 surfaces visibles et 336 cases de robe, soit
-  autant de variantes possibles pour 59 tuiles obligatoires.
+- **`guides/minimal.txt` : une île côtière 46x27, deux étages, complète sur les trois
+  vocabulaires.** 47/47 en surface visible, 15/15 croisements, 36/36 rôles de robe, aucune
+  robe hors grille — asserté par le runner, pas affiché (règle 4). **744 surfaces visibles,
+  854 croisements et 404 cases de robe** pour 59 tuiles obligatoires par case, 51 à cheval.
 
   **Chaque famille d'index y est portée par un accident de terrain choisi pour ça**, et
   c'est ce qui permet au guide de rester un paysage au lieu d'un damier :
-  - *montagne en terrasses avec cirque au sommet* — les masses pleines, les angles, les
-    encoches diagonales ; et ses trois étages donnent les chutes profondes ;
-  - *plateau aux lacs* — le motif des petits lacs est un **tore de de Bruijn 4x4**, dont
+  - *district lacustre* — le motif des petits lacs est un **tore de de Bruijn 4x4**, dont
     les seize fenêtres 2x2 sont toutes distinctes. Chaque case entre quatre lacs voit donc
     une combinaison différente d'encoches : les **seize** index « tous cardinaux » tombent
-    d'un seul plateau de 11x11, là où les disperser en aurait demandé le triple ;
-  - *quatre systèmes de crêtes à rameaux* — une arête droite bordée d'un épaulement
+    d'un seul district de 11x11, là où les disperser en aurait demandé le triple ;
+  - *crêtes à rameaux, dressées et couchées* — une arête droite bordée d'un épaulement
     discontinu. Le motif de l'épaulement porte les quatre voisinages utiles, ce qui donne
-    les seize index « trois cardinaux », les pointes et les crêtes étroites. Les quatre
-    crêtes ont **quatre motifs différents** : la même séquence répétée se voyait à l'œil ;
-  - *quatre coudes d'arête* — les quatre « deux cardinaux adjacents sans diagonale », qu'on
-    n'obtient d'aucune masse pleine ;
-  - *éperon à cheval sur le bord du massif* — sa robe descend de six cases le long du
-    flanc, seule façon d'obtenir le corps 1 en pan courant ;
-  - *pinacle isolé au troisième étage* — l'index 0, une seule case sans voisin.
+    les seize index « trois cardinaux », les pointes et les crêtes étroites.
+    ⚠ **Il faut les deux orientations** : une crête dressée ne donne que les voisinages
+    nord-sud, une couchée que ceux est-ouest ;
+  - *chaos rocheux* — les quatre **coudes** (deux cardinaux adjacents sans diagonale) et les
+    quatre **fourches** (trois cardinaux sans diagonale), qu'on n'obtient d'aucune masse
+    pleine ;
+  - *rivage sud en deux escarpements à contreforts* — les 36 rôles de robe ;
+  - *écueils et contacts diagonaux* — l'index 0, une seule case sans voisin, et les deux
+    croisements que la canonicalisation du blob jette.
 
-- **La taille n'est pas prouvée minimale.** 35x28 est le plus petit auquel je sois arrivé
-  en gardant chaque famille portée par un vrai accident de terrain. Le gras restant est
-  identifiable : l'épaulement des crêtes est large, et le plateau aux lacs pourrait
-  peut-être se poser sur un massif existant plutôt que sur le sien.
+  ⚠ **Deux étages suffisent, et le troisième a été retiré.** Il existait pour les chutes
+  profondes ; celles-ci viennent désormais de l'escarpement côtier, qui plonge de l'étage 2
+  droit dans la plaine — six cases, donc les quatre rangées de robe. Rien ne demande neuf.
+  L'empilement, lui, se voit toujours : étage 2 sur étage 1 sur la plaine.
+
+  ⚠ **UN ACCIDENT NE SE POSE PAS SOUS UN AUTRE.** Le coude E+S du chaos rocheux était
+  tombé juste au sud d'une crête dressée, qui lui donnait un voisin nord : il devenait
+  N+E+S, et l'index E+S **disparaissait du guide**. Une rangée de terre les sépare. C'est
+  le genre de faute qu'aucune relecture ne voit et que le compteur attrape en une seconde.
+
+- **CE QUI COMPTE N'EST PAS LE NOMBRE DE CASES, C'EST LA TAILLE DE LA CASE À L'ÉCRAN.** Le
+  guide est passé de 60x28 à 46x27 — **26 % de cases en moins** — mais le vrai gain n'est
+  pas là. Ce qu'on a retiré, c'est de la **plaine** : l'ancien guide était vide aux deux
+  tiers, le nouveau porte **744 surfaces peignables contre 627**, sur moins de place.
+
+  ⚠ **ET IL SE COUCHE, IL NE SE DRESSE PAS.** Mon premier essai compact faisait 28x36 :
+  1008 cases, la version la plus petite à laquelle je sois arrivé. À l'écran elle était
+  **pire** — haute et étroite dans une zone de travail large, elle laissait la moitié du
+  cadre vide et la case ne grandissait pas. Les accidents se posent donc **côte à côte**, en
+  une bande d'ouest en est, et le guide épouse la forme du cadre. La case passe d'environ
+  20 à 26 pixels d'écran, soit **+30 %**.
+
+  C'est l'argument commercial qui tranche : l'acheteur doit voir, d'un coup d'œil et en
+  temps réel, un grand nombre de tuiles se remplir sous son crayon — pour comprendre le peu
+  qu'il aura à dessiner. Une case trop petite pour qu'on y distingue les faux pixels ne
+  montre rien.
+
+  ⚠ **La taille n'est toujours pas prouvée minimale**, et elle ne le sera pas : « minimal »
+  ne veut pas dire « le plus petit », mais « le plus petit qui reste un paysage ».
 
 - **L'usage et le style du fond sont deux axes orthogonaux**, et aucun des deux n'est le
   mode.
@@ -648,10 +675,9 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   La divergence est **assertée en code** : sur un relief à contact diagonal, `Coverage` voit
   deux cases isolées (index 0 chacune) là où `CornerIndex` voit sa tuile `NO+SE`.
 
-  **Correctif** : deux cases en diagonale ajoutées au guide minimal en (13,13) et (14,14),
-  choisies par recherche parmi les emplacements qui gardent 47/47, 12/12 et zéro robe hors
-  grille. Le guide couvre désormais **15/15 croisements en surface visible**, sur 665
-  croisements peignables. Asserté.
+  **Correctif** : le **contact diagonal** est devenu un accident de terrain à part entière
+  (`accidents.contact_diagonal`), posé dans les deux guides. Ils couvrent désormais
+  **15/15 croisements en surface visible**. Asserté.
 
   ⚠ **La couverture duale fait partie de ce qu'un mode ouvert garantit**, et c'est asserté
   pour **tous** les modes livrés, plus seulement pour `minimal` : `ample` couvre lui aussi
@@ -760,7 +786,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   64 tuiles = 111 au total**. Refusée : c'est du raffinement, pas de l'information ; le coin
   du bloc qui avance suffit à l'œil. **+28 tuiles pour une ombre.**
 
-- **Le guide passe à 60x28, et gagne DEUX MASSIFS À CONTREFORTS.** Un contrefort est une
+- **Le rivage sud : DEUX ESCARPEMENTS À CONTREFORTS.** Un contrefort est une
   colonne dont le bord sud **avance** sur ses voisines : elle est donc *devant*, et porte son
   angle. Cinq éperons suffisent à porter les cinq pans à angle — bout ouest, éperon large
   (deux colonnes), éperon seul, bout est.
@@ -783,9 +809,14 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ne l'arrête pas. Et elle est d'**étage 1** : à l'étage 2 la robe rencontrerait son propre
   niveau, s'écrêterait, et ne poserait aucun pied.
 
-  ⚠ **Le relief se décrit colonne par colonne, jamais en ASCII.** Une lèvre par colonne, plus
-  « atterrit ou non » : dessiner ces formes à la main faisait se tromper d'une case et d'un
-  étage à chaque essai.
+  ⚠ **Le relief se décrit accident par accident, jamais en ASCII.** Dessiner ces formes à
+  la main faisait se tromper d'une case et d'un étage à chaque essai. Le vocabulaire vit
+  dans `tools/accidents.py` ; les deux guides n'en sont que des assemblages, et c'est le
+  seul endroit où la géométrie d'un accident est écrite.
+
+  ⚠ **ET IL FAUT TROIS COLONNES PLATES CONSÉCUTIVES quelque part**, sinon le pan
+  (muet, muet) n'existe pas : c'est celui d'une colonne dont les deux voisines sont sur la
+  même lèvre. Cinq éperons dans un bloc de huit ne laissent aucun triplet plat.
 
   Vérifié : **47/47 surfaces, 36/36 rôles VISIBLES, 15/15 croisements, zéro robe hors grille.**
 
@@ -1001,8 +1032,8 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 - **Les cases sans jumelle portent un contour ambre.** Quand une tuile n'apparaît qu'**une
   fois** dans le guide, sa case est obligatoire : personne d'autre ne la portera, et
-  l'oublier bloque l'export. Mesuré sur le guide livré : **22 tuiles sur 83** sont dans ce
-  cas — 14 index de surface et 8 rôles de robe — soit 22 cases obligatoires sur 1023
+  l'oublier bloque l'export. Mesuré sur `minimal` : **25 tuiles sur 83** sont dans ce
+  cas (et **zéro** sur `ample`, c'est tout ce que ce mode vend) — 14 index de surface et 8 rôles de robe — soit 22 cases obligatoires sur 1023
   peignables. Assez peu pour que les marquer se voie, assez pour que les oublier coûte.
 
   ⚠ **Une case sans jumelle porte son contour ENTIER.** Les arêtes partagées appartiennent
@@ -1034,7 +1065,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   la tuile du croisement (3,4) et la robe de la case (3,4). Deux familles, deux carnets, deux
   lettres de clé (`S` et `C`), et la collision devient impossible par construction.
 
-  Vérifié : le guide minimal couvre les **deux** familles, et offre **813 croisements**
+  Vérifié : le guide minimal couvre les **deux** familles, et offre **854 croisements**
   peignables.
 
   ⚠ **Une silhouette par étage, pas une par croisement.** `CornerIndex.visible_index_at` en
@@ -1085,7 +1116,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   clic serait ambigu. La robe est dessinée devant, donc c'est elle qu'on voit sous le
   curseur, donc c'est elle qu'on peint.
 
-  **Mesuré avant de choisir la règle** : 49 des 813 croisements deviennent inatteignables au
+  **Mesuré avant de choisir la règle** : quelques dizaines de croisements deviennent inatteignables au
   clic — mais **les quinze index gardent chacun un croisement libre**, et les jumelles
   remplissent le reste. **Aucune tuile n'est perdue.** C'est la garantie qui compte, et c'est
   celle-là qu'il fallait mesurer, pas le nombre de cases.
@@ -1201,8 +1232,8 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   pixel posé : en changer rejetterait tout le travail. Même statut que le mode — c'est ce
   qu'on fabrique, pas un réglage.
 
-- **Performances : trois pièges, tous mesurés.** Sur le guide minimal, 810 cases sont
-  peignables (534 surfaces, 276 robes).
+- **Performances : trois pièges, tous mesurés.** Sur le guide minimal, 1148 cases sont
+  peignables (744 surfaces, 404 robes).
   - *La grille des faux pixels* était tracée en entier : à 256 px par tuile, seize mille
     traits dont la quasi-totalité hors cadre. Elle est désormais **découpée au cadre**.
   - *Les textures* remontaient au GPU à chaque pixel posé — un quart de mégaoctet par pixel
@@ -1211,7 +1242,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   - *Les compteurs* relisaient tout le relief à chaque coup de crayon : **5,05 ms par
     image**, un tiers du budget. La carte case → index et les rôles de robe sont calculés
     **une fois au chargement**, et les tris ont quitté le chemin chaud : **0,54 ms** dans
-    le pire cas, celui où les 810 cases sont peintes.
+    le pire cas, celui où toutes les cases sont peintes.
 
   Mémoire, si l'on peint **toutes** les cases (jamais nécessaire : 59 tuiles suffisent) :
   0,8 Mo à 16 px, 12,7 Mo à 64, **202 Mo à 256** — et le double en comptant le GPU. Coût
@@ -1224,13 +1255,13 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **2.1.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
+À **2.2.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
 familles de surface, le vocabulaire à neuf pans, l'éditeur qui peint, le travail qui
 s'enregistre et se rouvre, le tileset qui s'exporte avec sa planche de preuve et son
 manifeste-contrat, et le paysage qui se remonte sous les yeux.
 
 Le 2.0.0 était le passage aux **neuf pans** : le sens d'une tuile de robe a changé, donc
-l'existant était périmé. Le 2.1.0 n'ajoute qu'un paysage, d'où la mineure.
+l'existant était périmé. Le 2.1.0 n'ajoutait qu'un paysage et le 2.2.0 en recompacte un, d'où les mineures.
 
 Quand la monter, et je le proposerai le moment venu :
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
@@ -1251,5 +1282,20 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
-  prouvée minimale » ci-dessus.
+- **LE MOT « VARIANTE » FAIT DEUX MÉTIERS, ET C'EST UN.** Il désigne à la fois les
+  **occurrences** d'une tuile dans le guide — ses jumelles, qui ne sont qu'un même endroit
+  vu plusieurs fois — et les **dessins distincts** qu'on pourrait ranger dans la planche
+  exportée. Ce sont deux choses sans rapport, et `min_variants` compte en fait les
+  premières.
+
+  Décidé : **retirer le système de variantes tel qu'il est**, et en refaire un plus élaboré
+  plus tard. Raison : ce que les occurrences apportent n'est pas « plusieurs dessins » mais
+  **peindre une tuile en remplit des dizaines sous les yeux, en temps réel** — c'est
+  l'argument commercial, et c'est ce que le mode `ample` vend. Le stockage par tuile
+  (`S<index>:<n>`) reste : le rang est la place de la case dans son groupe, jamais un
+  numéro de variante.
+
+  Ce sera une **majeure** : la planche perd ses rangées empilées et le manifeste perd sa
+  clé `variants`, donc la sortie n'est plus la même. À faire **avant** d'écrire le premier
+  lecteur côté Godot / Unity, tant que ça ne coûte rien.
+
