@@ -2260,19 +2260,10 @@ func _check_lip_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	_check_equal(crown_holes, PackedStringArray([]) as Array,
 			"%s : aucun chapiteau n est troue a son bord haut" % label)
 
-	# ⚠ LE FIL DE FER NE PORTE PAS L EPAULE, ET C EST AFFICHE PLUTOT QU ASSERTE. Mesure faite
-	# en ecrivant ce test : 8 des 13 levres y laissent voir le fond, jusqu a la moitie du bord
-	# pour l index 0 dont les deux coins bas sont decoupes. Le style peint les bouche.
-	#
-	# Les deux decrivent pourtant LA MEME GEOMETRIE -- « sous un bord sud il y a TOUJOURS une
-	# falaise » -- donc l un des deux ment. Mais lequel doit ceder est un arbitrage VISUEL :
-	# boucher l angle en fil de fer demande un aplat de pierre, ce qui contredit un style fait
-	# de traits. Tant que ce n est pas tranche, on mesure sans juger -- meme regle que la
-	# couverture du guide candidat. Une assertion ici rendrait la suite rouge en permanence
-	# pour une question de dessin, pas pour un defaut de regle.
-	if ink == GuideImage.Ink.WIREFRAME:
-		print("    %s : %d levres sur %d laissent voir le fond (a trancher : l epaule en fil de fer)"
-				% [label, pierced.size(), lipped])
-		return
+	# ⚠ ASSERTE DANS LES TROIS STYLES, ET CE N ETAIT PAS LE CAS. Le fil de fer ne portait pas
+	# l epaule : 8 des 13 levres y laissaient voir le fond, jusqu a la moitie du bord pour
+	# l index 0 dont les deux coins bas sont decoupes. Les deux styles decrivent LA MEME
+	# GEOMETRIE -- « sous un bord sud il y a toujours une falaise » -- donc l un des deux
+	# mentait. L epaule se ferme desormais dans les deux, chacune dans sa palette.
 	_check_equal(pierced, PackedStringArray([]) as Array,
 			"%s : aucun bord sud ne laisse voir le fond -- l epaule bouche l angle" % label)

@@ -1452,38 +1452,23 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **ET LA MESURE DOIT AVOIR VU QUELQUE CHOSE.** Deux bandes vides sont trivialement egales :
   sans controle de non-vacuite, un rendu qui cesserait de tracer la bande passerait au vert.
 
-- **⚠ LE FIL DE FER NE PORTE PAS L'EPAULE, ET CE N'EST PAS TRANCHE.** Mesure faite en ecrivant
-  le test : **8 des 13 levres** y laissent voir le fond, jusqu'a la moitie du bord pour
-  l'index 0 dont les deux coins bas sont decoupes. Le style peint les bouche.
+- **L'EPAULE SE FERME DANS LES DEUX STYLES, CHACUN DANS SA PALETTE.** Elle ne l'etait qu'en
+  peint : le fil de fer laissait voir le fond sous **8 des 13 levres**, jusqu'a la moitie du
+  bord pour l'index 0 dont les deux coins bas sont decoupes. Trouve en ecrivant l'assertion
+  de levre, pas en regardant l'ecran.
 
-  Les deux decrivent pourtant **la meme geometrie** — « sous un bord sud il y a toujours une
-  falaise » — donc l'un des deux ment. Mais lequel doit ceder est un **arbitrage visuel** :
-  boucher l'angle en fil de fer demande un aplat de pierre, ce qui contredit un style fait de
-  traits. Tant que ce n'est pas tranche, le runner **mesure sans juger** — meme regle que la
-  couverture du guide candidat. Une assertion rendrait la suite rouge en permanence pour une
-  question de dessin, pas pour un defaut de regle.
+  ⚠ **C'ETAIT UN VRAI MENSONGE, PAS UNE COQUETTERIE DE STYLE.** Les deux styles decrivent
+  **la meme geometrie** — « sous un bord sud il y a toujours une falaise ». Si l'un montre de
+  la roche et l'autre un trou au meme endroit, l'un des deux se trompe, et le guide perd le
+  droit de dire qu'il ne peut pas mentir sur ce qu'il contient.
 
-## Version
+  Le choix de la couleur suit le style plutot que de le contredire : en peint, l'epaule est
+  le **chanfrein du rocher**, volontairement distinct du corps. En fil de fer, c'est
+  `WIRE_WALL` — **la roche du trait, exactement celle des tuiles de robe** — donc l'epaule y
+  est *continue* avec la face juste en dessous. Un aplat de pierre aurait contredit un style
+  fait de traits ; le noir de la roche y est deja le vocabulaire.
 
-Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
-le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
-
-À **3.1.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
-familles de surface, le vocabulaire à neuf pans, l'éditeur qui peint, le travail qui
-s'enregistre et se rouvre, le tileset qui s'exporte avec sa planche de preuve et son
-manifeste-contrat, le paysage qui se remonte sous les yeux — et **AbsoluPaint**, le plugin
-Godot qui pose le monde, livré par un bouton.
-
-Le 3.1.0 est une mineure, et c'est la bonne raison : rien de ce qui sort n'a changé de
-sens. Le tileset exporté est identique, le manifeste aussi ; il s'ajoute une capacité que
-l'utilisateur voit — la seconde moitié du projet commence.
-
-Deux majeures jusqu'ici, et pour la même raison : le **sens de ce qui sort** avait changé.
-Le 2.0.0 était le passage aux **neuf pans** — une tuile de robe ne voulait plus dire la
-même chose ; le 3.0.0 est la **suppression des variantes** — la planche n'a plus la même
-forme. Entre les deux, 2.1.0 ajoutait un paysage et 2.2.0 en recompactait un : des mineures.
-
-Quand la monter, et je le proposerai le moment venu :
+  Asserte desormais dans les **trois** styles.
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
 - **mineure** — une capacité de plus que l'utilisateur voit : un paysage, un outil, un
   exporteur ;

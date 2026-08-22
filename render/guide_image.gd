@@ -214,8 +214,17 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 			var px: float = float(x)
 			var py: float = float(y)
 			if _carved(px, py, last, outer, north, east, south, west):
-				if not wire and not south and _in_south_shoulder(px, py, last, outer, east, west):
-					_put(buffer, side, x, y, SHOULDER)
+				# ⚠ L'EPAULE SE FERME DANS LES DEUX STYLES, CHACUN DANS SA PALETTE. Elle ne
+				# l'etait qu'en peint, et le fil de fer laissait donc voir le fond sous 8 des
+				# 13 levres -- jusqu'a la moitie du bord pour l'index 0, dont les deux coins
+				# bas sont decoupes. Or les deux styles decrivent LA MEME GEOMETRIE : « sous
+				# un bord sud il y a toujours une falaise ». L'un des deux mentait.
+				# En peint, l'epaule est le chanfrein du rocher, volontairement distinct du
+				# corps. En fil de fer, c'est la roche du trait -- la meme que celle des
+				# tuiles de robe -- parce qu'un aplat de pierre contredirait un style fait
+				# de traits, tandis que le noir de la roche y est deja le vocabulaire.
+				if not south and _in_south_shoulder(px, py, last, outer, east, west):
+					_put(buffer, side, x, y, WIRE_WALL if wire else SHOULDER)
 				continue
 			var color: Color = base
 			if wire:
