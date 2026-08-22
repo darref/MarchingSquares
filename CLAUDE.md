@@ -654,8 +654,28 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   couverture se compte là-dessus, jamais sur l'union — même raison que pour le blob : une
   tuile cachée ne peut ni se viser ni se juger.
 
-  **Reste à faire pour l'ouvrir** : le champ `famille` dans la table des modes, la zone de
-  travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, et l'exportateur.
+  **Ouvert de bout en bout** : liste « Réseau » dans la barre de gauche, clés `C<index>`
+  au carnet, zone de travail décalée d'une demi-case, remontage, planche de preuve et
+  export. La famille se choisit **avant** de dessiner et se ferme au premier pixel, comme
+  la taille : ce ne sont pas les mêmes tuiles, en changer rejetterait tout le travail.
+
+- **La planche de preuve des quinze : l'îlot EST la tuile.** Pour le blob, un îlot 3x3 doit
+  porter huit voisins autour d'un centre, parce que c'est le voisinage qui désigne la tuile.
+  À cheval, non : une tuile de croisement ne dépend **que des quatre cases qu'elle
+  chevauche**. L'îlot est donc un simple bloc 2x2 rempli selon les quatre bits de l'index,
+  cinq par rangée — quinze îlots, trois rangées, puis les deux peignes de falaise en
+  dessous. Les deux planches sortent de la même fonction, `ProofScene.relief(famille)`.
+
+- **⚠ UNE TUILE N'EST LIVRÉE QUE SI SA LISTE PORTE UN DESSIN**, pas du seul fait que sa clé
+  existe au rapport. Le dédoublonnage peut **vider** une liste — clé irrésolue, image
+  absente — et le compte, qui ne testait que la présence, annonçait alors « exportable »
+  pour une case blanche. C'est arrivé en famille à cheval : le rapport disait 15/15, la
+  planche sortait **vide**, et rien ne le signalait. Le défaut de fond était ailleurs — la
+  composition posait encore la lettre `"S"` en dur, donc aucune clé `C` ne se retrouvait —
+  mais **le compte l'a couvert au lieu de le dénoncer**, et c'est ça qui a coûté le temps.
+  Un compteur qui ne mesure pas ce qu'il prétend mesurer est pire que pas de compteur
+  (charte, règle 4). D'où `_delivered()`, et un test qui lit les pixels de la planche
+  composée au lieu de croire le rapport.
 
 - **Le test des raccords : tous les bords partagés, vérifiés un par un** (`_test_seams`).
   Chercher les coutures à l'œil ne dit **jamais** si on les a toutes — l'utilisateur en
@@ -1193,9 +1213,5 @@ Quand la monter, et je le proposerai le moment venu :
 
 - **Refaire le guide d'`ample`.** Il est fermé : 25 des 36 rôles seulement, et il promet
   trois occurrences de chacun. Il lui faut ses propres peignes, en triple.
-- **Ouvrir le réseau dual dans l'interface.** Le noyau est là et prouvé (voir la décision
-  ci-dessus) ; il manque la plomberie : le champ `famille` dans la table des modes, la zone
-  de travail décalée d'une demi-case, la clé `C<index>` dans `work_io`, l'exportateur des 15,
-  et les diagonales dans `ample`, le décor et la planche de preuve.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.

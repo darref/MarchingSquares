@@ -21,11 +21,21 @@ extends RefCounted
 
 const BlobIndex := preload("res://core/blob_index.gd")
 const Walls := preload("res://core/walls.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
+const Families := preload("res://core/families.gd")
 
 const ISLAND: int = 3
 const COLUMNS: int = 8
 const PITCH_X: int = ISLAND + 1
 const PITCH_Y: int = ISLAND + 4
+
+## L'ilot de la famille A CHEVAL : un simple bloc de 2 x 2 cases. Une tuile de croisement ne
+## depend que des quatre cases qu'elle chevauche -- l'ilot EST donc la tuile, sans voisinage
+## a mettre en scene. Cinq par rangee suffisent a poser les quinze.
+const DUAL_ISLAND: int = 2
+const DUAL_COLUMNS: int = 5
+const DUAL_PITCH_X: int = DUAL_ISLAND + 1
+const DUAL_PITCH_Y: int = DUAL_ISLAND + 4
 
 ## LA DEMONSTRATION DE FALAISE : deux peignes.
 ##
@@ -59,11 +69,15 @@ const ZERO: int = 48
 
 
 ## Le relief de la planche.
-static func relief() -> PackedStringArray:
-	var indices: PackedInt32Array = BlobIndex.CANONICAL_INDICES
-	var island_rows: int = (indices.size() + COLUMNS - 1) / COLUMNS
-	var width: int = COLUMNS * PITCH_X
-	var wall_top: int = island_rows * PITCH_Y
+static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
+	var indices: PackedInt32Array = Families.surface_indices(family)
+	var dual: bool = family == Families.BY_CORNER
+	var columns: int = DUAL_COLUMNS if dual else COLUMNS
+	var pitch_x: int = DUAL_PITCH_X if dual else PITCH_X
+	var pitch_y: int = DUAL_PITCH_Y if dual else PITCH_Y
+	var island_rows: int = (indices.size() + columns - 1) / columns
+	var width: int = columns * pitch_x
+	var wall_top: int = island_rows * pitch_y
 	width = maxi(width, WALL_DEMO[0].length() + 2)
 	var height: int = wall_top + WALL_DEMO.size() + 1
 
@@ -74,8 +88,11 @@ static func relief() -> PackedStringArray:
 		cells.append(row)
 
 	for order: int in range(indices.size()):
-		var origin: Vector2i = island_origin(order)
-		_stamp_island(cells, indices[order], origin)
+		var origin: Vector2i = island_origin(order, family)
+		if dual:
+			_stamp_dual(cells, indices[order], origin)
+		else:
+			_stamp_island(cells, indices[order], origin)
 
 	var wall_left: int = maxi(0, (width - WALL_DEMO[0].length()) / 2)
 	for y: int in range(WALL_DEMO.size()):
@@ -91,7 +108,11 @@ static func relief() -> PackedStringArray:
 
 
 ## Le coin haut-gauche de l'ilot de rang [param order].
-static func island_origin(order: int) -> Vector2i:
+static func island_origin(order: int,
+		family: StringName = Families.BY_CELL) -> Vector2i:
+	if family == Families.BY_CORNER:
+		return Vector2i((order % DUAL_COLUMNS) * DUAL_PITCH_X,
+				(order / DUAL_COLUMNS) * DUAL_PITCH_Y)
 	return Vector2i((order % COLUMNS) * PITCH_X, (order / COLUMNS) * PITCH_Y)
 
 
@@ -99,11 +120,11 @@ static func island_origin(order: int) -> Vector2i:
 ##
 ## C'est ce qui rend la preuve verifiable case par case, et c'est ce qui permettra plus tard
 ## d'ecrire les numeros a cote des ilots.
-static func centres() -> Dictionary:
+static func centres(family: StringName = Families.BY_CELL) -> Dictionary:
 	var by_index: Dictionary = {}
-	var indices: PackedInt32Array = BlobIndex.CANONICAL_INDICES
+	var indices: PackedInt32Array = Families.surface_indices(family)
 	for order: int in range(indices.size()):
-		by_index[indices[order]] = island_origin(order) + Vector2i(1, 1)
+		by_index[indices[order]] = island_origin(order, family) + Vector2i(1, 1)
 	return by_index
 
 
@@ -124,6 +145,19 @@ static func _stamp_island(cells: Array, index: int, origin: Vector2i) -> void:
 ## ⚠ UN PackedByteArray SE COPIE QUAND ON L'AFFECTE. Modifier la copie locale ne touchait
 ## pas la rangee rangee dans le tableau, et la planche sortait vierge sans une seule erreur.
 ## On la repose explicitement.
+## L'ILOT D'UN CROISEMENT : les quatre cases qu'il chevauche, remplies selon ses quatre bits.
+##
+## ⚠ ICI L'ILOT EST LA TUILE. Une tuile de croisement ne depend QUE de ces quatre cases : il
+## n'y a pas de voisinage a mettre en scene, contrairement au blob dont l'ilot 3x3 doit
+## porter huit voisins autour d'un centre.
+static func _stamp_dual(cells: Array, index: int, origin: Vector2i) -> void:
+	for bit: int in range(CornerIndex.BITS.size()):
+		if (index & CornerIndex.BITS[bit]) == 0:
+			continue
+		var at: Vector2i = CornerIndex.OFFSETS[bit]
+		_put(cells, origin.x + 1 + at.x, origin.y + 1 + at.y, 1)
+
+
 static func _put(cells: Array, x: int, y: int, level: int) -> void:
 	if y < 0 or y >= cells.size():
 		return

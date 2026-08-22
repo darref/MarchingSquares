@@ -55,6 +55,7 @@ func _initialize() -> void:
 	_test_proof_scene()
 	_test_corner_network()
 	_test_families()
+	_test_dual_end_to_end()
 	_test_seams()
 	_test_guide_image()
 	_test_wireframe_joins()
@@ -1535,6 +1536,66 @@ func _test_families() -> void:
 		if not _pixel_is(reread, at, _key_colour(String(corner_slots[at]))):
 			astray += 1
 	_check_equal(astray, 0, "chaque croisement retrouve SA tuile, pixel pour pixel")
+
+
+func _test_dual_end_to_end() -> void:
+	print("a cheval : la planche de preuve, et l export de bout en bout")
+	var family: StringName = Families.BY_CORNER
+
+	# La planche de preuve des quinze. ⚠ ICI L ILOT EST LA TUILE : une tuile de croisement ne
+	# depend QUE des quatre cases qu elle chevauche, il n y a pas de voisinage a mettre en
+	# scene contrairement au blob.
+	var relief: PackedStringArray = ProofScene.relief(family)
+	var centres: Dictionary = ProofScene.centres(family)
+	_check_equal(centres.size(), CornerIndex.TILE_COUNT, "un ilot par croisement, ni plus ni moins")
+	var misplaced: Array[int] = []
+	for index: int in centres.keys():
+		var at: Vector2i = centres[index]
+		if CornerIndex.visible_index_at(relief, at.x, at.y) != index:
+			misplaced.append(index)
+	_check_equal(misplaced, [] as Array[int],
+			"les quinze ilots portent chacun SON croisement, a la case annoncee")
+	_check(Families.is_covered(family, relief), "la planche couvre les quinze")
+	_check(Walls.analyse(relief)["is_complete"], "et les 36 roles de falaise")
+	_check_equal(Walls.analyse(relief)["outside"].size(), 0, "aucune robe hors du cadre")
+
+	# L export complet, dans la famille duale.
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var by_cell: Dictionary = WorkIO.slots(heights, family)
+	var painting: Painting = Painting.new(16)
+	var firsts: Array[String] = []
+	for at: Vector2i in by_cell.keys():
+		if String(by_cell[at]).ends_with(":0"):
+			firsts.append(String(by_cell[at]))
+			painting.paint(at, 0, 0, _key_colour(String(by_cell[at])))
+	_check_equal(firsts.size(), CornerIndex.TILE_COUNT + Walls.ALL_ROLES.size(),
+			"a cheval, le guide porte 15 + 36 = %d tuiles obligatoires"
+			% (CornerIndex.TILE_COUNT + Walls.ALL_ROLES.size()))
+
+	var report: Dictionary = TilesetPNG.analyse(painting, heights, family)
+	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
+	var sheet: Image = TilesetPNG.compose(painting, heights, report, false)
+	_check_equal(sheet.get_height(), TilesetPNG.surface_rows(family) * 16,
+			"la planche des quinze tient en %d rangees" % TilesetPNG.surface_rows(family))
+	var astray: int = 0
+	for index: int in Families.surface_indices(family):
+		var slot: Vector2i = TilesetPNG.surface_slot(index, 0, family)
+		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
+				_key_colour("C%d:0" % index)):
+			astray += 1
+	_check_equal(astray, 0, "les quinze croisements tombent chacun sur SA case de la planche")
+
+	var folder: String = "user://export_dual"
+	var done: Dictionary = TilesetPNG.write(folder, "dual", painting, heights, Modes.MINIMAL,
+			family)
+	_check_equal(done["error"], OK, "la feuille a cheval s ecrit")
+	var written: PackedStringArray = done["written"]
+	_check_equal(written.size(), 4, "deux planches, la preuve, et le manifeste")
+	var manifest: String = FileAccess.get_file_as_string(folder.path_join("dual_tileset.txt"))
+	_check(manifest.contains("famille %s" % family),
+			"le manifeste dit de quelle famille est la planche")
+	for path: String in written:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func _test_guide_image() -> void:

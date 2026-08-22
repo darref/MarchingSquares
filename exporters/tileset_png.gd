@@ -95,15 +95,20 @@ static func analyse(painting: Painting, heights: PackedStringArray,
 	_dedupe(surface_ranks, letter, painting, by_key)
 	_dedupe(wall_ranks, "W", painting, by_key)
 
+	# ⚠ UNE TUILE N'EST LIVREE QUE SI SA LISTE N'EST PAS VIDE, et pas du seul fait que sa cle
+	# existe. Le dedoublonnage peut vider une liste -- cle irresolue, image absente -- et la
+	# presence seule aurait alors annonce « exportable » pour une case blanche. C'est
+	# exactement ce qui est arrive en famille a cheval : le rapport disait 15/15, la planche
+	# sortait vide, et rien ne le signalait (charte, regle 4).
 	var missing_surface: Array[int] = []
 	for index: int in Families.surface_indices(family):
-		if not surface_ranks.has(index):
+		if not _delivered(surface_ranks, index):
 			missing_surface.append(index)
 	missing_surface.sort()
 
 	var missing_wall: Array[Vector2i] = []
 	for role: Vector2i in Walls.ALL_ROLES:
-		if not wall_ranks.has(role):
+		if not _delivered(wall_ranks, role):
 			missing_wall.append(role)
 
 	var variants: int = 1
@@ -122,6 +127,11 @@ static func analyse(painting: Painting, heights: PackedStringArray,
 		"family": family,
 		"is_exportable": missing_surface.is_empty() and missing_wall.is_empty(),
 	}
+
+
+## Cette tuile a-t-elle au moins un dessin a poser sur la planche ?
+static func _delivered(ranks_by_tile: Dictionary, tile: Variant) -> bool:
+	return ranks_by_tile.has(tile) and not (ranks_by_tile[tile] as Array).is_empty()
 
 
 ## Ne garde, parmi les occurrences peintes d'une tuile, que les dessins REELLEMENT
@@ -212,8 +222,9 @@ static func compose(painting: Painting, heights: PackedStringArray, report: Dict
 	for tile: Variant in table.keys():
 		var ranks: Array[int] = table[tile]
 		for slot: int in range(ranks.size()):
-			var key: String = _key_for("W" if walls else "S", tile, ranks[slot])
-			var at: Vector2i = wall_slot(tile, slot) if walls 					else surface_slot(int(tile), slot)
+			var letter: String = "W" if walls else Families.key_letter(family)
+			var key: String = _key_for(letter, tile, ranks[slot])
+			var at: Vector2i = wall_slot(tile, slot) if walls 					else surface_slot(int(tile), slot, family)
 			if at.x < 0 or not by_key.has(key):
 				continue
 			var image: Image = painting.image_of(by_key[key])
@@ -234,18 +245,21 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	_spec(lines)
 
 	lines.append("")
-	lines.append("surface %s %d %d" % [basename + SUFFIX_SURFACE, SURFACE_COLUMNS, surface_rows()])
-	lines.append("# les %d index du blob, en ordre croissant, huit par rangee ; la derniere"
-			% BlobIndex.CANONICAL_INDICES.size())
-	lines.append("# case de la planche reste vide, 47 n'etant pas un multiple de 8.")
+	var family: StringName = report.get("family", Families.BY_CELL)
+	lines.append("surface %s %d %d" % [basename + SUFFIX_SURFACE, SURFACE_COLUMNS,
+			surface_rows(family)])
+	lines.append("famille %s" % family)
+	lines.append("# les %d index de la famille, en ordre croissant, huit par rangee ; les"
+			% Families.surface_tile_count(family))
+	lines.append("# cases qui restent en fin de planche sont vides.")
 	var indices: Array[int] = []
 	for index: int in report["surface_variants"].keys():
 		indices.append(index)
 	indices.sort()
 	for index: int in indices:
-		var slot: Vector2i = surface_slot(index, 0)
+		var slot: Vector2i = surface_slot(index, 0, family)
 		lines.append("index %d slot %d,%d variants %d  # %s" % [index, slot.x, slot.y,
-				report["surface_variants"][index].size(), BlobIndex.describe(index)])
+				report["surface_variants"][index].size(), Families.describe(family, index)])
 
 	lines.append("")
 	lines.append("proof %s" % [basename + SUFFIX_PROOF])
@@ -380,7 +394,8 @@ static func write(folder: String, basename: String, painting: Painting,
 			return report
 		written.append(path)
 
-	var proof: Image = Assembly.from_borrowed(ProofScene.relief(), heights, painting)
+	var proof: Image = Assembly.from_borrowed(ProofScene.relief(family), heights, painting,
+			family)
 	var proof_path: String = folder.path_join(basename + SUFFIX_PROOF)
 	var proof_saved: Error = proof.save_png(proof_path)
 	if proof_saved != OK:
