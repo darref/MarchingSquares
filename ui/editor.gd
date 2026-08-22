@@ -83,7 +83,6 @@ func _ready() -> void:
 	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%InkChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
-	(%TwinsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
@@ -329,10 +328,7 @@ func _on_twins_toggled(_pressed: bool) -> void:
 func _apply_fill_rules() -> void:
 	var work: Control = %WorkArea
 	var rotations: bool = (%RotationsCheck as CheckBox).button_pressed
-	var twins: CheckBox = %TwinsCheck
-	work.set_fill_rules(twins.button_pressed, rotations)
-	# Les jumelles sont deja comprises dans l orbite : la case devient sans objet.
-	twins.disabled = rotations
+	work.set_fill_rules(rotations)
 	var note: Label = %ModeNote
 	note.visible = rotations
 	if rotations:

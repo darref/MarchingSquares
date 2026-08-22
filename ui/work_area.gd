@@ -94,7 +94,7 @@ var paint_symmetry: bool = false
 ## Peindre une case peint aussi toutes celles qui portent la meme tuile.
 ## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT, c'est une aide au geste : elle ne change rien a ce
 ## qui sort, seulement au nombre de fois qu'il faut refaire le meme dessin.
-var paint_twins: bool = false
+
 
 ## Ce qu'on regarde en peignant. ⚠ Rien de ce qui sort n'en depend : ce n'est pas
 ## l'eclairage du tileset, c'est le fond de l'ecran.
@@ -318,8 +318,18 @@ func _filter_painted(among: Dictionary) -> Array[Vector2i]:
 ## Change le style du fond. Le relief ne bouge pas : seule sa representation change.
 ## ⚠ CHANGER LA REGLE DE REMPLISSAGE VIDE LE CACHE DES CIBLES. Sans ca, un coup de crayon
 ## continuerait a suivre l'ancienne regle sur toutes les cases deja touchees.
-func set_fill_rules(twins: bool, symmetry: bool) -> void:
-	paint_twins = twins
+## ⚠ LES JUMELLES SE REMPLISSENT TOUJOURS, ET CE N'EST PLUS UNE OPTION.
+##
+## Deux jumelles ne sont pas deux tuiles qui se ressemblent : c'est LA MEME tuile, vue a
+## plusieurs endroits. Les remplir ensemble ne peut donc jamais etre faux.
+##
+## ⚠ ET DEPUIS QUE LES VARIANTES ONT DISPARU, LA DECOCHER NE POUVAIT PLUS QUE FAIRE PERDRE
+## DU TRAVAIL. La planche a une taille fixe : une tuile, un dessin. Peindre mille jumelles
+## differemment n'en sortait qu'une -- la premiere -- et jetait les autres EN SILENCE. La
+## charte l'interdit deux fois : on ne perd pas du travail sans le dire, et ce qui n'est pas
+## garanti ne se propose pas (regles 4 et 5). L'option est donc retiree ; elle reviendra
+## avec un vrai systeme de variantes, concu pour lui-meme.
+func set_fill_rules(symmetry: bool) -> void:
 	paint_symmetry = symmetry
 	_targets.clear()
 
@@ -669,7 +679,7 @@ func _targets_for(cell: Vector2i) -> Array:
 		if mirrored != role:
 			for twin: Vector2i in _by_role.get(mirrored, [] as Array[Vector2i]):
 				list.append([twin, Symmetry.MIRROR])
-	elif paint_twins and _twin_of.has(cell):
+	elif _twin_of.has(cell):
 		for twin: Vector2i in _twin_of[cell]:
 			list.append([twin, Symmetry.TURN_NONE])
 	else:

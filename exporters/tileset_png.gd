@@ -46,13 +46,24 @@ const MAGIC: String = "absolutiles-tileset"
 ## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur
 ## memoire finissent toujours par diverger. La regle vit ici, une seule fois.
 ##
+## ⚠ VERSION 4 : LE HORS-CARTE EST DU VIDE, ET LE PIED SE REPOSE DESSOUS.
+##
+## Deux changements de SENS, et la version n'avait pas bouge -- c'est le defaut qu'on repare
+## ici. Le hors-carte valait la plaine, il vaut maintenant le VIDE : un moteur qui lit
+## l'ancienne regle etend le sol a l'infini et ne pose jamais la falaise du bord du monde.
+## Et une robe qui atterrit repose son pied une case plus bas, sous la surface.
+##
+## ⚠ UN MANIFESTE V3 D'AVANT ET UN V3 D'APRES DECRIVAIENT DEUX MONDES DIFFERENTS, et le
+## plugin les acceptait tous les deux sans broncher : son garde-fou ne refusait que le TROP
+## NEUF. Une version qui ne bouge pas quand le sens bouge ne protege de rien.
+##
 ## ⚠ VERSION 3 : LES VARIANTES ONT DISPARU. La planche avait des rangees empilees, une par
 ## dessin distinct, et le manifeste portait une cle `variants`. Le mot faisait deux metiers
 ## -- les jumelles du guide et les dessins de la planche -- et le second n'a jamais servi :
 ## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
 ## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
 ## viendra plus tard, et il sera concu pour lui-meme.
-const VERSION: int = 3
+const VERSION: int = 4
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.

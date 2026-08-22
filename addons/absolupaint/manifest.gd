@@ -9,6 +9,11 @@
 #   - un fichier qui ne s'annonce pas comme un manifeste AbsoluTiles ;
 #   - une version plus recente que celle que ce plugin sait lire -- une regle de pose a pu
 #     changer de sens, et poser quand meme serait un mensonge silencieux ;
+#   - une version TROP VIEILLE, pour exactement la meme raison. ⚠ CE REFUS-LA MANQUAIT, et
+#     son absence a laisse passer un vrai defaut : entre deux livraisons, le hors-carte est
+#     passe de la plaine au VIDE et le sous-pied est apparu, SANS que la version bouge. Un
+#     manifeste v3 d'avant et un v3 d'apres decrivaient deux mondes differents, et le plugin
+#     les posait tous les deux. Un garde-fou qui ne regarde que d'un cote ne garde rien ;
 #   - des constantes de falaise (`storey_tiles`, `body_rows`, `block_rows`) qui ne sont pas
 #     celles que `rules.gd` sait rejouer. Un tileset dont l'etage descend de quatre cases
 #     pose sur un moteur qui en compte trois donnerait un monde faux SANS UNE SEULE ERREUR.
@@ -22,8 +27,14 @@ const Rules := preload("res://addons/absolupaint/rules.gd")
 
 const MAGIC: String = "absolutiles-tileset"
 
-## La derniere version que ce plugin sait lire.
-const READS_UP_TO: int = 3
+## Les versions que ce plugin sait lire, bornes comprises.
+##
+## ⚠ LES DEUX BORNES SONT NECESSAIRES. La haute dit « je ne connais pas encore cette
+## regle » ; la basse dit « je ne connais plus celle-la ». La v3 est refusee parce que son
+## sens a change sous elle : le hors-carte y valait la plaine, et rien ne distingue un v3
+## d'avant d'un v3 d'apres.
+const READS_FROM: int = 4
+const READS_UP_TO: int = 4
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
@@ -53,6 +64,10 @@ static func parse(text: String) -> Dictionary:
 	if int(result["version"]) > READS_UP_TO:
 		return _refuse(result, "Manifeste en version %d ; ce plugin lit jusqu'a %d."
 				% [int(result["version"]), READS_UP_TO])
+	if int(result["version"]) < READS_FROM:
+		return _refuse(result, "Manifeste en version %d ; ce plugin lit a partir de %d. "
+				% [int(result["version"]), READS_FROM]
+				+ "Reexportez le tileset : la regle de pose a change de sens depuis.")
 
 	var storey: int = -1
 	var body: int = -1

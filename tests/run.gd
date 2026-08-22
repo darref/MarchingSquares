@@ -2164,6 +2164,17 @@ func _test_plugin_manifest() -> void:
 	var future: String = "%s %d\n" % [PluginManifest.MAGIC, PluginManifest.READS_UP_TO + 1]
 	_check(int(PluginManifest.parse(future)["error"]) != OK,
 			"une version plus recente est refusee, pas devinee")
+	# ⚠ ET LE TROP VIEUX AUSSI, pour exactement la meme raison. Ce refus-la manquait,
+	# et son absence a laisse passer un vrai defaut : entre deux livraisons, le
+	# hors-carte est passe de la plaine au VIDE et le sous-pied est apparu, SANS que la
+	# version bouge. Un manifeste v3 d'avant et un v3 d'apres decrivaient deux mondes
+	# differents, et le plugin les posait tous les deux. Un garde-fou qui ne regarde
+	# que d'un cote ne garde rien.
+	var ancient: String = "%s %d\n" % [PluginManifest.MAGIC, PluginManifest.READS_FROM - 1]
+	_check(int(PluginManifest.parse(ancient)["error"]) != OK,
+			"UNE VERSION TROP VIEILLE EST REFUSEE : son sens a change sous elle")
+	_check_equal(PluginManifest.READS_UP_TO, TilesetPNG.VERSION,
+			"et le plugin lit exactement ce que l exportateur ecrit")
 	var wrong: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt")) 			.replace("storey_tiles 3", "storey_tiles 4")
 	_check(int(PluginManifest.parse(wrong)["error"]) != OK,
 			"un etage qui ne descend pas de trois cases est REFUSE : le poser mentirait")

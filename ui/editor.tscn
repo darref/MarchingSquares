@@ -782,13 +782,6 @@ layout_mode = 2
 tooltip_text = "La case survolee et ses voisines reelles, a la meme echelle et COLLEES. Le raccord se juge pendant le geste, pas apres l'export."
 script = ExtResource("6_nghb")
 
-[node name="TwinsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=2000725611]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Les cases qui portent la meme tuile recoivent le meme dessin, en direct. Ce n est pas une autre tuile qui se ressemble : c est la meme, vue a plusieurs endroits."
-button_pressed = true
-text = "Peindre les jumelles"
-
 [node name="RotationsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=542215267]
 unique_name_in_owner = true
 layout_mode = 2
