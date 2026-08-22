@@ -986,6 +986,27 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fois un masque entier, et une simple battue dépassait les dix minutes. Elles se bâtissent
   une fois.
 
+- **UN SEUL CARNET DE PEINTURE, ET LES DEUX FAMILLES NE S'Y RENCONTRENT JAMAIS.** Un
+  croisement `(i, j)` se range à la clé `(i, -1 - j)` : les cases occupent les *y* positifs
+  ou nuls, les croisements les *y* strictement négatifs.
+
+  ⚠ **Un seul carnet, pas deux, parce que tout le reste en dépend** : un seul historique
+  d'annulation — `Ctrl+Z` n'a pas à deviner de quel carnet il parle —, une seule taille de
+  faux pixel, un seul fichier. Deux carnets séparés rendraient l'un ou l'autre faux ou lourd.
+
+  ⚠ **Un carnet « à cheval » contient AUSSI les robes, et elles restent sur les cases.** Une
+  falaise sort du plan : elle se pose case pour case quel que soit le réseau du sol. Ce qui
+  doit être disjoint, ce sont les **surfaces** des deux familles — et c'est asserté : les 813
+  croisements du guide tombent tous dans les *y* négatifs et n'y rencontrent aucune case.
+
+  ⚠ **La famille voyage dans l'en-tête du fichier**, et elle se lit **avant** les tuiles :
+  elle décide de l'annuaire où l'on repose ce qu'on relit. La deviner après coup mettrait
+  chaque croisement à la place d'une case. Et la lecture s'arrête à la première ligne de
+  tuile — une seule pèse plusieurs kilo-octets.
+
+  ⚠ **Piège tombé dedans** : la ligne `famille` se faisait décoder comme du base64 par la
+  boucle des tuiles. Un en-tête qui n'est pas reconnu comme tel devient une donnée corrompue.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

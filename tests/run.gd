@@ -1495,6 +1495,47 @@ func _test_families() -> void:
 		_check(by_key.has(first),
 				"« %s » : la premiere tuile a sa place (%s)" % [Families.label(family), first])
 
+	# ⚠ UN CROISEMENT SE RANGE DANS LES Y NEGATIFS. C est ce qui permet UN SEUL carnet --
+	# donc un seul historique d annulation, une seule taille de pixel, un seul fichier.
+	# ⚠ UN CARNET « A CHEVAL » CONTIENT AUSSI LES ROBES, et elles restent sur les CASES : une
+	# falaise sort du plan et se pose case pour case quel que soit le reseau du sol. Ce qui
+	# doit etre disjoint, ce sont les SURFACES des deux familles.
+	var dual: Dictionary = WorkIO.slots(heights, Families.BY_CORNER)
+	var flat: Dictionary = WorkIO.slots(heights, Families.BY_CELL)
+	var strayed: int = 0
+	var surfaces: int = 0
+	for at: Vector2i in dual.keys():
+		if not String(dual[at]).begins_with("C"):
+			continue
+		surfaces += 1
+		if at.y >= 0:
+			strayed += 1
+		if flat.has(at):
+			strayed += 1
+	_check_equal(surfaces, points.size(), "les %d croisements sont au carnet" % points.size())
+	_check_equal(strayed, 0,
+			"toute cle de croisement tombe dans les y negatifs, et n y rencontre aucune case")
+
+	# Et l aller-retour complet d un travail « a cheval ».
+	var corner_slots: Dictionary = WorkIO.slots(heights, Families.BY_CORNER)
+	var painting: Painting = Painting.new(16)
+	for at: Vector2i in corner_slots.keys():
+		painting.paint(at, 0, 0, _key_colour(String(corner_slots[at])))
+	var text: String = WorkIO.serialize(painting, heights, Modes.MINIMAL, Families.BY_CORNER)
+	_check(text.contains("famille %s" % Families.BY_CORNER),
+			"le fichier dit a quelle famille il appartient")
+	var back: Dictionary = WorkIO.parse(text, heights)
+	_check_equal(back["error"], OK, "un travail a cheval se relit sans erreur")
+	_check_equal(back["family"], Families.BY_CORNER, "et il se relit dans SA famille")
+	_check_equal(int(back["placed"]), corner_slots.size(),
+			"les %d croisements sont reposes" % corner_slots.size())
+	var reread: Painting = back["painting"]
+	var astray: int = 0
+	for at: Vector2i in corner_slots.keys():
+		if not _pixel_is(reread, at, _key_colour(String(corner_slots[at]))):
+			astray += 1
+	_check_equal(astray, 0, "chaque croisement retrouve SA tuile, pixel pour pixel")
+
 
 func _test_guide_image() -> void:
 	print("rendu : l illustration se calcule depuis le relief seul")

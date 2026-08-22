@@ -52,14 +52,20 @@ const VERSION: int = 2
 ## Cette table est l'annuaire du fichier : elle dit sous quel nom ranger ce qui est peint
 ## ici, et reciproquement ou reposer ce qu'on relit. Les cases sans tuile -- la plaine --
 ## n'y figurent pas : elles ne se peignent pas (charte, regle 5).
-static func slots(heights: PackedStringArray) -> Dictionary:
+static func slots(heights: PackedStringArray,
+		family: StringName = Families.BY_CELL) -> Dictionary:
 	var by_cell: Dictionary = {}
 
-	var groups: Dictionary = Coverage.cells_by_index(Coverage.index_map(heights))
+	# ⚠ LES CLES SONT CELLES DU CARNET, PAS CELLES DE L'ECRAN. Un croisement se range
+	# dans les y negatifs (voir `Families.storage_key`) : tout ce qui suit -- serialisation,
+	# relecture, export -- travaille donc sans jamais savoir de quelle famille il s'agit.
+	var letter: String = Families.key_letter(family)
+	var groups: Dictionary = Families.groups(family, Families.index_map(family, heights))
 	for index: int in groups.keys():
 		var cells: Array[Vector2i] = _sorted(groups[index])
 		for rank: int in range(cells.size()):
-			by_cell[cells[rank]] = "S%d:%d" % [index, rank]
+			by_cell[Families.storage_key(family, cells[rank])] = "%s%d:%d" % [letter, index,
+					rank]
 
 	var roles: Dictionary = Walls.cells_by_role(Walls.visible_roles(heights))
 	for role: Vector2i in roles.keys():
@@ -127,9 +133,10 @@ static func keys_of(heights: PackedStringArray, family: StringName) -> Dictionar
 
 
 ## L'annuaire dans l'autre sens : ou reposer chaque tuile.
-static func cells_by_key(heights: PackedStringArray) -> Dictionary:
+static func cells_by_key(heights: PackedStringArray,
+		family: StringName = Families.BY_CELL) -> Dictionary:
 	var by_key: Dictionary = {}
-	var by_cell: Dictionary = slots(heights)
+	var by_cell: Dictionary = slots(heights, family)
 	for cell: Vector2i in by_cell.keys():
 		by_key[String(by_cell[cell])] = cell
 	return by_key
@@ -154,14 +161,15 @@ static func _sorted(cells: Array) -> Array[Vector2i]:
 ## Chaque tuile peinte tient sur une ligne : sa cle, puis son image en PNG encode en
 ## base64. Le PNG compresse, ce que ne ferait pas une liste de pixels : un aplat coute
 ## quelques octets au lieu de soixante-cinq mille.
-static func serialize(painting: Painting, heights: PackedStringArray,
-		mode_id: StringName) -> String:
+static func serialize(painting: Painting, heights: PackedStringArray, mode_id: StringName,
+		family: StringName = Families.BY_CELL) -> String:
 	var lines: PackedStringArray = PackedStringArray()
 	lines.append("%s %d" % [MAGIC, VERSION])
 	lines.append("mode %s" % mode_id)
 	lines.append("resolution %d" % painting.resolution)
+	lines.append("famille %s" % family)
 
-	var by_cell: Dictionary = slots(heights)
+	var by_cell: Dictionary = slots(heights, family)
 	var keys: Array[String] = []
 	var image_of: Dictionary = {}
 	for cell: Vector2i in painting.painted_cells():
@@ -182,13 +190,13 @@ static func serialize(painting: Painting, heights: PackedStringArray,
 
 
 static func write(path: String, painting: Painting, heights: PackedStringArray,
-		mode_id: StringName) -> Error:
+		mode_id: StringName, family: StringName = Families.BY_CELL) -> Error:
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		var open_error: Error = FileAccess.get_open_error()
 		push_error("work_io: ecriture impossible de '%s' (erreur %d)." % [path, open_error])
 		return open_error
-	file.store_string(serialize(painting, heights, mode_id))
+	file.store_string(serialize(painting, heights, mode_id, family))
 	file.close()
 	return OK
 
@@ -206,6 +214,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 	var result: Dictionary = {
 		"painting": Painting.new(),
 		"mode": &"",
+		"family": Families.BY_CELL,
 		"resolution": Painting.DEFAULT_RESOLUTION,
 		"placed": 0,
 		"unplaced": PackedStringArray(),
@@ -223,7 +232,18 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
 
-	var by_key: Dictionary = cells_by_key(heights)
+	# ⚠ LA FAMILLE SE LIT AVANT LES TUILES. Elle decide de l'annuaire ou l'on repose ce
+	# qu'on relit ; la deviner apres coup mettrait chaque croisement a la place d'une case.
+	# ⚠ ET ON S'ARRETE A LA PREMIERE LIGNE DE TUILE : une seule d'entre elles pese plusieurs
+	# kilo-octets, et l'en-tete tient dans les premieres.
+	for number: int in range(1, lines.size()):
+		var head: String = lines[number].strip_edges()
+		if head.begins_with("famille "):
+			result["family"] = StringName(head.substr(8).strip_edges())
+			break
+		if not head.is_empty() and not head.begins_with("mode ") 				and not head.begins_with("resolution "):
+			break
+	var by_key: Dictionary = cells_by_key(heights, result["family"])
 	var painting: Painting = null
 	var unplaced: PackedStringArray = PackedStringArray()
 	var placed: int = 0
@@ -239,6 +259,9 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 			continue
 		if head == "resolution":
 			result["resolution"] = tail.strip_edges().to_int()
+			continue
+		# Deja lue plus haut : elle decide de l'annuaire, elle ne se repose pas.
+		if head == "famille":
 			continue
 		if painting == null:
 			painting = Painting.new(int(result["resolution"]))
@@ -281,6 +304,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 static func peek(path: String) -> Dictionary:
 	var result: Dictionary = {
 		"mode": &"",
+		"family": Families.BY_CELL,
 		"resolution": Painting.DEFAULT_RESOLUTION,
 		"error": OK,
 	}
@@ -300,6 +324,8 @@ static func peek(path: String) -> Dictionary:
 			result["mode"] = StringName(line.substr(5).strip_edges())
 		elif line.begins_with("resolution "):
 			result["resolution"] = line.substr(11).strip_edges().to_int()
+		elif line.begins_with("famille "):
+			result["family"] = StringName(line.substr(8).strip_edges())
 		else:
 			break
 	file.close()

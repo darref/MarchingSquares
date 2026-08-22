@@ -111,6 +111,26 @@ static func is_covered(family: StringName, heights: PackedStringArray) -> bool:
 	return bool(analyse(family, heights)["is_complete"])
 
 
+## OU SE RANGE, DANS LE CARNET DE PEINTURE, CE QU'ON PEINT A CET ENDROIT.
+##
+## ⚠ LES DEUX FAMILLES PARTAGENT UN SEUL CARNET ET NE S'Y RENCONTRENT JAMAIS. Un
+## croisement (i, j) se range a la cle (i, -1 - j) : les cases occupent les y positifs ou
+## nuls, les croisements les y strictement negatifs. Sur le guide livre, 520 coordonnees
+## sont communes aux deux familles -- sans cette separation, la tuile du croisement (3,4) et
+## la robe de la case (3,4) se marcheraient dessus.
+##
+## ⚠ ET UN SEUL CARNET, PAS DEUX, PARCE QUE TOUT LE RESTE EN DEPEND : un seul historique
+## d'annulation -- `Ctrl+Z` n'a pas a deviner de quel carnet il parle --, une seule taille de
+## faux pixel, un seul fichier. Deux carnets rendraient l'un ou l'autre faux.
+static func storage_key(family: StringName, at: Vector2i) -> Vector2i:
+	return Vector2i(at.x, -1 - at.y) if family == BY_CORNER else at
+
+
+## Le chemin inverse : de la cle du carnet vers ce qu'on peint.
+static func from_storage(family: StringName, key: Vector2i) -> Vector2i:
+	return Vector2i(key.x, -1 - key.y) if family == BY_CORNER else key
+
+
 ## La lettre qui nomme la famille dans les cles de sauvegarde et d'export.
 ## `S` pour la surface par case, `C` pour le croisement.
 static func key_letter(family: StringName) -> String:
