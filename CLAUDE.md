@@ -1094,6 +1094,36 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   plaine est devenue peignable, donc les tests de couverture et de raccord portent sur
   presque le double de cases. C'est un coût à surveiller.
 
+- **UN GARDE-FOU QUI NE REGARDE QUE D'UN CÔTÉ NE GARDE RIEN.** Le lecteur du manifeste
+  refusait une version **plus récente** que celle qu'il sait lire — et rien d'autre. Or
+  entre deux livraisons le **sens** de la règle a bougé deux fois sans que la version
+  bouge : le hors-carte est passé de la plaine au **vide** (4.0.0), puis le **sous-pied**
+  est apparu (4.1.0). Un manifeste v3 d'avant-hier et un v3 de ce soir décrivaient **deux
+  mondes différents**, et le plugin les posait tous les deux sans broncher.
+
+  Le manifeste passe donc en **version 4**, et le lecteur porte **deux bornes** :
+  `READS_FROM` autant que `READS_UP_TO`. La haute dit « je ne connais pas encore cette
+  règle », la basse « je ne connais plus celle-là ». La v3 est refusée nommément, avec le
+  conseil de réexporter.
+
+  ⚠ **Une version qui ne bouge pas quand le sens bouge ne protège de rien**, et c'est pire
+  que pas de version du tout : elle donne l'air d'un contrôle. Le test vérifie désormais
+  les deux refus, et que **le plugin lit exactement ce que l'exportateur écrit**.
+
+- **« PEINDRE LES JUMELLES » N'EST PLUS UNE OPTION : c'est le comportement.** Deux jumelles
+  ne sont pas deux tuiles qui se ressemblent, c'est **la même** tuile vue à plusieurs
+  endroits ; les remplir ensemble ne peut donc jamais être faux.
+
+  ⚠ **ET DEPUIS QUE LES VARIANTES ONT DISPARU, LA DÉCOCHER NE POUVAIT PLUS QUE FAIRE PERDRE
+  DU TRAVAIL.** La planche a une taille fixe : une tuile, un dessin. Peindre mille jumelles
+  différemment n'en sortait **qu'une** — la première — et jetait les autres **en silence**.
+  La charte l'interdit deux fois : on ne perd pas du travail sans le dire (règle 4), et ce
+  qui n'est pas garanti ne se propose pas (règle 5). La case est retirée ; elle reviendra
+  avec un vrai système de variantes, conçu pour lui-même.
+
+  ⚠ « Peindre les rotations » reste, et c'est une autre affaire : elle **fabrique**
+  délibérément, elle part décochée, et son infobulle dit ce qu'elle fait.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
@@ -1564,10 +1594,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
-- **Le piege des jumelles decochees.** Depuis la suppression des variantes, decocher
-  « Peindre les jumelles » laisse peindre mille dessins differents dont **un seul sortira**
-  — les autres sont jetes en silence, ce que la charte interdit. À trancher : soit la case
-  disparait jusqu'au vrai systeme de variantes, soit elle previent.
 - **Un mode d'emploi plein ecran**, ouvert en cliquant le bandeau haut-droit, qui ferait
   aussi defiler des conseils au lieu des seules phrases de la charte. ⚠ **Rien n'en est
   specifie** : ni contenu, ni decoupage, ni maquette. Ces deux lignes sont tout ce qui
@@ -1590,12 +1616,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Coût : un troisieme `walls.gd`, sa regle au contrat, sa copie dans `rules.gd`, son
   controle croise, et 12 a 36 tuiles selon que la question « qui est devant » revienne sur
   ses flancs. Chantier du calibre de la 4.0.0.
-- **`VERSION` du manifeste est figee a 3 alors que le sens de la regle a bouge deux fois** —
-  le hors-carte est passe de plaine a vide (4.0.0), et le sous-pied est apparu (4.1.0). Un
-  manifeste v3 d'avant-hier et un v3 de ce soir decrivent deux mondes differents, et le
-  plugin les accepte tous les deux sans broncher. Le garde-fou refuse le **trop neuf**,
-  jamais le **trop vieux** : il manque un `READS_FROM` autant qu'un `READS_UP_TO`. Rien
-  n'est livre, donc c'est encore gratuit.
 - **Un essai livrable : le logiciel + le plugin, avec le GUIDE comme tileset.** Notre
   illustration est calculee, entierement a nous, et complete par construction : elle peut
   donc sortir en planche valide **sans peindre un pixel**. Le game dev installerait
