@@ -1182,6 +1182,7 @@ func _test_seams() -> void:
 			[GuideImage.Ink.WIREFRAME, true, "fil avec marques"]]:
 		_check_surface_seams(style[0], style[1], String(style[2]))
 		_check_wall_seams(style[0], style[1], String(style[2]))
+		_check_wall_side_seams(style[0], style[1], String(style[2]))
 
 
 ## LES ROBES : une falaise est UNE face, pas une pile de tuiles.
@@ -1233,6 +1234,84 @@ func _check_wall_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	_check(worst <= WALL_SEAM_TOLERANCE,
 			"%s : une falaise est UNE face -- profils identiques entre deux rangees (le pire : %.1f%%, %d fautifs)"
 			% [label, worst * 100.0, guilty.size()])
+
+
+## LES ROBES, FLANC CONTRE FLANC.
+##
+## Deux cases de robe cote a cote decrivent la meme frontiere : ce que l'une met a son bord
+## est, l'autre le met a son bord ouest. Mais elles ne doivent pas toujours dire la MEME
+## chose, et c'est tout l'interet du vocabulaire a neuf pans.
+##
+## ⚠ DEUX FLANCS `MUET` FACE A FACE SIGNIFIENT LA MEME LEVRE -- donc la meme face, donc le
+## meme pas de chute, donc la MEME RANGEE. C'est le seul cas ou l'on exige des profils
+## identiques, et il faut l'avoir compris pour ne pas exiger l'impossible : un chapiteau a
+## cote d'un pied n'a aucune raison d'avoir la meme teinte.
+##
+## ⚠ ET LA OU UN FLANC DIT `DEVANT`, UNE ARETE EST ATTENDUE. Exiger l'identite y
+## accuserait le dessin de faire exactement ce qu'on lui demande. On n'exige donc que
+## l'absence de TROU : de la matiere d'un cote, de la matiere de l'autre.
+##
+## ⚠ (devant, devant) N'EXISTE PAS. Si je suis devant mon voisin, il n'est pas devant moi.
+## Le tester serait tester une situation que le modele ne peut pas produire.
+func _check_wall_side_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
+	var tiles: Dictionary = {}
+	for role: Vector2i in Walls.ALL_ROLES:
+		tiles[role] = GuideImage.make_wall(role, SEAM_TILE, ink, marks)
+
+	var flush: int = 0
+	var stepped: int = 0
+	var worst: float = 0.0
+	var worst_pair: String = ""
+	var holes: Array[String] = []
+	var guilty: Array[String] = []
+
+	for left_pan: int in range(Walls.PAN_COUNT):
+		for right_pan: int in range(Walls.PAN_COUNT):
+			var mine: int = Walls.pan_east(left_pan)
+			var theirs: int = Walls.pan_west(right_pan)
+			# Un flanc VIDE veut dire « pas de roche a cote » : il n'y a alors pas de voisine.
+			if mine == Walls.SIDE_VOID or theirs == Walls.SIDE_VOID:
+				continue
+			if mine == Walls.SIDE_FRONT and theirs == Walls.SIDE_FRONT:
+				continue
+			var same_face: bool = mine == Walls.SIDE_MUTE and theirs == Walls.SIDE_MUTE
+			for left_row: int in range(Walls.BLOCK_ROWS):
+				for right_row: int in range(Walls.BLOCK_ROWS):
+					# Meme levre, donc meme pas de chute, donc meme rangee.
+					if same_face and left_row != right_row:
+						continue
+					var a: Image = tiles[Vector2i(left_pan, left_row)]
+					var b: Image = tiles[Vector2i(right_pan, right_row)]
+					var gap: int = 0
+					for y: int in range(SEAM_TILE):
+						if (a.get_pixel(SEAM_TILE - 1, y).a > 0.5) \
+								!= (b.get_pixel(0, y).a > 0.5):
+							gap += 1
+					var name: String = "%s|%s / %s|%s" % [Walls.pan_name(left_pan),
+							Walls.ROW_NAMES[left_row], Walls.pan_name(right_pan),
+							Walls.ROW_NAMES[right_row]]
+					if gap > 0:
+						holes.append(name)
+					if not same_face:
+						stepped += 1
+						continue
+					flush += 1
+					var jump: float = _seam_jump(a, b, true)
+					if jump > worst:
+						worst = jump
+						worst_pair = name
+					if jump > WALL_SEAM_TOLERANCE:
+						guilty.append("%s (%.1f%%)" % [name, jump * 100.0])
+
+	print("  %s : %d raccords de paroi continue, %d au droit d une arete" % [label, flush,
+			stepped])
+	_check_equal(holes.size(), 0,
+			"%s : aucun trou entre deux robes voisines%s" % [label, _first_few(holes)])
+	_check(worst <= WALL_SEAM_TOLERANCE,
+			"%s : deux flancs MUETS sont la MEME paroi -- profils identiques (le pire : %.1f%%, %d fautifs)"
+			% [label, worst * 100.0, guilty.size()])
+	if guilty.size() > 0:
+		print("    %s" % ", ".join(guilty.slice(0, mini(6, guilty.size()))))
 
 
 func _check_surface_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:

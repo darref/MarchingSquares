@@ -922,6 +922,26 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   émettait le sien et l'écrasait. On a cru un panneau cassé alors qu'il suivait fidèlement un
   curseur qu'on ne voyait pas. Le survol se pose désormais juste avant la capture.
 
+- **Les raccords de flanc, et la subtilité qu'il faut avoir comprise pour ne pas exiger
+  l'impossible.** Deux cases de robe côte à côte décrivent la même frontière — mais elles ne
+  doivent pas toujours y dire la même chose, et c'est tout l'intérêt du vocabulaire à neuf
+  pans.
+
+  ⚠ **Deux flancs `muet` face à face signifient la MÊME LÈVRE** — donc la même face, donc le
+  même pas de chute, donc **la même rangée**. C'est le seul cas où l'on exige des profils
+  identiques. Un chapiteau à côté d'un pied n'a aucune raison d'avoir la même teinte, et
+  l'exiger accuserait le dessin d'être fidèle.
+
+  ⚠ **Là où un flanc dit `devant`, une arête est ATTENDUE.** On n'y exige donc que l'absence
+  de **trou** : de la matière d'un côté, de la matière de l'autre.
+
+  ⚠ **Et `(devant, devant)` n'existe pas.** Si je suis devant mon voisin, il n'est pas devant
+  moi. Le tester serait tester une situation que le modèle ne peut pas produire — le genre de
+  faux test qui envoie corriger ce qui va bien.
+
+  Mesuré : **36 raccords de paroi continue à 0,0 % d'écart, 288 au droit d'une arête sans un
+  seul trou**, dans les trois styles.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.
