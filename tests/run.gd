@@ -59,6 +59,7 @@ func _initialize() -> void:
 	_test_assembly()
 	_test_preview_scene()
 	_test_vocabulary_is_closed()
+	_test_deep_falls()
 	_test_proof_scene()
 	_test_corner_network()
 	_test_families()
@@ -2056,3 +2057,94 @@ func _erase_tree(path: String) -> void:
 		entry = directory.get_next()
 	directory.list_dir_end()
 	DirAccess.remove_absolute(path)
+
+## LES CHUTES PROFONDES — une falaise de vingt-sept cases avec les memes trente-six tuiles.
+##
+## ⚠ CE TEST COMBLE UN TROU QU ON A VU EN REGARDANT, PAS EN LISANT. Les reliefs tires au
+## sort plafonnent a quatre etages, donc a des chutes de neuf ; le guide minimal monte a
+## trois. Les longueurs 12 a 27 n etaient eprouvees NULLE PART. Elles passaient -- mais par
+## chance, et rien ne l aurait garanti demain.
+##
+## ⚠ C EST LA PROMESSE MEME DES DEUX RANGEES DE CORPS : `1 + (step - 2) modulo body_rows`
+## fait tourner le corps sur lui-meme, ce qui permet une hauteur quelconque avec une feuille
+## FINIE. Si cette assertion tombe, c est que la feuille a cesse d etre suffisante.
+func _test_deep_falls() -> void:
+	print("chutes profondes : n importe quel multiple de trois, avec la meme feuille")
+	var known: Dictionary = {}
+	for role: Vector2i in Walls.ALL_ROLES:
+		known[role] = true
+
+	var lengths: Array[int] = []
+	var strays: int = 0
+	var drift: int = 0
+	var unfooted: int = 0
+	var body_one_seen: int = 0
+
+	for level: int in range(1, HeightMask.MAX_LEVEL + 1):
+		# Un plateau de cet etage, et assez de plaine dessous pour qu il atterrisse.
+		var relief: PackedStringArray = PackedStringArray()
+		for _top: int in range(3):
+			relief.append(str(level).repeat(7))
+		for _below: int in range(Walls.STOREY_TILES * HeightMask.MAX_LEVEL + 4):
+			relief.append(".".repeat(7))
+
+		var fall: Vector2i = Walls.fall_at(relief, level, Vector2i(3, 2))
+		lengths.append(fall.x)
+		if fall.y != 1:
+			unfooted += 1
+
+		var roles: Dictionary = Walls.visible_roles(relief)
+		var rows_used: Dictionary = {}
+		for role: Vector2i in roles.values():
+			rows_used[role.y] = true
+			if not known.has(role):
+				strays += 1
+		if rows_used.has(2):
+			body_one_seen += 1
+
+		# ⚠ ET LE PLUGIN DOIT SUIVRE JUSQU EN BAS. C est la ou une copie de la regle derive
+		# en premier : le corps qui tourne est la seule partie recursive du vocabulaire.
+		var theirs: Dictionary = PluginRules.walls(_plugin_world(relief))
+		for cell: Vector2i in roles.keys():
+			if not theirs.has(cell) or theirs[cell] != roles[cell]:
+				drift += 1
+		for cell: Vector2i in theirs.keys():
+			if not roles.has(cell):
+				drift += 1
+
+	var expected: Array[int] = []
+	for level: int in range(1, HeightMask.MAX_LEVEL + 1):
+		expected.append(Walls.STOREY_TILES * level)
+	print("  chutes obtenues : %s" % str(lengths))
+	_check_equal(lengths, expected,
+			"chaque etage tombe de %d x son niveau, jusqu a %d cases"
+			% [Walls.STOREY_TILES, Walls.STOREY_TILES * HeightMask.MAX_LEVEL])
+	_check_equal(unfooted, 0, "et toutes posent leur pied : elles atterrissent vraiment")
+	_check_equal(strays, 0,
+			"aucune de ces chutes ne reclame un role hors des %d" % Walls.ALL_ROLES.size())
+	_check_equal(body_one_seen, HeightMask.MAX_LEVEL - 1,
+			"le corps 1 apparait des deux etages, et pas avant : une chute de trois ne le voit pas")
+	_check_equal(drift, 0, "le plugin dit la meme chose jusqu a la chute de %d cases"
+			% (Walls.STOREY_TILES * HeightMask.MAX_LEVEL))
+
+	# ⚠ ET L AUTRE REGIME : UNE ROBE ECRETEE FAIT N IMPORTE QUELLE LONGUEUR, mais elle ne
+	# pose PAS son pied. Atterrir est quantifie par trois ; descendre ne l est pas.
+	var pinched: PackedStringArray = PackedStringArray([
+		"22222",
+		".....",
+		".....",
+		"22222",
+	])
+	var short: Vector2i = Walls.fall_at(pinched, 2, Vector2i(2, 0))
+	_check_equal(short.x, 2, "butee contre son propre etage : la robe fait deux cases")
+	_check(short.y != 1, "et elle ne pose pas son pied : elle ne touche pas le sol d en bas")
+	# ⚠ ON REGARDE LES CASES DE CETTE ROBE-LA, PAS LE RELIEF ENTIER. Le SECOND bloc de
+	# niveau 2 lance sa propre robe, qui elle atterrit et pose son pied : asserter sur tout
+	# le relief accusait la regle d un defaut qu elle n a pas. Le test avait tort, pas le code.
+	var pinched_roles: Dictionary = Walls.visible_roles(pinched)
+	var footed: int = 0
+	for step: int in range(1, short.x + 1):
+		var at: Vector2i = Vector2i(2, step)
+		if pinched_roles.has(at) and Vector2i(pinched_roles[at]).y == Walls.ROW_FOOT:
+			footed += 1
+	_check_equal(footed, 0, "et aucune de ses cases n est un pied : le dessin se tait")

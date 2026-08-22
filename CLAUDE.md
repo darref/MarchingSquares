@@ -1402,6 +1402,29 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   passait au vert le jour de son ecriture et rougissait le lendemain, le faux projet etant
   toujours la. Ecrit, mais pas encore appris ailleurs dans la suite.
 
+- **LES CHUTES PROFONDES SONT MAINTENANT EPROUVEES, ET ELLES NE L'ETAIENT PAS.** La question
+  venait de l'usage : *« ca ne me derange pas qu'une falaise soit un multiple de 3, si on
+  peut faire n'importe quelle valeur dedans »*. C'est vrai — **3 a 27 cases**, un multiple
+  de 3 par etage jusqu'a `MAX_LEVEL`, avec **les memes 36 tuiles** — mais rien ne le
+  verifiait : les reliefs tires au sort plafonnent a quatre etages, donc a des chutes de
+  neuf, et le guide `minimal` monte a trois. **Les longueurs 12 a 27 n'etaient eprouvees
+  nulle part.** Elles passaient, par chance.
+
+  C'est la promesse meme des **deux rangees de corps** : `1 + (step - 2) modulo body_rows`
+  fait tourner le corps sur lui-meme, ce qui permet une hauteur quelconque avec une feuille
+  **finie**. Si l'assertion tombe un jour, c'est que la feuille a cesse d'etre suffisante.
+
+  ⚠ **DEUX REGIMES, ET IL FAUT LES DIRE ENSEMBLE. Atterrir est quantifie par trois ;
+  descendre ne l'est pas.** Une robe **ecretee** — qui bute contre un morceau de son propre
+  etage — fait n'importe quelle longueur, et **ne pose pas son pied**. Les deux sont
+  assertes.
+
+  ⚠ **ET LE TEST AVAIT TORT AVANT LE CODE.** J'assertais « aucune tuile de pied » sur le
+  relief entier d'un cas ecrete ; or le **second** bloc y lance sa propre robe, qui elle
+  atterrit normalement. Le test accusait la regle d'un defaut qu'elle n'a pas. On regarde
+  desormais les cases de CETTE robe-la. Meme lecon que le bug de `row_for` : **un test faux
+  coute plus cher qu'un test absent, il envoie corriger ce qui va bien.**
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
