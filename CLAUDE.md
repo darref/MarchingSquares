@@ -1660,6 +1660,11 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Coût : un troisieme `walls.gd`, sa regle au contrat, sa copie dans `rules.gd`, son
   controle croise, et 12 a 36 tuiles selon que la question « qui est devant » revienne sur
   ses flancs. Chantier du calibre de la 4.0.0.
+- **LA SIGNATURE DU MANIFESTE : que l'addon ne pose que ce que le logiciel a produit.**
+  Décidé : l'essai **n'exporte pas**, un **tileset de démo** part dans l'addon pour qu'on
+  puisse l'éprouver sans acheter, et **rien ne fonctionne sans manifeste** — ce dernier point
+  étant déjà vrai dans le code. Reste à écrire la signature et les deux refus qui vont avec.
+  Voir la fiche détaillée en fin de fichier.
 - **Un essai livrable : le logiciel + le plugin, avec le GUIDE comme tileset.** Notre
   illustration est calculee, entierement a nous, et complete par construction : elle peut
   donc sortir en planche valide **sans peindre un pixel**. Le game dev installerait
@@ -1767,3 +1772,79 @@ utilisable au lieu d'un liseré de bord du monde**. À prouver, pas à promettre
 Une matière qui touche une lèvre, ou deux matières non ordonnées qui se rencontrent, doivent
 faire **échouer la suite** sur les guides livrés. Sans quoi ce sont deux promesses, et le
 projet n'en fait pas.
+
+### Fiche : LA SIGNATURE DU MANIFESTE
+
+**À dire avant tout le reste : un verrou dans l'addon ne protège de rien.**
+`addons/absolupaint/` part en GDScript **en clair** dans le projet de l'acheteur. Toute
+vérification qu'on y met s'efface en supprimant une ligne. Dans cette forme le problème
+**est insoluble**, et la charte interdit de le maquiller : un contrôle qui saute en trente
+secondes n'est pas une protection, c'est un décor qui *donne l'air* d'un contrôle — la même
+faute que la version du manifeste figée à 3.
+
+Ce qui suit ne prétend donc pas arrêter un logiciel craqué. Il sépare **« il faut lire un
+fichier texte »** de **« il faut craquer un binaire »**, ce qui est une vraie marche.
+
+**1. « Rien ne fonctionne sans manifeste » est DÉJÀ vrai.** `world.gd` sort à chaque étape
+sans manifeste valide et complet : pas de `tile_set`, pas de source d'atlas, `rebuild()`
+retourne immédiatement. Rien à construire.
+
+**2. Ce qui manque : le manifeste doit LIER ses planches.** Aujourd'hui il les *nomme* — donc
+on peut garder un manifeste légitime et mettre ses propres images à la place. Il porte donc
+l'**empreinte SHA-256 de chacune**. Dès lors il ne décrit plus « un tileset », il décrit
+**ces deux images-là**.
+
+**3. La signature.** `Crypto` / `CryptoKey` sont dans Godot, en GDScript : **aucune
+dépendance, la convention « GDScript uniquement » tient.** Le logiciel signe à l'export, clé
+privée embarquée ; l'addon vérifie, clé publique embarquée.
+
+⚠ **On signe un CONDENSÉ CANONIQUE, jamais les octets du fichier** : version, mode,
+`tile_size`, famille, les deux noms de planche, les deux empreintes, et la table des cases
+triée. Commentaires, lignes vides et fins de ligne exclus — sinon la signature saute au
+premier outil qui normalise une fin de ligne.
+
+⚠ **ET ÇA N'ENTAME PAS LA CLAUSE « NÉCESSAIRE ET SUFFISANT ».** La règle de pose reste en
+clair, lisible, réimplémentable — c'est ce qui permettra d'écrire le lecteur Unity. La
+signature ne contrôle pas le **savoir**, elle contrôle la **provenance acceptée par notre
+moteur**. Deux choses différentes, et `_spec()` doit le dire pour que ce ne soit pas une
+surprise.
+
+⚠ **LA PIÈCE LA PLUS FORTE : LE BUILD D'ESSAI N'A PAS DE CLÉ PRIVÉE DU TOUT.** Pas un
+drapeau `is_trial`, pas de branche à retourner — la clé n'est **pas dans le binaire**. Même
+quelqu'un qui force le bouton d'export obtient des planches non signées, que l'addon refuse.
+Deux verrous indépendants, **dans deux binaires différents** : forcer le premier ne donne
+rien sans le second.
+
+**4. Le tileset de démo** part signé, empreintes comprises : on ne peut pas garder son
+manifeste et y glisser son propre art. Sa seule limite doit être **son contenu** — assez
+pour éprouver la pose, pas assez pour livrer un jeu. Une limite dans l'art se contourne en
+repeignant, c'est-à-dire en achetant le logiciel.
+
+**Ce que ça arrête, et ce que ça n'arrête pas :**
+
+```
+recuperer l addon et ecrire son manifeste a la main   REFUSE  (pas de signature)
+garder un manifeste signe, changer les PNG            REFUSE  (empreintes)
+forcer l export de la version d essai                 REFUSE  (rien a signer avec)
+se servir du tileset de demo                          ACCEPTE (c est voulu)
+remplacer la cle publique dans manifest.gd            PASSE   (une ligne)
+craquer le logiciel complet                           PASSE   (concede d avance)
+```
+
+⚠ **L'avant-dernière ligne est la seule qui reste ouverte côté addon**, et c'est
+exactement — et uniquement — là qu'une **GDExtension compilée** aurait un sens : déplacer la
+vérification hors du texte éditable. Le prix n'est pas mince : **l'export HTML5 meurt**
+(GDExtension n'existe pas en web), un binaire par plateforme et par architecture, l'ABI qui
+suit les versions de Godot, et le contrôle croisé à faire tourner contre un binaire. Question
+étroite, donc tranchable : *accepte-t-on que l'acheteur ne puisse plus livrer en navigateur ?*
+
+**Ce qu'il y a à écrire :**
+
+- `exporters/tileset_png.gd` — les deux empreintes, le condensé canonique, la ligne
+  `signature`, et la clause correspondante dans `_spec()` ;
+- `addons/absolupaint/manifest.gd` — **un quatrième et un cinquième refus** : signature
+  absente ou invalide, planches qui ne sont pas celles que le manifeste signe. Ils rejoignent
+  les trois qui existent ;
+- le tileset de démo dans l'addon, signé ;
+- la suite vérifie les deux refus **et** qu'un export frais se relit — sinon on découvre à la
+  vente que la signature ne passe pas.
