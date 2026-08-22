@@ -36,7 +36,7 @@ static func index_at(mask: PackedStringArray, x: int, y: int) -> int:
 ##   occurrences  : Dictionary[int, int]     index -> nombre de cases
 ##   positions    : Dictionary[int, Array]   index -> Array[Vector2i] des cases
 ##   is_complete  : bool                     vrai si les 47 index sont couverts
-## Les occurrences multiples ne sont pas des doublons : elles serviront de variantes.
+## Les occurrences multiples ne sont pas des doublons : ce sont les jumelles d'une tuile.
 static func analyse(mask: PackedStringArray) -> Dictionary:
 	var occurrences: Dictionary = {}
 	var positions: Dictionary = {}
@@ -137,7 +137,7 @@ static func analyse_relief(heights: PackedStringArray) -> Dictionary:
 ##
 ## ⚠ ELLE SE CALCULE UNE FOIS. Relire tout le relief a chaque coup de crayon coutait 4,4 ms
 ## par image sur le guide minimal -- un tiers du budget d'affichage pour recompter ce qui
-## n'a pas bouge. L'editeur la garde et repasse par variants.resolve_indexed().
+## n'a pas bouge. L'editeur la garde et repasse par delivery.resolve_indexed().
 static func index_map(heights: PackedStringArray) -> Dictionary:
 	var indices: Dictionary = {}
 	for y: int in range(HeightMask.height(heights)):
@@ -150,7 +150,7 @@ static func index_map(heights: PackedStringArray) -> Dictionary:
 
 ## Les cases regroupees par index de surface.
 ##
-## Deux cases du meme groupe portent LA MEME TUILE : ce sont des variantes l'une de
+## Deux cases du meme groupe portent LA MEME TUILE : ce sont les jumelles l'une de
 ## l'autre. C'est ce qui permet de proposer de les peindre ensemble.
 static func cells_by_index(index_by_cell: Dictionary) -> Dictionary:
 	var groups: Dictionary = {}

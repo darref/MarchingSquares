@@ -12,7 +12,7 @@ extends Control
 const Modes := preload("res://core/modes.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Painting := preload("res://core/painting.gd")
-const Variants := preload("res://core/variants.gd")
+const Delivery := preload("res://core/delivery.gd")
 const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
@@ -618,7 +618,7 @@ func _refresh_counters() -> void:
 	if _painting == null:
 		return
 	var work: Control = %WorkArea
-	var surface: Dictionary = Variants.resolve_indexed(work.surface_index(),
+	var surface: Dictionary = Delivery.resolve_indexed(work.surface_index(),
 			work.painted_surface_cells(), Families.surface_indices(_current_family()))
 	# On repasse par les roles deja rassembles : les recalculer a chaque coup de crayon
 	# relirait tout le relief pour rien.

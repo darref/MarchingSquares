@@ -74,10 +74,10 @@ static func from_sheets(heights: PackedStringArray, surface_sheet: Image, wall_s
 		var slot: Vector2i = Vector2i(-1, -1)
 		if key.y >= 0 and roles.has(key):
 			sheet = wall_sheet
-			slot = TilesetPNG.wall_slot(roles[key], 0)
+			slot = TilesetPNG.wall_slot(roles[key])
 		elif indices.has(key):
 			sheet = surface_sheet
-			slot = TilesetPNG.surface_slot(int(indices[key]), 0, family)
+			slot = TilesetPNG.surface_slot(int(indices[key]), family)
 		if sheet == null or slot.x < 0:
 			continue
 		var from: Rect2i = Rect2i(slot * side, Vector2i(side, side))

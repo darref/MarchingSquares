@@ -308,8 +308,8 @@ static func visible_roles(heights: PackedStringArray) -> Dictionary:
 	return visible
 
 
-## La regle des variantes, appliquee aux robes : une case peinte est retenue pour son role,
-## une case vierge ne sert pas. Memes cles que variants.resolve().
+## La regle de livraison, appliquee aux robes : une case peinte est retenue pour son role,
+## une case vierge ne sert pas. Memes cles que delivery.resolve().
 static func resolve(heights: PackedStringArray, painted_cells: Array[Vector2i]) -> Dictionary:
 	return resolve_roles(visible_roles(heights), painted_cells)
 

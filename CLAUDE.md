@@ -37,7 +37,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   coverage.gd     rapport de couverture d'un masque
   height_mask.gd  guide en relief : une hauteur par case, silhouette par étage
   walls.gd        le second vocabulaire : les robes de falaise (3 pans × 4 rangées)
-  variants.gd     quelles cases peintes deviennent des tuiles
+  delivery.gd     quelles cases peintes deviennent des tuiles
   proof_scene.gd  la planche de preuve : un ilot par index, calculee
   work_io.gd      lecture / ecriture du travail en cours (.absolutiles)
   modes.gd        catalogue des modes (guide + règles d'exportation)
@@ -176,8 +176,8 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 - **Le rapport de couverture contient aussi les positions** de chaque index, en plus du
   nombre d'occurrences demandé. Raison : les occurrences multiples doivent servir de
-  variantes plus tard, et un compteur sans coordonnées ne permet pas d'aller chercher la
-  variante. `occurrences` reste exposé tel quel pour la lisibilité des tests.
+  jumelles, et un compteur sans coordonnées ne permet pas d'aller les chercher.
+  `occurrences` reste exposé tel quel pour la lisibilité des tests.
 
 - **`mask_io.with_cell()`** retourne une copie du masque avec une case changée. Ajout
   délibéré au-delà du strict nécessaire de cette session : l'écriture d'« un masque
@@ -208,8 +208,8 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Les règles d'exportation ne sont **pas** dans la table pour l'instant : `exporters/` est
   vide, et les inventer maintenant reviendrait à décider à la place de l'usage.
 
-- **Une variante n'est retenue que si elle a été peinte** (`core/variants.gd`). Quand
-  plusieurs cases du guide portent le même index, ce sont des variantes *possibles* ; une
+- **Une case n'est retenue que si elle a été peinte** (`core/delivery.gd`). Quand
+  plusieurs cases du guide portent le même index, ce sont des **jumelles** ; une
   case sur laquelle l'utilisateur a posé au moins un pixel est prise, une case laissée
   vierge n'est simplement pas utilisée. Rien n'est fabriqué à sa place (règle 3), et
   peindre **est** l'acte de sélection, donc il n'y a rien à configurer (règle 1).
@@ -264,7 +264,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 - **`ample`, second mode : ouvert.** Même complétude que `minimal`, mais volontairement plus
   de répétitions : chaque tuile se voit dans **au moins trois contextes**, ce qui rend le
-  geste plus sûr et laisse de la place pour de vraies variantes. Le nom existe tel quel en
+  geste plus sûr et remplit l'écran plus vite sous le crayon. Le nom existe tel quel en
   français et en anglais, s'oppose proprement à `minimal`, et dit « qui a de la place » sans
   dire « gros ».
 
@@ -477,13 +477,13 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   `ample`**. Les deux modes livrent les mêmes 59 tuiles ; seul le nombre d'exemplaires
   change.
 
-  Une clé nomme une tuile et son rang de variante : `S<index>:<n>` pour une surface,
+  Une clé nomme une tuile et son rang d'occurrence : `S<index>:<n>` pour une surface,
   `W<pan>,<rangée>:<n>` pour une robe. Le rang est la position de la case dans son groupe,
   **en ordre de lecture** — le seul ordre qui ne dépende que du guide et jamais du
   remplissage d'un dictionnaire.
 
   ⚠ **Ce qui ne retombe pas sur ses pieds est dit, pas jeté.** Si le nouveau guide offre
-  moins d'exemplaires d'une tuile que le fichier n'en portait, les variantes en trop sont
+  moins d'exemplaires d'une tuile que le fichier n'en portait, les occurrences en trop sont
   rendues dans `unplaced`. Même règle que les pixels peints hors du guide.
 
   ⚠ **Recharger n'est pas un coup de crayon.** `painting.set_image()` ne journalise rien :
@@ -515,10 +515,11 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   `push_error` remplirait la console de rouge pendant des heures et apprendrait à ignorer
   le rouge.
 
-  ⚠ **Les variantes sont tassées, pas recopiées à leur rang d'origine.** Une tuile peinte à
-  sa troisième occurrence sans l'avoir été à la première devient la variante 0 de la
-  planche. Sinon un moteur qui tire une variante au hasard tomberait sur du vide — et le
-  rang dans le guide ne veut rien dire pour qui relit la feuille.
+  ⚠ **C'est la PREMIÈRE OCCURRENCE PEINTE qui sort, quel que soit son rang.** Une tuile
+  peinte à sa troisième occurrence sans l'avoir été à la première sort quand même : le rang
+  dans le guide ne veut rien dire pour qui relit la feuille. Et on garde le plus petit rang
+  plutôt que le premier rencontré, parce qu'un dictionnaire ne promet aucun ordre — un
+  export qui changerait d'une fois sur l'autre serait indéfendable.
 
   **Il n'a jamais fallu peindre tout le guide.** Une occurrence de chaque tuile suffit :
   59 cases sur les 810 peignables. C'est asserté.
@@ -556,7 +557,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
   ⚠ **Il ne fabrique aucune tuile** (règle 3). Chaque case y **emprunte**, par index ou par
   rôle, ce qui est peint dans le guide — `assembly.borrow()`. Rien de neuf n'est inventé :
-  c'est le même dessin, vu ailleurs. Et il pioche toujours la variante 0, sinon le décor
+  c'est le même dessin, vu ailleurs. Et il pioche toujours la première occurrence, sinon le décor
   scintillerait à chaque coup de crayon.
 
   ⚠ **Le décor ne peut rien réclamer que le guide n'ait pas.** C'est la propriété qui
@@ -577,12 +578,32 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Le panneau est **opaque, sans discussion** — on ne juge pas une couleur à travers autre
   chose — et il arrête la souris, sinon on peindrait « à travers » lui sans voir où.
 
-- **Une variante est un DESSIN différent, pas une case différente.** « Peindre les jumelles »
-  est coché d'emblée : les cent cases qui portent le même index portent alors le même dessin.
-  L'exportateur compare donc le **contenu** et ne garde que ce qui diffère vraiment — sans
-  quoi la planche ferait cent blocs identiques. La comparaison est exacte, octet pour octet,
-  jamais par empreinte : une empreinte qui se cognerait ferait disparaître un dessin en
-  silence.
+- **LES VARIANTES SONT SUPPRIMÉES. Une tuile, un dessin, une case de planche.** Le mot
+  faisait **deux métiers** : les **occurrences** d'une tuile dans le guide — ses jumelles,
+  un même endroit vu plusieurs fois — et les **dessins distincts** qu'on empilait en
+  rangées supplémentaires dans la planche exportée. Deux choses sans rapport sous un seul
+  nom, et `min_variants` comptait en fait les premières. Il s'appelle `min_occurrences`.
+
+  ⚠ **Le second système était déjà dormant.** « Peindre les jumelles » est coché d'emblée,
+  donc toutes les jumelles portent le même dessin, le dédoublonnage les réduisait à un, et
+  `variants` valait **toujours 1** en usage normal. Il ne servait qu'à qui décoche et peint
+  différemment — ce que personne ne fait au premier passage (charte, règle 2).
+
+  ⚠ **Ce que les jumelles apportent n'est pas « plusieurs dessins ».** C'est que **peindre
+  une tuile en remplit des dizaines sous les yeux, en temps réel** : l'acheteur voit d'un
+  coup d'œil le peu qu'il aura à dessiner. C'est un argument de vente, pas une donnée
+  d'export. Confondre les deux faisait payer à la feuille le prix d'une démonstration.
+
+  **Ce qu'on y gagne** : les deux planches ont une **taille fixe** — 8x6 et 9x4 — qui ne
+  dépend ni du guide ni de ce qui a été peint. Le lecteur qu'on écrira deux fois, pour
+  Godot et pour Unity, calcule la case d'une tuile sans rien lire d'autre que le manifeste.
+  La clause `sheet fixed_size one_drawing_per_tile no_variants` est au contrat.
+
+  ⚠ **C'était la dernière fenêtre où c'était gratuit** — la même que pour les neuf pans.
+  Aucun lecteur n'existe encore ; demain, en changer périmerait un moteur.
+
+  Un système de variantes digne de ce nom viendra plus tard, et il sera conçu **pour
+  lui-même** plutôt que déduit d'un effet de bord du dessin.
 
 - **Un travail relu doit marquer ses cases sales.** Défaut trouvé en regardant l'écran, pas
   en lisant les tests : après un chargement, les compteurs disaient 47/47 et la zone de
@@ -1216,7 +1237,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 - **« Peindre les jumelles ».** Deux cases qui portent le même index de surface — ou le
   même rôle de robe — sont **la même tuile**. Les peindre ensemble n'invente rien : ça
-  évite de refaire le même dessin autant de fois qu'il y a de variantes. Le noyau désigne
+  évite de refaire le même dessin autant de fois qu'il y a de jumelles. Le noyau désigne
   les groupes (`coverage.cells_by_index()`, `walls.cells_by_role()`), l'interface ne fait
   que les suivre. ⚠ C'est une **aide au geste, pas un réglage du produit** : ce qui sort
   est identique, seul le nombre de gestes change. La distinction compte pour la règle 1.
@@ -1255,13 +1276,15 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **2.2.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
+À **3.0.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
 familles de surface, le vocabulaire à neuf pans, l'éditeur qui peint, le travail qui
 s'enregistre et se rouvre, le tileset qui s'exporte avec sa planche de preuve et son
 manifeste-contrat, et le paysage qui se remonte sous les yeux.
 
-Le 2.0.0 était le passage aux **neuf pans** : le sens d'une tuile de robe a changé, donc
-l'existant était périmé. Le 2.1.0 n'ajoutait qu'un paysage et le 2.2.0 en recompacte un, d'où les mineures.
+Deux majeures jusqu'ici, et pour la même raison : le **sens de ce qui sort** avait changé.
+Le 2.0.0 était le passage aux **neuf pans** — une tuile de robe ne voulait plus dire la
+même chose ; le 3.0.0 est la **suppression des variantes** — la planche n'a plus la même
+forme. Entre les deux, 2.1.0 ajoutait un paysage et 2.2.0 en recompactait un : des mineures.
 
 Quand la monter, et je le proposerai le moment venu :
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
@@ -1282,20 +1305,4 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **LE MOT « VARIANTE » FAIT DEUX MÉTIERS, ET C'EST UN.** Il désigne à la fois les
-  **occurrences** d'une tuile dans le guide — ses jumelles, qui ne sont qu'un même endroit
-  vu plusieurs fois — et les **dessins distincts** qu'on pourrait ranger dans la planche
-  exportée. Ce sont deux choses sans rapport, et `min_variants` compte en fait les
-  premières.
-
-  Décidé : **retirer le système de variantes tel qu'il est**, et en refaire un plus élaboré
-  plus tard. Raison : ce que les occurrences apportent n'est pas « plusieurs dessins » mais
-  **peindre une tuile en remplit des dizaines sous les yeux, en temps réel** — c'est
-  l'argument commercial, et c'est ce que le mode `ample` vend. Le stockage par tuile
-  (`S<index>:<n>`) reste : le rang est la place de la case dans son groupe, jamais un
-  numéro de variante.
-
-  Ce sera une **majeure** : la planche perd ses rangées empilées et le manifeste perd sa
-  clé `variants`, donc la sortie n'est plus la même. À faire **avant** d'écrire le premier
-  lecteur côté Godot / Unity, tant que ça ne coûte rien.
 

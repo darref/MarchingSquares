@@ -8,7 +8,7 @@ extends SceneTree
 const BlobIndex := preload("res://core/blob_index.gd")
 const MaskIO := preload("res://core/mask_io.gd")
 const Coverage := preload("res://core/coverage.gd")
-const Variants := preload("res://core/variants.gd")
+const Delivery := preload("res://core/delivery.gd")
 const Modes := preload("res://core/modes.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
@@ -44,7 +44,7 @@ func _initialize() -> void:
 	_test_minimal_guide_walls()
 	_test_painting()
 	_test_undo()
-	_test_wall_variants()
+	_test_wall_delivery()
 	_test_twins()
 	_test_symmetry()
 	_test_work_io()
@@ -181,11 +181,11 @@ func _test_coverage_on_simple_mask() -> void:
 
 
 func _test_variant_selection() -> void:
-	print("variants : la case peinte est retenue, l autre ne sert pas")
+	print("livraison : la case peinte est retenue, l autre ne sert pas")
 	# Deux ilots portant le meme index 0 : deux variantes possibles du meme index.
 	var mask: PackedStringArray = MaskIO.parse("#.#")
 	var painted: Array[Vector2i] = [Vector2i(0, 0)]
-	var resolved: Dictionary = Variants.resolve(mask, painted)
+	var resolved: Dictionary = Delivery.resolve(mask, painted)
 	var expected_retained: Array[Vector2i] = [Vector2i(0, 0)]
 	_check_equal(resolved["retained"][0], expected_retained, "seule la variante peinte est retenue")
 	var expected_unused: Array[Vector2i] = [Vector2i(2, 0)]
@@ -195,19 +195,19 @@ func _test_variant_selection() -> void:
 	_check_equal(resolved["is_exportable"], false, "un seul index livre n est pas exportable")
 
 	var nothing_painted: Array[Vector2i] = []
-	var untouched: Dictionary = Variants.resolve(mask, nothing_painted)
+	var untouched: Dictionary = Delivery.resolve(mask, nothing_painted)
 	_check(untouched["retained"].is_empty(), "sans peinture, aucune tuile n est retenue")
 	_check_equal(untouched["unused"].size(), 2, "sans peinture, les deux cases restent inutilisees")
 
 	# Peindre hors du guide est signale, jamais jete en silence.
 	var outside_painted: Array[Vector2i] = [Vector2i(1, 0)]
-	var outside_resolved: Dictionary = Variants.resolve(mask, outside_painted)
+	var outside_resolved: Dictionary = Delivery.resolve(mask, outside_painted)
 	var expected_outside: Array[Vector2i] = [Vector2i(1, 0)]
 	_check_equal(outside_resolved["outside"], expected_outside, "une case peinte hors du guide est signalee")
 
 	# L ordre des cases fournies ne change pas le resultat.
 	var both_orders: Array[Vector2i] = [Vector2i(2, 0), Vector2i(0, 0)]
-	var reversed_resolved: Dictionary = Variants.resolve(mask, both_orders)
+	var reversed_resolved: Dictionary = Delivery.resolve(mask, both_orders)
 	var expected_both: Array[Vector2i] = [Vector2i(0, 0), Vector2i(2, 0)]
 	_check_equal(reversed_resolved["retained"][0], expected_both, "les variantes sont rendues en ordre de lecture")
 
@@ -233,8 +233,8 @@ func _test_modes_catalogue() -> void:
 	_check_equal(Modes.surface_tile_count(Modes.MINIMAL), BLOB_TILE_COUNT, "47 tuiles de surface")
 	_check_equal(Modes.wall_tile_count(Modes.MINIMAL), Walls.ALL_ROLES.size(), "12 tuiles de mur")
 	_check_equal(Modes.tile_count(Modes.MINIMAL), BLOB_TILE_COUNT + Walls.ALL_ROLES.size(), "59 tuiles en tout")
-	_check_equal(Modes.min_variants(Modes.MINIMAL), 1, "minimal ne promet qu une occurrence")
-	_check_equal(Modes.min_variants(Modes.AMPLE), 3, "ample en promet trois")
+	_check_equal(Modes.min_occurrences(Modes.MINIMAL), 1, "minimal ne promet qu une occurrence")
+	_check_equal(Modes.min_occurrences(Modes.AMPLE), 3, "ample en promet trois")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
 
@@ -401,7 +401,7 @@ func _check_one_guide(id: StringName) -> void:
 		for x: int in range(HeightMask.width(heights)):
 			if Coverage.visible_index_at(heights, x, y) != Coverage.NO_INDEX:
 				every_cell.append(Vector2i(x, y))
-	var resolved: Dictionary = Variants.resolve_relief(heights, every_cell)
+	var resolved: Dictionary = Delivery.resolve_relief(heights, every_cell)
 	_check(resolved["is_exportable"], "guide complet entierement peint : exportable")
 	_check_equal(resolved["delivered"].size(), BLOB_TILE_COUNT, "les 47 index sont livres")
 	_check(resolved["unused"].is_empty(), "aucune case inutilisee quand tout est peint")
@@ -409,7 +409,7 @@ func _check_one_guide(id: StringName) -> void:
 	# ⚠ LA PROMESSE DU MODE EST CHIFFREE, DONC ELLE SE PROUVE. `minimal` annonce 1 variante
 	# minimum, `ample` en annonce 3 : c est toute la difference entre les deux, et elle
 	# n a pas a etre crue sur parole.
-	var promised: int = Modes.min_variants(id)
+	var promised: int = Modes.min_occurrences(id)
 	var rarest: int = 1 << 30
 	for index: int in report["present"]:
 		rarest = mini(rarest, int(report["occurrences"][index]))
@@ -426,7 +426,7 @@ func _check_one_guide(id: StringName) -> void:
 	for cell: Vector2i in every_cell:
 		if not skipped.has(cell):
 			without.append(cell)
-	var partial: Dictionary = Variants.resolve_relief(heights, without)
+	var partial: Dictionary = Delivery.resolve_relief(heights, without)
 	_check_equal(partial["missing"], PackedInt32Array([target]), "laisser un index entierement vierge le fait manquer, et lui seul")
 	_check_equal(partial["is_exportable"], false, "un index non peint interdit l export")
 
@@ -457,7 +457,7 @@ func _check_one_guide_walls(id: StringName) -> void:
 	for role: Vector2i in occurrences.keys():
 		wall_cells += int(occurrences[role])
 		rarest_role = mini(rarest_role, int(occurrences[role]))
-	_check(rarest_role >= Modes.min_variants(id), "chaque role de mur est vu au moins %d fois (le plus rare : %d)" % [Modes.min_variants(id), rarest_role])
+	_check(rarest_role >= Modes.min_occurrences(id), "chaque role de mur est vu au moins %d fois (le plus rare : %d)" % [Modes.min_occurrences(id), rarest_role])
 	print("  %d cases de robe deroulees" % wall_cells)
 
 
@@ -537,7 +537,7 @@ func _test_undo() -> void:
 	_check(not branch.can_redo(), "peindre apres avoir defait ferme le refaire")
 
 
-func _test_wall_variants() -> void:
+func _test_wall_delivery() -> void:
 	print("walls : la regle des variantes vaut aussi pour les robes")
 	var heights: PackedStringArray = HeightMask.parse(".....
 .222.
@@ -769,7 +769,6 @@ func _test_export() -> void:
 
 	var report: Dictionary = TilesetPNG.analyse(painting, heights)
 	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
-	_check_equal(int(report["variants"]), 1, "une seule variante peinte, un seul bloc")
 	_check(report["missing_surface"].is_empty(), "aucune surface manquante")
 	_check(report["missing_wall"].is_empty(), "aucune robe manquante")
 
@@ -778,7 +777,7 @@ func _test_export() -> void:
 	_check_equal(sheet.get_height(), TilesetPNG.surface_rows() * 16, "six rangees de haut")
 	var astray: int = 0
 	for index: int in BlobIndex.CANONICAL_INDICES:
-		var slot: Vector2i = TilesetPNG.surface_slot(index, 0)
+		var slot: Vector2i = TilesetPNG.surface_slot(index)
 		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
 				_key_colour("S%d:0" % index)):
 			astray += 1
@@ -789,7 +788,7 @@ func _test_export() -> void:
 	_check_equal(kit.get_height(), Walls.BLOCK_ROWS * 16, "et quatre rangees")
 	var roles_astray: int = 0
 	for role: Vector2i in Walls.ALL_ROLES:
-		var at: Vector2i = TilesetPNG.wall_slot(role, 0)
+		var at: Vector2i = TilesetPNG.wall_slot(role)
 		if not kit.get_pixel(at.x * 16, at.y * 16).is_equal_approx(
 				_key_colour("W%d,%d:0" % [role.x, role.y])):
 			roles_astray += 1
@@ -808,7 +807,7 @@ func _test_export() -> void:
 		lonely.paint(by_key[late], 0, 0, Color.BLUE)
 		var packed: Dictionary = TilesetPNG.analyse(lonely, heights)
 		var index: int = int(WorkIO.describe(late)["index"])
-		var at: Vector2i = TilesetPNG.surface_slot(index, 0)
+		var at: Vector2i = TilesetPNG.surface_slot(index)
 		var tassee: Image = TilesetPNG.compose(lonely, heights, packed, false)
 		_check(tassee.get_pixel(at.x * 16, at.y * 16).is_equal_approx(Color.BLUE),
 				"le rang 2 peint seul devient la variante 0 de la planche")
@@ -849,6 +848,7 @@ func _test_export() -> void:
 		"row_for crown_first foot_last body_cycle",
 		"pan west_times_three_plus_east lip_row_comparison per_row",
 		"bits N=%d" % BlobIndex.N,
+		"sheet fixed_size one_drawing_per_tile no_variants",
 	]
 	var absent: PackedStringArray = PackedStringArray()
 	for clause: String in contract:
@@ -880,8 +880,9 @@ func _test_assembly() -> void:
 
 	var report: Dictionary = TilesetPNG.analyse(painting, heights)
 	_check(report["is_exportable"], "le guide entierement peint est exportable")
-	_check_equal(int(report["variants"]), 1,
-			"peindre les jumelles ne fabrique pas cent variantes du meme dessin")
+	_check_equal(TilesetPNG.compose(painting, heights, report, false).get_height(),
+			TilesetPNG.surface_rows() * 16,
+			"LA PLANCHE A UNE TAILLE FIXE : peindre les jumelles ne l'allonge pas")
 
 	var surface: Image = TilesetPNG.compose(painting, heights, report, false)
 	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
@@ -899,7 +900,10 @@ func _test_assembly() -> void:
 			painted_pixels += 1
 	_check_equal(painted_pixels, slots.size(), "chaque case peignable porte sa tuile au remontage")
 
-	# Deux dessins VRAIMENT differents sur la meme tuile font, eux, deux variantes.
+	# ⚠ ET DEUX DESSINS DIFFERENTS SUR DEUX JUMELLES NE FONT PLUS DEUX TUILES. Le systeme
+	# de variantes empilait alors une rangee de plus dans la planche ; il a ete retire, le
+	# mot faisant deux metiers. La premiere occurrence peinte gagne, et la feuille garde
+	# exactement la meme taille -- c'est ce qui rend le lecteur trivial.
 	var twin_key: String = ""
 	for key: String in slots.values():
 		if key.begins_with("S") and key.ends_with(":1"):
@@ -911,8 +915,10 @@ func _test_assembly() -> void:
 		painting.paint(by_key[twin_key], 9, 9, Color.MAGENTA)
 		var two: Dictionary = TilesetPNG.analyse(painting, heights)
 		var index: int = int(WorkIO.describe(twin_key)["index"])
-		_check_equal(two["surface_variants"][index].size(), 2,
-				"un dessin different sur une jumelle donne une vraie seconde variante")
+		_check_equal(int(two["surface_source"][index]), 0,
+				"un dessin different sur une jumelle ne change rien : la premiere gagne")
+		_check_equal(TilesetPNG.compose(painting, heights, two, false).get_height(),
+				TilesetPNG.surface_rows() * 16, "et la planche ne grandit pas d'une rangee")
 
 
 func _test_preview_scene() -> void:
@@ -1174,9 +1180,9 @@ func _test_corner_network() -> void:
 		var rarest: int = 1 << 30
 		for index: int in other["present"]:
 			rarest = mini(rarest, int(other["occurrences"][index]))
-		_check(rarest >= Modes.min_variants(id),
+		_check(rarest >= Modes.min_occurrences(id),
 				"%s : chaque croisement est vu au moins %d fois (le plus rare : %d)"
-				% [Modes.label(id), Modes.min_variants(id), rarest])
+				% [Modes.label(id), Modes.min_occurrences(id), rarest])
 
 
 ## Le cote de tuile des essais de raccord. Assez grand pour que les arrondis existent,
@@ -1587,7 +1593,7 @@ func _test_dual_end_to_end() -> void:
 			"la planche des quinze tient en %d rangees" % TilesetPNG.surface_rows(family))
 	var astray: int = 0
 	for index: int in Families.surface_indices(family):
-		var slot: Vector2i = TilesetPNG.surface_slot(index, 0, family)
+		var slot: Vector2i = TilesetPNG.surface_slot(index, family)
 		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
 				_key_colour("C%d:0" % index)):
 			astray += 1

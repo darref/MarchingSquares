@@ -1,10 +1,14 @@
-# Selection des variantes : quelles cases du guide deviennent des tuiles.
+# LA LIVRAISON : quelles cases du guide deviennent des tuiles.
 #
 # Regle fixee : quand plusieurs cases du guide portent le meme index, ce sont des
-# variantes *possibles*. Une variante n'est retenue que si l'utilisateur a peint au moins
-# un pixel dessus. Sinon elle n'est pas utilisee : rien n'est fabrique a sa place
-# (charte, regle 3). Peindre est donc l'acte de selection, il n'y a rien a configurer
-# (charte, regle 1).
+# OCCURRENCES de la meme tuile -- des jumelles. La tuile est livree des qu'une seule
+# d'entre elles porte un pixel. Une case laissee vierge n'est simplement pas utilisee :
+# rien n'est fabrique a sa place (charte, regle 3). Peindre est donc l'acte de selection,
+# il n'y a rien a configurer (charte, regle 1).
+#
+# ⚠ UNE JUMELLE N'EST PAS UNE VARIANTE. Ce fichier s'appelait `variants.gd`, et le mot
+# faisait deux metiers : les occurrences du guide, et les dessins distincts qu'on empilait
+# jadis dans la planche. Le second a disparu ; ce qui reste, c'est la livraison.
 #
 # Le noyau ne connait pas les pixels. La couche de dessin repond a une seule question
 # par case -- "porte-t-elle au moins un pixel peint ?" -- et transmet la liste des cases
@@ -17,14 +21,14 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 
 
-## Resout les variantes d'un guide en fonction des cases peintes.
+## Resout la livraison d'un guide en fonction des cases peintes.
 ##
 ## Cles retournees :
 ##   retained      : Dictionary[int, Array[Vector2i]]  index -> cases peintes retenues
 ##   unused        : Array[Vector2i]                   cases du guide non peintes
 ##   outside       : Array[Vector2i]                   cases peintes hors du guide
-##   delivered     : PackedInt32Array                  index ayant au moins une variante peinte
-##   missing       : PackedInt32Array                  index sans aucune variante peinte
+##   delivered     : PackedInt32Array                  index ayant au moins une case peinte
+##   missing       : PackedInt32Array                  index sans aucune case peinte
 ##   is_exportable : bool                              vrai si les 47 index sont livres
 ##
 ## Un guide complet ne suffit pas a exporter : c'est le dessin qui livre les index.

@@ -3,7 +3,7 @@
 # Une tuile du guide se peint dans une grille de `resolution` x `resolution` pixels. Ce
 # fichier ne connait ni souris, ni ecran, ni noeud : il stocke des pixels et repond a la
 # seule question que le reste du noyau lui pose -- « cette case porte-t-elle au moins un
-# pixel ? ». C'est exactement le seuil de la regle des variantes.
+# pixel ? ». C'est exactement le seuil de la regle de livraison.
 #
 # ⚠ ON N'ALLOUE QUE LES CASES TOUCHEES. Un guide de 980 cases a 256 pixels de cote ferait
 # un quart de gigaoctet s'il fallait tout reserver d'avance. Une case vierge ne coute rien
@@ -67,7 +67,7 @@ func erase(cell: Vector2i, x: int, y: int) -> bool:
 	return paint(cell, x, y, TRANSPARENT)
 
 
-## Vrai si la case porte au moins un pixel. C'est le seuil de la regle des variantes :
+## Vrai si la case porte au moins un pixel. C'est le seuil de la regle de livraison :
 ## un pixel suffit a prendre la case, aucun pixel et elle ne sert pas.
 func is_painted(cell: Vector2i) -> bool:
 	return int(_counts.get(cell, 0)) > 0

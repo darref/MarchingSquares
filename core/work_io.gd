@@ -11,21 +11,22 @@
 # Consequence heureuse et gratuite : un travail commence en `minimal` se recharge en
 # `ample`. Les deux modes livrent les memes 59 tuiles ; seul le nombre d'exemplaires change.
 #
-# LES CLES. Une tuile se nomme par ce qu'elle est, plus son rang de variante :
-#   S<index>:<variante>        surface par case, index blob canonique
-#   C<index>:<variante>        surface a cheval, index du croisement
-#   W<pan>,<rangee>:<variante> robe
+# LES CLES. Une tuile se nomme par ce qu'elle est, plus son rang d'occurrence :
+#   S<index>:<rang>        surface par case, index blob canonique
+#   C<index>:<rang>        surface a cheval, index du croisement
+#   W<pan>,<rangee>:<rang> robe
 #
 # ⚠ `S` ET `C` NE SE MELANGENT JAMAIS DANS UN MEME FICHIER : ce sont deux familles, et un
 # travail appartient a l'une ou a l'autre. L'en-tete le dit par une ligne `famille`.
-# Le rang de variante est la position de la case dans son groupe, en ordre de lecture.
+# Le rang est la position de la case dans son groupe, en ordre de lecture. ⚠ CE N'EST
+# PAS UN NUMERO DE VARIANTE : c'est un ENDROIT, celui ou cette tuile se voit.
 # Rang 0 est donc toujours la premiere occurrence de la tuile dans le guide, celle qui
 # existe forcement -- une tuile n'entre au guide qu'au moins une fois.
 #
 # ⚠ CE QUI NE RETOMBE PAS SUR SES PIEDS EST DIT, PAS JETE. Si le nouveau guide offre moins
-# d'exemplaires d'une tuile que le fichier n'en portait, les variantes en trop sont
+# d'exemplaires d'une tuile que le fichier n'en portait, les occurrences en trop sont
 # rendues dans `unplaced`. On ne perd pas du travail en silence -- meme regle que les
-# pixels peints hors du guide dans `variants.gd`.
+# pixels peints hors du guide dans `delivery.gd`.
 extends RefCounted
 
 const HeightMask := preload("res://core/height_mask.gd")
@@ -83,7 +84,7 @@ static func slots(heights: PackedStringArray,
 ##   family : "S" surface par case, "C" surface a cheval, "W" robe, "" si illisible
 ##   index  : int      pour une surface
 ##   role   : Vector2i pour une robe (pan, rangee)
-##   rank   : int      le rang de variante
+##   rank   : int      le rang de l'occurrence
 static func describe(key: String) -> Dictionary:
 	var blank: Dictionary = {"family": "", "index": -1, "role": Vector2i.ZERO, "rank": 0}
 	var colon: int = key.rfind(":")

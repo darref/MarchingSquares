@@ -9,16 +9,19 @@
 # transparents en esperant que personne ne s'en serve : il rend la liste de ce qui manque
 # et n'ecrit rien. Un tileset a moitie peint n'est pas un tileset, c'est un piege.
 #
-# ⚠ UNE VARIANTE EST UN DESSIN DIFFERENT, PAS UNE CASE DIFFERENTE. « Peindre les
-# jumelles » est coche d'emblee : les cent cases qui portent le meme index portent alors le
-# MEME dessin. Les exporter toutes gonflerait la planche de cent blocs identiques, pour une
-# feuille cent fois plus lourde qui ne montre rien de plus. On compare donc le CONTENU, et
-# l'on ne garde que ce qui differe vraiment.
+# ⚠ UNE TUILE, UN DESSIN, UNE CASE DE PLANCHE. Le guide porte une tuile en beaucoup
+# d'exemplaires -- ses JUMELLES -- mais ce ne sont pas des variantes : c'est le meme endroit
+# vu plusieurs fois. « Peindre les jumelles » est coche d'emblee, elles portent donc toutes
+# le meme dessin. La planche a exactement une case par tuile, et sa taille ne depend pas de
+# ce qui a ete peint.
 #
-# ⚠ ET ELLES SONT TASSEES, PAS RECOPIEES A LEUR RANG D'ORIGINE. Si l'utilisateur a peint
-# la troisieme occurrence d'un index sans peindre la premiere, sa tuile devient la variante
-# 0 de la planche. Sinon un moteur qui tire une variante au hasard tomberait sur une case
-# vide -- et le rang dans le guide n'a aucun sens pour qui relit la feuille.
+# ⚠ CE QUE LES JUMELLES APPORTENT N'EST PAS « PLUSIEURS DESSINS ». C'est que peindre une
+# tuile en remplit des dizaines sous les yeux, en temps reel -- l'acheteur voit d'un coup
+# d'œil le peu qu'il aura a dessiner. C'est un argument, pas une donnee d'export.
+#
+# ⚠ ON PREND LA PREMIERE OCCURRENCE PEINTE, quelle que soit sa place dans le guide. Si
+# l'utilisateur a peint la troisieme sans peindre la premiere, c'est la troisieme qui sort :
+# le rang dans le guide n'a aucun sens pour qui relit la feuille.
 #
 # LA DISPOSITION EST MECANIQUE, ET LE MANIFESTE LA REDIT QUAND MEME. Les 47 index rangent
 # en ordre croissant, huit par rangee ; les 12 robes tombent naturellement en 3 pans x 4
@@ -36,11 +39,18 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const Assembly := preload("res://render/assembly.gd")
 
 const MAGIC: String = "absolutiles-tileset"
-## ⚠ VERSION 2 : LE MANIFESTE EST DEVENU UN CONTRAT. Il ne decrit plus seulement OU sont
-## les tuiles, il porte la REGLE DE POSE. Une seconde moitie du projet posera le monde dans
-## Godot et dans Unity : c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui
-## se fient a leur memoire finissent toujours par diverger. La regle vit ici, une seule fois.
-const VERSION: int = 2
+## LE MANIFESTE EST UN CONTRAT. Il ne decrit pas seulement OU sont les tuiles, il porte la
+## REGLE DE POSE. Une seconde moitie du projet posera le monde dans Godot et dans Unity :
+## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur
+## memoire finissent toujours par diverger. La regle vit ici, une seule fois.
+##
+## ⚠ VERSION 3 : LES VARIANTES ONT DISPARU. La planche avait des rangees empilees, une par
+## dessin distinct, et le manifeste portait une cle `variants`. Le mot faisait deux metiers
+## -- les jumelles du guide et les dessins de la planche -- et le second n'a jamais servi :
+## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
+## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
+## viendra plus tard, et il sera concu pour lui-meme.
+const VERSION: int = 3
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -64,18 +74,20 @@ const SUFFIX_PROOF: String = "_preuve.png"
 ## contredire (charte, regle 4).
 ##
 ## Cles rendues :
-##   surface_variants : Dictionary[int, Array[int]]      index -> rangs peints, tasses
-##   wall_variants    : Dictionary[Vector2i, Array[int]] role  -> rangs peints, tasses
-##   missing_surface  : Array[int]
-##   missing_wall     : Array[Vector2i]
-##   variants         : int   nombre de blocs de la planche
-##   tile_size        : int
-##   is_exportable    : bool
+##   surface_source : Dictionary[int, int]      index -> rang de l'occurrence retenue
+##   wall_source    : Dictionary[Vector2i, int] role  -> rang de l'occurrence retenue
+##   missing_surface : Array[int]
+##   missing_wall    : Array[Vector2i]
+##   tile_size       : int
+##   family          : StringName
+##   is_exportable   : bool
 static func analyse(painting: Painting, heights: PackedStringArray,
 		family: StringName = Families.BY_CELL) -> Dictionary:
-	var surface_ranks: Dictionary = {}
-	var wall_ranks: Dictionary = {}
+	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
+	var letter: String = Families.key_letter(family)
 
+	var surface_source: Dictionary = {}
+	var wall_source: Dictionary = {}
 	var by_cell: Dictionary = WorkIO.slots(heights, family)
 	for cell: Vector2i in painting.painted_cells():
 		if not by_cell.has(cell):
@@ -83,83 +95,51 @@ static func analyse(painting: Painting, heights: PackedStringArray,
 		var slot: Dictionary = WorkIO.describe(String(by_cell[cell]))
 		var rank: int = int(slot["rank"])
 		if slot["family"] == "S" or slot["family"] == "C":
-			_note(surface_ranks, int(slot["index"]), rank)
+			_keep(surface_source, int(slot["index"]), rank, letter, painting, by_key)
 		elif slot["family"] == "W":
-			_note(wall_ranks, slot["role"], rank)
+			_keep(wall_source, slot["role"], rank, "W", painting, by_key)
 
-	# ⚠ LE DEDOUBLONNAGE PASSE AVANT LE COMPTE. Sans lui, `variants` vaudrait le nombre
-	# d'occurrences du guide -- une centaine pour les index courants -- et la planche
-	# ferait cent blocs pour un seul dessin.
-	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
-	var letter: String = Families.key_letter(family)
-	_dedupe(surface_ranks, letter, painting, by_key)
-	_dedupe(wall_ranks, "W", painting, by_key)
-
-	# ⚠ UNE TUILE N'EST LIVREE QUE SI SA LISTE N'EST PAS VIDE, et pas du seul fait que sa cle
-	# existe. Le dedoublonnage peut vider une liste -- cle irresolue, image absente -- et la
-	# presence seule aurait alors annonce « exportable » pour une case blanche. C'est
-	# exactement ce qui est arrive en famille a cheval : le rapport disait 15/15, la planche
-	# sortait vide, et rien ne le signalait (charte, regle 4).
+	# ⚠ UNE TUILE N'EST LIVREE QUE SI ELLE A VRAIMENT UN DESSIN A POSER, et pas du seul fait
+	# qu'une cle existe au rapport. Une cle irresolue ou une image absente laissait autrefois
+	# la liste vide, et le compte annoncait « exportable » pour une case blanche : le rapport
+	# disait 15/15 et la planche sortait vide. `_keep` ne retient que ce qui porte une image,
+	# donc la presence AU RAPPORT vaut desormais preuve (charte, regle 4).
 	var missing_surface: Array[int] = []
 	for index: int in Families.surface_indices(family):
-		if not _delivered(surface_ranks, index):
+		if not surface_source.has(index):
 			missing_surface.append(index)
 	missing_surface.sort()
 
 	var missing_wall: Array[Vector2i] = []
 	for role: Vector2i in Walls.ALL_ROLES:
-		if not _delivered(wall_ranks, role):
+		if not wall_source.has(role):
 			missing_wall.append(role)
 
-	var variants: int = 1
-	for ranks: Array in surface_ranks.values():
-		variants = maxi(variants, ranks.size())
-	for ranks: Array in wall_ranks.values():
-		variants = maxi(variants, ranks.size())
-
 	return {
-		"surface_variants": surface_ranks,
-		"wall_variants": wall_ranks,
+		"surface_source": surface_source,
+		"wall_source": wall_source,
 		"missing_surface": missing_surface,
 		"missing_wall": missing_wall,
-		"variants": variants,
 		"tile_size": painting.resolution,
 		"family": family,
 		"is_exportable": missing_surface.is_empty() and missing_wall.is_empty(),
 	}
 
 
-## Cette tuile a-t-elle au moins un dessin a poser sur la planche ?
-static func _delivered(ranks_by_tile: Dictionary, tile: Variant) -> bool:
-	return ranks_by_tile.has(tile) and not (ranks_by_tile[tile] as Array).is_empty()
-
-
-## Ne garde, parmi les occurrences peintes d'une tuile, que les dessins REELLEMENT
-## differents. La comparaison est exacte -- octet pour octet -- et non par empreinte : une
-## empreinte qui se cognerait ferait disparaitre une variante en silence, et l'utilisateur
-## perdrait un dessin sans que rien ne le dise.
-static func _dedupe(ranks_by_tile: Dictionary, family: String, painting: Painting,
-		by_key: Dictionary) -> void:
-	for tile: Variant in ranks_by_tile.keys():
-		var kept: Array[int] = []
-		var seen: Array[PackedByteArray] = []
-		for rank: int in ranks_by_tile[tile]:
-			if not by_key.has(_key_for(family, tile, rank)):
-				continue
-			var image: Image = painting.image_of(by_key[_key_for(family, tile, rank)])
-			if image == null:
-				continue
-			var data: PackedByteArray = image.get_data()
-			var already: bool = false
-			for other: PackedByteArray in seen:
-				if other == data:
-					already = true
-					break
-			if already:
-				continue
-			seen.append(data)
-			kept.append(rank)
-		ranks_by_tile[tile] = kept
+## Retient l'occurrence qui fournira le dessin de cette tuile.
+##
+## ⚠ LA PREMIERE PEINTE GAGNE, et une seule est retenue. On garde le plus petit rang pour
+## que la feuille ne depende pas de l'ordre dans lequel le carnet a ete parcouru -- un
+## dictionnaire ne promet aucun ordre, et un export qui changerait d'une fois sur l'autre
+## serait indefendable.
+static func _keep(into: Dictionary, tile: Variant, rank: int, letter: String,
+		painting: Painting, by_key: Dictionary) -> void:
+	if into.has(tile) and int(into[tile]) <= rank:
+		return
+	var key: String = _key_for(letter, tile, rank)
+	if not by_key.has(key) or painting.image_of(by_key[key]) == null:
+		return
+	into[tile] = rank
 
 
 ## La cle de sauvegarde d'une tuile. Le format appartient a `work_io` ; on le compose ici
@@ -171,27 +151,15 @@ static func _key_for(letter: String, tile: Variant, rank: int) -> String:
 	return "%s%d:%d" % [letter, int(tile), rank]
 
 
-static func _note(into: Dictionary, key: Variant, rank: int) -> void:
-	if not into.has(key):
-		var fresh: Array[int] = []
-		into[key] = fresh
-	var ranks: Array[int] = into[key]
-	if not ranks.has(rank):
-		ranks.append(rank)
-		ranks.sort()
-
-
-## La case de la planche de surface ou tombe l'index [param index], variante [param slot].
-static func surface_slot(index: int, slot: int,
-		family: StringName = Families.BY_CELL) -> Vector2i:
+## La case de la planche de surface ou tombe l'index [param index].
+static func surface_slot(index: int, family: StringName = Families.BY_CELL) -> Vector2i:
 	var order: int = Families.surface_indices(family).find(index)
 	if order < 0:
 		return Vector2i(-1, -1)
-	return Vector2i(order % SURFACE_COLUMNS,
-			order / SURFACE_COLUMNS + slot * surface_rows(family))
+	return Vector2i(order % SURFACE_COLUMNS, order / SURFACE_COLUMNS)
 
 
-## La hauteur d'un bloc de la planche de surface, en tuiles.
+## La hauteur de la planche de surface, en tuiles.
 static func surface_rows(family: StringName = Families.BY_CELL) -> int:
 	var count: int = Families.surface_indices(family).size()
 	return (count + SURFACE_COLUMNS - 1) / SURFACE_COLUMNS
@@ -199,8 +167,8 @@ static func surface_rows(family: StringName = Families.BY_CELL) -> int:
 
 ## La case de la planche de robes. Le pan donne la colonne, la rangee donne la rangee :
 ## la planche EST le bloc 3 x 4 du vocabulaire, sans traduction.
-static func wall_slot(role: Vector2i, slot: int) -> Vector2i:
-	return Vector2i(role.x, role.y + slot * Walls.BLOCK_ROWS)
+static func wall_slot(role: Vector2i) -> Vector2i:
+	return role
 
 
 ## Compose une planche. Rend null si rien n'est a poser.
@@ -208,9 +176,8 @@ static func compose(painting: Painting, heights: PackedStringArray, report: Dict
 		walls: bool) -> Image:
 	var family: StringName = report.get("family", Families.BY_CELL)
 	var side: int = painting.resolution
-	var variants: int = int(report["variants"])
 	var columns: int = Walls.PAN_COUNT if walls else SURFACE_COLUMNS
-	var rows: int = (Walls.BLOCK_ROWS if walls else surface_rows(family)) * variants
+	var rows: int = Walls.BLOCK_ROWS if walls else surface_rows(family)
 	if columns <= 0 or rows <= 0:
 		return null
 
@@ -218,19 +185,17 @@ static func compose(painting: Painting, heights: PackedStringArray, report: Dict
 	sheet.fill(Painting.TRANSPARENT)
 
 	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
-	var table: Dictionary = report["wall_variants"] if walls else report["surface_variants"]
+	var table: Dictionary = report["wall_source"] if walls else report["surface_source"]
 	for tile: Variant in table.keys():
-		var ranks: Array[int] = table[tile]
-		for slot: int in range(ranks.size()):
-			var letter: String = "W" if walls else Families.key_letter(family)
-			var key: String = _key_for(letter, tile, ranks[slot])
-			var at: Vector2i = wall_slot(tile, slot) if walls 					else surface_slot(int(tile), slot, family)
-			if at.x < 0 or not by_key.has(key):
-				continue
-			var image: Image = painting.image_of(by_key[key])
-			if image == null:
-				continue
-			sheet.blit_rect(image, Rect2i(0, 0, side, side), at * side)
+		var letter: String = "W" if walls else Families.key_letter(family)
+		var key: String = _key_for(letter, tile, int(table[tile]))
+		var at: Vector2i = wall_slot(tile) if walls else surface_slot(int(tile), family)
+		if at.x < 0 or not by_key.has(key):
+			continue
+		var image: Image = painting.image_of(by_key[key])
+		if image == null:
+			continue
+		sheet.blit_rect(image, Rect2i(0, 0, side, side), at * side)
 	return sheet
 
 
@@ -240,7 +205,6 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("%s %d" % [MAGIC, VERSION])
 	lines.append("mode %s" % mode_id)
 	lines.append("tile_size %d" % int(report["tile_size"]))
-	lines.append("variants %d" % int(report["variants"]))
 
 	_spec(lines)
 
@@ -253,13 +217,13 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 			% Families.surface_tile_count(family))
 	lines.append("# cases qui restent en fin de planche sont vides.")
 	var indices: Array[int] = []
-	for index: int in report["surface_variants"].keys():
+	for index: int in report["surface_source"].keys():
 		indices.append(index)
 	indices.sort()
 	for index: int in indices:
-		var slot: Vector2i = surface_slot(index, 0, family)
-		lines.append("index %d slot %d,%d variants %d  # %s" % [index, slot.x, slot.y,
-				report["surface_variants"][index].size(), Families.describe(family, index)])
+		var slot: Vector2i = surface_slot(index, family)
+		lines.append("index %d slot %d,%d  # %s" % [index, slot.x, slot.y,
+				Families.describe(family, index)])
 
 	lines.append("")
 	lines.append("proof %s" % [basename + SUFFIX_PROOF])
@@ -271,11 +235,11 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("# %d pans (le couple des deux flancs) x %d rangees = %d tuiles."
 			% [Walls.PAN_COUNT, Walls.BLOCK_ROWS, Walls.ALL_ROLES.size()])
 	for role: Vector2i in Walls.ALL_ROLES:
-		if not report["wall_variants"].has(role):
+		if not report["wall_source"].has(role):
 			continue
-		var at: Vector2i = wall_slot(role, 0)
-		lines.append("role %d,%d slot %d,%d variants %d  # %s" % [role.x, role.y, at.x, at.y,
-				report["wall_variants"][role].size(), Walls.role_name(role)])
+		var at: Vector2i = wall_slot(role)
+		lines.append("role %d,%d slot %d,%d  # %s" % [role.x, role.y, at.x, at.y,
+				Walls.role_name(role)])
 
 	return "\n".join(lines) + "\n"
 
@@ -352,6 +316,15 @@ static func _spec(lines: PackedStringArray) -> void:
 	lines.append("# ⚠ ET LE PAN SE CHOISIT PAR RANGEE, JAMAIS PAR COLONNE : sous le pied d'une")
 	lines.append("# voisine plus courte, un flanc redevient vide.")
 	lines.append("pan west_times_three_plus_east lip_row_comparison per_row")
+
+	lines.append("")
+	lines.append("# --- LA PLANCHE ---")
+	lines.append("# Une tuile, un dessin, une case. Les deux planches ont une taille FIXE :")
+	lines.append("# elle ne depend ni du guide ni de ce qui a ete peint, seulement du")
+	lines.append("# vocabulaire. Le lecteur peut donc calculer la case d'une tuile sans rien")
+	lines.append("# lire d'autre que ce fichier. Il n'y a PAS de variantes : plusieurs cases")
+	lines.append("# du guide portent la meme tuile, mais elles portent le meme dessin.")
+	lines.append("sheet fixed_size one_drawing_per_tile no_variants")
 	lines.append("# ================================================================")
 
 

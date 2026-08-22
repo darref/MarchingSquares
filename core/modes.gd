@@ -25,11 +25,11 @@ const MODES: Dictionary = {
 		"guide_path": "res://guides/minimal.txt",
 		"surface_tiles": 47,
 		"wall_tiles": 36,
-		"min_variants": 1,
+		"min_occurrences": 1,
 	},
 	# Meme completude que `minimal`, mais volontairement plus de repetitions : chaque tuile
 	# se voit dans plusieurs contextes, ce qui rend le geste plus sur. La promesse est
-	# chiffree par `min_variants` et prouvee par la suite de tests.
+	# chiffree par `min_occurrences` et prouvee par la suite de tests.
 	AMPLE: {
 		"label": "Ample",
 		"guide_path": "res://guides/ample.txt",
@@ -38,7 +38,7 @@ const MODES: Dictionary = {
 		# ⚠ TROIS, ET C'EST UNE BARRE TROIS FOIS PLUS HAUTE QUE CELLE DE `minimal`. Elle
 		# porte sur les TROIS vocabulaires -- 47 index de surface, 15 croisements, 36 roles
 		# de robe -- et elle est prouvee par la suite, pas promise.
-		"min_variants": 3,
+		"min_occurrences": 3,
 	},
 }
 
@@ -80,14 +80,19 @@ static func guide_path(id: StringName) -> String:
 	return MODES[id]["guide_path"]
 
 
-## Nombre minimal d'occurrences que chaque tuile doit avoir dans le guide du mode.
+## Nombre minimal d'OCCURRENCES que chaque tuile doit avoir dans le guide du mode.
+##
 ## ⚠ C'EST LA PROMESSE DU MODE, ET ELLE EST PROUVEE. `ample` ne dit pas « plus redondant »
 ## en esperant que ce soit vrai : il annonce 3, et la suite de tests le verifie.
-static func min_variants(id: StringName) -> int:
+##
+## ⚠ CE NE SONT PAS DES VARIANTES. Une occurrence est un ENDROIT de plus ou la meme tuile
+## se voit ; toutes portent le meme dessin. Ce qu'elles apportent, c'est que peindre une
+## tuile en remplit des dizaines sous les yeux -- pas que la planche grossisse.
+static func min_occurrences(id: StringName) -> int:
 	if not MODES.has(id):
 		push_error("modes: mode inconnu '%s'." % id)
 		return 0
-	return MODES[id]["min_variants"]
+	return MODES[id]["min_occurrences"]
 
 
 ## Nombre de tuiles de surface -- le blob 47.
