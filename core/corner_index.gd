@@ -83,11 +83,27 @@ static func visible_index_at(heights: PackedStringArray, i: int, j: int) -> int:
 
 
 ## Croisement -> index visible, pour tout le relief.
+##
+## ⚠ UNE SILHOUETTE PAR ETAGE, PAS UNE PAR CROISEMENT. `visible_index_at` en reconstruit
+## une a chaque appel : sur un guide de soixante colonnes cela refait mille sept cents fois
+## un masque entier, et une simple battue depassait les dix minutes. On les batit une fois.
 static func index_map(heights: PackedStringArray) -> Dictionary:
 	var indices: Dictionary = {}
+	var top: int = HeightMask.top_level(heights)
+	if top <= 0:
+		return indices
+	var masks: Array[PackedStringArray] = []
+	for level: int in range(top + 1):
+		masks.append(HeightMask.silhouette(heights, maxi(level, 1)))
 	for j: int in range(HeightMask.height(heights) + 1):
 		for i: int in range(HeightMask.width(heights) + 1):
-			var index: int = visible_index_at(heights, i, j)
+			var here: int = 0
+			for bit: int in range(BITS.size()):
+				var at: Vector2i = OFFSETS[bit]
+				here = maxi(here, HeightMask.level_at(heights, i + at.x, j + at.y))
+			if here == 0:
+				continue
+			var index: int = index_at(masks[here], i, j)
 			if index != NO_INDEX:
 				indices[Vector2i(i, j)] = index
 	return indices

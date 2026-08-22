@@ -12,8 +12,12 @@
 # `ample`. Les deux modes livrent les memes 59 tuiles ; seul le nombre d'exemplaires change.
 #
 # LES CLES. Une tuile se nomme par ce qu'elle est, plus son rang de variante :
-#   S<index>:<variante>        surface, index blob canonique
+#   S<index>:<variante>        surface par case, index blob canonique
+#   C<index>:<variante>        surface a cheval, index du croisement
 #   W<pan>,<rangee>:<variante> robe
+#
+# ⚠ `S` ET `C` NE SE MELANGENT JAMAIS DANS UN MEME FICHIER : ce sont deux familles, et un
+# travail appartient a l'une ou a l'autre. L'en-tete le dit par une ligne `famille`.
 # Le rang de variante est la position de la case dans son groupe, en ordre de lecture.
 # Rang 0 est donc toujours la premiere occurrence de la tuile dans le guide, celle qui
 # existe forcement -- une tuile n'entre au guide qu'au moins une fois.
@@ -28,6 +32,8 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
+const Families := preload("res://core/families.gd")
 
 const EXTENSION: String = "absolutiles"
 
@@ -68,7 +74,7 @@ static func slots(heights: PackedStringArray) -> Dictionary:
 ## besoin de les relire passe par ici plutot que de refaire l'analyse dans son coin.
 ##
 ## Cles rendues :
-##   family : "S" surface, "W" robe, "" si la cle est illisible
+##   family : "S" surface par case, "C" surface a cheval, "W" robe, "" si illisible
 ##   index  : int      pour une surface
 ##   role   : Vector2i pour une robe (pan, rangee)
 ##   rank   : int      le rang de variante
@@ -79,8 +85,9 @@ static func describe(key: String) -> Dictionary:
 		return blank
 	var head: String = key.substr(1, colon - 1)
 	var rank: int = key.substr(colon + 1).to_int()
-	if key.begins_with("S"):
-		return {"family": "S", "index": head.to_int(), "role": Vector2i.ZERO, "rank": rank}
+	if key.begins_with("S") or key.begins_with("C"):
+		return {"family": key.substr(0, 1), "index": head.to_int(), "role": Vector2i.ZERO,
+				"rank": rank}
 	if key.begins_with("W"):
 		var comma: int = head.find(",")
 		if comma < 0:
@@ -92,6 +99,31 @@ static func describe(key: String) -> Dictionary:
 			"rank": rank,
 		}
 	return blank
+
+
+## L'ANNUAIRE DE LA FAMILLE A CHEVAL : croisement -> cle.
+##
+## ⚠ IL VIT A PART, ET IL LE DOIT. Un croisement et une case sont tous deux des `Vector2i`
+## mais ne designent pas la meme chose : les melanger dans un seul carnet ferait se marcher
+## dessus la tuile du croisement (3,4) et la robe de la case (3,4). Deux familles, deux
+## carnets, et la collision devient impossible par construction.
+static func corner_slots(heights: PackedStringArray) -> Dictionary:
+	var by_point: Dictionary = {}
+	var groups: Dictionary = CornerIndex.points_by_index(CornerIndex.index_map(heights))
+	for index: int in groups.keys():
+		var points: Array[Vector2i] = _sorted(groups[index])
+		for rank: int in range(points.size()):
+			by_point[points[rank]] = "C%d:%d" % [index, rank]
+	return by_point
+
+
+## L'annuaire d'une famille, dans l'autre sens : cle -> ce qui la porte.
+static func keys_of(heights: PackedStringArray, family: StringName) -> Dictionary:
+	var by_key: Dictionary = {}
+	var source: Dictionary = corner_slots(heights) if family == Families.BY_CORNER 			else slots(heights)
+	for at: Vector2i in source.keys():
+		by_key[String(source[at])] = at
+	return by_key
 
 
 ## L'annuaire dans l'autre sens : ou reposer chaque tuile.

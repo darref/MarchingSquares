@@ -30,6 +30,7 @@ Ces règles arbitrent toutes les décisions techniques.
 core/         logique pure, zéro dépendance UI, utilisable en headless
   blob_index.gd   voisinage 8 bits, canonicalisation, les 47 index
   corner_index.gd le reseau dual : une tuile a cheval sur quatre cases, 15 index
+  families.gd     le SEUL endroit ou les deux vocabulaires de surface se ressemblent
   symmetry.gd     rotations et miroirs, et les conditions qui les rendent licites
   painting.gd     les faux pixels posés dans chaque tuile
   mask_io.gd      lecture / écriture / accès d'un masque de guide (texte)
@@ -956,6 +957,34 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
   ⚠ **Le compte est affiché par le runner, pas asserté.** Il dépend du guide, et le figer
   interdirait de retoucher celui-ci.
+
+- **`core/families.gd` : le seul endroit où les deux vocabulaires de surface se
+  ressemblent.** Sans lui, chaque compteur, chaque exportateur et chaque test se
+  dédoublerait — et deux copies d'une même règle finissent toujours par se contredire. Une
+  famille répond à cinq questions : quels index elle livre, quelle carte *ce-qu'on-peint →
+  index* elle produit, comment elle se compte, comment se groupent ses jumelles, et par
+  quelle lettre elle se nomme dans les clés.
+
+  ⚠ **La famille n'est pas le paysage.** Le même guide sert les deux : ce sont deux axes
+  indépendants, comme la taille des faux pixels. On choisit une fois, avant de dessiner.
+
+  ⚠ **Les robes ne changent pas.** Une falaise sort du plan ; elle se pose case pour case,
+  quel que soit le réseau du sol. Les 36 rôles valent pour les deux familles. Donc **83
+  tuiles par case, 51 à cheval** (15 + 36).
+
+  ⚠ **LES DEUX CARNETS NE SE MÉLANGENT JAMAIS, et c'est asserté.** Un croisement et une case
+  sont tous deux des `Vector2i` mais ne désignent pas la même chose : sur le guide livré,
+  **520 coordonnées sont communes aux deux familles** — les mélanger ferait se marcher dessus
+  la tuile du croisement (3,4) et la robe de la case (3,4). Deux familles, deux carnets, deux
+  lettres de clé (`S` et `C`), et la collision devient impossible par construction.
+
+  Vérifié : le guide minimal couvre les **deux** familles, et offre **813 croisements**
+  peignables.
+
+  ⚠ **Une silhouette par étage, pas une par croisement.** `CornerIndex.visible_index_at` en
+  reconstruisait une à chaque appel : sur soixante colonnes cela refaisait mille sept cents
+  fois un masque entier, et une simple battue dépassait les dix minutes. Elles se bâtissent
+  une fois.
 
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui

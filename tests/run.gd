@@ -20,6 +20,7 @@ const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const Assembly := preload("res://render/assembly.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
+const Families := preload("res://core/families.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -53,6 +54,7 @@ func _initialize() -> void:
 	_test_vocabulary_is_closed()
 	_test_proof_scene()
 	_test_corner_network()
+	_test_families()
 	_test_seams()
 	_test_guide_image()
 	_test_wireframe_joins()
@@ -1449,6 +1451,49 @@ func _first_few(items: Array[String]) -> String:
 		return ""
 	var shown: Array[String] = items.slice(0, mini(6, items.size()))
 	return " -- %d cassures, dont %s" % [items.size(), ", ".join(shown)]
+
+
+func _test_families() -> void:
+	print("familles : les deux vocabulaires de surface, interchangeables")
+	_check_equal(Families.ids().size(), 2, "deux familles au catalogue")
+	_check_equal(Families.surface_tile_count(Families.BY_CELL), BLOB_TILE_COUNT,
+			"par case : 47 tuiles")
+	_check_equal(Families.surface_tile_count(Families.BY_CORNER), CornerIndex.TILE_COUNT,
+			"a cheval : 15 tuiles")
+	_check_equal(Families.key_letter(Families.BY_CELL), "S", "la surface par case s ecrit S")
+	_check_equal(Families.key_letter(Families.BY_CORNER), "C", "le croisement s ecrit C")
+
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	for family: StringName in Families.ids():
+		_check(Families.is_covered(family, heights),
+				"le guide minimal couvre la famille « %s »" % Families.label(family))
+
+	# ⚠ LES DEUX CARNETS NE SE MELANGENT JAMAIS. Un croisement et une case sont tous deux des
+	# Vector2i mais ne designent pas la meme chose : les melanger ferait se marcher dessus la
+	# tuile du croisement (3,4) et la robe de la case (3,4).
+	var cells: Dictionary = WorkIO.slots(heights)
+	var points: Dictionary = WorkIO.corner_slots(heights)
+	_check(points.size() > 0, "le reseau dual offre des croisements a peindre (%d)"
+			% points.size())
+	var mixed: int = 0
+	for at: Vector2i in points.keys():
+		if cells.has(at) and String(cells[at]).begins_with("S"):
+			mixed += 1
+	_check(mixed > 0,
+			"les deux familles emploient bien les MEMES coordonnees (%d en commun)" % mixed)
+	var clashes: int = 0
+	for at: Vector2i in points.keys():
+		if String(points[at]).begins_with("S") or String(points[at]).begins_with("W"):
+			clashes += 1
+	_check_equal(clashes, 0, "et pourtant aucune cle ne se confond : C d un cote, S et W de l autre")
+
+	# L annuaire dans les deux sens, pour chaque famille.
+	for family: StringName in Families.ids():
+		var by_key: Dictionary = WorkIO.keys_of(heights, family)
+		var letter: String = Families.key_letter(family)
+		var first: String = "%s%d:0" % [letter, Families.surface_indices(family)[0]]
+		_check(by_key.has(first),
+				"« %s » : la premiere tuile a sa place (%s)" % [Families.label(family), first])
 
 
 func _test_guide_image() -> void:
