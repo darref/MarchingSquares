@@ -1043,6 +1043,57 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   C'est la capture d'écran qui l'a montré, pas les tests : aucun d'eux ne monte l'interface.
   Quand une édition déplace du code, la relire à l'œil **et** regarder l'écran.
 
+- **LE SOUS-PIED, ET POURQUOI IL NE COÛTE AUCUNE TUILE.** Une case d'atterrissage a ses
+  coins nord **découpés** — son voisin du nord est plus bas, c'est la face de la falaise —
+  et par ces coins on voyait **le sol au lieu de la roche qui continue derrière**. Le défaut
+  sautait aux yeux sur les banquettes des contreforts : une petite dalle verte arrondie
+  collée sous une paroi.
+
+  **On repose donc le PIED une case plus bas, SOUS la surface.** La case d'atterrissage le
+  recouvre entièrement sauf par ses coins — et c'est exactement là qu'il manquait.
+
+  ⚠ **CE N'EST PAS UNE TUILE DE PLUS, C'EST UNE POSE DE PLUS.** J'avais d'abord conçu une
+  cinquième rangée de mur : **+9 tuiles**, planche 9x5. Elle butait sur un mur infranchissable
+  — **toute tuile à peindre a besoin d'une case du guide pour la porter**, et la case
+  d'atterrissage est **déjà une case de surface**. La déclarer case de robe l'aurait rendue
+  peignable deux fois, et l'éditeur n'aurait plus su quelle tuile elle porte. Reposer le
+  pied règle tout : zéro tuile, zéro case, une clause au contrat.
+
+  ⚠ **Le pan est celui du pied, sans rien recalculer.** C'est la même face, une case plus
+  bas. Lui redemander ses flancs reviendrait à l'interroger sur une rangée qu'aucune robe
+  n'occupe, et la réponse n'aurait pas de sens.
+
+  ⚠ **ET IL SORT À PART DE `roles`.** Le mettre dedans aurait fait de la case d'atterrissage
+  une case de robe : `visible_roles` l'aurait revendiquée, elle serait devenue peignable, et
+  le compte des tuiles obligatoires aurait basculé. `assemble()` rend donc `underfoot`
+  séparément.
+
+  ⚠ **L'ORDRE EST LE PIÈGE, ET JE SUIS TOMBÉ DEDANS.** J'avais posé tous les sous-pieds
+  **avant toutes les surfaces**. L'illustration dessine **tous les étages**, du bas vers le
+  haut : la plaine recouvrait donc le sous-pied avant même que la banquette n'arrive, et les
+  coins montraient de nouveau le sol. Le sous-pied se pose **juste avant la surface de
+  l'étage où il atterrit**. Mesuré à l'écran, pas au test — et la suite était verte pendant
+  ce temps-là.
+
+  ⚠ **Le test lit un PIXEL, pas une intention** : sur une case d'atterrissage isolée du
+  guide, le coin nord-ouest doit être chaud (roche) et le milieu vert (herbe).
+
+- **LA BATTUE CONNAÎT LE VIDE, MAINTENANT QU'IL EXISTE.** Un relief binaire n'a que deux
+  états ; le monde en a **trois** depuis que le hors-monde se déclare. Une battue qui ne pose
+  jamais de vide ne cherche plus dans tous les cas : elle ne verrait jamais la falaise du
+  bord du monde, ni une robe qui n'atterrit pas.
+
+  Ajouté : **19 683 reliefs 3x3 à trois états**, exhaustifs, plus les tirages aléatoires
+  retroués de vide. Zéro contre-exemple.
+
+  ⚠ **Le 3x4 — 531 441 reliefs — a été passé UNE FOIS, hors suite : zéro contre-exemple.**
+  Il faisait passer la suite de une à **sept minutes**, et *une suite qu'on n'ose plus
+  lancer ne prouve plus rien*.
+
+  ⚠ **La suite dure maintenant ~5 minutes** : les guides ont grossi (marge de vide) et la
+  plaine est devenue peignable, donc les tests de couverture et de raccord portent sur
+  presque le double de cases. C'est un coût à surveiller.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
@@ -1484,6 +1535,18 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   - `CLAUDE.md`, section « Les colonnes — la seule verticalité qu'on automatise ».
 
 ## Questions ouvertes
+
+- **Le piege des jumelles decochees.** Depuis la suppression des variantes, decocher
+  « Peindre les jumelles » laisse peindre mille dessins differents dont **un seul sortira**
+  — les autres sont jetes en silence, ce que la charte interdit. À trancher : soit la case
+  disparait jusqu'au vrai systeme de variantes, soit elle previent.
+- **Un mode d'emploi plein ecran**, ouvert en cliquant le bandeau haut-droit, qui ferait
+  aussi defiler des conseils au lieu des seules phrases de la charte.
+- **Un essai livrable : le logiciel + le plugin, avec le GUIDE comme tileset.** Notre
+  illustration est calculee, entierement a nous, et complete par construction : elle peut
+  donc sortir en planche valide **sans peindre un pixel**. Le game dev installerait
+  l'extension et poserait un monde tout de suite. C'est a la fois une demonstration et une
+  epreuve de bout en bout de la chaine.
 
 - **La regle de pose ne decrit pas la famille a cheval.** Un export `corner` emet bien
   `famille corner` et ses 15 index, mais la section contrat du manifeste ne porte que la

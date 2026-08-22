@@ -206,8 +206,19 @@ static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, 
 ##
 ## La cle porte l'etage : deux robes d'etages differents peuvent se superposer sur la meme
 ## case, la plus haute masquant l'autre, exactement comme deux calques.
+## ⚠ ET LE SOUS-PIED, QUI NE COUTE AUCUNE TUILE. Une case d'atterrissage a ses coins nord
+## DECOUPES -- son voisin du nord est plus bas, c'est la face de la falaise -- et par ces
+## coins on voyait le sol au lieu de la roche qui continue derriere. On redessine donc le
+## PIED une case plus bas, SOUS la surface : elle le recouvre entierement sauf par ses
+## coins, et c'est exactement la qu'il manquait.
+##
+## ⚠ IL SORT A PART, PAS DANS `roles`. La case d'atterrissage est deja une case de SURFACE :
+## la declarer case de robe la rendrait peignable deux fois, et l'editeur ne saurait plus
+## quelle tuile elle porte. Le sous-pied n'est pas une tuile de plus, c'est une POSE de
+## plus.
 static func assemble(heights: PackedStringArray) -> Dictionary:
 	var roles: Dictionary = {}
+	var underfoot: Dictionary = {}
 	var outside: Array[Vector3i] = []
 	var grid_width: int = HeightMask.width(heights)
 	var grid_height: int = HeightMask.height(heights)
@@ -239,15 +250,21 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 			if drop <= 0:
 				continue  # raccourcie a neant : un voisin du meme etage occupe deja la case
 			var landed: bool = fall.y == 1
+			var last_pan: int = 0
 			for step: int in range(1, drop + 1):
 				var at: Vector2i = cell + Vector2i(0, step)
-				var role: Vector2i = Vector2i(
-						pan_at(heights, level, lip_of, at, step, cell.y),
-						row_for(step, drop, landed))
+				last_pan = pan_at(heights, level, lip_of, at, step, cell.y)
+				var role: Vector2i = Vector2i(last_pan, row_for(step, drop, landed))
 				roles[Vector3i(at.x, at.y, level)] = role
 				if at.y >= grid_height or at.x < 0 or at.x >= grid_width:
 					outside.append(Vector3i(at.x, at.y, level))
-	return {"roles": roles, "outside": outside}
+			# ⚠ LE SOUS-PIED REPREND LE PAN DU PIED, sans rien recalculer : c'est la MEME
+			# face, une case plus bas. Lui redemander ses flancs reviendrait a l'interroger
+			# sur une rangee qu'aucune robe n'occupe, et la reponse n'aurait pas de sens.
+			if landed:
+				var under: Vector2i = cell + Vector2i(0, drop + 1)
+				underfoot[Vector3i(under.x, under.y, level)] = Vector2i(last_pan, ROW_FOOT)
+	return {"roles": roles, "underfoot": underfoot, "outside": outside}
 
 
 ## Rapport de couverture du vocabulaire de mur, meme forme que coverage.analyse().
@@ -312,6 +329,23 @@ static func visible_roles(heights: PackedStringArray) -> Dictionary:
 	for cell: Vector2i in cells:
 		visible[cell] = chosen[cell]
 	return visible
+
+
+## Le SOUS-PIED visible de chaque case d'atterrissage : celui de l'etage le plus haut.
+##
+## ⚠ IL SE POSE AVANT TOUTES LES SURFACES, ET C'EST TOUTE LA REGLE. La case
+## d'atterrissage le recouvre ensuite, sauf par ses coins decoupes -- c'est exactement la
+## qu'il doit se voir, et nulle part ailleurs.
+static func visible_underfoot(heights: PackedStringArray) -> Dictionary:
+	var under: Dictionary = assemble(heights)["underfoot"]
+	var highest: Dictionary = {}
+	var chosen: Dictionary = {}
+	for key: Vector3i in under.keys():
+		var cell: Vector2i = Vector2i(key.x, key.y)
+		if not highest.has(cell) or key.z > int(highest[cell]):
+			highest[cell] = key.z
+			chosen[cell] = under[key]
+	return chosen
 
 
 ## La regle de livraison, appliquee aux robes : une case peinte est retenue pour son role,

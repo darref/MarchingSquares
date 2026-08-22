@@ -43,6 +43,7 @@ var _top_queue: Array[Vector2i] = []
 var _wall_queue: Array[Vector2i] = []
 var _placements: Array = []
 var _wall_placements: Array = []
+var _under_by_level: Dictionary = {}
 var _feet: Array[Vector2i] = []
 var _contacts: Array[Vector2i] = []
 var _finished: bool = false
@@ -92,6 +93,16 @@ func _prepare() -> void:
 
 	var assembled: Dictionary = Walls.assemble(_heights)
 	var roles: Dictionary = assembled["roles"]
+	# ⚠ LE SOUS-PIED SE POSE JUSTE AVANT LA SURFACE DE L'ETAGE OU IL ATTERRIT -- pas avant
+	# toutes les surfaces. L'illustration dessine TOUS les etages, du bas vers le haut : pose
+	# tout au debut, la plaine le recouvrait avant meme que la banquette n'arrive, et les
+	# coins decoupes montraient de nouveau le sol. Mesure a l'ecran, pas au test.
+	var under: Dictionary = Walls.visible_underfoot(_heights)
+	for cell: Vector2i in under.keys():
+		var landing: int = maxi(0, HeightMask.level_at(_heights, cell.x, cell.y))
+		if not _under_by_level.has(landing):
+			_under_by_level[landing] = []
+		(_under_by_level[landing] as Array).append([under[cell], cell.x, cell.y])
 	var wanted_roles: Dictionary = {}
 	for level: int in range(0, HeightMask.top_level(_heights) + 1):
 		for key: Vector3i in roles.keys():
@@ -231,9 +242,17 @@ func _stamp_everything() -> void:
 	# PAR-DESSUS. L'ombre de contact se pose APRES les sommets et AVANT les faces : une
 	# falaise la recouvre. Posee en dernier, elle noircirait la roche. On tamponne donc les
 	# deux images en parallele, l'une recevant les ombres, l'autre non.
-	for placement: Array in _placements:
-		GuideImage.stamp(_image, _tops[placement[0]], placement[1], placement[2], _tile_size)
-		GuideImage.stamp(_flat, _tops[placement[0]], placement[1], placement[2], _tile_size)
+	for level: int in range(0, HeightMask.top_level(_heights) + 1):
+		for placement: Array in _under_by_level.get(level, []):
+			if not _faces.has(placement[0]):
+				continue
+			GuideImage.stamp(_image, _faces[placement[0]], placement[1], placement[2], _tile_size)
+			GuideImage.stamp(_flat, _faces[placement[0]], placement[1], placement[2], _tile_size)
+		for placement: Array in _placements:
+			if (placement[0] as Vector2i).y != level:
+				continue
+			GuideImage.stamp(_image, _tops[placement[0]], placement[1], placement[2], _tile_size)
+			GuideImage.stamp(_flat, _tops[placement[0]], placement[1], placement[2], _tile_size)
 	if _ink == GuideImage.Ink.PAINTED:
 		var contact: Image = GuideImage.make_contact_shadow(_tile_size)
 		for cell: Vector2i in _contacts:

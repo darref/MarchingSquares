@@ -65,6 +65,7 @@ func _initialize() -> void:
 	_test_families()
 	_test_dual_end_to_end()
 	_test_seams()
+	_test_underfoot()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_plugin_rules()
@@ -877,6 +878,7 @@ func _test_export() -> void:
 		"pan west_times_three_plus_east lip_row_comparison per_row",
 		"bits N=%d" % BlobIndex.N,
 		"sheet fixed_size one_drawing_per_tile no_variants",
+		"underfoot foot_role redrawn_below under_landing_surface",
 	]
 	var absent: PackedStringArray = PackedStringArray()
 	for clause: String in contract:
@@ -1050,13 +1052,43 @@ func _test_vocabulary_is_closed() -> void:
 			if not known.has(role):
 				wall_strays += 1
 	_check_equal(wall_strays, 0,
-			"les 32768 reliefs binaires 3x5 ne donnent que des roles des 12")
+			"les 32768 reliefs binaires 3x5 ne donnent que des roles des %d"
+			% Walls.ALL_ROLES.size())
+
+	# ⚠ ET LA BATTUE DOIT CONNAITRE LE VIDE. Un relief binaire n'a que deux etats -- plaine
+	# et plateau -- alors que le monde en a TROIS depuis que le hors-monde se declare. Une
+	# battue qui ne pose jamais de vide ne cherche pas dans tous les cas : elle ne verrait
+	# jamais la falaise du bord du monde, ni une robe qui n'atterrit pas.
+	var ternary_strays: int = 0
+	for pattern: int in range(_TERNARY_RELIEFS):
+		var relief: PackedStringArray = _ternary_relief(pattern, 3, 3)
+		for role: Vector2i in Walls.visible_roles(relief).values():
+			seen_roles[role] = true
+			if not known.has(role):
+				ternary_strays += 1
+		for index: int in Coverage.index_map(relief).values():
+			if not canonical.has(index):
+				ternary_strays += 1
+	_check_equal(ternary_strays, 0,
+			"les %d reliefs 3x3 a TROIS etats -- vide, plaine, plateau -- ne donnent rien d autre"
+			% _TERNARY_RELIEFS)
 
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 20260821
 	var wild: int = 0
 	for _attempt: int in range(RANDOM_RELIEFS):
 		var heights: PackedStringArray = _random_relief(rng, 8, 8, 3)
+		# ⚠ LE MEME RELIEF, TROUE DE VIDE. C'est la ou le modele est le plus jeune : la robe
+		# qui ne trouve rien sous elle, celle du bord du monde, et la plaine qui devient une
+		# ile. On cherche aussi la.
+		var holed: PackedStringArray = _with_void(rng, heights)
+		for index: int in Coverage.index_map(holed).values():
+			if not canonical.has(index):
+				wild += 1
+		for role: Vector2i in Walls.visible_roles(holed).values():
+			seen_roles[role] = true
+			if not known.has(role):
+				wild += 1
 		for index: int in Coverage.index_map(heights).values():
 			if not canonical.has(index):
 				wild += 1
@@ -1071,6 +1103,39 @@ func _test_vocabulary_is_closed() -> void:
 	# douze roles ne prouve rien du tout : elle prouve qu elle n a rien regarde.
 	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
 			"et la battue a bien RENCONTRE les %d roles : elle cherche pour de bon" % Walls.ALL_ROLES.size())
+
+
+## Le nombre de reliefs a trois etats passes en revue : 3 puissance 9.
+##
+## ⚠ EN 3x4 -- 531 441 reliefs -- LA SUITE PASSAIT DE UNE A SEPT MINUTES. Une suite qu'on
+## n'ose plus lancer ne prouve plus rien. La battue exhaustive de la suite tient donc en
+## 3x3 ; le 3x4 a ete passe UNE FOIS, hors suite : 531 441 reliefs, ZERO contre-exemple.
+const _TERNARY_RELIEFS: int = 19683
+
+
+## Un relief 3x4 a TROIS etats : vide, plaine, plateau. Un chiffre du motif par case.
+func _ternary_relief(pattern: int, columns: int, rows_count: int) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	var left: int = pattern
+	for _y: int in range(rows_count):
+		var line: String = ""
+		for _x: int in range(columns):
+			var digit: int = left % 3
+			left /= 3
+			line += "~" if digit == 0 else ("." if digit == 1 else "1")
+		rows.append(line)
+	return rows
+
+
+## Le meme relief, avec un peu de vide creuse dedans.
+func _with_void(rng: RandomNumberGenerator, heights: PackedStringArray) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	for y: int in range(heights.size()):
+		var line: String = ""
+		for x: int in range(heights[y].length()):
+			line += "~" if rng.randf() < 0.25 else heights[y][x]
+		rows.append(line)
+	return rows
 
 
 ## Une fenetre 3x3 binaire, une par bit du motif.
@@ -1640,6 +1705,56 @@ func _test_dual_end_to_end() -> void:
 			"le manifeste dit de quelle famille est la planche")
 	for path: String in written:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## ⚠ CE QU'ON MESURE ICI EST UN PIXEL, PAS UNE INTENTION. Le defaut se voyait a l'ecran et
+## nulle part ailleurs : une case d'atterrissage isolee -- une banquette au pied d'un
+## contrefort -- montrait le SOL par ses coins nord decoupes, alors que la face de la
+## falaise continue derriere. On lit donc le coin, et on exige de la roche.
+func _test_underfoot() -> void:
+	print("le sous-pied : la roche continue derriere les coins decoupes")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var under: Dictionary = Walls.visible_underfoot(heights)
+	_check(under.size() > 0, "le guide pose des sous-pieds (%d)" % under.size())
+
+	# Une case d'atterrissage ISOLEE : ses quatre coins sont decoupes, donc le defaut s'y voit.
+	var target: Vector2i = Vector2i(-1, -1)
+	for cell: Vector2i in under.keys():
+		if HeightMask.level_at(heights, cell.x, cell.y) >= 1 \
+				and Coverage.visible_index_at(heights, cell.x, cell.y) == 0:
+			target = cell
+			break
+	_check(target.x >= 0, "et le guide en offre une isolee, ou le defaut se voyait")
+	if target.x < 0:
+		return
+
+	var side: int = 32
+	var image: Image = GuideImage.render(heights, side, GuideImage.Ink.PAINTED,
+			GuideImage.Purpose.REPRESENTATIVE, false)
+	var corner: Color = image.get_pixel(target.x * side + 1, target.y * side + 1)
+	var middle: Color = image.get_pixel(target.x * side + side / 2, target.y * side + side / 2)
+	# La roche est chaude, l'herbe est verte. On les distingue sans les nommer.
+	_check(corner.r > corner.g,
+			"LE COIN NORD-OUEST EST DE LA ROCHE : la falaise continue derriere")
+	_check(middle.g > middle.r, "et le milieu de la case est bien de l herbe")
+
+	# ⚠ ET LE SOUS-PIED N'AJOUTE AUCUNE TUILE. C'est le PIED, repose une case plus bas :
+	# tout role de sous-pied est donc l'un des 36, et c'est toujours un PIED. S'il en
+	# reclamait un autre, il faudrait le peindre -- et il n'y aurait aucune case du guide
+	# pour le porter, puisque la case d'atterrissage est deja une case de surface.
+	var known: Dictionary = {}
+	for role: Vector2i in Walls.ALL_ROLES:
+		known[role] = true
+	var strays: int = 0
+	var not_feet: int = 0
+	for role: Vector2i in under.values():
+		if not known.has(role):
+			strays += 1
+		if role.y != Walls.ROW_FOOT:
+			not_feet += 1
+	_check_equal(strays, 0, "AUCUNE TUILE DE PLUS : tout sous-pied est l un des %d roles"
+			% Walls.ALL_ROLES.size())
+	_check_equal(not_feet, 0, "et c est toujours un PIED : la meme face, une case plus bas")
 
 
 func _test_guide_image() -> void:

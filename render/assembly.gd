@@ -38,12 +38,33 @@ static func from_painting(heights: PackedStringArray, painting: Painting,
 		family: StringName = Families.BY_CELL) -> Image:
 	var side: int = painting.resolution
 	var canvas: Image = _canvas(heights, side, family)
+	var by_role: Dictionary = Walls.cells_by_role(Walls.visible_roles(heights))
+	for cell: Vector2i in _underfoot(heights).keys():
+		var role: Vector2i = _underfoot(heights)[cell]
+		if not by_role.has(role):
+			continue
+		for source: Vector2i in by_role[role]:
+			var rock: Image = painting.image_of(source)
+			if rock != null:
+				canvas.blend_rect(rock, Rect2i(0, 0, side, side), _where(cell, side, family))
+				break
 	for key: Vector2i in _order(heights, family):
 		var tile: Image = painting.image_of(key)
 		if tile == null:
 			continue
 		canvas.blend_rect(tile, Rect2i(0, 0, side, side), _where(key, side, family))
 	return canvas
+
+## Les cases d'atterrissage et le PIED a y reposer, une case plus bas.
+##
+## ⚠ CE N'EST PAS UNE TUILE DE PLUS, C'EST UNE POSE DE PLUS. La case d'atterrissage a ses
+## coins nord decoupes -- son voisin du nord est la face de la falaise -- et par ces coins
+## on voyait le sol au lieu de la roche qui continue derriere. On repose donc le pied
+## dessous : la surface le recouvre entierement sauf par ses coins, et c'est exactement la
+## qu'il manquait.
+static func _underfoot(heights: PackedStringArray) -> Dictionary:
+	return Walls.visible_underfoot(heights)
+
 
 
 ## OU SE POSE, SUR LA TOILE, CE QUE PORTE CETTE CLE.
@@ -69,6 +90,11 @@ static func from_sheets(heights: PackedStringArray, surface_sheet: Image, wall_s
 	var canvas: Image = _canvas(heights, side, family)
 	var indices: Dictionary = _surfaces(heights, family)
 	var roles: Dictionary = Walls.visible_roles(heights)
+	for cell: Vector2i in _underfoot(heights).keys():
+		var slot: Vector2i = TilesetPNG.wall_slot(_underfoot(heights)[cell])
+		var from: Rect2i = Rect2i(slot * side, Vector2i(side, side))
+		if from.end.x <= wall_sheet.get_width() and from.end.y <= wall_sheet.get_height():
+			canvas.blend_rect(wall_sheet, from, _where(cell, side, family))
 	for key: Vector2i in _order(heights, family):
 		var sheet: Image = null
 		var slot: Vector2i = Vector2i(-1, -1)
@@ -134,6 +160,15 @@ static func from_borrowed(target: PackedStringArray, guide: PackedStringArray,
 	var side: int = painting.resolution
 	var canvas: Image = _canvas(target, side, family)
 	var source_of: Dictionary = borrow(target, guide, family)
+	var by_key: Dictionary = WorkIO.cells_by_key(guide, family)
+	for cell: Vector2i in _underfoot(target).keys():
+		var role: Vector2i = _underfoot(target)[cell]
+		var key: String = "W%d,%d:0" % [role.x, role.y]
+		if not by_key.has(key):
+			continue
+		var rock: Image = painting.image_of(by_key[key])
+		if rock != null:
+			canvas.blend_rect(rock, Rect2i(0, 0, side, side), _where(cell, side, family))
 	for at: Vector2i in _order(target, family):
 		if not source_of.has(at):
 			continue

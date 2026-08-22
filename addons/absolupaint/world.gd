@@ -45,6 +45,7 @@ const TileSetBuilder := preload("res://addons/absolupaint/tileset.gd")
 ## Dit ce qui s'est passe au dernier chargement. Vide quand tout va bien.
 var last_error: String = ""
 
+var _underfoot_layer: TileMapLayer = null
 var _surface_layer: TileMapLayer = null
 var _walls_layer: TileMapLayer = null
 var _manifest: Dictionary = {}
@@ -127,6 +128,13 @@ func rebuild() -> void:
 			_surface_layer.set_cell(at, _surface_source, slots[index])
 
 	var wall_slots: Dictionary = _manifest["wall_slots"]
+	# ⚠ LE SOUS-PIED SE POSE SOUS LES SURFACES, sur sa propre couche. C'est le PIED repose
+	# une case plus bas : la case d'atterrissage le recouvre sauf par ses coins decoupes, et
+	# c'est exactement la que la roche manquait. Aucune tuile de plus -- une pose de plus.
+	for cell: Vector2i in Rules.underfoot(heights).keys():
+		var under: Vector2i = Rules.underfoot(heights)[cell]
+		if wall_slots.has(under):
+			_underfoot_layer.set_cell(cell, _walls_source, wall_slots[under])
 	var roles: Dictionary = Rules.walls(heights)
 	for cell: Vector2i in roles.keys():
 		var role: Vector2i = roles[cell]
@@ -161,6 +169,11 @@ func cell_at(point: Vector2) -> Vector2i:
 
 
 func _ensure_layers() -> void:
+	# ⚠ L'ORDRE DES COUCHES EST L'ORDRE DE POSE, et le sous-pied vient EN PREMIER : il doit
+	# passer SOUS la surface, sans quoi il masquerait le sol au lieu de se montrer par les
+	# coins decoupes de la case d'atterrissage.
+	if _underfoot_layer == null:
+		_underfoot_layer = _make_layer("SousPied")
 	if _surface_layer == null:
 		_surface_layer = _make_layer("Surface")
 	if _walls_layer == null:
@@ -178,6 +191,8 @@ func _make_layer(layer_name: String) -> TileMapLayer:
 
 
 func _clear_layers() -> void:
+	if _underfoot_layer != null:
+		_underfoot_layer.clear()
 	if _surface_layer != null:
 		_surface_layer.clear()
 	if _walls_layer != null:
