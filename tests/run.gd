@@ -1637,9 +1637,16 @@ func _test_every_script_parses() -> void:
 	var scripts: PackedStringArray = PackedStringArray()
 	_collect_scripts("res://", scripts)
 	_check(scripts.size() >= 12, "au moins douze scripts trouves (%d)" % scripts.size())
+	# ⚠ « CHARGE » NE VEUT PAS DIRE « COMPILE ». Un script dont l analyse echoue rend malgre
+	# tout une ressource -- vide de ses fonctions. Le test disait alors « aucun script en
+	# erreur » pendant que la suite perdait quinze verifications en silence, les appels
+	# tombant sur des fonctions inexistantes. `can_instantiate()` tranche, lui.
+	# ⚠ ET ON NE RELIT PAS HORS CACHE : recharger un script en cours d usage fait planter le
+	# moteur, pile de C++ a l appui.
 	var broken: PackedStringArray = PackedStringArray()
 	for path: String in scripts:
-		if ResourceLoader.load(path, "Script") == null:
+		var script: GDScript = ResourceLoader.load(path, "Script") as GDScript
+		if script == null or not script.can_instantiate():
 			broken.append(path)
 	_check_equal(broken, PackedStringArray(), "aucun script en erreur")
 

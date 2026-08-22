@@ -1007,6 +1007,45 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **Piège tombé dedans** : la ligne `famille` se faisait décoder comme du base64 par la
   boucle des tuiles. Un en-tête qui n'est pas reconnu comme tel devient une donnée corrompue.
 
+- **La zone de travail travaille en CLÉS DE CARNET, pas en cases.** Dans la famille à
+  cheval, un croisement et une case peuvent avoir les **mêmes coordonnées** — 520 en commun
+  sur le guide livré. La clé de carnet, elle, est disjointe par construction. En la prenant
+  pour identité interne, la collision **cesse d'exister** au lieu d'être évitée au cas par
+  cas : `_paintable`, `_textures`, `_stale`, `_lonely`, les jumelles, tout est keyé par elle.
+
+  ⚠ **Un croisement se dessine décalé d'une demi-case.** Sa tuile est à cheval sur quatre
+  cases : sa boîte va de (i−0,5 ; j−0,5) à (i+0,5 ; j+0,5). C'est ce décalage, et lui seul,
+  qui met le guide sous la bonne tuile — **le fond ne bouge pas**.
+
+  ⚠ **« En dessous » s'inverse pour un croisement.** Sa clé porte un *y* négatif : descendre
+  d'une rangée à l'écran, c'est **décrémenter** la clé. Sans ça la grille dessine ses bords à
+  l'envers.
+
+  ⚠ **`Vector2i(-1, -1)` n'est plus « nulle part »** : c'est la clé valide du croisement
+  (0, 0). Il a fallu une sentinelle explicite.
+
+- **Quand les deux grilles se chevauchent, LA ROBE GAGNE.** Une tuile de croisement est
+  décalée d'une demi-case, une robe est sur la case : leurs boîtes partagent un quart, et le
+  clic serait ambigu. La robe est dessinée devant, donc c'est elle qu'on voit sous le
+  curseur, donc c'est elle qu'on peint.
+
+  **Mesuré avant de choisir la règle** : 49 des 813 croisements deviennent inatteignables au
+  clic — mais **les quinze index gardent chacun un croisement libre**, et les jumelles
+  remplissent le reste. **Aucune tuile n'est perdue.** C'est la garantie qui compte, et c'est
+  celle-là qu'il fallait mesurer, pas le nombre de cases.
+
+- **Le réseau se ferme au premier pixel, comme la taille.** En changer rejetterait tout ce
+  qui est peint : ce ne sont plus les mêmes tuiles.
+
+- **⚠ « CHARGE » NE VEUT PAS DIRE « COMPILE ».** Un script dont l'analyse échoue rend malgré
+  tout une ressource — vide de ses fonctions. Le test disait donc « aucun script en erreur »
+  pendant que la suite perdait **quinze vérifications en silence**, les appels tombant sur
+  des fonctions inexistantes, sans qu'aucune assertion n'échoue. `can_instantiate()` tranche.
+  Vérifié en cassant un script exprès.
+
+  ⚠ **Et on ne relit pas hors cache** : `CACHE_MODE_IGNORE` sur un script en cours d'usage
+  fait planter le moteur, pile de C++ à l'appui.
+
 - **L'éditeur : bandeau, deux barres, zone de travail.** La fenêtre fait 95 % de l'écran,
   centrée. En haut un bandeau fin porte le nom, la version, le slogan, et une ligne qui
   déroule la charte — la seule fantaisie du logiciel, et chaque phrase y est vraie.

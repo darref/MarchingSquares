@@ -31,6 +31,7 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const WorkIO := preload("res://core/work_io.gd")
+const Families := preload("res://core/families.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const Assembly := preload("res://render/assembly.gd")
 
@@ -70,17 +71,18 @@ const SUFFIX_PROOF: String = "_preuve.png"
 ##   variants         : int   nombre de blocs de la planche
 ##   tile_size        : int
 ##   is_exportable    : bool
-static func analyse(painting: Painting, heights: PackedStringArray) -> Dictionary:
+static func analyse(painting: Painting, heights: PackedStringArray,
+		family: StringName = Families.BY_CELL) -> Dictionary:
 	var surface_ranks: Dictionary = {}
 	var wall_ranks: Dictionary = {}
 
-	var by_cell: Dictionary = WorkIO.slots(heights)
+	var by_cell: Dictionary = WorkIO.slots(heights, family)
 	for cell: Vector2i in painting.painted_cells():
 		if not by_cell.has(cell):
 			continue
 		var slot: Dictionary = WorkIO.describe(String(by_cell[cell]))
 		var rank: int = int(slot["rank"])
-		if slot["family"] == "S":
+		if slot["family"] == "S" or slot["family"] == "C":
 			_note(surface_ranks, int(slot["index"]), rank)
 		elif slot["family"] == "W":
 			_note(wall_ranks, slot["role"], rank)
@@ -88,12 +90,13 @@ static func analyse(painting: Painting, heights: PackedStringArray) -> Dictionar
 	# ⚠ LE DEDOUBLONNAGE PASSE AVANT LE COMPTE. Sans lui, `variants` vaudrait le nombre
 	# d'occurrences du guide -- une centaine pour les index courants -- et la planche
 	# ferait cent blocs pour un seul dessin.
-	var by_key: Dictionary = WorkIO.cells_by_key(heights)
-	_dedupe(surface_ranks, "S", painting, by_key)
+	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
+	var letter: String = Families.key_letter(family)
+	_dedupe(surface_ranks, letter, painting, by_key)
 	_dedupe(wall_ranks, "W", painting, by_key)
 
 	var missing_surface: Array[int] = []
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in Families.surface_indices(family):
 		if not surface_ranks.has(index):
 			missing_surface.append(index)
 	missing_surface.sort()
@@ -116,6 +119,7 @@ static func analyse(painting: Painting, heights: PackedStringArray) -> Dictionar
 		"missing_wall": missing_wall,
 		"variants": variants,
 		"tile_size": painting.resolution,
+		"family": family,
 		"is_exportable": missing_surface.is_empty() and missing_wall.is_empty(),
 	}
 
@@ -150,11 +154,11 @@ static func _dedupe(ranks_by_tile: Dictionary, family: String, painting: Paintin
 
 ## La cle de sauvegarde d'une tuile. Le format appartient a `work_io` ; on le compose ici
 ## par la meme regle, une seule fois, plutot que de le reecrire a chaque usage.
-static func _key_for(family: String, tile: Variant, rank: int) -> String:
-	if family == "W":
+static func _key_for(letter: String, tile: Variant, rank: int) -> String:
+	if letter == "W":
 		var role: Vector2i = tile
 		return "W%d,%d:%d" % [role.x, role.y, rank]
-	return "S%d:%d" % [int(tile), rank]
+	return "%s%d:%d" % [letter, int(tile), rank]
 
 
 static func _note(into: Dictionary, key: Variant, rank: int) -> void:
@@ -168,17 +172,18 @@ static func _note(into: Dictionary, key: Variant, rank: int) -> void:
 
 
 ## La case de la planche de surface ou tombe l'index [param index], variante [param slot].
-static func surface_slot(index: int, slot: int) -> Vector2i:
-	var order: int = BlobIndex.CANONICAL_INDICES.find(index)
+static func surface_slot(index: int, slot: int,
+		family: StringName = Families.BY_CELL) -> Vector2i:
+	var order: int = Families.surface_indices(family).find(index)
 	if order < 0:
 		return Vector2i(-1, -1)
 	return Vector2i(order % SURFACE_COLUMNS,
-			order / SURFACE_COLUMNS + slot * surface_rows())
+			order / SURFACE_COLUMNS + slot * surface_rows(family))
 
 
 ## La hauteur d'un bloc de la planche de surface, en tuiles.
-static func surface_rows() -> int:
-	var count: int = BlobIndex.CANONICAL_INDICES.size()
+static func surface_rows(family: StringName = Families.BY_CELL) -> int:
+	var count: int = Families.surface_indices(family).size()
 	return (count + SURFACE_COLUMNS - 1) / SURFACE_COLUMNS
 
 
@@ -191,17 +196,18 @@ static func wall_slot(role: Vector2i, slot: int) -> Vector2i:
 ## Compose une planche. Rend null si rien n'est a poser.
 static func compose(painting: Painting, heights: PackedStringArray, report: Dictionary,
 		walls: bool) -> Image:
+	var family: StringName = report.get("family", Families.BY_CELL)
 	var side: int = painting.resolution
 	var variants: int = int(report["variants"])
 	var columns: int = Walls.PAN_COUNT if walls else SURFACE_COLUMNS
-	var rows: int = (Walls.BLOCK_ROWS if walls else surface_rows()) * variants
+	var rows: int = (Walls.BLOCK_ROWS if walls else surface_rows(family)) * variants
 	if columns <= 0 or rows <= 0:
 		return null
 
 	var sheet: Image = Image.create_empty(columns * side, rows * side, false, Image.FORMAT_RGBA8)
 	sheet.fill(Painting.TRANSPARENT)
 
-	var by_key: Dictionary = WorkIO.cells_by_key(heights)
+	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
 	var table: Dictionary = report["wall_variants"] if walls else report["surface_variants"]
 	for tile: Variant in table.keys():
 		var ranks: Array[int] = table[tile]
@@ -341,8 +347,9 @@ static func _spec(lines: PackedStringArray) -> void:
 ##   error   : Error   OK, ou ERR_UNAVAILABLE si la feuille est incomplete
 ##   written : PackedStringArray  les chemins ecrits
 static func write(folder: String, basename: String, painting: Painting,
-		heights: PackedStringArray, mode_id: StringName) -> Dictionary:
-	var report: Dictionary = analyse(painting, heights)
+		heights: PackedStringArray, mode_id: StringName,
+		family: StringName = Families.BY_CELL) -> Dictionary:
+	var report: Dictionary = analyse(painting, heights, family)
 	report["written"] = PackedStringArray()
 	report["error"] = OK
 

@@ -10,6 +10,7 @@ var _preview: bool = false
 var _marks: bool = true
 var _hover: Vector2i = Vector2i(-1, -1)
 var _hovered: bool = false
+var _family: int = -1
 var _decor: int = 0
 var _editor: Node = null
 
@@ -34,6 +35,8 @@ func _initialize() -> void:
 				_technic = 1
 			"nu":
 				_marks = false
+			"cheval":
+				_family = 1
 			"fil":
 				_ink = 1
 			"remontage":
@@ -57,6 +60,10 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames == 3:
+		if _family >= 0:
+			var family: OptionButton = _editor.get_node("%FamilyChoice")
+			family.select(_family)
+			family.item_selected.emit(_family)
 		if _technic >= 0:
 			var technic: OptionButton = _editor.get_node("%StyleChoice")
 			technic.select(_technic)

@@ -15,6 +15,7 @@ const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const GuideImage := preload("res://render/guide_image.gd")
+const Families := preload("res://core/families.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
 
 ## Emis des que la peinture change : l'editeur s'en sert pour rafraichir ses compteurs.
@@ -75,6 +76,10 @@ const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
 ## ce qu'on pose est litteralement invisible, et l'on croit que rien ne se passe -- surtout
 ## quand le remplissage des jumelles touche cent cases d'un coup. En dessous de ce seuil, on
 ## cerne donc les cases qui portent de la peinture.
+## Nulle part. ⚠ PAS Vector2i(-1, -1) : dans la famille a cheval c'est une cle valide,
+## celle du croisement (0, 0).
+const NOWHERE: Vector2i = Vector2i(-1048576, -1048576)
+
 const TOUCHED_FROM: float = 1.6
 const TOUCHED_MARK: Color = Color(0.949, 0.792, 0.475, 0.85)
 
@@ -96,6 +101,15 @@ var guide_ink: GuideImage.Ink = GuideImage.Ink.PAINTED
 
 ## A quoi le fond sert : montrer le resultat, ou porter les marques de travail.
 var guide_purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
+
+## La famille de surface : par case (blob 47) ou a cheval (reseau dual, 15).
+##
+## ⚠ TOUT CE FICHIER TRAVAILLE EN CLES DE CARNET, PAS EN CASES. Dans la famille a cheval,
+## un croisement et une case peuvent avoir les MEMES coordonnees -- 520 en commun sur le
+## guide livre. La cle de carnet, elle, est disjointe par construction : les croisements
+## vivent dans les y negatifs. En la prenant pour identite interne, la collision cesse
+## d'exister au lieu d'etre evitee au cas par cas.
+var guide_family: StringName = Families.BY_CELL
 
 ## Les marques de travail : les marqueurs de coin rentrant, les tirets de rangee, et
 ## l'EPAISSISSEMENT des traits. ⚠ Les trois se masquent ensemble parce que les trois sont
@@ -145,7 +159,7 @@ var _background_flat: ImageTexture = null
 var _textures: Dictionary = {}
 var _tile_px: float = 32.0
 var _origin: Vector2 = Vector2.ZERO
-var _hover: Vector2i = Vector2i(-1, -1)
+var _hover: Vector2i = NOWHERE
 var _stroke: int = 0
 var _last_paint: Vector2 = Vector2.ZERO
 var _panning: bool = false
@@ -217,7 +231,9 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_wall_cells.clear()
 	# La carte case -> index se calcule une fois : l'editeur en a besoin a chaque coup de
 	# crayon, et la recalculer coutait un tiers du budget d'affichage.
-	_surface_cells = Coverage.index_map(heights)
+	for at: Vector2i in Families.index_map(guide_family, heights).keys():
+		_surface_cells[Families.storage_key(guide_family, at)] = \
+				Families.index_map(guide_family, heights)[at]
 	# Les roles de robe sont rassembles une seule fois : ca coute un parcours complet du
 	# relief, et l editeur en a besoin a chaque coup de crayon.
 	_wall_roles = Walls.visible_roles(heights)
@@ -242,7 +258,7 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
 	_targets.clear()
-	_by_index = Coverage.cells_by_index(_surface_cells)
+	_by_index = Families.groups(guide_family, _surface_cells)
 	_by_role = Walls.cells_by_role(_wall_roles)
 	for group: Array in _by_index.values():
 		var surface_twins: Array[Vector2i] = group
@@ -394,7 +410,7 @@ func _draw() -> void:
 	if show_grid and not assembled:
 		_draw_grid(pixel_px)
 
-	if _hover.x >= 0:
+	if _hover != NOWHERE:
 		var accepted: bool = _is_paintable(_hover)
 		draw_rect(Rect2(_cell_origin(_hover), Vector2(_tile_px, _tile_px)),
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
@@ -431,7 +447,7 @@ func _draw_grid(pixel_px: float) -> void:
 			continue
 		draw_line(at, at + Vector2(_tile_px, 0.0), TILE_LINE, 1.0)
 		draw_line(at, at + Vector2(0.0, _tile_px), TILE_LINE, 1.0)
-		if not _paintable.has(cell + Vector2i.DOWN):
+		if not _paintable.has(_below(cell)):
 			draw_line(at + Vector2(0.0, _tile_px), at + Vector2(_tile_px, _tile_px),
 					TILE_LINE, 1.0)
 		if not _paintable.has(cell + Vector2i.RIGHT):
@@ -447,8 +463,24 @@ func _draw_grid(pixel_px: float) -> void:
 					PIXEL_LINE, 1.0)
 
 
+## OU SE DESSINE CE QUE PORTE CETTE CLE.
+##
+## ⚠ UN CROISEMENT EST DECALE D'UNE DEMI-CASE. Sa tuile est a cheval sur quatre cases : sa
+## boite va donc de (i-0.5, j-0.5) a (i+0.5, j+0.5). C'est ce decalage, et lui seul, qui met
+## le guide sous la bonne tuile -- le fond, lui, ne bouge pas.
 func _cell_origin(cell: Vector2i) -> Vector2:
+	if cell.y < 0:
+		var point: Vector2i = Families.from_storage(Families.BY_CORNER, cell)
+		return _origin + (Vector2(float(point.x), float(point.y))
+				- Vector2(0.5, 0.5)) * _tile_px
 	return _origin + Vector2(float(cell.x), float(cell.y)) * _tile_px
+
+
+## ⚠ « EN DESSOUS » S'INVERSE POUR UN CROISEMENT. Sa cle porte un y negatif : descendre
+## d'une rangee a l'ecran, c'est DECREMENTER la cle. Sans ca la grille dessinerait ses bords
+## a l'envers, et l'on ne verrait pas ou s'arrete le peignable.
+func _below(key: Vector2i) -> Vector2i:
+	return key + (Vector2i.UP if key.y < 0 else Vector2i.DOWN)
 
 
 func _is_paintable(cell: Vector2i) -> bool:
@@ -535,12 +567,33 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _set_hover(position: Vector2) -> bool:
-	var cell: Vector2i = _cell_at(position)
+	var cell: Vector2i = _target_at(position)
 	if cell == _hover:
 		return false
 	_hover = cell
 	hover_changed.emit(cell)
 	return true
+
+
+## CE QUE DESIGNE UN POINT DE L'ECRAN.
+##
+## ⚠ DANS LA FAMILLE A CHEVAL, LES DEUX GRILLES SE CHEVAUCHENT. Une tuile de croisement
+## est decalee d'une demi-case, une robe est sur la case : leurs boites partagent un quart.
+## LA ROBE GAGNE -- elle est dessinee devant, donc c'est elle qu'on voit sous le curseur.
+##
+## ⚠ QUARANTE-NEUF CROISEMENTS DEVIENNENT AINSI INATTEIGNABLES sur les 813 du guide.
+## Aucune TUILE n'est perdue pour autant : les quinze index gardent chacun un croisement
+## libre, et les jumelles remplissent le reste. C'est mesure, et asserte.
+func _target_at(position: Vector2) -> Vector2i:
+	var cell: Vector2i = _cell_at(position)
+	if _wall_cells.has(cell):
+		return cell
+	if guide_family == Families.BY_CORNER:
+		var offset: Vector2 = (position - _origin) / _tile_px + Vector2(0.5, 0.5)
+		var key: Vector2i = Families.storage_key(Families.BY_CORNER,
+				Vector2i(floori(offset.x), floori(offset.y)))
+		return key if _surface_cells.has(key) else NOWHERE
+	return cell if _paintable.has(cell) else NOWHERE
 
 
 func _cell_at(position: Vector2) -> Vector2i:

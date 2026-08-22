@@ -97,7 +97,11 @@ static func resolve_relief(heights: PackedStringArray, painted_cells: Array[Vect
 ## ⚠ C'EST PAR ICI QUE PASSE L'EDITEUR. Relire le relief entier a chaque coup de crayon
 ## coutait 4,4 ms par image ; en partant de la carte, le compte ne parcourt plus que les
 ## cases peintes.
-static func resolve_indexed(index_by_cell: Dictionary, painted_cells: Array[Vector2i]) -> Dictionary:
+## ⚠ LA LISTE ATTENDUE SE PASSE, ELLE NE SE DEVINE PAS. Elle etait codee en dur sur les 47
+## du blob : en famille « a cheval » le compte aurait annonce quarante-sept manquants alors
+## qu'il n'y en a que quinze a peindre. Le vocabulaire attendu appartient a l'appelant.
+static func resolve_indexed(index_by_cell: Dictionary, painted_cells: Array[Vector2i],
+		wanted: PackedInt32Array = BlobIndex.CANONICAL_INDICES) -> Dictionary:
 	var painted: Dictionary = {}
 	for cell: Vector2i in painted_cells:
 		painted[cell] = true
@@ -124,7 +128,7 @@ static func resolve_indexed(index_by_cell: Dictionary, painted_cells: Array[Vect
 	outside.sort_custom(_reading_order)
 	var delivered: PackedInt32Array = PackedInt32Array()
 	var missing: PackedInt32Array = PackedInt32Array()
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in wanted:
 		if retained.has(index):
 			delivered.append(index)
 		else:

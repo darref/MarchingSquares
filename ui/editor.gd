@@ -17,6 +17,7 @@ const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Symmetry := preload("res://core/symmetry.gd")
+const Families := preload("res://core/families.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
@@ -58,6 +59,7 @@ func _ready() -> void:
 	_apply_window_size()
 	_fill_modes()
 	_fill_resolutions()
+	_fill_families()
 	_fill_styles()
 	_fill_inks()
 	_fill_decors()
@@ -69,6 +71,7 @@ func _ready() -> void:
 	mode_choice.item_selected.connect(_on_mode_selected)
 	var size_choice: OptionButton = %SizeChoice
 	size_choice.item_selected.connect(_on_resolution_selected)
+	(%FamilyChoice as OptionButton).item_selected.connect(_on_family_selected)
 	var pencil: ColorPickerButton = %PencilColor
 	pencil.color_changed.connect(_on_pencil_changed)
 	for swatch: Node in %Swatches.get_children():
@@ -208,6 +211,43 @@ func _apply_background_style() -> void:
 	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected), purpose)
 
 
+## La famille de surface choisie. ⚠ ELLE SE CHOISIT AVANT DE DESSINER, comme le paysage et
+## la taille des faux pixels : c'est ce qu'on fabrique, pas un reglage.
+## LES DEUX FAMILLES DE SURFACE.
+##
+## ⚠ UNE FAMILLE NE SE CHOISIT QUE SI LE GUIDE LA COUVRE (charte, regle 5). Un guide
+## complet en blob 47 n'est PAS automatiquement complet a cheval : la canonicalisation du
+## blob jette le contact diagonal isole, dont le reseau dual a besoin. On grise plutot que
+## de laisser choisir ce qu'on ne peut pas garantir.
+func _fill_families() -> void:
+	var choice: OptionButton = %FamilyChoice
+	choice.clear()
+	for family: StringName in Families.ids():
+		choice.add_item("%s -- %s" % [Families.label(family), Families.note(family)])
+		choice.set_item_metadata(choice.item_count - 1, family)
+	choice.select(0)
+	_refresh_family_availability()
+
+
+## ⚠ LA DISPONIBILITE DEPEND DU GUIDE, donc elle se relit a chaque changement de paysage.
+func _refresh_family_availability() -> void:
+	var choice: OptionButton = %FamilyChoice
+	for index: int in range(choice.item_count):
+		var family: StringName = choice.get_item_metadata(index)
+		choice.set_item_disabled(index, not Families.is_covered(family, _heights))
+
+
+func _on_family_selected(_index: int) -> void:
+	_load_current_mode()
+
+
+func _current_family() -> StringName:
+	var choice: OptionButton = %FamilyChoice
+	if choice == null or choice.item_count == 0:
+		return Families.BY_CELL
+	return choice.get_item_metadata(choice.selected)
+
+
 func _current_mode() -> StringName:
 	var choice: OptionButton = %ModeChoice
 	return choice.get_item_metadata(choice.selected)
@@ -225,8 +265,10 @@ func _load_current_mode() -> void:
 		push_error("editor: guide introuvable pour le mode '%s' : %s" % [id, path])
 		return
 	_heights = HeightMask.read(path)
+	_refresh_family_availability()
 	_painting = Painting.new(_current_resolution())
 	var work: Control = %WorkArea
+	work.guide_family = _current_family()
 	work.pencil = (%PencilColor as ColorPickerButton).color
 	_apply_fill_rules()
 	var technic: OptionButton = %StyleChoice
@@ -418,8 +460,10 @@ func _on_hover_changed(cell: Vector2i) -> void:
 	var indices: Dictionary = work.surface_index()
 	if indices.has(cell):
 		var index: int = int(indices[cell])
-		label.text = "(%d, %d)  index %d = %s%s" % [cell.x, cell.y, index,
-				BlobIndex.describe(index), _lonely_note(cell)]
+		var family: StringName = _current_family()
+		var at: Vector2i = Families.from_storage(family, cell)
+		label.text = "(%d, %d)  index %d = %s%s" % [at.x, at.y, index,
+				Families.describe(family, index), _lonely_note(cell)]
 		return
 	label.text = "(%d, %d)  la plaine : rien a peindre" % [cell.x, cell.y]
 
@@ -477,6 +521,7 @@ func _on_open_chosen(path: String) -> void:
 		return
 	_select_metadata(%ModeChoice, header["mode"])
 	_select_metadata(%SizeChoice, int(header["resolution"]))
+	_select_metadata(%FamilyChoice, header["family"])
 	_load_current_mode()
 
 	var report: Dictionary = WorkIO.read(path, _heights)
@@ -509,7 +554,7 @@ func _on_save_pressed() -> void:
 func _write_work(path: String) -> void:
 	if _painting == null:
 		return
-	if WorkIO.write(path, _painting, _heights, _current_mode()) != OK:
+	if WorkIO.write(path, _painting, _heights, _current_mode(), _current_family()) != OK:
 		_announce("Enregistrement impossible.")
 		return
 	_work_path = path
@@ -528,7 +573,7 @@ func _on_export_chosen(folder: String) -> void:
 	if basename == "":
 		basename = String(_current_mode())
 	var report: Dictionary = TilesetPNG.write(folder, basename, _painting, _heights,
-			_current_mode())
+			_current_mode(), _current_family())
 	if int(report["error"]) == ERR_UNAVAILABLE:
 		# Le bouton est cense etre grise ; si on arrive ici, c'est qu'il ne l'etait pas.
 		var left: int = report["missing_surface"].size() + report["missing_wall"].size()
@@ -573,12 +618,13 @@ func _refresh_counters() -> void:
 	if _painting == null:
 		return
 	var work: Control = %WorkArea
-	var surface: Dictionary = Variants.resolve_indexed(work.surface_index(), work.painted_surface_cells())
+	var surface: Dictionary = Variants.resolve_indexed(work.surface_index(),
+			work.painted_surface_cells(), Families.surface_indices(_current_family()))
 	# On repasse par les roles deja rassembles : les recalculer a chaque coup de crayon
 	# relirait tout le relief pour rien.
 	var walls: Dictionary = Walls.resolve_roles(work.wall_roles(), work.painted_wall_cells())
 	var surface_done: int = surface["delivered"].size()
-	var surface_total: int = BlobIndex.CANONICAL_INDICES.size()
+	var surface_total: int = Families.surface_tile_count(_current_family())
 	var wall_done: int = walls["delivered"].size()
 	var wall_total: int = Walls.ALL_ROLES.size()
 
@@ -599,3 +645,6 @@ func _refresh_counters() -> void:
 	# rejetterait tout ce qui est peint. Le choix se ferme au premier pixel pose.
 	var touched: bool = not _painting.painted_cells().is_empty()
 	(%SizeChoice as OptionButton).disabled = touched
+	# ⚠ LE RESEAU SE FERME AU PREMIER PIXEL, comme la taille : en changer rejetterait tout
+	# ce qui est peint, puisque ce ne sont plus les memes tuiles.
+	(%FamilyChoice as OptionButton).disabled = touched

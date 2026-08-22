@@ -410,6 +410,22 @@ layout_mode = 2
 size_flags_horizontal = 3
 clip_text = true
 
+[node name="FamilyRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=3100021]
+layout_mode = 2
+
+[node name="FamilyLabel" type="Label" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/FamilyRow" unique_id=3100022]
+custom_minimum_size = Vector2(62, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Reseau"
+
+[node name="FamilyChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/FamilyRow" unique_id=3100023]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Par case : la tuile occupe une case, 47 tuiles de surface. A cheval : elle occupe le croisement de quatre cases, 15 tuiles. Les falaises ne changent pas -- 36 dans les deux cas."
+clip_text = true
+
 [node name="Rule" type="HSeparator" parent="Layout/Body/Sidebar/Column" unique_id=505386271]
 layout_mode = 2
 
