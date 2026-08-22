@@ -1569,7 +1569,33 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   — les autres sont jetes en silence, ce que la charte interdit. À trancher : soit la case
   disparait jusqu'au vrai systeme de variantes, soit elle previent.
 - **Un mode d'emploi plein ecran**, ouvert en cliquant le bandeau haut-droit, qui ferait
-  aussi defiler des conseils au lieu des seules phrases de la charte.
+  aussi defiler des conseils au lieu des seules phrases de la charte. ⚠ **Rien n'en est
+  specifie** : ni contenu, ni decoupage, ni maquette. Ces deux lignes sont tout ce qui
+  existe.
+- **LES MATIERES BORDEES : eau, sable, ce qui se pose DANS un plateau plat.** Une matiere
+  est un **masque binaire**, donc une couche posee comme un etage, mais **sans falaise** :
+  le blob 47 s'y applique sans une ligne de code de plus, et les coins arrondis laissent
+  voir ce qui est dessous par le mecanisme qui existe deja. Coût : **+47 tuiles par matiere
+  par case, +15 a cheval**, et rien d'autre — a deux conditions qui sont des decisions :
+  les matieres sont **ordonnees** (sable sur herbe, eau sur sable) sinon il faut un jeu par
+  *paire* ; et une matiere **ne touche ni la levre ni le bord de son etage**, sinon c'est
+  une cascade (+36) et on ne sait plus ce qu'il y a dessous. Voir la fiche detaillee en fin
+  de section.
+- **Les escaliers et les pentes douces : un TROISIEME vocabulaire, pas une matiere.** Une
+  rampe casse deux regles d'un coup — « un plateau n'a de face qu'au sud » (on marche sur
+  celle-la) et « on ne voit que le sommet » (elle occupe des cases a des hauteurs qui ne
+  sont l'etage de personne). ⚠ Et surtout **elle ne se deduit pas** : deux etages adjacents
+  sont une falaise par definition, rien dans une carte de hauteurs ne l'en distingue. Il
+  faut donc un **marqueur declare**, exactement comme `~` l'a ete pour le vide en 4.0.0.
+  Coût : un troisieme `walls.gd`, sa regle au contrat, sa copie dans `rules.gd`, son
+  controle croise, et 12 a 36 tuiles selon que la question « qui est devant » revienne sur
+  ses flancs. Chantier du calibre de la 4.0.0.
+- **`VERSION` du manifeste est figee a 3 alors que le sens de la regle a bouge deux fois** —
+  le hors-carte est passe de plaine a vide (4.0.0), et le sous-pied est apparu (4.1.0). Un
+  manifeste v3 d'avant-hier et un v3 de ce soir decrivent deux mondes differents, et le
+  plugin les accepte tous les deux sans broncher. Le garde-fou refuse le **trop neuf**,
+  jamais le **trop vieux** : il manque un `READS_FROM` autant qu'un `READS_UP_TO`. Rien
+  n'est livre, donc c'est encore gratuit.
 - **Un essai livrable : le logiciel + le plugin, avec le GUIDE comme tileset.** Notre
   illustration est calculee, entierement a nous, et complete par construction : elle peut
   donc sortir en planche valide **sans peindre un pixel**. Le game dev installerait
@@ -1581,4 +1607,99 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 - **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a
   reprendre : c'est lui qui empeche les deux lecteurs de diverger.
 
+### Fiche : LES MATIÈRES BORDÉES
 
+**Ce qu'une matière est, en une phrase : un étage sans falaise.**
+
+Une région d'eau dans un plateau plat est un **masque binaire**, exactement comme la
+silhouette d'un étage. `BlobIndex.canonicalize` s'y applique donc **sans une ligne de code
+de plus** — le même argument, mot pour mot, que celui déjà écrit pour le relief. Et le
+rendu sait déjà empiler : *« chaque couche recouvre la précédente, si bien que les coins
+arrondis découpés laissent voir l'étage d'en dessous »*. Le coin arrondi d'une tuile d'eau
+laissera voir l'herbe par ce mécanisme-là, pas par un nouveau.
+
+⚠ **Ce qui distingue une matière d'un étage, et qui décide de tout : les étages
+s'EMPILENT, les matières sont CÔTE À CÔTE.** Un étage cache celui d'en dessous et la
+transition sort du plan — c'est une falaise, d'où `walls.gd`. Une matière reste dans le
+plan, et sa transition est son propre bord. **Donc aucune tuile de robe supplémentaire.**
+
+**Le coût, chiffré :** +47 tuiles par matière par case, +15 à cheval. Rien d'autre — **à
+deux conditions, qui sont des décisions à prendre, pas des détails.**
+
+⚠ **1. LES MATIÈRES SONT ORDONNÉES.** Sable sur herbe, eau sur sable ; chaque matière ne
+borde que ce qui est dessous. Sinon il faut un jeu de transition par **paire** : trois
+matières qui se touchent librement, ce sont six jeux, pas trois. L'ordre est une propriété
+du mode, décidée avec lui.
+
+⚠ **2. UNE MATIÈRE NE TOUCHE NI LA LÈVRE NI LE BORD DE SON ÉTAGE.** Une nappe qui atteint
+le bord sud d'un plateau est une **cascade** — une face hors du plan, donc un vocabulaire
+entier de robes, +36 tuiles. Et une matière qui touche le bord rend indécidable *ce qu'il
+y a dessous* au coin découpé. Avec la restriction, la réponse est toujours la même : la
+tuile pleine de l'hôte, l'index 255. Le guide l'interdit, le pinceau le refuse (règle 5).
+
+⚠ **UNE CASE PORTE TOUJOURS UNE SEULE TUILE, ET LE CARNET NE BOUGE PAS.** C'est le point
+qui rend le chantier petit. Une case d'eau se peint en eau ; l'herbe dessous est l'index
+255, qui se peint dans mille autres cases. Donc **aucune nouvelle dimension au carnet** :
+c'est le *nom* de la tuile qui gagne sa matière, pas la clé de rangement. Et comme
+`work_io` range l'art **par tuile**, un travail de base se recharge tel quel dans un mode
+à matières — exactement comme `minimal` se recharge en `ample`.
+
+**Ce que ça coûte en GUIDE**, mesuré sur les emprises réelles de `tools/accidents.py` — et
+seuls les accidents de *surface* comptent, l'escarpement porte les robes et une matière
+n'en a pas :
+
+```
+district lacustre (11x11)     121 cases      les 16 index « tous cardinaux »
+crete dressee (5x10)           50 cases  \   les 16 « trois cardinaux »,
+crete couchee (9x7)            63 cases  /   pointes et cretes etroites
+chaos rocheux (12x9)          108 cases      les 4 coudes et les 4 fourches
+ecueil + contact diagonal      20 cases      l index 0 et les deux diagonales
+                              ---------
+                              362 cases d accidents, ~524 avec marges et bordure d hote
+```
+
+⚠ **ET C'EST POUR ÇA QU'UN GUIDE GÉANT GRISÉ EST UN MAUVAIS ÉCHANGE.** Le dépôt porte déjà
+la mesure qui tranche : *« ce qui compte n'est pas le nombre de cases, c'est la taille de
+la case à l'écran »*. Sur le guide livré (52x33) et un cadre de travail ordinaire :
+
+```
+base seule         guide 52x33  ->  case a l ecran 23,0 px
+base + 1 matiere   guide 74x33  ->  18,9 px   (-18 %)
+base + 2 matieres  guide 96x33  ->  14,6 px   (-37 %)
+```
+
+À 14,6 pixels d'écran on ne distingue plus un dessin de 16 faux pixels : le guide cesse de
+montrer ce qu'il existe pour montrer. On avait gagné +30 % en **couchant** le guide ; on
+les reperdrait, et davantage. Et un paysage dont les trois quarts refusent le crayon ment
+sur ce qu'il est.
+
+**Donc : un guide ENGENDRÉ PAR COMBINAISON, pas un guide unique grisé.** `tools/` compose
+déjà les guides à partir d'accidents ; un mode « base + eau » compose les siens. On ne paie
+que les matières qu'on fabrique, et rien dans le cadre ne refuse le crayon sans raison. La
+peur derrière « tout dans le guide » — perdre le travail en changeant — est déjà réglée
+par le carnet rangé par tuile.
+
+⚠ **Piste mesurée, à vérifier en engendrant vraiment un guide** : `minimal` porte **498
+cases de plaine**, pour ~524 nécessaires à une matière. La première matière pourrait donc
+être presque gratuite en surface de guide **si la plaine était disposée en étendue
+utilisable au lieu d'un liseré de bord du monde**. À prouver, pas à promettre.
+
+**Où ça touche, fichier par fichier** — et la liste est courte, c'est l'argument :
+
+- `core/height_mask.gd` — **inchangé**. La matière est une seconde carte, pas un alphabet
+  surchargé : le parseur est strict et `#` est déjà pris.
+- le format de guide — un **second bloc** dans le même fichier, mêmes dimensions.
+- `core/families.gd` — la matière entre dans le nom de la tuile ; une lettre de clé de plus.
+- `core/modes.gd` — le mode déclare sa liste ordonnée de matières ; `surface_tiles` devient
+  47 × (1 + matières).
+- `exporters/tileset_png.gd` — **une planche de surface par matière**, nommée au manifeste.
+  La clause `sheet fixed_size` reste vraie, c'est ce qui compte.
+- `render/guide_image.gd`, `render/assembly.gd` — une couche de plus à empiler, dans
+  l'ordre des matières.
+- `core/proof_scene.gd` — une planche de preuve par matière.
+- `addons/absolupaint/` — un `TileMapLayer` par matière, et le contrôle croisé étendu.
+
+⚠ **ET LES DEUX RESTRICTIONS S'ASSERTENT, ELLES NE SE DOCUMENTENT PAS** (règles 4 et 5).
+Une matière qui touche une lèvre, ou deux matières non ordonnées qui se rencontrent, doivent
+faire **échouer la suite** sur les guides livrés. Sans quoi ce sont deux promesses, et le
+projet n'en fait pas.
