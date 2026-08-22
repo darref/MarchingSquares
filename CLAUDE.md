@@ -67,6 +67,7 @@ tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
   tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
+  trial_tileset.gd  l'essai : le guide lui-même livré comme tileset, sans peindre
 addons/absolupaint/   LE PLUGIN MOTEUR -- ce qui part chez l'acheteur
   rules.gd        la regle de pose, portee du noyau, sur un monde NON BORNE
   manifest.gd     lecture du `<nom>_tileset.txt`, et ses trois refus
@@ -1168,6 +1169,49 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ « Peindre les rotations » reste, et c'est une autre affaire : elle **fabrique**
   délibérément, elle part décochée, et son infobulle dit ce qu'elle fait.
 
+- **L'ESSAI : LE GUIDE LUI-MÊME, LIVRÉ COMME TILESET** (`exporters/trial_tileset.gd`).
+  Le logiciel prouve que les tuiles sont complètes, le plugin s'en sert — et entre les deux
+  il manquait de quoi **essayer**. Tant qu'aucun pixel n'est peint, l'export refuse, à juste
+  titre : le game dev n'a rien à poser et doit croire sur parole.
+
+  Or nous avons déjà un dessin complet de chaque tuile : **l'illustration du guide**. Elle
+  est calculée depuis le relief, n'emprunte aucun pixel, et couvre par construction tout ce
+  que le guide couvre. On la verse dans un carnet de peinture comme si elle avait été peinte
+  à la main, et on la fait sortir **par le chemin normal**.
+
+  ⚠ **PAS DE CHEMIN DE TRAVERSE, ET C'EST TOUT L'INTÉRÊT.** `TilesetPNG.write` ne sait pas
+  qu'il exporte un essai : le manifeste est le vrai, les planches sont les vraies, et le
+  refus d'une feuille incomplète s'applique. **Si l'essai sort, c'est que la chaîne entière
+  marche** ; s'il ne sort pas, elle est cassée pour tout le monde.
+
+  ⚠ **UN SEUL TEST PARCOURT LA CHAÎNE ENTIÈRE**, et c'est celui-là. Tous les autres en
+  éprouvent un maillon. Celui-ci part de l'illustration, exporte, **relit le manifeste avec
+  le lecteur DU PLUGIN**, en fabrique un `TileSet`, et pose un monde : **618 tuiles, aucun
+  trou**.
+
+  ⚠ **Elle est entièrement à nous.** Aucune licence à lire, rien à redistribuer qui ne
+  soit notre propre tracé — celui-là même qu'on efface en peignant par-dessus. Le banc
+  `example`, lui, lit le tileset de Satyron et ne peut **rien** livrer.
+
+  ⚠ **CE N'EST PAS DE L'ART, ET IL NE FAUT PAS FAIRE SEMBLANT.** C'est un dessin de
+  **spécification** : des aplats, des arrondis, une striure. Il sert à poser un monde qui se
+  tient et à juger l'outil, pas à habiller un jeu. L'infobulle du bouton le dit.
+
+  ⚠ **Un tileset n'a qu'un jeu de 47**, donc l'essai fige **un seul étage** de teinte. Le
+  monde posé montre ses plateaux dans la même herbe — exactement comme un vrai tileset, là
+  où l'illustration teinte chaque étage pour faire lire l'altitude.
+
+  ⚠ **Et il reste PAR CASE.** L'illustration calcule les 47 index du blob, pas les 15
+  croisements : elle dessine le relief, et le relief se lit par case. On ne fabrique pas un
+  dessin qu'on n'a pas (règle 5) — la famille à cheval n'a donc pas encore d'essai.
+
+  Un bouton **« Exporter l'essai »** à côté de celui qui installe le plugin, et la ligne de
+  commande pour le lot :
+
+  ```
+  godot --headless --path . --script res://exporters/trial_tileset.gd -- dossier [taille]
+  ```
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
@@ -1665,12 +1709,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   puisse l'éprouver sans acheter, et **rien ne fonctionne sans manifeste** — ce dernier point
   étant déjà vrai dans le code. Reste à écrire la signature et les deux refus qui vont avec.
   Voir la fiche détaillée en fin de fichier.
-- **Un essai livrable : le logiciel + le plugin, avec le GUIDE comme tileset.** Notre
-  illustration est calculee, entierement a nous, et complete par construction : elle peut
-  donc sortir en planche valide **sans peindre un pixel**. Le game dev installerait
-  l'extension et poserait un monde tout de suite. C'est a la fois une demonstration et une
-  epreuve de bout en bout de la chaine.
-
 - **Le pinceau de relief dans l'editeur Godot.** AbsoluPaint pose un monde, mais on remplit
   `heights` par l'inspecteur ou par script. Il lui manque son outil de dessin.
 - **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a

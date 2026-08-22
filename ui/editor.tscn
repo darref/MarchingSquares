@@ -964,6 +964,12 @@ layout_mode = 2
 tooltip_text = "Copie AbsoluPaint dans un projet Godot. Reste a le cocher dans Projet > Parametres > Extensions."
 text = "Installer le plugin Godot"
 
+[node name="TrialButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100026]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Ecrit un tileset complet fait du dessin du guide lui-meme, sans peindre un pixel. De quoi essayer la chaine entiere : le plugin le pose comme n importe quel autre. Ce n est pas de l art, c est un dessin de specification."
+text = "Exporter l essai"
+
 [node name="PluginHint" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100025]
 unique_name_in_owner = true
 layout_mode = 2

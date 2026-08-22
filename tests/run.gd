@@ -25,6 +25,7 @@ const PluginInstall := preload("res://core/plugin_install.gd")
 const PluginRules := preload("res://addons/absolupaint/rules.gd")
 const PluginManifest := preload("res://addons/absolupaint/manifest.gd")
 const PluginTileSet := preload("res://addons/absolupaint/tileset.gd")
+const Trial := preload("res://exporters/trial_tileset.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -69,6 +70,7 @@ func _initialize() -> void:
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_plugin_rules()
+	_test_trial_tileset()
 	_test_plugin_manifest()
 	_test_plugin_install()
 	_test_every_script_parses()
@@ -2167,6 +2169,81 @@ func _plugin_world(heights: PackedStringArray) -> Dictionary:
 
 
 ## Le lecteur de manifeste, eprouve sur un VRAI export -- pas sur une chaine ecrite a la main.
+## L'ESSAI : LE GUIDE LUI-MEME, LIVRE COMME TILESET, ET POSE PAR LE PLUGIN.
+##
+## ⚠ C'EST LE SEUL TEST QUI PARCOURE LA CHAINE ENTIERE. Tous les autres en eprouvent un
+## maillon : celui-ci part de l'illustration, la verse dans un carnet de peinture, la fait
+## sortir par le CHEMIN NORMAL de l'export, relit le manifeste avec le lecteur DU PLUGIN,
+## en fabrique un TileSet, et pose un monde. S'il passe, un game dev peut essayer.
+##
+## ⚠ ET IL NE PREND AUCUN CHEMIN DE TRAVERSE. `TilesetPNG.write` ne sait pas qu'il exporte
+## un essai : le refus d'une feuille incomplete s'applique, donc l'essai ne sort QUE s'il
+## est vraiment complet.
+func _test_trial_tileset() -> void:
+	print("l essai : le guide livre comme tileset, et pose par le plugin")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var side: int = 16
+	var painting: Painting = Trial.paint(heights, side)
+
+	# Une occurrence par tuile, pas une par case : c'est tout ce que l'export retient.
+	_check_equal(painting.painted_cells().size(),
+			BLOB_TILE_COUNT + Walls.ALL_ROLES.size(),
+			"l essai dessine exactement %d tuiles, une fois chacune"
+			% (BLOB_TILE_COUNT + Walls.ALL_ROLES.size()))
+	var report: Dictionary = TilesetPNG.analyse(painting, heights)
+	_check(report["is_exportable"],
+			"SANS QU UN PIXEL SOIT PEINT A LA MAIN, la feuille est complete")
+
+	var folder: String = "user://essai_test"
+	var done: Dictionary = Trial.write(folder, Modes.MINIMAL, side)
+	_check_equal(done["error"], OK, "l essai s ecrit par le chemin normal de l export")
+
+	# --- LE PLUGIN LE RELIT, avec son propre lecteur et ses propres refus.
+	var manifest_path: String = folder.path_join(Trial.TRIAL_BASENAME + "_tileset.txt")
+	var manifest: Dictionary = PluginManifest.parse(
+			FileAccess.get_file_as_string(manifest_path))
+	_check_equal(manifest["error"], OK, "et le plugin l accepte : %s" % manifest["reason"])
+	_check_equal(int(manifest["version"]), TilesetPNG.VERSION,
+			"a la version que l exportateur vient d ecrire")
+
+	var built: Dictionary = PluginTileSet.build(folder, manifest)
+	_check_equal(built["error"], OK, "le TileSet se fabrique depuis les planches livrees")
+	var tile_set: TileSet = built["tile_set"]
+	_check(tile_set != null, "et il existe")
+
+	# --- ET IL POSE UN MONDE. Chaque case du decor doit trouver sa tuile.
+	var scene: PackedStringArray = HeightMask.read("res://guides/preview.txt")
+	var world: Dictionary = _plugin_world(scene)
+	var slots: Dictionary = manifest["surface_slots"]
+	var wall_slots: Dictionary = manifest["wall_slots"]
+	var missing: int = 0
+	var posed: int = 0
+	for cell: Vector2i in world.keys():
+		var index: int = PluginRules.surface_index_at(world, cell)
+		if index == PluginRules.NO_INDEX:
+			continue
+		if slots.has(index):
+			posed += 1
+		else:
+			missing += 1
+	for role: Vector2i in PluginRules.walls(world).values():
+		if wall_slots.has(role):
+			posed += 1
+		else:
+			missing += 1
+	for role: Vector2i in PluginRules.underfoot(world).values():
+		if wall_slots.has(role):
+			posed += 1
+		else:
+			missing += 1
+	_check_equal(missing, 0,
+			"CHAQUE case du decor trouve sa tuile dans l essai : aucun trou")
+	_check(posed > 0, "et le monde n est pas vide (%d tuiles posees)" % posed)
+
+	for path: String in done["written"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func _test_plugin_manifest() -> void:
 	print("AbsoluPaint : le manifeste se relit, et le faux se refuse")
 	var folder: String = "user://plugin_manifeste"

@@ -23,6 +23,7 @@ const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
+const Trial := preload("res://exporters/trial_tileset.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -50,6 +51,7 @@ var _open_dialog: FileDialog = null
 var _save_dialog: FileDialog = null
 var _export_dialog: FileDialog = null
 var _plugin_dialog: FileDialog = null
+var _trial_dialog: FileDialog = null
 var _promise: int = 0
 var _elapsed: float = PROMISE_SECONDS
 
@@ -97,6 +99,7 @@ func _ready() -> void:
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
 	(%InstallPluginButton as Button).pressed.connect(_on_install_plugin_pressed)
+	(%TrialButton as Button).pressed.connect(_on_trial_pressed)
 	_build_dialogs()
 	_apply_margins()
 	_load_current_mode()
@@ -495,6 +498,9 @@ func _build_dialogs() -> void:
 	_plugin_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
 			"Choisir un projet Godot", PackedStringArray())
 	_plugin_dialog.dir_selected.connect(_on_plugin_folder_chosen)
+	_trial_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
+			"Ou ecrire l essai", PackedStringArray())
+	_trial_dialog.dir_selected.connect(_on_trial_folder_chosen)
 
 
 func _make_dialog(mode: FileDialog.FileMode, title: String,
@@ -594,6 +600,28 @@ func _on_export_chosen(folder: String) -> void:
 ## d'un projet Godot et n'y rien oublier.
 func _on_install_plugin_pressed() -> void:
 	_plugin_dialog.popup_centered_ratio(0.6)
+
+
+## ⚠ L'ESSAI EXISTE PARCE QUE L'EXPORT REFUSE UNE FEUILLE INCOMPLETE, et qu'il a raison de
+## le faire. Tant qu'aucun pixel n'est peint, le game dev n'a rien a poser : il devait donc
+## croire sur parole. Le dessin du guide, lui, est complet par construction et entierement a
+## nous -- on le livre tel quel, et la chaine entiere devient essayable en un clic.
+##
+## ⚠ CE N'EST PAS DE L'ART, ET LE BOUTON NE FAIT PAS SEMBLANT. C'est un dessin de
+## specification : il sert a poser un monde qui se tient, pas a habiller un jeu.
+func _on_trial_pressed() -> void:
+	_trial_dialog.popup_centered_ratio(0.6)
+
+
+func _on_trial_folder_chosen(folder: String) -> void:
+	var report: Dictionary = Trial.write(folder, _current_mode(), _current_resolution())
+	if int(report["error"]) != OK:
+		_announce("L essai n a pas pu s ecrire (erreur %d)." % int(report["error"]))
+		return
+	var written: PackedStringArray = report["written"]
+	_announce("Essai ecrit : %d fichiers dans %s." % [written.size(), folder])
+	(%PluginHint as Label).text = \
+			"L essai est ecrit. Ouvrez-le avec AbsoluPaint pour poser un monde tout de suite."
 
 
 ## ⚠ ON REFUSE UN DOSSIER QUI N'EST PAS UN PROJET GODOT (charte, regle 5), et on le DIT.
