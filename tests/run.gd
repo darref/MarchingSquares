@@ -485,6 +485,62 @@ func _check_one_guide_walls(id: StringName) -> void:
 		rarest_role = mini(rarest_role, int(occurrences[role]))
 	_check(rarest_role >= Modes.min_occurrences(id), "chaque role de mur est vu au moins %d fois (le plus rare : %d)" % [Modes.min_occurrences(id), rarest_role])
 	print("  %d cases de robe deroulees" % wall_cells)
+	_check_off_plain(id, heights)
+
+
+## ⚠ TOUT DOIT SE TROUVER HORS DE LA PLAINE, ET LA PROMESSE DU MODE AUSSI.
+##
+## Dans l'editeur, l'etage 0 est du DECOR : il montre que le sol du jeu sortira du meme
+## tileset, il recoit le temps reel par les jumelles, mais il ne prend pas le crayon -- et
+## la grille ne se trace que sur ce qui se peint. Une tuile qui n'apparaitrait QUE sur la
+## plaine serait donc impeignable, et le guide deviendrait inexportable **sans que rien ne
+## le signale** : le rapport de couverture, lui, la compterait.
+##
+## Mesure au moment d'ecrire : sur les deux guides livres, les 47 index, les 15 croisements
+## et les 36 roles se trouvent tous hors de la plaine, et `ample` y tient meme ses trois
+## occurrences. C'est donc gratuit -- mais c'est gratuit AUJOURD'HUI, et un guide retouche
+## demain pourrait poser un accident sur la plaine sans que personne y pense.
+func _check_off_plain(id: StringName, heights: PackedStringArray) -> void:
+	var promised: int = Modes.min_occurrences(id)
+
+	for family: StringName in Families.ids():
+		# ⚠ LA CARTE SE BATIT UNE FOIS. La relire par case refait un parcours complet du
+		# relief a chaque tour : sur `ample` a cheval, la mesure passait de la seconde aux
+		# minutes. Meme lecon que `CornerIndex.index_map`.
+		var counts: Dictionary = {}
+		var indices: Dictionary = Families.index_map(family, heights)
+		for at: Vector2i in indices.keys():
+			var top: int = HeightMask.level_at(heights, at.x, at.y)
+			if family == Families.BY_CORNER:
+				top = HeightMask.VOID
+				for offset: Vector2i in CornerIndex.OFFSETS:
+					top = maxi(top, HeightMask.level_at(heights, at.x + offset.x, at.y + offset.y))
+			if top >= 1:
+				var index: int = int(indices[at])
+				counts[index] = int(counts.get(index, 0)) + 1
+		var missing: Array[int] = []
+		for index: int in Families.surface_indices(family):
+			if int(counts.get(index, 0)) < promised:
+				missing.append(index)
+		_check_equal(missing, [] as Array[int],
+				"%s : les %d tuiles de surface « %s » se trouvent %d fois HORS de la plaine"
+				% [Modes.label(id), Families.surface_tile_count(family),
+						Families.label(family), promised])
+
+	var seen: Dictionary = Walls.visible(heights)
+	var lips: Dictionary = seen["lips"]
+	var roles: Dictionary = seen["roles"]
+	var role_counts: Dictionary = {}
+	for cell: Vector2i in roles.keys():
+		if int(lips[cell]) >= 1:
+			role_counts[roles[cell]] = int(role_counts.get(roles[cell], 0)) + 1
+	var absent_roles: Array[Vector2i] = []
+	for role: Vector2i in Walls.ALL_ROLES:
+		if int(role_counts.get(role, 0)) < promised:
+			absent_roles.append(role)
+	_check_equal(absent_roles, [] as Array[Vector2i],
+			"%s : les %d roles de robe descendent %d fois d'une levre qui n'est pas la plaine"
+			% [Modes.label(id), Walls.ALL_ROLES.size(), promised])
 
 
 func _test_painting() -> void:

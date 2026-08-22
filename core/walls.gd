@@ -310,6 +310,20 @@ static func analyse(heights: PackedStringArray) -> Dictionary:
 ## Deux robes peuvent se superposer sur une case ; on ne voit que la plus haute, donc
 ## c'est elle qu'on peint.
 static func visible_roles(heights: PackedStringArray) -> Dictionary:
+	return visible(heights)["roles"]
+
+
+## Les robes visibles, ET l'etage de la levre qui a lance chacune.
+##
+## ⚠ LA LEVRE, PAS LA CASE. Une case de robe est, sur la carte, une case du sol d'en bas :
+## demander son etage ne dit rien de la falaise qui la couvre. Ce qu'on veut savoir, c'est
+## de quel plateau elle descend -- et c'est ce qui permet de distinguer la falaise d'un
+## plateau de celle de la PLAINE, qui borde le vide et n'est que le bord du monde.
+##
+## Cles rendues :
+##   roles : Dictionary[Vector2i, Vector2i]  case -> (pan, rangee)
+##   lips  : Dictionary[Vector2i, int]       case -> etage de la levre
+static func visible(heights: PackedStringArray) -> Dictionary:
 	var roles: Dictionary = assemble(heights)["roles"]
 	var highest: Dictionary = {}
 	var chosen: Dictionary = {}
@@ -325,10 +339,12 @@ static func visible_roles(heights: PackedStringArray) -> Dictionary:
 	for cell: Vector2i in chosen.keys():
 		cells.append(cell)
 	cells.sort_custom(_reading_order)
-	var visible: Dictionary = {}
+	var ordered: Dictionary = {}
+	var lips: Dictionary = {}
 	for cell: Vector2i in cells:
-		visible[cell] = chosen[cell]
-	return visible
+		ordered[cell] = chosen[cell]
+		lips[cell] = int(highest[cell])
+	return {"roles": ordered, "lips": lips}
 
 
 ## Le SOUS-PIED visible de chaque case d'atterrissage : celui de l'etage le plus haut.

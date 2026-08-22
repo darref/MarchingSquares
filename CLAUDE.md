@@ -1035,6 +1035,50 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   de trois cases **sans atterrir**, donc sa dernière case est du corps. Le fait qu'on mesure
   est plus étroit qu'avant : *une chute QUI ATTERRIT de trois cases* ne montre pas le corps 1.
 
+- **L'ÉTAGE 0 A RETROUVÉ SON STATUT DE DÉCOR : IL REÇOIT LE TEMPS RÉEL, IL NE PREND PAS LE
+  CRAYON.** Défaut vu à l'écran : depuis la suppression du tablier, la plaine du guide
+  portait la grille et acceptait le pinceau. C'est cohérent avec « la plaine est un plateau
+  comme les autres » — et c'est quand même faux dans l'éditeur.
+
+  **La bonne formulation** : la 4.0.0 a corrigé la **géométrie** du décor — il s'arrête
+  maintenant à la falaise que le guide déclare, au lieu de déborder de quatre cases — mais
+  elle lui a fait perdre son **statut**. On rend le statut, on garde la géométrie.
+
+  L'étage 0 sort donc de `_paintable` : ni crayon, ni grille, puisque *la grille ne se trace
+  que sur ce qui se peint*. ⚠ **Mais il reste dans les groupes de jumelles**, et c'est tout
+  l'intérêt : peindre une tuile le remplit d'un coup, sous les yeux. C'est l'argument de
+  vente que le tablier portait — le sol du jeu sortira du même tileset, sans rien de plus à
+  dessiner.
+
+  ⚠ **ET ÇA NE COÛTE AUCUNE TUILE, C'EST MESURÉ AVANT D'ÊTRE ÉCRIT.** Sur les deux guides
+  livrés, les **47** index, les **15** croisements et les **36** rôles se trouvent tous hors
+  de la plaine — et `ample` y tient même ses **trois** occurrences. La plaine ne portait que
+  9 index et 9 rôles, tous présents ailleurs.
+
+  ⚠ **Un guide retouché demain pourrait poser un accident sur la plaine sans que personne y
+  pense**, et la tuile deviendrait impeignable **sans que rien ne le signale** — le rapport
+  de couverture, lui, la compterait. D'où l'assertion : chaque mode doit trouver tout son
+  vocabulaire hors de la plaine, au nombre d'occurrences qu'il promet.
+
+  `Walls.visible()` rend désormais les rôles **et l'étage de la lèvre**. Il fallait ça pour
+  distinguer la falaise d'un plateau de celle de la plaine : ⚠ **une case de robe est, sur
+  la carte, une case du sol d'en bas** — demander *son* étage ne dit rien de la falaise qui
+  la couvre.
+
+- **⚠ `_lonely` LISAIT LES GROUPES DU GUIDE PRÉCÉDENT.** Trouvé en déplaçant le bloc, pas à
+  l'écran. Le calcul des cases sans jumelle se faisait **treize lignes avant** l'affectation
+  de `_by_index` : au tout premier chargement le dictionnaire est vide, donc **aucun contour
+  ambre ne se dessinait du tout**, et aux chargements suivants les marques étaient celles
+  d'un autre paysage.
+
+  ⚠ **UNE MARQUE ABSENTE NE SE REMARQUE PAS.** C'est ce qui rend ce défaut plus vicieux
+  qu'un dessin faux : rien ne clignote, rien n'est de travers, il ne se passe simplement
+  rien. Et aucun test ne pouvait le voir — la suite ne monte pas l'interface.
+
+  Au passage, le compte se fait maintenant sur **ce qui se peint**, pas sur le guide entier :
+  une tuile vue trois fois dont deux sur la plaine n'a en vérité qu'**un** endroit où on
+  puisse la faire, et laisser croire au choix serait mentir sur ce qui est obligatoire.
+
 - **⚠ UNE INSERTION QUI SE TROMPE DE FIN DE FONCTION NE SE VOIT NULLE PART.** En ajoutant
   `_build_ground()` j'ai ancré sur la boucle des jumelles, en croyant qu'elle terminait
   `show_guide`. Toute la queue de la fonction — dont **`_redraw_background()`** — s'est

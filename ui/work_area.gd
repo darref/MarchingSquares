@@ -11,6 +11,7 @@ extends Control
 
 const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
@@ -237,30 +238,63 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 				Families.index_map(guide_family, heights)[at]
 	# Les roles de robe sont rassembles une seule fois : ca coute un parcours complet du
 	# relief, et l editeur en a besoin a chaque coup de crayon.
-	_wall_roles = Walls.visible_roles(heights)
+	var seen: Dictionary = Walls.visible(heights)
+	_wall_roles = seen["roles"]
+	var lips: Dictionary = seen["lips"]
 	for cell: Vector2i in _wall_roles.keys():
 		_wall_cells[cell] = true
 	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
 	# la recalculer serait relire tout le relief soixante fois par seconde.
+	#
+	# ⚠ L'ETAGE 0 N'EN EST PAS, ET C'EST DELIBERE. La plaine est bien un plateau comme les
+	# autres -- elle a sa silhouette, ses index et sa falaise sur le vide -- mais dans
+	# l'editeur elle est du DECOR : elle montre a l'acheteur que le sol du jeu sortira du
+	# meme tileset, sans etre un endroit ou l'on travaille. Elle ne prend donc pas le
+	# crayon, et comme la grille ne se trace que sur ce qui se peint, elle n'en porte pas.
+	#
+	# ⚠ MAIS ELLE RECOIT LE TEMPS REEL, ET C'EST TOUT L'INTERET. Elle reste dans les
+	# groupes de jumelles : peindre une tuile la remplit d'un coup, sous les yeux. C'est ce
+	# que faisait le tablier de sol avant la 4.0.0 -- celle-ci a corrige la GEOMETRIE du
+	# decor, en le faisant s'arreter a la falaise que le guide declare, mais lui avait fait
+	# perdre son STATUT de decor. On rend le statut, on garde la geometrie.
+	#
+	# ⚠ ET CA NE COUTE AUCUNE TUILE. Mesure sur les deux guides livres : les 47 index, les
+	# 15 croisements et les 36 roles se trouvent tous hors de la plaine, et `ample` y tient
+	# meme ses TROIS occurrences. Si un guide futur portait une tuile sur la seule plaine,
+	# elle deviendrait impeignable -- d'ou l'assertion dans la suite.
 	_paintable.clear()
 	for cell: Vector2i in _surface_cells.keys():
-		_paintable[cell] = true
+		if _guide_level(cell) >= 1:
+			_paintable[cell] = true
 	for cell: Vector2i in _wall_cells.keys():
-		_paintable[cell] = true
-	# Les cases dont la tuile n'apparait qu'une fois : aucune jumelle pour la porter.
-	_lonely.clear()
-	for group: Array in _by_index.values():
-		if group.size() == 1:
-			_lonely[group[0]] = true
-	for group: Array in _by_role.values():
-		if group.size() == 1:
-			_lonely[group[0]] = true
+		if int(lips.get(cell, 0)) >= 1:
+			_paintable[cell] = true
 	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
 	_targets.clear()
 	_by_index = Families.groups(guide_family, _surface_cells)
 	_by_role = Walls.cells_by_role(_wall_roles)
+	# Les cases dont la tuile n'apparait qu'une fois : aucune jumelle pour la porter.
+	#
+	# ⚠ ET CA SE COMPTE APRES LES GROUPES, PAS AVANT. Cette boucle lisait `_by_index` a une
+	# ligne ou il portait encore les groupes du guide PRECEDENT : au tout premier
+	# chargement il etait vide, donc aucun contour ambre ne se dessinait, et a chaque
+	# chargement suivant les marques etaient celles d'un autre paysage. Trouve en
+	# deplacant ce bloc, pas a l'ecran -- une marque absente ne se remarque pas.
+	#
+	# ⚠ ON COMPTE SUR CE QUI SE PEINT, PAS SUR LE GUIDE ENTIER. Une tuile qui se voit trois
+	# fois dont deux sur la plaine n'a en verite qu'UN endroit ou on puisse la faire : la
+	# compter sur le guide entier laisserait l'utilisateur croire qu'il a le choix.
+	_lonely.clear()
+	for group: Array in _by_index.values():
+		var kept: Array = _only_paintable(group)
+		if kept.size() == 1:
+			_lonely[kept[0]] = true
+	for group: Array in _by_role.values():
+		var kept_roles: Array = _only_paintable(group)
+		if kept_roles.size() == 1:
+			_lonely[kept_roles[0]] = true
 	for group: Array in _by_index.values():
 		var surface_twins: Array[Vector2i] = group
 		for cell: Vector2i in surface_twins:
@@ -500,6 +534,30 @@ func _below(key: Vector2i) -> Vector2i:
 
 func _is_paintable(cell: Vector2i) -> bool:
 	return _paintable.has(cell)
+
+
+## L'etage que montre une cle de carnet : celui de la case, ou le plus haut des quatre
+## cases d'un croisement.
+##
+## ⚠ ON NE VOIT QUE LE SOMMET, ici comme partout. Un croisement touche quatre cases qui
+## peuvent etre a quatre etages ; celui qu'il montre est le plus haut des quatre.
+func _guide_level(key: Vector2i) -> int:
+	var at: Vector2i = Families.from_storage(guide_family, key)
+	if guide_family != Families.BY_CORNER:
+		return HeightMask.level_at(_heights, at.x, at.y)
+	var top: int = HeightMask.VOID
+	for offset: Vector2i in CornerIndex.OFFSETS:
+		top = maxi(top, HeightMask.level_at(_heights, at.x + offset.x, at.y + offset.y))
+	return top
+
+
+## Le sous-ensemble d'un groupe de jumelles que l'utilisateur peut reellement peindre.
+func _only_paintable(group: Array) -> Array:
+	var kept: Array = []
+	for key: Vector2i in group:
+		if _paintable.has(key):
+			kept.append(key)
+	return kept
 
 
 ## Cette case porte-t-elle une tuile qui n'existe nulle part ailleurs dans le guide ?
