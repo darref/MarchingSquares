@@ -726,19 +726,32 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   64 tuiles = 111 au total**. Refusée : c'est du raffinement, pas de l'information ; le coin
   du bloc qui avance suffit à l'œil. **+28 tuiles pour une ombre.**
 
-- **Le guide passe à 57x28, et gagne DEUX PEIGNES.** Un peigne est un plateau d'étage 2 dont
-  le bord sud est **denté** : une dent avance d'une rangée sur ses voisines, elle est donc
-  *devant*, et porte son angle. Le motif `T . T T . T . T` produit les cinq pans à angle.
+- **Le guide passe à 60x28, et gagne DEUX MASSIFS À CONTREFORTS.** Un contrefort est une
+  colonne dont le bord sud **avance** sur ses voisines : elle est donc *devant*, et porte son
+  angle. Cinq éperons suffisent à porter les cinq pans à angle — bout ouest, éperon large
+  (deux colonnes), éperon seul, bout est.
 
-  ⚠ **Deux peignes, pas un.** À gauche les dents atterrissent sur une **banquette** : elles
-  tombent de trois cases et posent leur **pied** pendant que la voisine est encore en plein
-  corps — sans ça, au pied de la dent la robe d'à côté s'est déjà arrêtée et le flanc
-  redevient `vide`. À droite, pas de banquette : les dents tombent de six et passent donc par
-  le **corps 1**, ce que trois cases ne font jamais. Ni l'un ni l'autre ne suffit seul.
+  ⚠ **UN CONTREFORT TOUS LES DEUX PAS N'EST PAS UN MASSIF, C'EST UN RÂTEAU.** Ma première
+  version dentait une colonne sur deux : géométriquement juste, illisible comme terrain. Une
+  falaise se lit d'abord comme une **paroi** ; l'éperon est l'accident, pas la règle. Le bord
+  sud est donc plat sur la plus grande part et n'avance qu'à quelques endroits choisis.
 
-  ⚠ **Et la banquette est QUATRE rangées sous la lèvre, pas trois.** `fall_at` sonde la case
-  *juste sous le pied*, jamais celles que la robe traverse — c'est la règle « l'étage N-1
-  continue sous la robe de l'étage N ». Une banquette posée sur le trajet ne l'arrête pas.
+  ⚠ **Et il en faut DEUX, pour une raison de terrain et non de mécanique.** Les contreforts
+  du premier **atterrissent sur une terrasse** d'étage 1 : ils posent leur pied pendant que
+  la paroi voisine tombe encore, ce qui donne les cinq *pieds* à angle — sans ça, au pied de
+  l'éperon la robe d'à côté s'est déjà arrêtée et le flanc redevient `vide`. Ceux du second
+  **descendent jusqu'à la plaine** : leur chute de six cases passe par le **corps 1**, ce
+  qu'une chute de trois ne fait jamais. Un massif dont les éperons s'arrêtent à mi-hauteur et
+  un autre qui plonge d'un trait : c'est du relief.
+
+  ⚠ **La terrasse est QUATRE rangées sous la lèvre, pas trois.** `fall_at` sonde la case
+  *juste sous le pied*, jamais celles que la robe traverse — une terrasse posée sur le trajet
+  ne l'arrête pas. Et elle est d'**étage 1** : à l'étage 2 la robe rencontrerait son propre
+  niveau, s'écrêterait, et ne poserait aucun pied.
+
+  ⚠ **Le relief se décrit colonne par colonne, jamais en ASCII.** Une lèvre par colonne, plus
+  « atterrit ou non » : dessiner ces formes à la main faisait se tromper d'une case et d'un
+  étage à chaque essai.
 
   Vérifié : **47/47 surfaces, 36/36 rôles VISIBLES, 15/15 croisements, zéro robe hors grille.**
 
