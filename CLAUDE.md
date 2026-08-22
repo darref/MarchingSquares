@@ -1425,6 +1425,44 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   desormais les cases de CETTE robe-la. Meme lecon que le bug de `row_for` : **un test faux
   coute plus cher qu'un test absent, il envoie corriger ce qui va bien.**
 
+- **LES DEUX DERNIERS TROUS DE `_test_seams` SONT BOUCHES.** La suite verifiait surface
+  contre surface, et robe contre robe. Il manquait deux jonctions, trouvees en relisant le
+  test plutot qu'en regardant l'ecran.
+
+  **1. La bande de flanc ne bouge plus quand le pan change dans une colonne.**
+  `_check_wall_seams` compare bien deux rangees qui se suivent — mais toujours **a pan
+  constant**. Or l'etat d'un flanc **change en descendant** : le voisin est en retrait sur
+  trois rangees, puis sa robe s'arrete et le flanc passe de `devant` a `vide`. Les deux
+  tracent une bande **au meme bord** ; si elles n'ont pas la meme geometrie, la marque saute
+  lateralement **en plein milieu de la falaise**. Ce defaut a deja eu lieu — 0,10 de tuile
+  pour le lisere, 0,055 pour l'arete, « elle pulsait ». La correction fut une largeur unique ;
+  c'etait une **convention du rendu**, c'est desormais une **assertion**.
+
+  ⚠ **ON COMPARE LA GEOMETRIE, PAS LES PIXELS.** Le vide est doux et l'arete est franche :
+  leurs couleurs **doivent** differer, c'est ce qui dit lequel des deux blocs est devant. Ce
+  qui ne doit pas differer, c'est **ou** la bande se trouve. Mesure : colonnes `[0,1,2]`,
+  identiques pour les deux etats sur les quatre rangees.
+
+  **2. La levre : le bord sud d'un plateau contre le haut de sa propre falaise.** C'est la
+  couture **la plus visible du tileset** — l'endroit ou le plateau bascule dans le vide — et
+  elle n'avait aucun garde-fou. Les 13 surfaces sans voisin sud et les 9 chapiteaux sont
+  desormais verifies pleins a leur bord commun : c'est exactement ce que **l'epaule** existe
+  pour garantir.
+
+  ⚠ **ET LA MESURE DOIT AVOIR VU QUELQUE CHOSE.** Deux bandes vides sont trivialement egales :
+  sans controle de non-vacuite, un rendu qui cesserait de tracer la bande passerait au vert.
+
+- **⚠ LE FIL DE FER NE PORTE PAS L'EPAULE, ET CE N'EST PAS TRANCHE.** Mesure faite en ecrivant
+  le test : **8 des 13 levres** y laissent voir le fond, jusqu'a la moitie du bord pour
+  l'index 0 dont les deux coins bas sont decoupes. Le style peint les bouche.
+
+  Les deux decrivent pourtant **la meme geometrie** — « sous un bord sud il y a toujours une
+  falaise » — donc l'un des deux ment. Mais lequel doit ceder est un **arbitrage visuel** :
+  boucher l'angle en fil de fer demande un aplat de pierre, ce qui contredit un style fait de
+  traits. Tant que ce n'est pas tranche, le runner **mesure sans juger** — meme regle que la
+  couverture du guide candidat. Une assertion rendrait la suite rouge en permanence pour une
+  question de dessin, pas pour un defaut de regle.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :

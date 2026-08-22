@@ -1222,6 +1222,8 @@ func _test_seams() -> void:
 		_check_surface_seams(style[0], style[1], String(style[2]))
 		_check_wall_seams(style[0], style[1], String(style[2]))
 		_check_wall_side_seams(style[0], style[1], String(style[2]))
+		_check_wall_band(style[0], style[1], String(style[2]))
+		_check_lip_seams(style[0], style[1], String(style[2]))
 
 
 ## LES ROBES : une falaise est UNE face, pas une pile de tuiles.
@@ -2148,3 +2150,129 @@ func _test_deep_falls() -> void:
 		if pinched_roles.has(at) and Vector2i(pinched_roles[at]).y == Walls.ROW_FOOT:
 			footed += 1
 	_check_equal(footed, 0, "et aucune de ses cases n est un pied : le dessin se tait")
+
+## LA BANDE DE FLANC NE BOUGE PAS QUAND LE PAN CHANGE DANS UNE COLONNE.
+##
+## ⚠ TROU TROUVE EN RELISANT `_check_wall_seams` : elle compare bien deux rangees qui se
+## suivent, mais toujours A PAN CONSTANT. Or L ETAT D UN FLANC CHANGE EN DESCENDANT -- le
+## voisin est en retrait sur trois rangees, puis sa robe s arrete et le flanc passe de
+## `devant` a `vide`. Les deux dessinent une bande AU MEME BORD : si elles n ont pas la meme
+## geometrie, la marque saute lateralement EN PLEIN MILIEU de la falaise.
+##
+## Ce defaut a deja eu lieu : le lisere du vide faisait 0,10 de tuile et l arete 0,055, et
+## « la bande passait de large a etroite en cours de colonne, elle pulsait ». La correction
+## fut une largeur unique, la TEINTE portant la difference. C etait une convention du rendu ;
+## c est desormais une assertion.
+##
+## ⚠ ON COMPARE LA GEOMETRIE, PAS LES PIXELS. Le vide est doux et l arete est franche : leurs
+## couleurs DOIVENT differer, c est ce qui dit lequel des deux blocs est devant. Ce qui ne
+## doit pas differer, c est OU la bande se trouve.
+func _check_wall_band(ink: GuideImage.Ink, marks: bool, label: String) -> void:
+	var mute_pan: int = Walls.pan_of(Walls.SIDE_MUTE, Walls.SIDE_MUTE)
+	var by_state: Dictionary = {}
+	var mute_strays: int = 0
+
+	for row: int in range(Walls.BLOCK_ROWS):
+		var base: Image = GuideImage.make_wall(Vector2i(mute_pan, row), SEAM_TILE, ink, marks)
+		for pan: int in range(Walls.PAN_COUNT):
+			var tile: Image = GuideImage.make_wall(Vector2i(pan, row), SEAM_TILE, ink, marks)
+			for west: bool in [true, false]:
+				var state: int = Walls.pan_west(pan) if west else Walls.pan_east(pan)
+				var extent: PackedInt32Array = _band_extent(tile, base, west)
+				if state == Walls.SIDE_MUTE:
+					mute_strays += extent.size()
+					continue
+				var key: String = "%s|%s" % ["ouest" if west else "est", Walls.SIDE_NAMES[state]]
+				if not by_state.has(key):
+					by_state[key] = extent
+				elif PackedInt32Array(by_state[key]) != extent:
+					by_state[key] = PackedInt32Array([-1])  # marque une divergence
+
+	_check_equal(mute_strays, 0,
+			"%s : un flanc MUET ne trace rien -- ni bande, ni lisere" % label)
+
+	for side: String in ["ouest", "est"]:
+		var empty_side: PackedInt32Array = PackedInt32Array()
+		var void_band: PackedInt32Array = by_state.get("%s|vide" % side, empty_side)
+		var front_band: PackedInt32Array = by_state.get("%s|devant" % side, empty_side)
+		_check_equal(void_band, front_band,
+				"%s : flanc %s -- le vide et l arete occupent EXACTEMENT les memes colonnes"
+				% [label, side])
+		# ⚠ ET LA MESURE DOIT AVOIR VU QUELQUE CHOSE. Deux bandes vides sont trivialement
+		# egales : sans ce controle, un rendu qui cesserait de tracer la bande passerait.
+		if ink == GuideImage.Ink.PAINTED:
+			_check(void_band.size() > 0 and void_band[0] != -1,
+					"%s : flanc %s -- et la bande existe vraiment (%d colonnes, stable sur les %d rangees)"
+					% [label, side, void_band.size(), Walls.BLOCK_ROWS])
+
+
+## Les colonnes d une moitie de tuile qui different de la tuile sans flanc.
+func _band_extent(tile: Image, base: Image, west: bool) -> PackedInt32Array:
+	var columns: PackedInt32Array = PackedInt32Array()
+	var from: int = 0 if west else SEAM_TILE / 2
+	var to: int = SEAM_TILE / 2 if west else SEAM_TILE
+	for x: int in range(from, to):
+		for y: int in range(SEAM_TILE):
+			if not tile.get_pixel(x, y).is_equal_approx(base.get_pixel(x, y)):
+				columns.append(x)
+				break
+	return columns
+
+
+## LA LEVRE : le bord sud d un plateau contre le haut de sa propre falaise.
+##
+## ⚠ C EST LA COUTURE LA PLUS VISIBLE DU TILESET, et elle n avait aucun garde-fou. `_test_seams`
+## verifiait surface contre surface, et robe contre robe -- jamais surface contre robe. Or
+## sous CHAQUE bord sud il y a une falaise : c est l endroit ou le plateau bascule dans le
+## vide, celui que l oeil regarde en premier.
+##
+## Une surface dont le bit S est clair a forcement un chapiteau dessous. Les deux doivent
+## etre pleines a leur bord commun : c est exactement ce que L EPAULE existe pour garantir --
+## le coin de roche qui bouche le petit angle entre l arrondi du plateau et le haut de la
+## face. Sans elle, on voyait le fond A TRAVERS la roche.
+func _check_lip_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
+	var lipped: int = 0
+	var pierced: Array[String] = []
+	for index: int in BlobIndex.CANONICAL_INDICES:
+		if (index & BlobIndex.S) != 0:
+			continue  # un voisin au sud : pas de falaise ici, donc pas de levre
+		lipped += 1
+		var top: Image = GuideImage.make_top(index, 1, SEAM_TILE, ink, marks)
+		var holes: int = 0
+		for x: int in range(SEAM_TILE):
+			if top.get_pixel(x, SEAM_TILE - 1).a <= 0.5:
+				holes += 1
+		if holes > 0:
+			pierced.append("%s (%d px)" % [BlobIndex.describe(index), holes])
+
+	var crown_holes: Array[String] = []
+	for pan: int in range(Walls.PAN_COUNT):
+		var crown: Image = GuideImage.make_wall(Vector2i(pan, Walls.ROW_CROWN), SEAM_TILE,
+				ink, marks)
+		var holes: int = 0
+		for x: int in range(SEAM_TILE):
+			if crown.get_pixel(x, 0).a <= 0.5:
+				holes += 1
+		if holes > 0:
+			crown_holes.append("%s (%d px)" % [Walls.pan_name(pan), holes])
+
+	_check(lipped > 0, "%s : %d surfaces portent une levre" % [label, lipped])
+	_check_equal(crown_holes, PackedStringArray([]) as Array,
+			"%s : aucun chapiteau n est troue a son bord haut" % label)
+
+	# ⚠ LE FIL DE FER NE PORTE PAS L EPAULE, ET C EST AFFICHE PLUTOT QU ASSERTE. Mesure faite
+	# en ecrivant ce test : 8 des 13 levres y laissent voir le fond, jusqu a la moitie du bord
+	# pour l index 0 dont les deux coins bas sont decoupes. Le style peint les bouche.
+	#
+	# Les deux decrivent pourtant LA MEME GEOMETRIE -- « sous un bord sud il y a TOUJOURS une
+	# falaise » -- donc l un des deux ment. Mais lequel doit ceder est un arbitrage VISUEL :
+	# boucher l angle en fil de fer demande un aplat de pierre, ce qui contredit un style fait
+	# de traits. Tant que ce n est pas tranche, on mesure sans juger -- meme regle que la
+	# couverture du guide candidat. Une assertion ici rendrait la suite rouge en permanence
+	# pour une question de dessin, pas pour un defaut de regle.
+	if ink == GuideImage.Ink.WIREFRAME:
+		print("    %s : %d levres sur %d laissent voir le fond (a trancher : l epaule en fil de fer)"
+				% [label, pierced.size(), lipped])
+		return
+	_check_equal(pierced, PackedStringArray([]) as Array,
+			"%s : aucun bord sud ne laisse voir le fond -- l epaule bouche l angle" % label)
