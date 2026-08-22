@@ -31,6 +31,8 @@
 extends RefCounted
 
 const BlobIndex := preload("res://core/blob_index.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
+const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const WorkIO := preload("res://core/work_io.gd")
@@ -206,10 +208,10 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("mode %s" % mode_id)
 	lines.append("tile_size %d" % int(report["tile_size"]))
 
-	_spec(lines)
+	var family: StringName = report.get("family", Families.BY_CELL)
+	_spec(lines, family)
 
 	lines.append("")
-	var family: StringName = report.get("family", Families.BY_CELL)
 	lines.append("surface %s %d %d" % [basename + SUFFIX_SURFACE, SURFACE_COLUMNS,
 			surface_rows(family)])
 	lines.append("famille %s" % family)
@@ -250,32 +252,44 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 ## et les planches de poser un monde correct. Si une regle manque ici, elle vivra dans la
 ## tete de celui qui a ecrit le moteur -- et le jour ou il en ecrira un second, les deux
 ## divergeront sans que rien ne le dise.
-static func _spec(lines: PackedStringArray) -> void:
+##
+## ⚠ ET LA SECTION DE SURFACE EST CELLE DE LA FAMILLE EXPORTEE, JAMAIS LES DEUX. Un
+## manifeste qui decrirait la canonicalisation du blob au-dessus d'une planche a cheval
+## serait faux deux fois : il enonce une regle que ses tuiles n'emploient pas, et il tait
+## celle qu'elles emploient. Le contrat porte sur les planches qui sont a cote de lui.
+static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CELL) -> void:
 	lines.append("")
 	lines.append("# ======================= LA REGLE DE POSE =======================")
 	lines.append("# Ce fichier n'est pas une notice, c'est le contrat. Tout ce qui suit est")
 	lines.append("# necessaire et suffisant pour placer chaque tuile.")
 	lines.append("")
 	lines.append("# --- LE RELIEF ---")
-	lines.append("# Une carte est une hauteur par case : 0 la plaine, 1..9 les plateaux. La")
-	lines.append("# silhouette de l'etage N est l'ensemble des cases de hauteur >= N, et c'est")
-	lines.append("# un masque BINAIRE : tout ce qui suit s'applique etage par etage. On dessine")
-	lines.append("# du bas vers le haut, chaque couche recouvrant la precedente.")
+	lines.append("# Une carte est une hauteur par case, et elle a TROIS etats, pas deux :")
+	lines.append("#     %s   le VIDE, le hors-monde : il n'y a pas de sol du tout ;"
+			% HeightMask.VOID_CHAR)
+	lines.append("#     0   la plaine ;")
+	lines.append("#     1.. les plateaux.")
+	lines.append("# ⚠ LE HORS-CARTE EST DU VIDE, PAS DE LA PLAINE. Une case qu'on ne declare")
+	lines.append("# pas n'est pas au niveau 0 : elle n'existe pas. C'est la seule facon de")
+	lines.append("# savoir OU LE SOL S'ARRETE, donc de border le monde -- un moteur qui lirait")
+	lines.append("# l'absence comme de la plaine etendrait le sol a l'infini sans une erreur.")
+	lines.append("void %d out_of_map_is_void" % HeightMask.VOID)
+	lines.append("# La silhouette de l'etage N est l'ensemble des cases de hauteur >= N, et")
+	lines.append("# c'est un masque BINAIRE : tout ce qui suit s'applique etage par etage. On")
+	lines.append("# dessine du bas vers le haut, chaque couche recouvrant la precedente.")
 	lines.append("levels silhouette_per_level")
+	lines.append("# ⚠ ET LA PLAINE EST UN PLATEAU COMME LES AUTRES. Elle a sa silhouette, ses")
+	lines.append("# index de surface, et ses FALAISES la ou elle borde le vide : c'est le bord")
+	lines.append("# du monde. Aucune tuile nouvelle n'en decoule -- les memes index, les memes")
+	lines.append("# roles -- mais un moteur qui traiterait l'etage 0 a part n'en poserait")
+	lines.append("# aucune, et son monde flotterait sur un sol sans fin.")
+	lines.append("plain level_like_any_other")
 	lines.append("draw_order bottom_up")
 	lines.append("")
-	lines.append("# --- LA SURFACE : le blob 47 ---")
-	lines.append("# Voisinage 8 bits, sens horaire depuis le nord.")
-	lines.append("bits N=%d NE=%d E=%d SE=%d S=%d SW=%d W=%d NW=%d" % [
-			BlobIndex.N, BlobIndex.NE, BlobIndex.E, BlobIndex.SE,
-			BlobIndex.S, BlobIndex.SW, BlobIndex.W, BlobIndex.NW])
-	lines.append("# ⚠ UN BIT DE COIN N'EST CONSERVE QUE SI LES DEUX CARDINAUX QUI L'ENCADRENT")
-	lines.append("# SONT PLEINS. Un coin diagonal isole ne change pas la silhouette de la tuile :")
-	lines.append("# il ne doit donc pas produire une tuile de plus. Les 256 voisinages bruts se")
-	lines.append("# reduisent ainsi a exactement %d index." % BlobIndex.CANONICAL_INDICES.size())
-	lines.append("canonicalise corner_needs_both_cardinals")
-	lines.append("# La tuile d'une case est celle de SON etage, jamais de l'union des etages.")
-	lines.append("visible own_level")
+	if family == Families.BY_CORNER:
+		_spec_corner(lines)
+	else:
+		_spec_cell(lines)
 	lines.append("")
 	lines.append("# --- LES FALAISES ---")
 	lines.append("# ⚠ UN PLATEAU N'A DE FACE QU'AU SUD. Les trois autres cotes ne montrent rien :")
@@ -292,6 +306,13 @@ static func _spec(lines: PackedStringArray) -> void:
 	lines.append("# l'etage N. Sonder au fil de la descente repondrait « touche » des la premiere")
 	lines.append("# case, et toutes les falaises feraient une case de haut.")
 	lines.append("fall storey_tiles_times_gap probe_below_foot")
+	lines.append("# ⚠ ET QUAND RIEN N'EST DESSOUS, LA ROBE NE S'ARRETE PAS A L'ETAGE 0 : elle")
+	lines.append("# tombe d'un etage de PLUS -- storey_tiles * (N + 1) -- et ne pose PAS son")
+	lines.append("# pied. On ne touche pas le fond d'un gouffre. C'est la falaise du bord du")
+	lines.append("# monde, et c'est aussi celle de la plaine elle-meme, qu'aucun etage ne peut")
+	lines.append("# recevoir. Partir de storey_tiles * N donnerait zero pour la plaine, qui")
+	lines.append("# n'aurait alors jamais de falaise du tout.")
+	lines.append("fall_into_void one_storey_more no_foot")
 	lines.append("# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle")
 	lines.append("# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,")
 	lines.append("# elle bute contre un voisin de son niveau.")
@@ -340,6 +361,70 @@ static func _spec(lines: PackedStringArray) -> void:
 	lines.append("# du guide portent la meme tuile, mais elles portent le meme dessin.")
 	lines.append("sheet fixed_size one_drawing_per_tile no_variants")
 	lines.append("# ================================================================")
+
+
+## LA SURFACE PAR CASE : le blob 47.
+static func _spec_cell(lines: PackedStringArray) -> void:
+	lines.append("# --- LA SURFACE : le blob 47 ---")
+	lines.append("# La tuile occupe UNE CASE, et son dessin depend des huit voisins de cette")
+	lines.append("# case. Voisinage 8 bits, sens horaire depuis le nord.")
+	lines.append("bits N=%d NE=%d E=%d SE=%d S=%d SW=%d W=%d NW=%d" % [
+			BlobIndex.N, BlobIndex.NE, BlobIndex.E, BlobIndex.SE,
+			BlobIndex.S, BlobIndex.SW, BlobIndex.W, BlobIndex.NW])
+	lines.append("# ⚠ UN BIT DE COIN N'EST CONSERVE QUE SI LES DEUX CARDINAUX QUI L'ENCADRENT")
+	lines.append("# SONT PLEINS. Un coin diagonal isole ne change pas la silhouette de la tuile :")
+	lines.append("# il ne doit donc pas produire une tuile de plus. Les 256 voisinages bruts se")
+	lines.append("# reduisent ainsi a exactement %d index." % BlobIndex.CANONICAL_INDICES.size())
+	lines.append("canonicalise corner_needs_both_cardinals")
+	lines.append("# La tuile d'une case est celle de SON etage, jamais de l'union des etages.")
+	lines.append("visible own_level")
+	lines.append("# La couche de surface est posee sur la grille des cases, sans decalage.")
+	lines.append("surface_offset none")
+
+
+## LA SURFACE A CHEVAL : le reseau dual, quinze tuiles.
+##
+## ⚠ CETTE SECTION MANQUAIT, ET C'ETAIT EXACTEMENT LA DEPENDANCE QUE LE CONTRAT EXISTE POUR
+## SUPPRIMER. Un export `corner` annoncait bien sa famille et ses quinze index, mais la
+## regle de pose ne decrivait que le blob : ni les bits du croisement, ni les quatre cases
+## qu'il touche, ni le decalage d'une demi-case. Notre plugin les connait parce que c'est
+## NOUS qui l'avons ecrit -- c'est-a-dire de memoire, et le second lecteur aurait diverge.
+static func _spec_corner(lines: PackedStringArray) -> void:
+	lines.append("# --- LA SURFACE : le reseau dual, %d tuiles ---" % CornerIndex.TILE_COUNT)
+	lines.append("# ⚠ LA TUILE N'EST PAS POSEE SUR UNE CASE, ELLE EST POSEE SUR LE CROISEMENT DE")
+	lines.append("# QUATRE CASES, et son dessin ne depend que de ces quatre-la. Le croisement")
+	lines.append("# (i, j) est leur coin commun ; une carte de W x H cases porte donc")
+	lines.append("# (W+1) x (H+1) croisements. Quatre cases, deux etats : seize combinaisons.")
+	var bits: PackedStringArray = PackedStringArray()
+	var cells: PackedStringArray = PackedStringArray()
+	for bit: int in range(CornerIndex.BITS.size()):
+		var at: Vector2i = CornerIndex.OFFSETS[bit]
+		bits.append("%s=%d" % [CornerIndex.BIT_NAMES[bit], CornerIndex.BITS[bit]])
+		cells.append("%s=%d,%d" % [CornerIndex.BIT_NAMES[bit], at.x, at.y])
+	lines.append("# Bits dans le sens horaire depuis le nord-ouest, comme le blob part du nord.")
+	lines.append("corner_bits %s" % " ".join(bits))
+	lines.append("# Le decalage (dx, dy) de la case que porte chaque bit, depuis le croisement.")
+	lines.append("corner_cells %s" % " ".join(cells))
+	lines.append("# ⚠ ON NE VOIT QUE LE SOMMET, ICI AUSSI. Les quatre cases peuvent etre a quatre")
+	lines.append("# etages differents : on prend le plus haut des quatre, et on met le bit de")
+	lines.append("# chaque case qui ATTEINT cet etage. Compter aussi les etages du dessous")
+	lines.append("# poserait des tuiles que la couche du dessus recouvre.")
+	lines.append("corner_visible top_of_four bits_reaching_top")
+	lines.append("# ⚠ LE CROISEMENT ENTIEREMENT VIDE NE DESSINE RIEN -- ses quatre cases sont a la")
+	lines.append("# plaine -- exactement comme la plaine n'est pas une tuile du blob. Le code 0")
+	lines.append("# n'a donc pas de case sur la planche : la famille livre QUINZE tuiles, pas")
+	lines.append("# seize. Un croisement qui ne touche aucune case du relief ne se pose pas.")
+	lines.append("corner_empty draws_nothing")
+	lines.append("# ⚠ ET C'EST LA COUCHE QUI SE DECALE D'UNE DEMI-CASE VERS LE NORD-OUEST, JAMAIS")
+	lines.append("# LA TUILE. La tuile du croisement (i, j) se centre sur ce coin commun : elle")
+	lines.append("# commence donc une demi-case plus au nord et plus a l'ouest. Le decalage vaut")
+	lines.append("# pour la couche entiere, et il n'y a rien a decaler case par case.")
+	lines.append("surface_offset minus_half_tile whole_layer")
+	lines.append("# ⚠ LES FALAISES NE CHANGENT PAS DE GRILLE. Une falaise sort du plan : elle se")
+	lines.append("# pose case pour case, sur sa propre couche NON decalee, quel que soit le")
+	lines.append("# reseau du sol. Les %d roles valent pour les deux familles."
+			% Walls.ALL_ROLES.size())
+	lines.append("walls_offset none")
 
 
 ## Ecrit les deux planches et leur manifeste dans [param folder].

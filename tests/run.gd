@@ -869,6 +869,13 @@ func _test_export() -> void:
 	# verifie donc que chaque piece de la regle y est.
 	var contract: Array[String] = [
 		"levels silhouette_per_level", "draw_order bottom_up",
+		# ⚠ LE VIDE EST DANS LE CONTRAT, ET C'EST LA CLAUSE QUI PORTE LE PLUS. Un moteur
+		# qui lirait « case absente = plaine » -- l'ancien modele -- etendrait le sol a
+		# l'infini, ne poserait aucune falaise de bord du monde, et poserait des pieds au
+		# fond du gouffre. Le tout SANS UNE SEULE ERREUR, ce qui est le pire des defauts.
+		"void %d out_of_map_is_void" % HeightMask.VOID,
+		"plain level_like_any_other",
+		"fall_into_void one_storey_more no_foot",
 		"canonicalise corner_needs_both_cardinals", "visible own_level",
 		"faces south_only", "storey_tiles %d" % Walls.STOREY_TILES,
 		"body_rows %d" % Walls.BODY_ROWS, "block_rows %d" % Walls.BLOCK_ROWS,
@@ -877,6 +884,7 @@ func _test_export() -> void:
 		"row_for crown_first foot_last body_cycle",
 		"pan west_times_three_plus_east lip_row_comparison per_row",
 		"bits N=%d" % BlobIndex.N,
+		"surface_offset none",
 		"sheet fixed_size one_drawing_per_tile no_variants",
 		"underfoot foot_role redrawn_below under_landing_surface",
 	]
@@ -886,6 +894,11 @@ func _test_export() -> void:
 			absent.append(clause)
 	_check_equal(absent, PackedStringArray(),
 			"le manifeste porte la REGLE DE POSE en entier, pas seulement la table des cases")
+	# ⚠ ET RIEN QUE LA SIENNE. Une planche par case decrite avec la regle du croisement
+	# enoncerait une regle que ses tuiles n'emploient pas : le lecteur aurait le choix, donc
+	# deux lecteurs auraient deux mondes.
+	_check(not manifest.contains("corner_bits"),
+			"et il ne decrit PAS la famille qu il n a pas exportee")
 	var relu: Image = Image.load_from_file(folder.path_join("essai_surface.png"))
 	_check(relu != null and relu.get_width() == TilesetPNG.SURFACE_COLUMNS * 16,
 			"la planche ecrite se relit depuis le disque")
@@ -1703,6 +1716,51 @@ func _test_dual_end_to_end() -> void:
 	var manifest: String = FileAccess.get_file_as_string(folder.path_join("dual_tileset.txt"))
 	_check(manifest.contains("famille %s" % family),
 			"le manifeste dit de quelle famille est la planche")
+
+	# ⚠ ET IL EN PORTE LA REGLE DE POSE, PAS SEULEMENT LE NOM. C'etait le trou : un export
+	# a cheval annoncait sa famille et ses quinze index au-dessus d'une regle qui ne
+	# decrivait que le blob. Ni les bits du croisement, ni les quatre cases qu'il touche, ni
+	# le decalage d'une demi-case n'etaient ecrits nulle part -- notre plugin les connait de
+	# memoire, c'est-a-dire exactement la dependance que le contrat existe pour supprimer.
+	var bits: PackedStringArray = PackedStringArray()
+	var cells: PackedStringArray = PackedStringArray()
+	for bit: int in range(CornerIndex.BITS.size()):
+		var at: Vector2i = CornerIndex.OFFSETS[bit]
+		bits.append("%s=%d" % [CornerIndex.BIT_NAMES[bit], CornerIndex.BITS[bit]])
+		cells.append("%s=%d,%d" % [CornerIndex.BIT_NAMES[bit], at.x, at.y])
+	var dual_contract: Array[String] = [
+		"levels silhouette_per_level", "draw_order bottom_up",
+		"void %d out_of_map_is_void" % HeightMask.VOID,
+		"plain level_like_any_other",
+		"fall_into_void one_storey_more no_foot",
+		"corner_bits %s" % " ".join(bits),
+		"corner_cells %s" % " ".join(cells),
+		"corner_visible top_of_four bits_reaching_top",
+		"corner_empty draws_nothing",
+		"surface_offset minus_half_tile whole_layer",
+		# LES ROBES NE CHANGENT PAS DE FAMILLE : leur regle doit etre la, entiere, et sur
+		# la grille des cases.
+		"walls_offset none", "faces south_only",
+		"fall storey_tiles_times_gap probe_below_foot",
+		"trim stop_on_same_level no_foot",
+		"row_for crown_first foot_last body_cycle",
+		"pan west_times_three_plus_east lip_row_comparison per_row",
+		"sheet fixed_size one_drawing_per_tile no_variants",
+	]
+	var missing_clauses: PackedStringArray = PackedStringArray()
+	for clause: String in dual_contract:
+		if not manifest.contains(clause):
+			missing_clauses.append(clause)
+	_check_equal(missing_clauses, PackedStringArray(),
+			"le manifeste a cheval porte SA regle de pose en entier")
+	# ⚠ ET IL NE PORTE PAS CELLE DU BLOB. Un croisement ne se canonicalise pas : ses quatre
+	# bits sont tous significatifs, et le contact diagonal -- que le blob JETTE -- est
+	# precisement une de ses quinze tuiles. Laisser la regle du blob a cote serait pire
+	# qu'un oubli : ce serait une regle fausse ecrite noir sur blanc.
+	_check(not manifest.contains("canonicalise corner_needs_both_cardinals"),
+			"et surtout PAS la canonicalisation du blob, qui n a pas cours ici")
+	_check(not manifest.contains("bits N=%d" % BlobIndex.N),
+			"ni le voisinage a huit bits d une famille qu il n exporte pas")
 	for path: String in written:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 

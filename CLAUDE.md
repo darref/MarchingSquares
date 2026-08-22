@@ -1518,6 +1518,34 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fait de traits ; le noir de la roche y est deja le vocabulaire.
 
   Asserte desormais dans les **trois** styles.
+
+- **LE CONTRAT DECRIT LA FAMILLE QU'IL EXPORTE, ET LE VIDE QU'IL SUPPOSE.** Deux trous dans
+  `_spec()`, tous deux de la meme espece : une regle que le plugin applique **de memoire**,
+  parce que c'est nous qui l'avons ecrit — c'est-a-dire exactement la dependance que le
+  contrat existe pour supprimer.
+
+  **1. La famille a cheval n'avait pas de regle de pose.** Un export `corner` annoncait bien
+  `famille corner` et ses quinze index, au-dessus d'une section qui ne decrivait que le blob.
+  La section de surface se choisit desormais avec la famille — `corner_bits`, `corner_cells`,
+  `corner_visible`, `corner_empty`, `surface_offset`, `walls_offset`.
+
+  ⚠ **ET C'EST L'UNE OU L'AUTRE, JAMAIS LES DEUX.** Un manifeste a cheval qui porterait
+  `canonicalise corner_needs_both_cardinals` serait faux deux fois : il enonce une regle que
+  ses tuiles n'emploient pas, et un croisement **ne se canonicalise pas** — ses quatre bits
+  sont tous significatifs, et le contact diagonal, que le blob *jette*, est precisement l'une
+  de ses quinze tuiles. Une regle fausse ecrite noir sur blanc coute plus cher qu'un oubli.
+  L'absence est assertee dans les deux sens.
+
+  **2. Le vide n'etait ecrit nulle part.** La 4.0.0 a donne trois etats au modele ; le
+  contrat en decrivait toujours deux — « 0 la plaine, 1..9 les plateaux ». Trois clauses
+  ajoutees : `void -1 out_of_map_is_void`, `plain level_like_any_other`, et
+  `fall_into_void one_storey_more no_foot`.
+
+  ⚠ **C'EST LA CLAUSE QUI PORTE LE PLUS DE TOUT LE FICHIER.** Un second moteur qui lirait
+  l'absence comme de la plaine — l'ancien modele — etendrait le sol a l'infini, ne poserait
+  **aucune falaise de bord du monde**, et poserait des pieds au fond du gouffre. Le tout sans
+  une seule erreur : le pire des defauts, celui qui ne se signale pas.
+
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
 - **mineure** — une capacité de plus que l'utilisateur voit : un paysage, un outil, un
   exporteur ;
@@ -1548,11 +1576,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   l'extension et poserait un monde tout de suite. C'est a la fois une demonstration et une
   epreuve de bout en bout de la chaine.
 
-- **La regle de pose ne decrit pas la famille a cheval.** Un export `corner` emet bien
-  `famille corner` et ses 15 index, mais la section contrat du manifeste ne porte que la
-  regle du blob : ni les bits du croisement, ni les quatre cases qu'il touche, ni le decalage
-  d'une demi-case. Le plugin le sait parce que **nous** l'avons ecrit — c'est-a-dire
-  exactement la dependance que le contrat existe pour supprimer. A ajouter dans `_spec()`.
 - **Le pinceau de relief dans l'editeur Godot.** AbsoluPaint pose un monde, mais on remplit
   `heights` par l'inspecteur ou par script. Il lui manque son outil de dessin.
 - **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a
