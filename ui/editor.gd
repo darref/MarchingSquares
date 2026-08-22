@@ -22,6 +22,7 @@ const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
+const PluginInstall := preload("res://core/plugin_install.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -48,6 +49,7 @@ var _work_path: String = ""
 var _open_dialog: FileDialog = null
 var _save_dialog: FileDialog = null
 var _export_dialog: FileDialog = null
+var _plugin_dialog: FileDialog = null
 var _promise: int = 0
 var _elapsed: float = PROMISE_SECONDS
 
@@ -95,6 +97,7 @@ func _ready() -> void:
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
+	(%InstallPluginButton as Button).pressed.connect(_on_install_plugin_pressed)
 	_build_dialogs()
 	_apply_margins()
 	_load_current_mode()
@@ -493,6 +496,9 @@ func _build_dialogs() -> void:
 	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Exporter le tileset",
 			PackedStringArray())
 	_export_dialog.dir_selected.connect(_on_export_chosen)
+	_plugin_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
+			"Choisir un projet Godot", PackedStringArray())
+	_plugin_dialog.dir_selected.connect(_on_plugin_folder_chosen)
 
 
 func _make_dialog(mode: FileDialog.FileMode, title: String,
@@ -583,6 +589,25 @@ func _on_export_chosen(folder: String) -> void:
 		_announce("Export impossible dans ce dossier.")
 		return
 	_announce("Exporte dans %s : deux planches et leur manifeste." % folder.get_file())
+
+
+# --- Installer le plugin moteur ---------------------------------------------
+
+## ⚠ CE BOUTON EST POUR L'ACHETEUR, PAS POUR NOUS. Il ferme le seul geste manuel qui restait
+## entre « j'ai peint mon tileset » et « je pose mon monde » : trouver le dossier `addons/`
+## d'un projet Godot et n'y rien oublier.
+func _on_install_plugin_pressed() -> void:
+	_plugin_dialog.popup_centered_ratio(0.6)
+
+
+## ⚠ ON REFUSE UN DOSSIER QUI N'EST PAS UN PROJET GODOT (charte, regle 5), et on le DIT.
+## Ecrire six fichiers dans les documents de quelqu'un sans que rien ne les lise jamais
+## serait pire qu'un refus : ca ressemblerait a une reussite.
+func _on_plugin_folder_chosen(folder: String) -> void:
+	var report: Dictionary = PluginInstall.install(folder)
+	var said: String = PluginInstall.summary(report)
+	_announce(said)
+	(%PluginHint as Label).text = said
 
 
 ## Choisit dans une liste deroulante l'entree qui porte [param value]. Sans effet si elle

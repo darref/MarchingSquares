@@ -40,6 +40,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   delivery.gd     quelles cases peintes deviennent des tuiles
   proof_scene.gd  la planche de preuve : un ilot par index, calculee
   work_io.gd      lecture / ecriture du travail en cours (.absolutiles)
+  plugin_install.gd  copier AbsoluPaint dans un projet Godot
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
@@ -66,6 +67,13 @@ tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
   tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
+addons/absolupaint/   LE PLUGIN MOTEUR -- ce qui part chez l'acheteur
+  rules.gd        la regle de pose, portee du noyau, sur un monde NON BORNE
+  manifest.gd     lecture du `<nom>_tileset.txt`, et ses trois refus
+  tileset.gd      du manifeste au TileSet Godot : deux sources d'atlas
+  world.gd        le noeud `AbsoluPaintWorld` : un relief, deux TileMapLayer
+  plugin.gd       l'EditorPlugin, qui ne fait qu'enregistrer le type
+  README.md       la notice de l'acheteur
 tools/            outils de fabrication, jamais lus par le logiciel
   accidents.py      le vocabulaire de terrain : lacs, crêtes, coudes, escarpements
   build_minimal.py  une île qui porte tout, un exemplaire de chaque accident
@@ -1311,15 +1319,103 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   une tuile neuve coûte 112 µs à 256 px, le temps d'allouer son image : une fois par tuile,
   pas par pixel.
 
+- **ABSOLUPAINT : LE PLUGIN MOTEUR, ET LA SEULE FACON HONNETE DE PORTER LA REGLE DEUX FOIS.**
+  Le logiciel fabrique un tileset ; le plugin le pose dans un jeu. Il part chez l'acheteur,
+  dans **son** projet, ou `res://core/` n'existe pas : il emporte donc **sa propre copie**
+  de la regle de pose. Ce n'est pas un choix, c'est la contrainte.
+
+  ⚠ **LA QUESTION N'EST DONC PAS « COMMENT EVITER LA COPIE » MAIS « COMMENT PROUVER QUE LES
+  DEUX DISENT LA MEME CHOSE ».** Deux lecteurs qui se fient a leur memoire finissent
+  toujours par diverger — c'est exactement pour ca que le manifeste est devenu un contrat.
+  La reponse est un **controle croise** : sur les 4096 reliefs binaires 3x4 **exhaustivement**,
+  sur les guides livres et la planche de preuve, et sur 400 reliefs 9x9 a quatre etages
+  tires au sort a chaque execution, **chaque case** doit recevoir du plugin exactement ce que
+  le noyau lui donne — meme index de surface, meme croisement, meme role de robe. Une seule
+  case qui divergerait fait echouer la suite (regle 4).
+
+  ⚠ **ON COMPARE DANS LES DEUX SENS.** Un plugin qui ne poserait rien du tout passerait un
+  test qui se contente de verifier que ce qu'il pose est juste.
+
+  ⚠ **ET LA BATTUE AU HASARD NE SUFFIT PAS : elle rencontrait 35 des 36 roles.** Les plus
+  rares demandent un **contrefort**, c'est-a-dire une forme voulue, pas un accident. Ce sont
+  donc les **guides livres** qui font de cette battue une vraie battue — le hasard seul
+  prouvait moins qu'il n'en avait l'air.
+
+- **LE MONDE DU PLUGIN N'EST PAS BORNE, ET C'EST UNE SIMPLIFICATION, PAS UNE EXTENSION.** Le
+  logiciel travaille sur un guide rectangulaire, ou une robe peut « tomber hors de la
+  grille » ; un monde de jeu n'a pas de bord. Le relief y est donc un `Dictionary`
+  case -> etage, l'absence valant la plaine. Consequence gratuite : le cas « robe hors
+  grille » n'existe pas cote moteur, il n'y a rien a signaler.
+
+- **⚠ ET ABSOLUPAINT NE POSE PAS DE SOL.** La plaine n'est pas une tuile du tileset, et le
+  modele ne distingue pas encore « case a l'etage 0 » de « case hors du monde » — il n'y a
+  pas de gouffre. Le plugin ne peut donc pas savoir **ou le sol s'arrete**, et en inventer la
+  frontiere serait decider a la place de l'acheteur (regle 3). Le sol reste a sa charge, sur
+  sa propre couche, tant que le modele n'a pas de marqueur de vide distinct de la plaine.
+  C'est la premiere question a trancher pour la suite.
+
+- **Le plugin REFUSE plutot que de deviner, et il refuse trois choses** (regle 5) : un
+  fichier qui ne s'annonce pas comme un manifeste ; une version plus recente que celle qu'il
+  sait lire ; et surtout des **constantes de falaise** qui ne sont pas les siennes. Un
+  tileset dont l'etage descend de quatre cases, pose par un moteur qui en compte trois,
+  donnerait un monde faux **sans une seule erreur** — c'est le pire des defauts, celui qui
+  ne se signale pas.
+
+- **La famille a cheval decale la COUCHE d'une demi-case, jamais la tuile.** Une tuile duale
+  est posee sur le **croisement** de quatre cases ; le croisement (i, j) est leur coin commun,
+  donc la tuile qui s'y centre commence une demi-case au nord-ouest. Le decalage vaut pour la
+  couche entiere — un `TileMapLayer` ne sait pas decaler une case a la fois, et il n'a pas a
+  le savoir.
+
+- **LE BOUTON « INSTALLER LE PLUGIN GODOT » EST POUR L'ACHETEUR, PAS POUR NOUS.** Il ferme le
+  seul geste manuel qui restait entre « j'ai peint mon tileset » et « je pose mon monde » :
+  trouver le dossier `addons/` d'un projet et n'y rien oublier. Il vit dans une section
+  **« Moteur »** de la barre de droite, parce que ce n'est ni du travail en cours ni un
+  reglage de vue : c'est la sortie vers le jeu.
+
+  ⚠ **IL REFUSE UN DOSSIER SANS `project.godot`.** Ecrire six fichiers dans les documents de
+  quelqu'un sans que rien ne les lise jamais serait pire qu'un refus : **ca ressemblerait a
+  une reussite.**
+
+  ⚠ **ET IL NE TOUCHE PAS AU `project.godot` DE L'ACHETEUR.** Cocher l'extension a sa place
+  demanderait de le reecrire ; un fichier de projet reecrit par un tiers perd ses
+  commentaires, et peut perdre bien pire. On copie, et on dit la seule chose qui reste a
+  faire. **Une phrase a lire vaut mieux qu'un fichier abime.**
+
+  ⚠ **ON COPIE EN OCTETS, PAS EN TEXTE.** Un `.gd` relu comme texte puis reecrit changerait
+  ses fins de ligne selon la plateforme : le plugin doit arriver identique a celui qu'on
+  vient de tester. C'est asserte, fichier par fichier.
+
+  ⚠ **LA LISTE DES FICHIERS DU PLUGIN EST UNE DONNEE, DONC UN ENDROIT OU MENTIR.** Lister le
+  dossier a l'execution marcherait en developpement et se casserait dans un binaire exporte,
+  ou `res://` n'est plus un dossier mais une archive. La liste est donc ecrite — et **la
+  suite la compare au dossier reel**, sans quoi un fichier ajoute au plugin et oublie dans la
+  liste ne partirait jamais, et le plugin arriverait casse en silence.
+
+  ⚠ **A VERIFIER AVANT DE VENDRE** : que le preset d'export du logiciel embarque bien
+  `addons/absolupaint/**` — les `.gd` en clair (pas en jetons binaires) et les fichiers non
+  ressources (`.cfg`, `.md`) via le filtre d'inclusion. Aucun test ne peut le prouver depuis
+  l'interieur du projet.
+
+- **⚠ `user://` SURVIT D'UNE EXECUTION A L'AUTRE, et un test qui ecrit doit d'abord faire le
+  vide.** Le test d'installation verifiait « la premiere fois, il ne remplace rien » : il
+  passait au vert le jour de son ecriture et rougissait le lendemain, le faux projet etant
+  toujours la. Ecrit, mais pas encore appris ailleurs dans la suite.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **3.0.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
+À **3.1.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
 familles de surface, le vocabulaire à neuf pans, l'éditeur qui peint, le travail qui
 s'enregistre et se rouvre, le tileset qui s'exporte avec sa planche de preuve et son
-manifeste-contrat, et le paysage qui se remonte sous les yeux.
+manifeste-contrat, le paysage qui se remonte sous les yeux — et **AbsoluPaint**, le plugin
+Godot qui pose le monde, livré par un bouton.
+
+Le 3.1.0 est une mineure, et c'est la bonne raison : rien de ce qui sort n'a changé de
+sens. Le tileset exporté est identique, le manifeste aussi ; il s'ajoute une capacité que
+l'utilisateur voit — la seconde moitié du projet commence.
 
 Deux majeures jusqu'ici, et pour la même raison : le **sens de ce qui sort** avait changé.
 Le 2.0.0 était le passage aux **neuf pans** — une tuile de robe ne voulait plus dire la
@@ -1344,5 +1440,18 @@ Quand la monter, et je le proposerai le moment venu :
   - `CLAUDE.md`, section « Les colonnes — la seule verticalité qu'on automatise ».
 
 ## Questions ouvertes
+
+- **Le sol du monde.** AbsoluPaint ne pose pas d'etage 0 : le modele ne distingue pas la
+  plaine du hors-monde. Il faut un **marqueur de vide distinct de la plaine** pour que le
+  plugin sache ou le sol s'arrete. C'est la premiere piece qui manque cote moteur.
+- **La regle de pose ne decrit pas la famille a cheval.** Un export `corner` emet bien
+  `famille corner` et ses 15 index, mais la section contrat du manifeste ne porte que la
+  regle du blob : ni les bits du croisement, ni les quatre cases qu'il touche, ni le decalage
+  d'une demi-case. Le plugin le sait parce que **nous** l'avons ecrit — c'est-a-dire
+  exactement la dependance que le contrat existe pour supprimer. A ajouter dans `_spec()`.
+- **Le pinceau de relief dans l'editeur Godot.** AbsoluPaint pose un monde, mais on remplit
+  `heights` par l'inspecteur ou par script. Il lui manque son outil de dessin.
+- **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a
+  reprendre : c'est lui qui empeche les deux lecteurs de diverger.
 
 

@@ -937,6 +937,48 @@ theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
 text = "Rien d'enregistre pour l'instant."
 
+[node name="EngineSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3100020]
+layout_mode = 2
+theme_override_constants/separation = 0
+script = ExtResource("4_cwcei")
+title = "Moteur"
+
+[node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection" unique_id=3100021]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
+toggle_mode = true
+button_pressed = true
+text = "▾  Moteur"
+flat = true
+alignment = 0
+
+[node name="Content" type="MarginContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection" unique_id=3100022]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Items" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content" unique_id=3100023]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="InstallPluginButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100024]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Copie AbsoluPaint dans un projet Godot. Reste a le cocher dans Projet > Parametres > Extensions."
+text = "Installer le plugin Godot"
+
+[node name="PluginHint" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100025]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+autowrap_mode = 2
+text = "AbsoluPaint pose votre monde avec les tuiles peintes ici."
+
 [node name="PreviewPanel" type="Control" parent="Layout/Body" unique_id=3100013]
 unique_name_in_owner = true
 visible = false

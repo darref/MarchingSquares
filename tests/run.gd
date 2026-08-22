@@ -21,9 +21,16 @@ const Assembly := preload("res://render/assembly.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Families := preload("res://core/families.gd")
+const PluginInstall := preload("res://core/plugin_install.gd")
+const PluginRules := preload("res://addons/absolupaint/rules.gd")
+const PluginManifest := preload("res://addons/absolupaint/manifest.gd")
+const PluginTileSet := preload("res://addons/absolupaint/tileset.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
+
+## Combien de mondes tires au sort la comparaison plugin / noyau examine a chaque execution.
+const PLUGIN_RANDOM_RELIEFS: int = 400
 
 var _checks: int = 0
 var _failures: PackedStringArray = PackedStringArray()
@@ -59,6 +66,9 @@ func _initialize() -> void:
 	_test_seams()
 	_test_guide_image()
 	_test_wireframe_joins()
+	_test_plugin_rules()
+	_test_plugin_manifest()
+	_test_plugin_install()
 	_test_every_script_parses()
 	_report_candidate_guide()
 	_print_summary()
@@ -1777,3 +1787,272 @@ func _print_summary() -> void:
 	print("%d verifications, %d echec(s) :" % [_checks, _failures.size()])
 	for failure: String in _failures:
 		print("  - %s" % failure)
+
+
+# --- AbsoluPaint : le plugin moteur ------------------------------------------
+
+## ⚠ LE PLUGIN PORTE UNE COPIE DE LA REGLE, ET C'EST INEVITABLE : il part chez l acheteur,
+## dans SON projet, ou `res://core/` n existe pas. La question n est donc pas « comment
+## eviter la copie » mais « comment prouver que les deux disent la meme chose ». Ce test est
+## la reponse, et c est le seul endroit du depot ou elle existe.
+##
+## ⚠ ON COMPARE LES TROIS VOCABULAIRES, PAS UN SEUL. Une divergence sur les robes ne se
+## verrait jamais en ne comparant que les index de surface -- et c est justement la que la
+## regle est la plus subtile, puisque le pan depend de la levre du voisin.
+func _test_plugin_rules() -> void:
+	print("AbsoluPaint : la regle du plugin est CELLE DU NOYAU, case pour case")
+
+	_check_equal(PluginRules.STOREY_TILES, Walls.STOREY_TILES, "meme hauteur d etage")
+	_check_equal(PluginRules.BODY_ROWS, Walls.BODY_ROWS, "meme nombre de rangees de corps")
+	_check_equal(PluginRules.PAN_COUNT, Walls.PAN_COUNT, "meme nombre de pans")
+	_check_equal(PluginRules.BLOCK_ROWS, Walls.BLOCK_ROWS, "meme nombre de rangees de bloc")
+
+	# Les 256 voisinages bruts : la canonicalisation doit tomber au meme endroit, toujours.
+	var canon_strays: int = 0
+	for raw: int in range(256):
+		if PluginRules.canonicalise(raw) != BlobIndex.canonicalize(raw):
+			canon_strays += 1
+	_check_equal(canon_strays, 0, "les 256 voisinages bruts se canonicalisent pareil")
+
+	# EXHAUSTIF sur les reliefs binaires 3x4 : 4096 mondes, aucun tirage au sort.
+	var seen_surface: Dictionary = {}
+	var seen_roles: Dictionary = {}
+	var seen_corners: Dictionary = {}
+	var drift: int = 0
+	for pattern: int in range(1 << 12):
+		drift += _plugin_drift(_relief_of(pattern, 3, 4), seen_surface, seen_roles, seen_corners)
+	_check_equal(drift, 0, "les 4096 reliefs binaires 3x4 : le plugin et le noyau ne divergent jamais")
+
+	# ⚠ ET SUR LES RELIEFS REELS, CEUX QUI PARTENT CHEZ L ACHETEUR. Le tirage au sort ne
+	# rencontre pas les 36 roles : les plus rares demandent un contrefort, c est-a-dire une
+	# forme voulue, pas un accident. Les guides livres les portent tous par construction --
+	# ce sont donc eux, et pas le hasard, qui font de cette battue une vraie battue.
+	var real: Array[String] = []
+	for mode_id: StringName in Modes.ids():
+		real.append(Modes.guide_path(mode_id))
+	real.append("res://guides/preview.txt")
+	var on_guides: int = 0
+	for path: String in real:
+		on_guides += _plugin_drift(HeightMask.read(path), seen_surface, seen_roles, seen_corners)
+	on_guides += _plugin_drift(ProofScene.relief(), seen_surface, seen_roles, seen_corners)
+	_check_equal(on_guides, 0,
+			"sur les guides livres et la planche de preuve : aucune divergence")
+
+	# ET AU HASARD, sur du relief a etages -- c est la que les robes se compliquent.
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260822
+	var wild: int = 0
+	for _attempt: int in range(PLUGIN_RANDOM_RELIEFS):
+		wild += _plugin_drift(_random_relief(rng, 9, 9, 3), seen_surface, seen_roles, seen_corners)
+	_check_equal(wild, 0, "%d reliefs 9x9 sur quatre etages, tires au sort : aucune divergence"
+			% PLUGIN_RANDOM_RELIEFS)
+
+	# ⚠ ET LA BATTUE DOIT AVOIR VRAIMENT CHERCHE. Une comparaison qui ne rencontre aucune
+	# robe ne prouve pas que les robes s accordent : elle prouve qu elle n en a pas vu.
+	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
+			"la battue a rencontre les %d roles de robe" % Walls.ALL_ROLES.size())
+	_check_equal(seen_surface.size(), BLOB_TILE_COUNT,
+			"et les %d index de surface" % BLOB_TILE_COUNT)
+	_check_equal(seen_corners.size(), CornerIndex.TILE_COUNT,
+			"et les %d croisements" % CornerIndex.TILE_COUNT)
+
+
+## Compte les cases ou le plugin et le noyau ne disent pas la meme chose.
+## Rend 0 quand tout s accorde, et note au passage ce qui a ete rencontre.
+func _plugin_drift(heights: PackedStringArray, seen_surface: Dictionary,
+		seen_roles: Dictionary, seen_corners: Dictionary) -> int:
+	var world: Dictionary = _plugin_world(heights)
+	var apart: int = 0
+
+	var mine: Dictionary = Coverage.index_map(heights)
+	var theirs: Dictionary = PluginRules.surfaces(world)
+	apart += _compare_maps(mine, theirs, seen_surface)
+
+	var my_corners: Dictionary = CornerIndex.index_map(heights)
+	var their_corners: Dictionary = PluginRules.corners(world)
+	apart += _compare_maps(my_corners, their_corners, seen_corners)
+
+	var my_walls: Dictionary = Walls.visible_roles(heights)
+	var their_walls: Dictionary = PluginRules.walls(world)
+	apart += _compare_maps(my_walls, their_walls, seen_roles)
+
+	return apart
+
+
+## Deux cartes case -> tuile, comparees dans les DEUX sens.
+##
+## ⚠ COMPARER DANS UN SEUL SENS NE PROUVE RIEN. Un plugin qui ne poserait rien du tout
+## passerait un test qui se contente de verifier que ce qu il pose est juste.
+func _compare_maps(mine: Dictionary, theirs: Dictionary, seen: Dictionary) -> int:
+	var apart: int = 0
+	for at: Vector2i in mine.keys():
+		seen[mine[at]] = true
+		if not theirs.has(at) or theirs[at] != mine[at]:
+			apart += 1
+	for at: Vector2i in theirs.keys():
+		if not mine.has(at):
+			apart += 1
+	return apart
+
+
+## Le relief du noyau, traduit dans la forme que le plugin attend : case -> etage, et rien
+## pour la plaine. Le hors-grille vaut donc la plaine des deux cotes.
+func _plugin_world(heights: PackedStringArray) -> Dictionary:
+	var world: Dictionary = {}
+	for y: int in range(HeightMask.height(heights)):
+		for x: int in range(HeightMask.width(heights)):
+			var level: int = HeightMask.level_at(heights, x, y)
+			if level > 0:
+				world[Vector2i(x, y)] = level
+	return world
+
+
+## Le lecteur de manifeste, eprouve sur un VRAI export -- pas sur une chaine ecrite a la main.
+func _test_plugin_manifest() -> void:
+	print("AbsoluPaint : le manifeste se relit, et le faux se refuse")
+	var folder: String = "user://plugin_manifeste"
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var by_key: Dictionary = WorkIO.cells_by_key(heights)
+	var painting: Painting = Painting.new(16)
+	for key: String in by_key.keys():
+		if key.ends_with(":0"):
+			painting.paint(by_key[key], 0, 0, _key_colour(key))
+	var done: Dictionary = TilesetPNG.write(folder, "essai", painting, heights, Modes.MINIMAL)
+	_check_equal(done["error"], OK, "un export complet pour eprouver le lecteur")
+
+	var report: Dictionary = PluginManifest.read(folder.path_join("essai_tileset.txt"))
+	_check_equal(report["error"], OK, "le manifeste se lit sans reproche")
+	_check_equal(int(report["tile_size"]), 16, "la taille de tuile est relue")
+	_check_equal(report["family"], PluginManifest.BY_CELL, "la famille est relue")
+	_check_equal(report["surface_slots"].size(), BLOB_TILE_COUNT, "les 47 cases de surface")
+	_check_equal(report["wall_slots"].size(), Walls.ALL_ROLES.size(),
+			"les %d cases de robe" % Walls.ALL_ROLES.size())
+	_check(PluginManifest.is_complete(report), "et le manifeste se sait complet")
+
+	# ⚠ LA TABLE DOIT DIRE LA MEME CHOSE QUE L EXPORTATEUR. Le plugin lit ce qui est ecrit ;
+	# si l ecrit ne correspondait pas a ce que la planche contient, le monde sortirait
+	# decale d une case sans qu une seule erreur ne soit levee.
+	var misplaced: int = 0
+	for index: int in report["surface_slots"].keys():
+		if report["surface_slots"][index] != TilesetPNG.surface_slot(index):
+			misplaced += 1
+	for role: Vector2i in report["wall_slots"].keys():
+		if report["wall_slots"][role] != TilesetPNG.wall_slot(role):
+			misplaced += 1
+	_check_equal(misplaced, 0, "chaque case relue est celle ou l exportateur a pose la tuile")
+
+	# LE TILESET GODOT, fabrique depuis ce manifeste et ces deux planches.
+	var built: Dictionary = PluginTileSet.build(folder, report)
+	_check_equal(built["error"], OK, "le TileSet se fabrique depuis les planches ecrites")
+	var tile_set: TileSet = built["tile_set"]
+	_check(tile_set != null and tile_set.tile_size == Vector2i(16, 16),
+			"il porte la taille de tuile du manifeste")
+	if tile_set != null:
+		var surface: TileSetAtlasSource = tile_set.get_source(int(built["surface_source"])) as TileSetAtlasSource
+		var walls: TileSetAtlasSource = tile_set.get_source(int(built["walls_source"])) as TileSetAtlasSource
+		_check_equal(surface.get_tiles_count(), BLOB_TILE_COUNT,
+				"47 tuiles creees, pas la grille entiere : la 48e case reste vide")
+		_check_equal(walls.get_tiles_count(), Walls.ALL_ROLES.size(),
+				"et les %d robes" % Walls.ALL_ROLES.size())
+
+	# LES REFUS (charte, regle 5).
+	_check(int(PluginManifest.parse("n importe quoi\n")["error"]) != OK,
+			"un fichier qui ne s annonce pas est refuse")
+	var future: String = "%s %d\n" % [PluginManifest.MAGIC, PluginManifest.READS_UP_TO + 1]
+	_check(int(PluginManifest.parse(future)["error"]) != OK,
+			"une version plus recente est refusee, pas devinee")
+	var wrong: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt")) 			.replace("storey_tiles 3", "storey_tiles 4")
+	_check(int(PluginManifest.parse(wrong)["error"]) != OK,
+			"un etage qui ne descend pas de trois cases est REFUSE : le poser mentirait")
+
+
+## L installateur : le bouton destine a l acheteur.
+func _test_plugin_install() -> void:
+	print("AbsoluPaint : l installation chez l acheteur")
+
+	# ⚠ LA LISTE DES FICHIERS EST UNE DONNEE, DONC UN ENDROIT OU MENTIR. On la compare au
+	# dossier reel : un fichier ajoute au plugin et oublie dans la liste ne partirait jamais
+	# chez l acheteur, et le plugin arriverait casse sans que rien ne le dise.
+	var on_disk: PackedStringArray = PackedStringArray()
+	var directory: DirAccess = DirAccess.open(PluginInstall.SOURCE)
+	if directory != null:
+		directory.list_dir_begin()
+		var entry: String = directory.get_next()
+		while entry != "":
+			if not directory.current_is_dir() and not entry.ends_with(".uid"):
+				on_disk.append(entry)
+			entry = directory.get_next()
+		directory.list_dir_end()
+	on_disk.sort()
+	var declared: PackedStringArray = PackedStringArray(PluginInstall.FILES)
+	declared.sort()
+	_check_equal(on_disk, declared, "la liste des fichiers du plugin dit vrai")
+
+	# LE REFUS : un dossier qui n est pas un projet Godot.
+	var plain: String = "user://pas_un_projet"
+	DirAccess.make_dir_recursive_absolute(plain)
+	var refused: Dictionary = PluginInstall.install(plain)
+	_check_equal(refused["error"], ERR_UNAVAILABLE, "un dossier sans project.godot est REFUSE")
+	_check(not bool(refused["is_project"]), "et il se sait hors sujet")
+	_check(PackedStringArray(refused["written"]).is_empty(), "et rien n est ecrit du tout")
+	_check(String(refused["reason"]) != "", "le refus dit pourquoi, en clair")
+
+	# L INSTALLATION dans un vrai projet.
+	# ⚠ `user://` SURVIT D UNE EXECUTION A L AUTRE. Sans effacement, la seconde execution
+	# trouvait le plugin deja pose et « la premiere fois » n etait plus la premiere : le test
+	# passait au vert le jour de son ecriture et rougissait le lendemain.
+	var project: String = "user://faux_projet"
+	_erase_tree(project)
+	DirAccess.make_dir_recursive_absolute(project)
+	var stub: FileAccess = FileAccess.open(project.path_join("project.godot"), FileAccess.WRITE)
+	stub.store_string("config_version=5\n")
+	stub.close()
+
+	var first: Dictionary = PluginInstall.install(project)
+	_check_equal(first["error"], OK, "le plugin s installe dans un projet Godot")
+	_check(not bool(first["replaces"]), "la premiere fois, il ne remplace rien")
+	_check_equal(PackedStringArray(first["written"]).size(), PluginInstall.FILES.size(),
+			"tous les fichiers sont ecrits")
+
+	# ⚠ OCTET POUR OCTET. Un `.gd` relu comme texte puis reecrit changerait ses fins de ligne
+	# selon la plateforme : le plugin doit arriver identique a celui qu on vient de tester.
+	var altered: int = 0
+	for file_name: String in PluginInstall.FILES:
+		var here: PackedByteArray = FileAccess.get_file_as_bytes(
+				PluginInstall.SOURCE.path_join(file_name))
+		var there: PackedByteArray = FileAccess.get_file_as_bytes(
+				project.path_join(PluginInstall.TARGET).path_join(file_name))
+		if here != there or here.is_empty():
+			altered += 1
+	_check_equal(altered, 0, "chaque fichier arrive identique, octet pour octet")
+
+	# ⚠ ET LE `project.godot` DE L ACHETEUR N EST PAS TOUCHE. Le reecrire pour cocher
+	# l extension lui ferait perdre ses commentaires, et peut-etre bien pire.
+	_check_equal(FileAccess.get_file_as_string(project.path_join("project.godot")),
+			"config_version=5\n", "le project.godot de l acheteur reste intact")
+
+	var again: Dictionary = PluginInstall.install(project)
+	_check_equal(again["error"], OK, "reinstaller par-dessus fonctionne")
+	_check(bool(again["replaces"]), "et la seconde fois, il se sait remplacant")
+	_check(PluginInstall.summary(again).contains("Extensions"),
+			"le resume dit la seule chose qui reste a faire")
+
+
+
+## Efface un dossier et ce qu il contient. Sert a rendre un test reproductible : `user://`
+## garde ce qu on y ecrit, donc un test qui ecrit doit d abord faire le vide.
+func _erase_tree(path: String) -> void:
+	var directory: DirAccess = DirAccess.open(path)
+	if directory == null:
+		return
+	directory.list_dir_begin()
+	var entry: String = directory.get_next()
+	while entry != "":
+		var child: String = path.path_join(entry)
+		if directory.current_is_dir():
+			_erase_tree(child)
+		else:
+			DirAccess.remove_absolute(child)
+		entry = directory.get_next()
+	directory.list_dir_end()
+	DirAccess.remove_absolute(path)
