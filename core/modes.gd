@@ -33,13 +33,11 @@ const MODES: Dictionary = {
 	AMPLE: {
 		"label": "Ample",
 		"guide_path": "res://guides/ample.txt",
-		# ⚠ FERME. Son guide ne couvre que 25 des 36 roles de mur depuis que le vocabulaire
-		# distingue les faces en retrait, et il promet TROIS occurrences de chacun -- une
-		# barre bien plus haute que `minimal`. Ce qui n'est pas garanti ne se choisit pas
-		# (regle 5) : il reste au catalogue, grise, jusqu'a ce que son guide soit refait.
-		"closed": true,
 		"surface_tiles": 47,
 		"wall_tiles": 36,
+		# ⚠ TROIS, ET C'EST UNE BARRE TROIS FOIS PLUS HAUTE QUE CELLE DE `minimal`. Elle
+		# porte sur les TROIS vocabulaires -- 47 index de surface, 15 croisements, 36 roles
+		# de robe -- et elle est prouvee par la suite, pas promise.
 		"min_variants": 3,
 	},
 }

@@ -228,7 +228,7 @@ func _test_modes_catalogue() -> void:
 	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
 		# ⚠ FERME, ET C EST VOULU : son guide ne couvre plus les 36 roles. Ce qui n est pas
 	# garanti ne se choisit pas (regle 5).
-	_check(not Modes.is_available(Modes.AMPLE), "ample est ferme tant que son guide n est pas refait")
+	_check(Modes.is_available(Modes.AMPLE), "ample a son guide refait, il se choisit")
 	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
 	_check_equal(Modes.surface_tile_count(Modes.MINIMAL), BLOB_TILE_COUNT, "47 tuiles de surface")
 	_check_equal(Modes.wall_tile_count(Modes.MINIMAL), Walls.ALL_ROLES.size(), "12 tuiles de mur")
@@ -1158,17 +1158,25 @@ func _test_corner_network() -> void:
 	_check_equal(report["present"].size(), CornerIndex.TILE_COUNT, "les quinze sont la")
 	print("  %d croisements peignables dans le guide minimal" % report["filled_count"])
 
-	# ⚠ ET LES AUTRES RELIEFS NE LE SONT PAS. On l affiche plutot que de l asserter : ce sont
-	# des travaux en cours, et une assertion les rendrait rouges en permanence. Mais tant
-	# qu ils manquent une tuile, le reseau dual reste FERME sur eux (regle 5).
+	# ⚠ ET C EST VRAI DE TOUT MODE LIVRE, pas du seul `minimal`. Un mode dont le guide ne
+	# couvre pas les quinze ne peut pas offrir la famille a cheval, donc il ne se choisit
+	# pas (regle 5) : la couverture duale fait partie de ce qu un mode ouvert garantit.
 	for id: StringName in Modes.ids():
+		if not Modes.is_available(id):
+			continue
 		var other: Dictionary = CornerIndex.analyse_relief(
 				HeightMask.read(Modes.guide_path(id)))
 		var absent: PackedStringArray = PackedStringArray()
 		for index: int in other["missing"]:
 			absent.append("%d = %s" % [index, CornerIndex.describe(index)])
-		print("  %s : %d/15%s" % [Modes.label(id), other["present"].size(),
+		_check(other["is_complete"], "%s couvre les quinze croisements%s" % [Modes.label(id),
 				("  absents : " + ", ".join(absent)) if absent.size() > 0 else ""])
+		var rarest: int = 1 << 30
+		for index: int in other["present"]:
+			rarest = mini(rarest, int(other["occurrences"][index]))
+		_check(rarest >= Modes.min_variants(id),
+				"%s : chaque croisement est vu au moins %d fois (le plus rare : %d)"
+				% [Modes.label(id), Modes.min_variants(id), rarest])
 
 
 ## Le cote de tuile des essais de raccord. Assez grand pour que les arrondis existent,

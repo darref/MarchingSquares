@@ -58,7 +58,7 @@ ui/           l'éditeur
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : relief 35x28, 47/47 et 12/12
-  ample.txt            guide du mode « ample » : relief 66x31, 3 occurrences minimum
+  ample.txt            guide du mode « ample » : archipel 84x46, 3 occurrences minimum
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
   preview.txt          le décor de l'aperçu en jeu : 24x18, une colline et une butte
@@ -66,6 +66,8 @@ tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
   tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
+tools/            outils de fabrication, jamais lus par le logiciel
+  build_ample.py  le générateur du guide d'`ample`, accident par accident
 ```
 
 ## Conventions
@@ -258,12 +260,19 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   - **deux rangées de corps**, pour que l'œil ne lise pas la répétition avant la falaise.
     C'est ce qui permet une hauteur N quelconque avec une feuille finie.
 
-- **`ample`, second mode : décidé et nommé, fermé jusqu'à preuve.** Même complétude que
-  `minimal`, mais volontairement plus de répétitions : peindre une tuile en remplira
-  plusieurs, ce qui rend le geste plus intuitif. Le nom existe tel quel en français et en
-  anglais, s'oppose proprement à `minimal`, et dit « qui a de la place » sans dire « gros ».
-  Il figure au catalogue et à la liste déroulante, **grisé**, tant que son guide n'existe
-  pas : ce qui n'est pas garanti ne se choisit pas (règle 5). `Modes.is_available()` tranche.
+- **`ample`, second mode : ouvert.** Même complétude que `minimal`, mais volontairement plus
+  de répétitions : chaque tuile se voit dans **au moins trois contextes**, ce qui rend le
+  geste plus sûr et laisse de la place pour de vraies variantes. Le nom existe tel quel en
+  français et en anglais, s'oppose proprement à `minimal`, et dit « qui a de la place » sans
+  dire « gros ».
+
+  ⚠ **La promesse est chiffrée, donc elle se prouve** (règle 4). `min_variants` vaut 3, et
+  la barre porte sur les **trois** vocabulaires : 47 index de surface, 15 croisements,
+  36 rôles de robe. La suite refuse le mode si l'un d'eux tombe à deux.
+
+  ⚠ **Ce que ça change pour celui qui peint** : dans `minimal`, 22 tuiles n'ont qu'une seule
+  occurrence, donc 22 cases sont **obligatoires** et leur oubli bloque l'export. Dans
+  `ample`, **aucune** tuile n'est dans ce cas. C'est ça, le confort qu'on vend.
 
 - **Le mode minimal livre deux familles : 47 + 36 = 83 tuiles.** `coverage.gd` prouve la
   première, `walls.analyse()` la seconde.
@@ -644,10 +653,14 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   grille. Le guide couvre désormais **15/15 croisements en surface visible**, sur 665
   croisements peignables. Asserté.
 
-  ⚠ **Et les autres reliefs ne suivent pas encore** : `ample`, le décor de l'aperçu et la
-  planche de preuve sont à 13/15, les deux diagonales manquantes. Le réseau dual reste donc
-  **fermé** partout sauf sur `minimal` (règle 5). C'est affiché par le runner, pas asserté :
-  ce sont des travaux en cours, et une assertion les rendrait rouges en permanence.
+  ⚠ **La couverture duale fait partie de ce qu'un mode ouvert garantit**, et c'est asserté
+  pour **tous** les modes livrés, plus seulement pour `minimal` : `ample` couvre lui aussi
+  15/15, trois fois chacun. Un guide qui ne couvrirait pas les quinze ne pourrait pas offrir
+  la famille à cheval, donc son mode ne se choisirait pas (règle 5).
+
+  ⚠ **Le décor de l'aperçu, lui, reste à 13/15, et c'est sans conséquence.** Il n'a rien à
+  prouver : il montre *comment ça rend*, pas *si tout est peint*. Une carte ordinaire n'use
+  qu'une poignée de tuiles — c'est même la vérité qu'il existe pour dire.
 
   ⚠ **On ne voit que le sommet, ici aussi.** Un croisement touche quatre cases qui peuvent
   être à quatre étages ; la tuile visible est celle de l'étage le plus haut des quatre. La
@@ -776,9 +789,32 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
   Vérifié : **47/47 surfaces, 36/36 rôles VISIBLES, 15/15 croisements, zéro robe hors grille.**
 
-- **`ample` est fermé.** Son guide ne couvre que 25 des 36 rôles, et il promet **trois**
-  occurrences de chacun — une barre bien plus haute que `minimal`. Il reste au catalogue,
-  grisé, jusqu'à ce que son guide soit refait (règle 5). C'est au TODO.
+- **Le guide d'`ample` : un archipel de trois îles, 84x46** (`tools/build_ample.py`). Chaque
+  île porte **tous** les accidents — district lacustre, crêtes à rameaux dressées et
+  couchées, chaos rocheux de coudes et de fourches, et un rivage sud en deux escarpements à
+  contreforts, l'un à banquette, l'autre plongeant droit dans la plaine. Trois îles, donc
+  trois occurrences, **par construction et non par retouche**.
+
+  ⚠ **PREMIÈRE VERSION REFUSÉE : un damier de spécimens.** J'avais posé chaque accident sur
+  sa propre dalle, alignés en grille. C'était complet du premier coup — et ça ne se lisait
+  pas comme un paysage mais comme une planche d'échantillons. **Les accidents se posent sur
+  une terre continue**, avec des côtes découpées ; le guide est un paysage, sinon il n'est
+  qu'un tableau.
+
+  ⚠ **DEUXIÈME VERSION REFUSÉE : la même île trois fois.** Même largeur, même lèvre, même
+  disposition intérieure — la répétition se voyait d'un coup d'œil. C'est exactement la
+  leçon des quatre crêtes de `minimal`, et elle vaut à toutes les échelles. Les trois îles
+  ont donc chacune leur largeur (26, 24, 28), leur lèvre côtière (26, 29, 25), leur
+  disposition intérieure et leur jeu d'éperons.
+
+  ⚠ **Mais un jeu d'éperons ne se varie pas librement** : il doit porter les cinq
+  configurations — bout ouest, paire mitoyenne, éperon seul, bout est — sinon il manque des
+  pans à angle. **La forme se varie, la grammaire non.**
+
+  ⚠ **Le générateur est gardé au dépôt**, contrairement à celui de `minimal` qui s'est
+  perdu. Sans lui, `guides/ample.txt` n'est qu'un tapis de chiffres : on ne saurait plus
+  quel accident porte quelle famille, ni comment le retoucher sans tout casser. C'est un
+  outil de fabrication, jamais lu par le logiciel — lui ne lit que le guide.
 
 - **La sauvegarde passe en version 2, et les robes v1 sont RENDUES, pas reposées.** Un pan v1
   valait 0..2 ; un pan v2 vaut 0..8. Les reposer les mettrait de travers **en silence** —
@@ -1188,9 +1224,13 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **1.1.0** : noyau prouvé, deux paysages complets, quatre fonds, l'éditeur qui peint,
-le travail qui s'enregistre et se rouvre, le tileset qui s'exporte, et le paysage qui se
-remonte sous les yeux.
+À **2.1.0** : noyau prouvé, **deux paysages ouverts** — `minimal` et `ample` — deux
+familles de surface, le vocabulaire à neuf pans, l'éditeur qui peint, le travail qui
+s'enregistre et se rouvre, le tileset qui s'exporte avec sa planche de preuve et son
+manifeste-contrat, et le paysage qui se remonte sous les yeux.
+
+Le 2.0.0 était le passage aux **neuf pans** : le sens d'une tuile de robe a changé, donc
+l'existant était périmé. Le 2.1.0 n'ajoute qu'un paysage, d'où la mineure.
 
 Quand la monter, et je le proposerai le moment venu :
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
@@ -1211,7 +1251,5 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **Refaire le guide d'`ample`.** Il est fermé : 25 des 36 rôles seulement, et il promet
-  trois occurrences de chacun. Il lui faut ses propres peignes, en triple.
 - **Compacter le guide minimal** sans perdre la lisibilité : voir « la taille n'est pas
   prouvée minimale » ci-dessus.
