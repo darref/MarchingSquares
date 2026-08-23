@@ -216,7 +216,13 @@ func step(budget_usec: int) -> bool:
 	var deadline: int = Time.get_ticks_usec() + budget_usec
 	while not _top_queue.is_empty():
 		var key: Vector2i = _top_queue.pop_front()
-		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _ink, _marks)
+		# ⚠ PAS DE MARQUES SUR L'ETAGE 0. Elles existent pour rendre la SPECIFICATION
+		# lisible en peignant -- trait grossi, marqueur de coin rentrant, tiret de rangee --
+		# et la plaine ne se peint pas : c'est du decor, la pour montrer que dans le jeu
+		# l'etage 0 sera borde de falaises comme les autres. L'y marquer designerait un
+		# travail qui n'existe pas, et ferait crier le fond plus fort que l'ouvrage.
+		_tops[key] = GuideImage.make_top(key.x, key.y, _tile_size, _ink,
+				_marks and key.y >= 1)
 		done += 1
 		if Time.get_ticks_usec() >= deadline:
 			return false

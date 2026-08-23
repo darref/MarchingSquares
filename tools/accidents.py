@@ -20,7 +20,12 @@ qui permet a un guide de rester un paysage au lieu d'un damier :
 rectangles flottants se lit comme une planche de specimens, pas comme un paysage.
 """
 
+import math
 import os
+
+
+def mini(a, b):
+    return a if a < b else b
 
 
 class Grille:
@@ -42,20 +47,66 @@ class Grille:
                 if 0 <= x < self.w and 0 <= y < self.h:
                     self.g[y][x] = max(self.g[y][x], niveau)
 
-    def texte(self, marge=3):
-        """⚠ LE RELIEF S'ENTOURE DE VIDE, ET LA MARGE VAUT UNE CHUTE ENTIERE.
+    def texte(self, rivage=4, marge=3):
+        """LE RIVAGE, PUIS LE VIDE.
 
-        La plaine est un plateau comme les autres : la ou elle borde le vide, elle a une
-        levre, donc une falaise de trois cases. Sans marge, cette falaise du BORD DU MONDE
-        tomberait hors du cadre -- et une robe hors du cadre est une tuile impeignable."""
-        vide = '~' * (self.w + 2 * marge)
-        lignes = [vide] * marge
-        for row in self.g:
-            lignes.append('~' * marge
-                          + ''.join('.' if v == 0 else str(v) for v in row)
-                          + '~' * marge)
-        lignes += [vide] * marge
+        ⚠ LA PLAINE EST DU DECOR, MAIS ELLE A UN ROLE : montrer que dans le jeu l'etage 0
+        sera borde de falaises comme les autres. Une seule case d'epaisseur ne le montre
+        pas -- on ne voit ni la masse pleine, ni un vrai coin. Il lui en faut plusieurs.
+
+        ⚠ ET ELLE NE DOIT PAS ETRE RECTANGULAIRE. Le cadre du fichier est un artefact ;
+        un rivage droit le donne a voir et fait ressembler le monde a une decoupe. La
+        profondeur du rivage ondule donc le long de la cote, doucement -- deux sinus de
+        periodes differentes, jamais du bruit case par case, qui donnerait une dentelure.
+
+        ⚠ ON N'ENLEVE JAMAIS DE PLAINE, ON EN AJOUTE. Le rectangle d'origine reste plain
+        en entier : les robes y tombent et y atterrissent, et raboter dessous les ferait
+        toutes changer de role. Le rivage se pose AUTOUR.
+
+        ⚠ ET LE VIDE VAUT UNE CHUTE ENTIERE au-dela : la plaine borde le vide, donc elle a
+        une levre et une falaise de trois cases. Sans cette marge, la falaise du bord du
+        monde tomberait hors du cadre -- et une robe hors du cadre est impeignable."""
+        # ⚠ LE CADRE TIENT COMPTE DE L'AMPLITUDE. Une vague qui AJOUTE de la profondeur
+        # mange la marge de vide sous elle : la ou le rivage descend le plus bas, sa falaise
+        # tomberait hors du cadre. Le bord vaut donc rivage + amplitude + marge.
+        bord = rivage + self.AMPLITUDE + marge
+        largeur = self.w + 2 * bord
+        hauteur = self.h + 2 * bord
+        lignes = []
+        for y in range(hauteur):
+            ligne = ''
+            for x in range(largeur):
+                dx, dy = x - bord, y - bord
+                if 0 <= dx < self.w and 0 <= dy < self.h:
+                    v = self.g[dy][dx]
+                    ligne += '.' if v == 0 else str(v)
+                    continue
+                # Distance de Tchebychev au rectangle d'origine, et la profondeur voulue
+                # a cet endroit-la de la cote.
+                ecart = max(0 - dx, dx - (self.w - 1), 0, 0 - dy, dy - (self.h - 1))
+                ligne += '.' if ecart <= self._profondeur(dx, dy, rivage) else '~'
+            lignes.append(ligne)
         return '\n'.join(lignes) + '\n'
+
+    ## De combien la vague peut CREUSER en plus du rivage nominal.
+    AMPLITUDE = 2
+
+    @classmethod
+    def _profondeur(cls, dx, dy, rivage):
+        """La profondeur du rivage a cet endroit.
+
+        ⚠ DEUX SINUS LENTS, JAMAIS DU BRUIT CASE PAR CASE. Un tirage par case donnerait
+        une dentelure, pas une cote : ce qu'on veut, c'est que la profondeur derive
+        doucement le long du rivage.
+
+        ⚠ ET LA VAGUE N'AJOUTE QUE : le rivage nominal est un PLANCHER, pas une moyenne.
+        Sous ce plancher on ne verrait plus ni masse pleine ni vrai coin, et la plaine
+        cesserait de montrer ce qu'elle est la pour montrer."""
+        onde = 0.62 * math.sin((dx + dy) * 0.21) + 0.38 * math.sin((dx - dy) * 0.37)
+        # ⚠ ET ELLE SE BORNE A L'AMPLITUDE ANNONCEE. Sans ce plafond, la vague creusait
+        # jusqu'a trois cases la ou le cadre n'en reservait que deux : la falaise du rivage
+        # tombait hors du cadre, et seize robes devenaient impeignables.
+        return rivage + mini(cls.AMPLITUDE, int(round(cls.AMPLITUDE * abs(onde) * 1.7)))
 
     def ecrire(self, nom):
         racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

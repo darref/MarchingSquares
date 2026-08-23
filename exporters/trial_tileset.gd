@@ -58,8 +58,9 @@ static func paint(heights: PackedStringArray, resolution: int = TRIAL_RESOLUTION
 		family: StringName = Families.BY_CELL) -> Painting:
 	var painting: Painting = Painting.new(resolution)
 	var drawn: Dictionary = {}
-	for cell: Vector2i in WorkIO.slots(heights, family).keys():
-		var key: String = String(WorkIO.slots(heights, family)[cell])
+	var slots: Dictionary = WorkIO.slots(heights, family)
+	for cell: Vector2i in slots.keys():
+		var key: String = String(slots[cell])
 		var slot: Dictionary = WorkIO.describe(key)
 		var tile: String = key.substr(0, key.rfind(":"))
 		if drawn.has(tile):

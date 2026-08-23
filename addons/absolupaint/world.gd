@@ -131,8 +131,9 @@ func rebuild() -> void:
 	# ⚠ LE SOUS-PIED SE POSE SOUS LES SURFACES, sur sa propre couche. C'est le PIED repose
 	# une case plus bas : la case d'atterrissage le recouvre sauf par ses coins decoupes, et
 	# c'est exactement la que la roche manquait. Aucune tuile de plus -- une pose de plus.
-	for cell: Vector2i in Rules.underfoot(heights).keys():
-		var under: Vector2i = Rules.underfoot(heights)[cell]
+	var underfoot: Dictionary = Rules.underfoot(heights)
+	for cell: Vector2i in underfoot.keys():
+		var under: Vector2i = underfoot[cell]
 		if wall_slots.has(under):
 			_underfoot_layer.set_cell(cell, _walls_source, wall_slots[under])
 	var roles: Dictionary = Rules.walls(heights)

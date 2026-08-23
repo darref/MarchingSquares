@@ -1212,6 +1212,57 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   godot --headless --path . --script res://exporters/trial_tileset.gd -- dossier [taille]
   ```
 
+- **⚠ UNE CARTE COÛTEUSE NE SE RECALCULE PAS À CHAQUE TOUR DE BOUCLE — sept fois la même
+  faute, toutes de moi.** Le motif : `for x in cher().keys(): ... cher()[x] ...`. L'en-tête
+  de boucle ne s'évalue qu'une fois, mais le **corps** rappelle la fonction à chaque
+  itération — et ces fonctions-là parcourent tout le relief.
+
+  Mesuré avant / après :
+
+  | | avant | après |
+  |---|---|---|
+  | `Trial.paint` (minimal) | 36 500 ms | **1 185 ms** |
+  | `Trial.paint` (ample) | 303 300 ms | **1 230 ms** |
+  | `Assembly.from_painting` | 13 490 ms | **43 ms** |
+  | planche de preuve remontée | 74 744 ms | **161 ms** |
+  | la suite entière | 5 min 11 | **1 min 20** |
+
+  ⚠ **C'ÉTAIT ÇA, « LE SOFT RAME » — pas une barre de progression manquante.** Une barre
+  aurait *montré* l'attente au lieu de la supprimer, et rendu le défaut acceptable. Chercher
+  la cause avant de décorer le symptôme : la plus longue opération du logiciel tient
+  désormais en une seconde, et le fond du guide garde sa barre parce qu'il en a une vraie
+  raison — il dessine cent tuiles.
+
+  ⚠ **Et aucun test ne pouvait le voir** : la suite mesure la justesse, pas la durée. Elle
+  était verte à cinq minutes comme à une minute.
+
+- **L'ÉTAGE 0 EST DU DÉCOR, DONC IL NE PORTE AUCUNE MARQUE.** Le trait grossi, le marqueur
+  de coin rentrant et le tiret de rangée existent pour rendre la **spécification** lisible
+  en peignant. La plaine ne se peint pas : l'y marquer désignerait un travail qui n'existe
+  pas, et ferait crier le fond plus fort que l'ouvrage.
+
+- **ET IL LUI FAUT UN VRAI RIVAGE : épais, et qui ondule.** Une seule case d'épaisseur ne
+  montrait rien — ni masse pleine, ni vrai coin, ni falaise de bord du monde. Le rôle de la
+  plaine est précisément de montrer que **dans le jeu, l'étage 0 sera bordé de falaises
+  comme les autres**. Le rivage fait donc **4 à 6 cases**.
+
+  ⚠ **ET IL NE DOIT PAS ÊTRE RECTANGULAIRE.** Le cadre du fichier est un artefact ; un
+  rivage droit le donne à voir et fait ressembler le monde à une découpe. La profondeur
+  ondule donc le long de la côte — **deux sinus lents, jamais du bruit case par case**, qui
+  donnerait une dentelure au lieu d'une côte.
+
+  ⚠ **ON N'ENLÈVE JAMAIS DE PLAINE, ON EN AJOUTE.** Le rectangle du bâtisseur reste plein :
+  les robes y tombent et y atterrissent, et raboter dessous les ferait toutes changer de
+  rôle. Le rivage se pose **autour**.
+
+  ⚠ **La vague se plafonne à l'amplitude annoncée**, et le cadre la réserve. Sans ce
+  plafond elle creusait trois cases là où le cadre n'en gardait que deux : la falaise du
+  rivage tombait hors du cadre et seize robes devenaient impeignables.
+
+  **Le prix, dit franchement** : `minimal` passe de 52x33 à **64x45**, donc la case à
+  l'écran de ~26 à ~20 pixels. C'est l'inverse de la compaction de la 2.2.0, et c'est un
+  arbitrage à revoir si l'écran devient plus important que la démonstration.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que

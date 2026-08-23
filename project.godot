@@ -12,10 +12,7 @@ config_version=5
 
 config/name="AbsoluTiles"
 config/description="Paint one landscape. Every edge case covered."
-
-; ⚠ SEULE SOURCE DE VERITE POUR LA VERSION. Le bandeau de l editeur la lit ici ; ne la
-; recopier nulle part ailleurs, sinon les deux finiront par se contredire.
-config/version="5.1.0"
+config/version="5.2.0"
 run/main_scene="res://ui/editor.tscn"
 config/features=PackedStringArray("4.7")
 

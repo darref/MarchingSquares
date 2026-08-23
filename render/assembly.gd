@@ -39,8 +39,9 @@ static func from_painting(heights: PackedStringArray, painting: Painting,
 	var side: int = painting.resolution
 	var canvas: Image = _canvas(heights, side, family)
 	var by_role: Dictionary = Walls.cells_by_role(Walls.visible_roles(heights))
-	for cell: Vector2i in _underfoot(heights).keys():
-		var role: Vector2i = _underfoot(heights)[cell]
+	var underfoot: Dictionary = _underfoot(heights)
+	for cell: Vector2i in underfoot.keys():
+		var role: Vector2i = underfoot[cell]
 		if not by_role.has(role):
 			continue
 		for source: Vector2i in by_role[role]:
@@ -90,8 +91,9 @@ static func from_sheets(heights: PackedStringArray, surface_sheet: Image, wall_s
 	var canvas: Image = _canvas(heights, side, family)
 	var indices: Dictionary = _surfaces(heights, family)
 	var roles: Dictionary = Walls.visible_roles(heights)
-	for cell: Vector2i in _underfoot(heights).keys():
-		var slot: Vector2i = TilesetPNG.wall_slot(_underfoot(heights)[cell])
+	var underfoot: Dictionary = _underfoot(heights)
+	for cell: Vector2i in underfoot.keys():
+		var slot: Vector2i = TilesetPNG.wall_slot(underfoot[cell])
 		var from: Rect2i = Rect2i(slot * side, Vector2i(side, side))
 		if from.end.x <= wall_sheet.get_width() and from.end.y <= wall_sheet.get_height():
 			canvas.blend_rect(wall_sheet, from, _where(cell, side, family))
@@ -117,8 +119,9 @@ static func from_sheets(heights: PackedStringArray, surface_sheet: Image, wall_s
 ## Les surfaces de la famille, en cles de carnet.
 static func _surfaces(heights: PackedStringArray, family: StringName) -> Dictionary:
 	var by_key: Dictionary = {}
-	for at: Vector2i in Families.index_map(family, heights).keys():
-		by_key[Families.storage_key(family, at)] = Families.index_map(family, heights)[at]
+	var indices: Dictionary = Families.index_map(family, heights)
+	for at: Vector2i in indices.keys():
+		by_key[Families.storage_key(family, at)] = indices[at]
 	return by_key
 
 
@@ -161,8 +164,9 @@ static func from_borrowed(target: PackedStringArray, guide: PackedStringArray,
 	var canvas: Image = _canvas(target, side, family)
 	var source_of: Dictionary = borrow(target, guide, family)
 	var by_key: Dictionary = WorkIO.cells_by_key(guide, family)
-	for cell: Vector2i in _underfoot(target).keys():
-		var role: Vector2i = _underfoot(target)[cell]
+	var underfoot: Dictionary = _underfoot(target)
+	for cell: Vector2i in underfoot.keys():
+		var role: Vector2i = underfoot[cell]
 		var key: String = "W%d,%d:0" % [role.x, role.y]
 		if not by_key.has(key):
 			continue

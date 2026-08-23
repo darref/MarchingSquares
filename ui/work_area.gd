@@ -233,9 +233,9 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_wall_cells.clear()
 	# La carte case -> index se calcule une fois : l'editeur en a besoin a chaque coup de
 	# crayon, et la recalculer coutait un tiers du budget d'affichage.
-	for at: Vector2i in Families.index_map(guide_family, heights).keys():
-		_surface_cells[Families.storage_key(guide_family, at)] = \
-				Families.index_map(guide_family, heights)[at]
+	var indices: Dictionary = Families.index_map(guide_family, heights)
+	for at: Vector2i in indices.keys():
+		_surface_cells[Families.storage_key(guide_family, at)] = indices[at]
 	# Les roles de robe sont rassembles une seule fois : ca coute un parcours complet du
 	# relief, et l editeur en a besoin a chaque coup de crayon.
 	var seen: Dictionary = Walls.visible(heights)
