@@ -2018,16 +2018,74 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **L'ESSAI N'EST PAS ENCORE CONVAINCANT, ET C'EST LE CHANTIER EN COURS.** Le tileset fait
-  du dessin du guide lui-meme -- celui qui part avec le plugin quand rien n'a encore ete
-  peint -- est ce que l'acheteur voit **en premier**. Juge insuffisant en le regardant dans
-  `res://trial_absolutiles_to_absolupaint_full.tscn`. Deux pistes deja eprouvees et rangees :
-  retirer les epaules falaise-plateau et reculer l'arete (essaye, **remis comme c'etait**), et
-  l'angle noir en haut des plateaux (**regle** -- c'etait une divergence d'empilement entre
-  l'illustration et le plugin). Piste encore ouverte : une **ombre portee au pied de la
-  falaise**, qui serait la premiere tuile non-terrain du tileset. Vient ensuite l'**exemple**,
-  peint a la main, qui deviendra le choix « Example » et devra passer en conditions
-  reelles dans le logiciel **et** dans l'addon.
+- **L'ANGLE NOIR DERRIERE LES ARRONDIS : LE DEFAUT EN COURS, ET IL N'EST PAS RESOLU.**
+  ⚠ **JE ME SUIS TROMPE EN DISANT QUE L'EMPILEMENT LE REGLAIT.** L'utilisateur a fourni
+  le contrexemple, et il est decisif.
+
+  **Le symptome, dans ses mots** : sur les peignes de la planche de preuve, « les deux
+  piliers de gauche sont corrects car celui du haut se termine la ou commence celui du bas ;
+  les deux paires suivantes sont fausses car derriere les arrondis du plateau de celui qui
+  est devant, il devrait y avoir le marron de la falaise qui est derriere, a la place
+  l'arrondi est noir ».
+
+  ⚠ **ET CE N'EST PAS SEULEMENT ABSOLUPAINT : LE GUIDE A LE MEME DEFAUT**, releve en
+  `(32,18)` et `(36,18)` de `minimal`, « et a beaucoup d'autres endroits ». Comme
+  l'illustration et le plugin le montrent tous les deux, ce n'est pas une divergence
+  d'empilement -- c'est **la regle elle-meme qui a un trou**. Le correctif d'empilement de la
+  4.x a bouche un cas, pas la famille.
+
+  **L'hypothese de l'utilisateur, et elle est la piste la plus serieuse** : « les tuiles qui
+  montrent des choses derriere existent dans le modele, mais ne sont pas utilisees a ce
+  moment de la peinture ». Autrement dit le vocabulaire suffit deja ; c'est la **pose** qui
+  manque. Le pilier de gauche est correct **parce que la robe y atterrit**, donc le sous-pied
+  s'y pose ; les autres n'ont pas d'atterrissage a cet endroit, donc rien ne se pose, donc
+  l'arrondi tombe jusqu'au fond.
+
+  **Ce qui est deja mesure, et qu'il ne faut pas remesurer :**
+  - sur les 47 index, **5** decoupent leur coin NO, 5 le NE, 5 le SO, 5 le SE ; **5** ne
+    decoupent qu'au nord ; 8 ont au moins un coin nord decoupe. Le « 5 » de l'utilisateur
+    est exact, et de deux facons.
+  - le **sud** est le seul cote ou ce qu'il y a derriere est **constant** (toujours une
+    falaise) : d'ou l'epaule, un seul dessin. Au nord ce n'est pas constant --
+    **8 / 11 / 4** choses differentes derriere, sur `minimal` / `ample` / le decor.
+  - une case couverte par une robe ne decoupe **jamais** son coin nord (0 cas sur les trois
+    reliefs livres) : un plateau plus haut au nord rend le nord *plein*.
+  - ⚠ **ON NE PEUT PAS PEINDRE LE DERRIERE DANS LA TUILE DE SURFACE.** Le tileset exporte
+    contient **un seul jeu de 47**, pose sur **tous** les etages (`_surface_source` unique,
+    `_surface_layers[level]`). Une tuile ne connait donc ni son etage ni ce qui est dessous ;
+    il faudrait une planche par etage. **C'est la contrainte qui elimine la solution
+    evidente**, et c'est elle qu'il faut avoir en tete avant de proposer quoi que ce soit.
+
+  **La direction qui reste, et la seule qui ne coute aucune tuile** : etendre le principe du
+  sous-pied. Le sous-pied est **une pose de plus, pas une tuile de plus** -- on redessine le
+  pied une case plus bas, sous la surface. La question a trancher est : *quelle rangee de
+  robe reposer sous une case dont le voisin nord porte une face de falaise, quand cette
+  falaise n'atterrit pas la ?* Si la reponse existe, le defaut se ferme a zero tuile.
+
+  ⚠ **ET LA PISTE « LAISSER L'ARTISTE ARRETER LES ARETES PLUS TOT » EST FERMEE.** Proposee
+  comme des modes qui laisseraient depasser les choses derriere une par une, avec un guide
+  regenere a chaque changement. Refusee pour trois raisons : c'est un panneau de reglages
+  deguise en mode (regle 1) ; le guide bougerait sous le travail en cours (regle 2) ; et
+  surtout **ca casse la preuve** -- les 47 sont demontres parce qu'une tuile ne depend **que**
+  de sa fenetre 3x3, et des qu'elle depend aussi de ce qui est dessous, les 512 fenetres ne
+  prouvent plus rien. Le test a appliquer a toute idee de ce genre : *on ne peint dans la
+  tuile ce qui est derriere que si ce qui est derriere est **constant*** -- l'epaule passe, le
+  nord non.
+
+  **Deux pieges de sonde, payes comptant :**
+  - `Walls.assemble()` rend `roles` keye par **`Vector3i`** (la case **et** l'etage de la
+    levre), pas `Vector2i`. Interroger en `Vector2i` ne trouve rien et fait conclure « aucune
+    robe ici », ce qui est faux : la planche de preuve porte **585 cases de robe et 147
+    sous-pieds** ;
+  - `String.find("")` rend **-1** en Godot la ou Python rend 0.
+
+  ⚠ **`res://trial_absolutiles_to_absolupaint_full.tscn` N'EST PAS AU DEPOT.** C'est la
+  scene ou le defaut se regarde ; elle a ete fabriquee dans une session precedente et perdue.
+  **La regenerer est le premier geste** de la reprise -- et cette fois la committer, ou
+  committer le script qui la fabrique.
+
+  Vient ensuite l'**exemple**, peint a la main par l'utilisateur, qui deviendra le choix
+  « Example » et devra passer en conditions reelles dans le logiciel **et** dans l'addon.
 - **LES MATIERES BORDEES : eau, sable, ce qui se pose DANS un plateau plat.** Une matiere
   est un **masque binaire**, donc une couche posee comme un etage, mais **sans falaise** :
   le blob 47 s'y applique sans une ligne de code de plus, et les coins arrondis laissent
