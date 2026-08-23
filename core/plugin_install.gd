@@ -29,6 +29,7 @@ const TARGET: String = "addons/absolupaint"
 ## Ce qui compose le plugin. Verifie par la suite de tests contre le dossier reel.
 const FILES: Array[String] = [
 	"README.md",
+	"dock.gd",
 	"icon.svg",
 	"manifest.gd",
 	"plugin.cfg",

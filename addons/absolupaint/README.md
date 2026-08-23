@@ -36,10 +36,28 @@ où elle borde le vide. Une case absente n'est rien : c'est le bord du monde.
 Sans cette distinction le plugin ne saurait pas où le sol s'arrête, et ne pourrait poser
 aucun étage 0.
 
-### ⚠ Il n'y a pas encore de pinceau
+### Le pinceau
 
-Le relief se remplit **par l'inspecteur ou par script**. L'outil de dessin dans l'éditeur
-Godot est le prochain chantier ; en attendant, trois appels suffisent :
+Le panneau **AbsoluPaint** s'ouvre à droite dès que l'extension est cochée.
+
+1. Choisissez un **étage** — `0` est du sol, `1` à `9` les plateaux, **`Vide`** retire la
+   case du monde.
+2. **Armez le pinceau.**
+3. **Clic gauche** pose l'étage choisi, **clic droit** retire la case. Le glisser peint une
+   ligne continue, sans trous.
+
+⚠ **Le pinceau s'arme à la main, exprès.** Tant qu'il est armé, la souris peint la carte
+au lieu de déplacer les nœuds. Un outil qui intercepte la souris sans qu'on l'ait demandé
+fait perdre le glisser-déposer, et on met dix minutes à comprendre pourquoi l'éditeur ne
+répond plus.
+
+⚠ **Ctrl+Z défait un TRAIT, pas une case.** L'annulation se pose au relâchement et d'un
+seul bloc : défaire un trait de cent cases en cent Ctrl+Z n'est ce que personne n'attend
+d'un pinceau.
+
+### Par script
+
+Le relief reste un simple dictionnaire, et tout est accessible :
 
 ```gdscript
 @onready var monde: Node2D = $AbsoluPaintWorld

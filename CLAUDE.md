@@ -1310,6 +1310,34 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **On propage depuis la tuile RÉELLEMENT peinte**, pas depuis la case survolée : avec
   les rotations, le crayon pose son pixel ailleurs et autrement.
 
+- **LE PINCEAU D'ABSOLUPAINT, ET LES TROIS LEÇONS PRISES À SATYRON.** Le plugin posait un
+  monde mais on remplissait `heights` à l'inspecteur. Un panneau à droite donne désormais
+  l'étage (0 à 9, plus **Vide**), un bouton d'armement, et le clic gauche pose / le clic
+  droit retire.
+
+  ⚠ **LE PINCEAU S'ARME À LA MAIN, ET C'EST UN BOUTON PLUTÔT QU'UN RACCOURCI.** Tant qu'il
+  est armé, la souris peint au lieu de déplacer les nœuds. Un outil qui intercepte la souris
+  sans qu'on l'ait demandé fait perdre le glisser-déposer, et on met dix minutes à
+  comprendre pourquoi l'éditeur ne répond plus.
+
+  ⚠ **ON SÉLECTIONNE LE MONDE EN S'ARMANT.** `_forward_canvas_gui_input` n'est appelé que
+  si `_handles` a dit oui de l'objet **sélectionné** : sans sélection, le pinceau serait
+  armé et **muet** — le mode de panne le plus déroutant qu'un outil d'éditeur puisse avoir.
+
+  ⚠ **ON COMBLE LA LIGNE.** Une souris rapide ne rapporte qu'une position tous les cinq ou
+  six pixels : sans Bresenham, un trait franc laisse des trous tous les deux centimètres.
+  Et le Bresenham porte une **borne** — il tourne dans l'éditeur, où une boucle infinie fige
+  tout sans qu'on puisse même enregistrer.
+
+  ⚠ **L'ANNULATION SE POSE AU RELÂCHEMENT, D'UN SEUL BLOC.** Une action par case ferait
+  défaire un trait de cent cases en cent Ctrl+Z. On photographie `heights` avant le trait et
+  on rend les deux états à `EditorUndoRedoManager` ; comme la propriété a un setter qui
+  repose le monde, les deux sens se redessinent seuls.
+
+  ⚠ **Et « Vide » est un choix d'étage, pas une absence de choix.** L'étage 0 est du
+  **sol** — il porte une tuile et une falaise là où il borde le vide. Retirer une case est
+  un autre geste, et les confondre faisait disparaître le sol au lieu de l'aplanir.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
@@ -1807,8 +1835,6 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   puisse l'éprouver sans acheter, et **rien ne fonctionne sans manifeste** — ce dernier point
   étant déjà vrai dans le code. Reste à écrire la signature et les deux refus qui vont avec.
   Voir la fiche détaillée en fin de fichier.
-- **Le pinceau de relief dans l'editeur Godot.** AbsoluPaint pose un monde, mais on remplit
-  `heights` par l'inspecteur ou par script. Il lui manque son outil de dessin.
 - **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a
   reprendre : c'est lui qui empeche les deux lecteurs de diverger.
 
