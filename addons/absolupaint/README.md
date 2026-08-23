@@ -14,9 +14,15 @@ racine du projet.
 
 Ensuite : **Projet → Paramètres du projet → Extensions**, et cochez `AbsoluPaint`.
 
+Un bouton **AbsoluPaint** apparaît aussitôt **dans la barre du haut**, à côté des menus.
+Vous n'avez rien à chercher.
+
 ## Usage
 
-1. Ajoutez un nœud **`AbsoluPaintWorld`** à votre scène.
+1. Ouvrez une scène, puis cliquez le bouton **AbsoluPaint** de la barre du haut. Il pose un
+   nœud **`AbsoluPaintWorld`** dans la scène et vous y emmène — et s'il y en a déjà un, il
+   vous y emmène sans en créer un second. (À la main : « Ajouter un nœud » →
+   `AbsoluPaintWorld`.)
 2. Dans l'inspecteur, pointez **`Manifest Path`** sur le `<nom>_tileset.txt` livré avec vos
    deux planches. Les images sont lues à côté de lui, sous les noms qu'il donne.
 3. Remplissez `heights` — un dictionnaire `Vector2i → étage`, de **0 à 9**.

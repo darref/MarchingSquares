@@ -2326,7 +2326,12 @@ func _test_plugin_install() -> void:
 		directory.list_dir_begin()
 		var entry: String = directory.get_next()
 		while entry != "":
-			if not directory.current_is_dir() and not entry.ends_with(".uid"):
+			# ⚠ NI LES .uid NI LES .import : ce ne sont pas des morceaux du plugin, ce sont
+			# les papiers que Godot etablit POUR NOTRE projet. Un `.import` pointe sur un
+			# fichier de notre dossier `.godot/` ; le copier chez l'acheteur y designerait
+			# quelque chose qui n'existe pas. Son editeur reimporte, c'est son affaire.
+			var papier: bool = entry.ends_with(".uid") or entry.ends_with(".import")
+			if not directory.current_is_dir() and not papier:
 				on_disk.append(entry)
 			entry = directory.get_next()
 		directory.list_dir_end()

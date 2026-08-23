@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- ABSOLUPAINT — un plateau vu de dessus, et sa falaise au sud.
+       Le produit tient en un glyphe : une surface, un coin rentrant qui dit
+       « autotile », et une face qui sort du plan. Trois tons, aucune fioriture.
+
+       Les couleurs sont celles du logiciel : l'herbe d'un plateau, la roche
+       d'une falaise, et son pied qui s'enfonce.
+
+       ⚠ LES ARCS MANGENT LA HAUTEUR. Une bande fine ne se decoupe pas dans une
+       forme arrondie en jouant sur son trace : l'arc du coin fait a lui seul
+       1,6 unite. On pose donc la teinte claire EN ENTIER, puis on recouvre par
+       en dessous -- la ou les bords sont droits, un rectangle suffit. -->
+
+  <!-- LE SOMMET : d'abord la levre claire en entier, coins arrondis compris -->
+  <path d="M3.6 2.4 h8.8 a1.6 1.6 0 0 1 1.6 1.6 v3.6 h-12 v-3.6 a1.6 1.6 0 0 1 1.6 -1.6 z"
+        fill="#aab388"/>
+  <!-- puis l'herbe par-dessus, a partir de la ou les bords sont droits -->
+  <rect x="2" y="3.1" width="12" height="4.5" fill="#869160"/>
+
+  <!-- LE COIN RENTRANT. C'est lui qui dit « autotile » plutot que « rocher » :
+       une tuile dont un angle est decoupe parce que sa voisine manque. -->
+  <path d="M14 3.4 v3.2 h-3.2 a3.2 3.2 0 0 1 3.2 -3.2 z" fill="#2f3a2c"/>
+
+  <!-- LA FACE DE FALAISE -->
+  <path d="M2 7.6 h12 v4.4 a1.6 1.6 0 0 1 -1.6 1.6 h-8.8 a1.6 1.6 0 0 1 -1.6 -1.6 z"
+        fill="#7a6a56"/>
+  <!-- sa striure, discrete : ce qui fait lire de la roche et non un aplat -->
+  <g fill="#6d5e4b">
+    <rect x="4.8" y="7.6" width="0.45" height="6" />
+    <rect x="8.3" y="7.6" width="0.45" height="6" />
+    <rect x="11.6" y="7.6" width="0.45" height="6" />
+  </g>
+  <!-- le chapiteau : la roche accroche le jour juste sous la levre -->
+  <rect x="2" y="7.6" width="12" height="0.55" fill="#93826b"/>
+  <!-- le pied, qui s'enfonce -->
+  <path d="M2 12.1 h12 a1.6 1.6 0 0 1 -1.6 1.5 h-8.8 a1.6 1.6 0 0 1 -1.6 -1.5 z"
+        fill="#514738"/>
+</svg>
