@@ -31,6 +31,7 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   blob_index.gd   voisinage 8 bits, canonicalisation, les 47 index
   corner_index.gd le reseau dual : une tuile a cheval sur quatre cases, 15 index
   families.gd     le SEUL endroit ou les deux vocabulaires de surface se ressemblent
+  seams.gd        les pixels que le modèle prouve identiques d'une tuile à l'autre
   symmetry.gd     rotations et miroirs, et les conditions qui les rendent licites
   painting.gd     les faux pixels posés dans chaque tuile
   mask_io.gd      lecture / écriture / accès d'un masque de guide (texte)
@@ -1262,6 +1263,52 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **Le prix, dit franchement** : `minimal` passe de 52x33 à **64x45**, donc la case à
   l'écran de ~26 à ~20 pixels. C'est l'inverse de la compaction de la 2.2.0, et c'est un
   arbitrage à revoir si l'écran devient plus important que la démonstration.
+
+- **LES RACCORDS OBLIGATOIRES : le même pixel, vu dans deux tuiles** (`core/seams.gd`).
+  Deux cases de robe qui se touchent ne se *ressemblent* pas : par endroits, elles **sont la
+  même paroi**. Le pixel qui borde l'une borde l'autre, et il n'y a aucune liberté à prendre
+  — c'est un seul point de roche, vu deux fois.
+
+  ⚠ **C'EST LA RÈGLE DES JUMELLES, D'UN CRAN PLUS FIN.** Une jumelle est la même *tuile*
+  vue ailleurs ; ici c'est le même *pixel* vu ailleurs. Rien n'est fabriqué (règle 3) :
+  l'artiste peint, on recopie là où l'égalité est **démontrée**. Et comme elle l'est, ne
+  pas recopier ne produirait qu'un tileset faux — **donc pas de case à cocher** (règle 5).
+
+  **Deux familles de contraintes, toutes deux déjà assertées par `_test_seams` :**
+  - *verticalement*, deux rangées qui se suivent dans une même chute sont la même face ;
+  - *horizontalement*, deux flancs `muet` face à face signifient la même lèvre.
+
+  ⚠ **ET LA CHAÎNE BOUCLE, CE QUI VA PLUS LOIN QU'IL N'Y PARAÎT.** Une chute de trois donne
+  « chapiteau, corps 0, pied », une de six « chapiteau, corps 0, corps 1, corps 0, corps 1,
+  pied » : par transitivité, **tous les raccords internes d'un pan portent le même profil**.
+  Le haut et le bas d'une tuile de corps sont donc identiques — exactement ce qu'on attend
+  d'une tuile qui se répète verticalement.
+
+  **Mesuré** : 144 bords de pixels, **78 liés** (54 %), 13 classes indépendantes. Soit
+  **65 bords à peindre en moins**.
+
+  ⚠ **LES COINS ONT COÛTÉ TRENTE DÉSACCORDS.** Un pixel de coin appartient à **deux** bords
+  — il est partagé avec la voisine de l'est *et* avec celle du sud — donc à deux classes,
+  qui doivent se rejoindre **là**. Sans ça, les milliers de pixels de bord tombaient juste
+  et seuls les coins se contredisaient. ⚠ **Mais la fusion ne vaut qu'au coin** : on ne
+  marie pas les deux classes entières, une ligne et une colonne n'ont aucune raison d'être
+  égales sur toute leur longueur.
+
+  ⚠ **LES SURFACES N'EN SONT PAS**, et c'est le point qu'il fallait avoir compris pour ne
+  pas se tromper de fonctionnalité. Le modèle n'y exige que l'absence de **trou**, jamais
+  l'égalité : à la frontière entre une case dont le nord est plein et une case dont il est
+  vide, la lèvre éclairée s'arrête **net**, et elle a raison. Y forcer les pixels
+  accuserait le dessin d'être fidèle. Ni les **arêtes** : là où un flanc dit `devant`, une
+  arête est *attendue*.
+
+  ⚠ **Le test ne vérifie pas que le dessin est juste, il vérifie qu'il ne PEUT PAS être
+  faux.** `_test_seams` mesure les raccords d'une illustration déjà faite ;
+  `_test_seam_propagation` peint **n'importe quoi** — une teinte tirée de la position, qui
+  ne doit rien à la structure — et exige que les raccords sortent exacts quand même. C'est
+  la différence entre contrôler et garantir.
+
+  ⚠ **On propage depuis la tuile RÉELLEMENT peinte**, pas depuis la case survolée : avec
+  les rotations, le crayon pose son pixel ailleurs et autrement.
 
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part

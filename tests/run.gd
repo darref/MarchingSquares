@@ -26,6 +26,7 @@ const PluginRules := preload("res://addons/absolupaint/rules.gd")
 const PluginManifest := preload("res://addons/absolupaint/manifest.gd")
 const PluginTileSet := preload("res://addons/absolupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
+const Seams := preload("res://core/seams.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -66,6 +67,7 @@ func _initialize() -> void:
 	_test_families()
 	_test_dual_end_to_end()
 	_test_seams()
+	_test_seam_propagation()
 	_test_underfoot()
 	_test_guide_image()
 	_test_wireframe_joins()
@@ -1827,6 +1829,90 @@ func _test_dual_end_to_end() -> void:
 ## nulle part ailleurs : une case d'atterrissage isolee -- une banquette au pied d'un
 ## contrefort -- montrait le SOL par ses coins nord decoupes, alors que la face de la
 ## falaise continue derriere. On lit donc le coin, et on exige de la roche.
+## LES RACCORDS OBLIGATOIRES : le meme point de roche, vu dans deux tuiles.
+##
+## ⚠ CE TEST NE VERIFIE PAS QUE LE DESSIN EST JUSTE, IL VERIFIE QU IL NE PEUT PAS ETRE
+## FAUX. `_test_seams` mesure les raccords d une illustration deja faite ; celui-ci peint
+## n importe quoi, en propageant comme l editeur, et exige que les raccords sortent exacts
+## quand meme. C est la difference entre controler et garantir.
+func _test_seam_propagation() -> void:
+	print("les raccords obligatoires : le meme pixel, vu dans deux tuiles")
+
+	# --- LA STRUCTURE, telle que le modele la deduit.
+	var tally: Dictionary = Seams.tally()
+	_check_equal(int(tally["edges"]), Walls.PAN_COUNT * Walls.BLOCK_ROWS * 4,
+			"les quatre bords de chaque tuile de robe sont recenses")
+	_check(int(tally["linked"]) > 0, "et une bonne part est LIEE (%d sur %d)"
+			% [int(tally["linked"]), int(tally["edges"])])
+	_check(Seams.row_chains().size() > 0,
+			"les enchainements de rangees se lisent des chutes reelles (%d)"
+			% Seams.row_chains().size())
+
+	# ⚠ UN PIXEL INTERIEUR N OBLIGE RIEN. Seuls les BORDS se touchent.
+	var side: int = 16
+	_check(Seams.mirrors(Vector2i(4, 1), side / 2, side / 2, side).is_empty(),
+			"un pixel interieur ne propage rien : seuls les bords se touchent")
+
+	# --- ON PEINT N IMPORTE QUOI, EN PROPAGEANT.
+	var painting: Painting = Painting.new(side)
+	var cell_of: Dictionary = {}
+	var next: int = 0
+	for role: Vector2i in Walls.ALL_ROLES:
+		cell_of[role] = Vector2i(next, 0)
+		next += 1
+	for role: Vector2i in Walls.ALL_ROLES:
+		for y: int in range(side):
+			for x: int in range(side):
+				# Une teinte qui ne doit RIEN a la structure des raccords : si le resultat
+				# est continu, c est la propagation qui l a fait, pas le choix des couleurs.
+				var tint: Color = _key_colour("%d,%d,%d,%d" % [role.x, role.y, x, y])
+				painting.paint(cell_of[role], x, y, tint)
+				for echo: Vector4i in Seams.mirrors(role, x, y, side):
+					painting.paint(cell_of[Vector2i(echo.x, echo.y)], echo.z, echo.w, tint)
+
+	# --- ET LES DEUX CONTRAINTES DOIVENT TENIR, SANS UNE RETOUCHE.
+	var vertical: int = 0
+	for pair: Vector2i in Seams.row_chains():
+		for pan: int in range(Walls.PAN_COUNT):
+			var upper: Image = painting.image_of(cell_of[Vector2i(pan, pair.x)])
+			var lower: Image = painting.image_of(cell_of[Vector2i(pan, pair.y)])
+			for x: int in range(side):
+				if upper.get_pixel(x, side - 1) != lower.get_pixel(x, 0):
+					vertical += 1
+	_check_equal(vertical, 0,
+			"UNE FALAISE EST UNE FACE : la derniere ligne d une rangee EST la premiere de la suivante")
+
+	var horizontal: int = 0
+	for row: int in range(Walls.BLOCK_ROWS):
+		for left: int in range(Walls.PAN_COUNT):
+			if Walls.pan_east(left) != Walls.SIDE_MUTE:
+				continue
+			for right: int in range(Walls.PAN_COUNT):
+				if Walls.pan_west(right) != Walls.SIDE_MUTE:
+					continue
+				var a: Image = painting.image_of(cell_of[Vector2i(left, row)])
+				var b: Image = painting.image_of(cell_of[Vector2i(right, row)])
+				for y: int in range(side):
+					if a.get_pixel(side - 1, y) != b.get_pixel(0, y):
+						horizontal += 1
+	_check_equal(horizontal, 0,
+			"DEUX FLANCS MUETS SONT LA MEME PAROI : leurs colonnes mitoyennes sont identiques")
+
+	# ⚠ ET LA PROPAGATION NE DEBORDE PAS. La ou une arete est ATTENDUE -- un flanc qui dit
+	# `devant` -- rien ne doit avoir ete recopie : le modele n y prouve aucune egalite, et
+	# forcer les pixels y accuserait le dessin de faire ce qu on lui demande.
+	var overreach: int = 0
+	for row: int in range(Walls.BLOCK_ROWS):
+		for pan: int in range(Walls.PAN_COUNT):
+			if Walls.pan_east(pan) != Walls.SIDE_FRONT:
+				continue
+			for echo: Vector4i in Seams.mirrors(Vector2i(pan, row), side - 1, 3, side):
+				if echo.z == 0:
+					overreach += 1
+	_check_equal(overreach, 0,
+			"la ou une ARETE est attendue, rien n est recopie : on ne prouve pas l egalite la")
+
+
 func _test_underfoot() -> void:
 	print("le sous-pied : la roche continue derriere les coins decoupes")
 	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))

@@ -17,6 +17,7 @@ const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Families := preload("res://core/families.gd")
+const Seams := preload("res://core/seams.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
 
 ## Emis des que la peinture change : l'editeur s'en sert pour rafraichir ses compteurs.
@@ -709,9 +710,40 @@ func _touch(position: Vector2) -> bool:
 		if touched:
 			_stale[to] = true
 			changed = true
+		if _echo_seams(to, moved.x, moved.y):
+			changed = true
 	if changed:
 		_changed = true
 	return changed
+
+
+## LES RACCORDS OBLIGATOIRES : le meme point de roche, vu dans une autre tuile.
+##
+## ⚠ ON PART DE LA TUILE REELLEMENT PEINTE, pas de la case survolee. Avec les rotations,
+## le crayon pose son pixel ailleurs et autrement ; propager depuis l'origine recopierait le
+## raccord au mauvais endroit. On propage depuis ce qui vient d'etre pose.
+##
+## ⚠ ET ON NE PROPAGE PAS L'ECHO DE L'ECHO. `Seams.mirrors` rend la classe ENTIERE d'un
+## coup : repartir de chaque copie tournerait en rond pour rien.
+func _echo_seams(cell: Vector2i, x: int, y: int) -> bool:
+	if _painting == null or not _wall_roles.has(cell):
+		return false
+	var echoes: Array[Vector4i] = Seams.mirrors(_wall_roles[cell], x, y,
+			_painting.resolution)
+	if echoes.is_empty():
+		return false
+	var moved: bool = false
+	for echo: Vector4i in echoes:
+		var role: Vector2i = Vector2i(echo.x, echo.y)
+		if not _by_role.has(role):
+			continue
+		for twin: Vector2i in _by_role[role]:
+			var done: bool = _painting.paint(twin, echo.z, echo.w, pencil) if _stroke > 0 \
+					else _painting.erase(twin, echo.z, echo.w)
+			if done:
+				_stale[twin] = true
+				moved = true
+	return moved
 
 
 ## Les cases qu'un coup de crayon touche, chacune avec la transformation a appliquer a ses
