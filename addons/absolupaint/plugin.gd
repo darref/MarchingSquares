@@ -27,8 +27,10 @@ var _alert: AcceptDialog = null
 
 ## Les cases du trait en cours, sans doublon. Vide hors trait.
 var _stroke: Dictionary = {}
-## Le relief tel qu'il etait avant le trait : c'est lui que l'annulation remet.
-var _before: Dictionary = {}
+## Le contre-geste du trait : la valeur d'AVANT de chaque case changee, premiere touche.
+var _undo_delta: Dictionary = {}
+## Le geste net du trait : la valeur FINALE de chaque case reellement changee.
+var _redo_delta: Dictionary = {}
 var _erasing: bool = false
 var _last_cell: Vector2i = Vector2i.ZERO
 var _has_last: bool = false
@@ -213,7 +215,12 @@ func _forward_canvas_gui_input(event: InputEvent) -> bool:
 				_complain(String(blocking[0]), String(blocking[1]))
 				return true
 			_stroke.clear()
-			_before = (world.heights as Dictionary).duplicate()
+			# ⚠ ON N'EMPORTE PLUS LA CARTE ENTIERE. Photographier `heights` au clic puis au
+			# relachement coutait deux copies completes par trait -- 3,4 ms chacune a
+			# 200x150, et autant de memoire d'historique -- pour n'en rejouer que quelques
+			# cases. `apply()` rend le contre-geste : l'annulation n'enregistre que le trait.
+			_undo_delta = {}
+			_redo_delta = {}
 			# ⚠ LE BOUTON DROIT RETIRE TOUJOURS, quel que soit l'etage choisi. C'est le geste
 			# de retouche -- reprendre un bord sans changer de reglage.
 			_erasing = click.button_index == MOUSE_BUTTON_RIGHT
@@ -258,24 +265,40 @@ func _gather(world: Node, at: Vector2) -> void:
 	var changes: Dictionary = {}
 	for step: Vector2i in fresh:
 		changes[step] = -1 if (_erasing or level < 0) else level
-	world.apply(changes)
+	var inverse: Dictionary = world.apply(changes)
+	# Premiere touche gagne cote annulation, geste final cote refaire : l'aller-retour est
+	# exact, et une case que le trait n'a pas vraiment changee n'entre dans aucun des deux.
+	_undo_delta.merge(inverse)
+	for changed: Vector2i in inverse.keys():
+		_redo_delta[changed] = changes[changed]
 
 
 ## ⚠ L'ANNULATION SE POSE AU RELACHEMENT, ET D'UN SEUL BLOC. Une action par case ferait
 ## defaire un trait de cent cases en cent Ctrl+Z -- ce que personne n'attend d'un pinceau.
+##
+## ⚠ ET ELLE REJOUE DES GESTES, PAS DES CARTES. `add_do_property(heights)` stockait DEUX
+## reliefs entiers par trait dans l'historique, et chaque Ctrl+Z repayait un releve
+## complet par le setter. Les deux dictionnaires du trait suffisent : `apply()` les
+## rejoue par la zone, dans les deux sens, et l'historique pese le trait -- pas le monde.
 func _commit(world: Node) -> void:
 	if _stroke.is_empty():
 		return
-	var painted: int = _stroke.size()
 	_stroke.clear()
 	_has_last = false
-	var after: Dictionary = (world.heights as Dictionary).duplicate()
+	# Un trait qui n'a rien change -- repasse sur ses propres valeurs -- ne merite pas une
+	# entree d'historique : un Ctrl+Z qui « defait » sans rien defaire desoriente.
+	if _redo_delta.is_empty():
+		_undo_delta = {}
+		_say("Rien a changer : ces cases portaient deja cet etage.")
+		return
 	var history: EditorUndoRedoManager = get_undo_redo()
-	history.create_action("Peindre le relief (%d cases)" % painted)
-	history.add_do_property(world, "heights", after)
-	history.add_undo_property(world, "heights", _before)
+	history.create_action("Peindre le relief (%d cases)" % _redo_delta.size())
+	history.add_do_method(world, "apply", _redo_delta.duplicate())
+	history.add_undo_method(world, "apply", _undo_delta.duplicate())
 	history.commit_action(false)
-	_say("%d cases posees." % painted)
+	_say("%d cases posees." % _redo_delta.size())
+	_undo_delta = {}
+	_redo_delta = {}
 
 
 ## Bresenham entier. ⚠ AVEC UNE BORNE : il tourne dans l'EDITEUR, et une boucle infinie y

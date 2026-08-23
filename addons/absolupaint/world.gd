@@ -126,33 +126,54 @@ func rebuild() -> void:
 	# qu'on le dessinait. Une couche qu'on pose sans la nettoyer est une fuite.
 	_clear_layers()
 	_top = Rules.top_level(heights)
+	# ⚠ LES COUCHES SUIVENT LE MONDE, ICI AUSSI. Seul `_reload` les taillait : un monde qui
+	# GRANDISSAIT par le setter `heights` gardait ses couches d'avant, et les etages
+	# au-dessus n'etaient simplement pas poses -- des sommets absents, sans une erreur.
+	# Mesure sur la scene d'essai instanciee : une seule couche de surface au lieu de trois.
+	_ensure_layers()
 
 	_lay_surfaces(_world_region())
 	_lay_walls(Rules.underfoot(heights), Rules.walls(heights))
 
 
-## POSE OU RETIRE UN LOT DE CASES, ET NE REPOSE QUE CE QUI A PU DEVENIR FAUX.
+## POSE OU RETIRE UN LOT DE CASES, NE REPOSE QUE CE QUI A PU DEVENIR FAUX, ET REND LE
+## CONTRE-GESTE : la valeur d'AVANT de chaque case reellement changee (`Rules.VOID` pour
+## une case qui n'existait pas). Rejouer ce dictionnaire dans `apply()` defait exactement
+## le geste -- c'est ce que l'annulation du pinceau enregistre, au lieu de photographier
+## la carte entiere deux fois par trait.
 ##
-## ⚠ C'EST LE CHEMIN DU PINCEAU. `rebuild()` refait la carte entiere : juste, et intenable
-## au coup de crayon -- mesure, 7 ms sur 32x24 mais 456 ms sur 256x192, et c'est PAR CASE
-## PEINTE. La zone, elle, ne depend que de la portee du modele, pas de la taille du monde.
+## ⚠ C'EST LE CHEMIN DU PINCEAU, ET CELUI DE TOUTE ECRITURE. `rebuild()` refait la carte
+## entiere : juste, et intenable au coup de crayon -- mesure, 7 ms sur 32x24 mais 456 ms
+## sur 256x192, et c'est PAR CASE PEINTE. La zone, elle, ne depend que de la portee du
+## modele, pas de la taille du monde. `set_level`, `clear_cell` et `fill` passent par ici.
+##
+## ⚠ UNE CASE QUI NE CHANGE PAS NE COUTE RIEN. Reposer la meme valeur repayait la zone
+## entiere -- mesure, 2,9 ms l'appel pour ne rien changer, et le pinceau repasse sans
+## cesse sur ses propres cases. Ne rien poser est aussi ce qui garde le contre-geste
+## minimal : une case intacte n'a rien a defaire.
 ##
 ## ⚠ ON MUTE `heights` EN PLACE, SANS PASSER PAR SON SETTER. L'affectation declencherait
 ## `rebuild()` -- toute la carte -- et le gain serait perdu au premier pixel. Un dictionnaire
 ## se modifie par reference : c'est exactement ce qu'il faut ici.
-func apply(changes: Dictionary) -> void:
+func apply(changes: Dictionary) -> Dictionary:
+	var undo: Dictionary = {}
 	var touched: Array[Vector2i] = []
 	for cell: Vector2i in changes.keys():
 		var level: int = int(changes[cell])
-		if level < 0:
+		var wanted: int = clampi(level, 0, 9) if level >= 0 else Rules.VOID
+		var previous: int = int(heights.get(cell, Rules.VOID))
+		if previous == wanted:
+			continue
+		undo[cell] = previous
+		if wanted < 0:
 			heights.erase(cell)
 		else:
-			heights[cell] = clampi(level, 0, 9)
-			_top = maxi(_top, level)
+			heights[cell] = wanted
+			_top = maxi(_top, wanted)
 		touched.append(cell)
-	if touched.is_empty():
-		return
-	rebuild_region(Rules.region_of(heights, touched, _top))
+	if not touched.is_empty():
+		rebuild_region(Rules.region_of(heights, touched, _top))
+	return undo
 
 
 ## Repose une zone : on efface d'abord, puis on pose. Les trois couches.
@@ -216,11 +237,16 @@ func _lay_surfaces(region: Rect2i) -> void:
 ## dessous, sinon elle le recouvrirait.
 func _lay_walls(underfoot: Dictionary, roles: Dictionary) -> void:
 	var wall_slots: Dictionary = _manifest["wall_slots"]
+	# ⚠ EN FAMILLE A CHEVAL, TOUTE POSE DERRIERE VA SOUS LA COUCHE UNIQUE. Les tuiles
+	# duales vivent toutes sur Surface0 : posee sur SousPied1 ou plus, une roche passerait
+	# DEVANT elles, et la case d'atterrissage montrait un carre de pierre a la place de
+	# son dessus. L'assembly pose les sous-pieds avant toutes les tuiles ; ici pareil.
+	var corner: bool = _manifest.get("family", "") == Manifest.BY_CORNER
 	for cell: Vector2i in underfoot.keys():
 		var under: Vector2i = underfoot[cell]
 		if not wall_slots.has(under):
 			continue
-		var landing: int = clampi(Rules.level_at(heights, cell), 0,
+		var landing: int = 0 if corner else clampi(Rules.level_at(heights, cell), 0,
 				_underfoot_layers.size() - 1)
 		_underfoot_layers[landing].set_cell(cell, _walls_source, wall_slots[under])
 	for cell: Vector2i in roles.keys():
@@ -241,9 +267,13 @@ func _world_region() -> Rect2i:
 
 ## Change l'etage d'une case, et repose ce qui en depend.
 ##
-## ⚠ UNE CASE CHANGE BIEN PLUS QUE SA PROPRE TUILE : ses huit voisines changent d'index, et
-## une falaise peut s'allonger de six cases vers le sud. On repose donc tout. C'est franc,
-## et ca reste tenable tant que le monde tient en memoire.
+## ⚠ PAR LA ZONE, PLUS PAR LA CARTE ENTIERE. Cette fonction refaisait tout le monde a
+## chaque appel -- « franc et tenable » du temps ou la zone n'existait pas. La zone est
+## depuis PROUVEE equivalente au releve complet (le test du pinceau la compare dans les
+## deux sens), et le releve complet coutait ici 48,9 ms sur 64x45 et 572,8 ms sur 200x150
+## PAR CASE POSEE. On passe par `apply()`, comme toute ecriture : ~3 ms, quelle que soit
+## la carte. Seule difference, deja documentee sur `_top` : il ne redescend qu'au releve
+## complet -- trop haut elargit un peu la zone, trop bas laisserait le monde faux.
 ##
 ## ⚠ ET L'ETAGE 0 EST UN ETAGE, PAS UN EFFACEMENT. Cette fonction n'avait pas suivi
 ## l'inversion du vide : elle effacait la case des qu'on lui demandait l'etage 0, ce qui
@@ -252,11 +282,7 @@ func _world_region() -> Rect2i:
 ## le sol au lieu de l'aplanir. Pour retirer une case, `Rules.VOID` ou n'importe quel
 ## niveau negatif.
 func set_level(cell: Vector2i, level: int) -> void:
-	if level < 0:
-		heights.erase(cell)
-	else:
-		heights[cell] = clampi(level, 0, 9)
-	rebuild()
+	apply({cell: level})
 
 
 ## Retire une case du monde : elle redevient du hors-monde, pas de la plaine.
@@ -266,14 +292,13 @@ func clear_cell(cell: Vector2i) -> void:
 
 ## Pose un rectangle de monde d'un seul etage. De quoi avoir un sol sous la main avant de
 ## dessiner le relief -- sans lui, un monde vide n'a rien a border et ne montre rien.
+## Par `apply()`, comme toute ecriture : les cases deja au bon etage ne coutent rien.
 func fill(from: Vector2i, to: Vector2i, level: int = 0) -> void:
+	var changes: Dictionary = {}
 	for y: int in range(mini(from.y, to.y), maxi(from.y, to.y) + 1):
 		for x: int in range(mini(from.x, to.x), maxi(from.x, to.x) + 1):
-			if level < 0:
-				heights.erase(Vector2i(x, y))
-			else:
-				heights[Vector2i(x, y)] = clampi(level, 0, 9)
-	rebuild()
+			changes[Vector2i(x, y)] = level
+	apply(changes)
 
 
 func level_at(cell: Vector2i) -> int:

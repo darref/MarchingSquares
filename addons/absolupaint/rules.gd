@@ -460,9 +460,14 @@ static func corners_in(heights: Dictionary, region: Rect2i) -> Dictionary:
 			var cell: Vector2i = Vector2i(x, y)
 			if heights.has(cell):
 				narrow[cell] = heights[cell]
-	for crossing: Vector2i in corners(narrow).keys():
+	# ⚠ LA CARTE COUTEUSE SE CALCULE UNE FOIS, PAS A CHAQUE TOUR DE BOUCLE. `corners(narrow)`
+	# etait rappele PAR CROISEMENT dans le corps de la boucle -- la huitieme occurrence de
+	# la faute deja payee sept fois cote logiciel. Mesure : 57 ms par coup de crayon en
+	# famille a cheval, quelques centaines de microsecondes une fois la carte hissee.
+	var found: Dictionary = corners(narrow)
+	for crossing: Vector2i in found.keys():
 		if region.has_point(crossing):
-			visible[crossing] = corners(narrow)[crossing]
+			visible[crossing] = found[crossing]
 	return visible
 
 
