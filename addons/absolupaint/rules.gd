@@ -352,6 +352,124 @@ static func assemble_walls(heights: Dictionary) -> Dictionary:
 	return {"roles": roles, "underfoot": underfoot}
 
 
+## LA ZONE QUE DES CASES CHANGEES PEUVENT AVOIR RENDUE FAUSSE.
+##
+## Refaire toute la carte a chaque coup de crayon est juste et intenable : mesure, 7 ms sur
+## 32x24 mais 456 ms sur 256x192 -- et c'est PAR CASE PEINTE. Refaire trop peu est pire :
+## le monde devient faux pendant qu'on le dessine, et rien ne le signale.
+##
+## ⚠ LA PORTEE SE DEDUIT DU MODELE, ELLE NE SE DEVINE PAS. Trois raisons, chacune donnant
+## sa marge :
+##
+##   - l'index d'une case ne depend que de sa fenetre 3x3, et un croisement ne touche que
+##     quatre cases : DEUX cases suffisent de tous les cotes ;
+##   - une levre plus HAUT peut tomber a travers la case changee, et sa chute vaut au plus
+##     `STOREY_TILES x (etage le plus haut + 1)` ; changer la case peut donc rallonger ou
+##     raccourcir cette chute-la, qui commence bien au-dessus ;
+##   - et vers le BAS, la case changee peut elle-meme devenir une levre, avec sa chute
+##     entiere, plus la case de sous-pied qui la suit.
+##
+## ⚠ LE PAN D'UNE COLONNE SE COMPARE A CELUI DE SA VOISINE, d'ou les deux colonnes de
+## marge : changer une colonne change le pan de celles d'a cote, jamais plus loin -- un pan
+## ne modifie aucune levre, donc la cascade s'arrete la.##
+## ⚠ `top` SE PASSE PLUTOT QUE DE SE RELIRE. `top_level` parcourt TOUT le dictionnaire :
+## c'etait la derniere lecture proportionnelle a la carte, et elle suffisait a faire
+## remonter le cout de 1,4 a 9,8 millisecondes entre 32x24 et 256x192 alors que la zone,
+## elle, ne bougeait pas d'une case. Un -1 le fait relire.
+##
+## ⚠ ET UN `top` TROP GRAND N'EST JAMAIS FAUX, seulement un peu lent : la zone est plus
+## large que necessaire, donc elle contient toujours ce qu'il fallait refaire. C'est la
+## bonne direction pour une approximation -- l'inverse laisserait le monde faux.
+static func region_of(heights: Dictionary, cells: Array, top: int = -1) -> Rect2i:
+	if cells.is_empty():
+		return Rect2i()
+	var low: Vector2i = cells[0]
+	var high: Vector2i = cells[0]
+	for cell: Vector2i in cells:
+		low = Vector2i(mini(low.x, cell.x), mini(low.y, cell.y))
+		high = Vector2i(maxi(high.x, cell.x), maxi(high.y, cell.y))
+	var reach: int = STOREY_TILES * ((top_level(heights) if top < 0 else top) + 1)
+	var from: Vector2i = Vector2i(low.x - 2, low.y - reach - 2)
+	var to: Vector2i = Vector2i(high.x + 2, high.y + reach + 3)
+	return Rect2i(from, to - from + Vector2i.ONE)
+
+
+## Les surfaces d'une zone, memes regles que partout.
+static func surfaces_in(heights: Dictionary, region: Rect2i) -> Dictionary:
+	# ⚠ ON PARCOURT LA ZONE, PAS LE DICTIONNAIRE. Filtrer les cases du monde une par une
+	# reste proportionnel a la CARTE : la zone avait beau etre bornee, la recherche ne l'etait
+	# pas, et 256x192 coutait encore dix-sept millisecondes la ou trente-deux sur vingt-quatre
+	# en coutaient une et demie. Une borne qu'on franchit a la lecture n'est pas une borne.
+	var visible: Dictionary = {}
+	for y: int in range(region.position.y, region.end.y):
+		for x: int in range(region.position.x, region.end.x):
+			var cell: Vector2i = Vector2i(x, y)
+			if not heights.has(cell):
+				continue
+			var index: int = surface_index_at(heights, cell)
+			if index != NO_INDEX:
+				visible[cell] = index
+	return visible
+
+
+## Les croisements d'une zone.
+static func corners_in(heights: Dictionary, region: Rect2i) -> Dictionary:
+	var visible: Dictionary = {}
+	var narrow: Dictionary = {}
+	var scan: Rect2i = Rect2i(region.position - Vector2i.ONE, region.size + Vector2i(2, 2))
+	for y: int in range(scan.position.y, scan.end.y):
+		for x: int in range(scan.position.x, scan.end.x):
+			var cell: Vector2i = Vector2i(x, y)
+			if heights.has(cell):
+				narrow[cell] = heights[cell]
+	for crossing: Vector2i in corners(narrow).keys():
+		if region.has_point(crossing):
+			visible[crossing] = corners(narrow)[crossing]
+	return visible
+
+
+## Les robes et les sous-pieds d'une zone.
+##
+## ⚠ ON RAMASSE LES LEVRES PLUS LARGE QU'ON NE POSE. Le pan d'une case se lit de ce que
+## les robes VOISINES couvrent a cette hauteur-la : en ne regardant que la zone, les
+## colonnes du bord auraient un pan faux. On assemble donc sur une zone elargie, et on ne
+## garde que le dedans.
+static func walls_in(heights: Dictionary, region: Rect2i, top: int = -1) -> Dictionary:
+	var reach: int = STOREY_TILES * ((top_level(heights) if top < 0 else top) + 1)
+	var scan: Rect2i = Rect2i(region.position - Vector2i(2, reach + 2),
+			region.size + Vector2i(4, 2 * reach + 4))
+	var narrow: Dictionary = {}
+	for y: int in range(scan.position.y, scan.end.y):
+		for x: int in range(scan.position.x, scan.end.x):
+			var cell: Vector2i = Vector2i(x, y)
+			if heights.has(cell):
+				narrow[cell] = heights[cell]
+	var assembled: Dictionary = assemble_walls(narrow)
+	return {
+		"roles": _keep_inside(_highest(assembled["roles"]), region),
+		"underfoot": _keep_inside(_highest(assembled["underfoot"]), region),
+	}
+
+
+static func _highest(by_level: Dictionary) -> Dictionary:
+	var highest: Dictionary = {}
+	var chosen: Dictionary = {}
+	for key: Vector3i in by_level.keys():
+		var cell: Vector2i = Vector2i(key.x, key.y)
+		if not highest.has(cell) or key.z > int(highest[cell]):
+			highest[cell] = key.z
+			chosen[cell] = by_level[key]
+	return chosen
+
+
+static func _keep_inside(cells: Dictionary, region: Rect2i) -> Dictionary:
+	var kept: Dictionary = {}
+	for cell: Vector2i in cells.keys():
+		if region.has_point(cell):
+			kept[cell] = cells[cell]
+	return kept
+
+
 ## Le role VISIBLE de chaque case de robe : celui de l'etage le plus haut qui l'occupe.
 static func walls(heights: Dictionary) -> Dictionary:
 	var roles: Dictionary = assemble_walls(heights)["roles"]

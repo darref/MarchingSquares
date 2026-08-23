@@ -1338,6 +1338,49 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **sol** — il porte une tuile et une falaise là où il borde le vide. Retirer une case est
   un autre geste, et les confondre faisait disparaître le sol au lieu de l'aplanir.
 
+- **LA ZONE À REFAIRE : le pinceau ne repose plus la carte entière.** Poser une case change
+  bien plus que sa tuile — les huit voisines changent d'index, une falaise peut s'allonger de
+  trente rangées, et le pan des colonnes d'à côté bascule. `rebuild()` refaisait donc tout,
+  ce qui est **juste et intenable** : mesuré, **7 ms sur 32x24 mais 456 ms sur 256x192** —
+  et c'est **par case peinte**.
+
+  **La portée se déduit du modèle, elle ne se devine pas.** Trois raisons, chacune donnant
+  sa marge :
+  - l'index ne dépend que d'une fenêtre 3x3, un croisement ne touche que quatre cases →
+    **deux cases** de tous les côtés ;
+  - une lèvre **plus haut** peut tomber à travers la case changée → vers le haut,
+    `STOREY_TILES x (étage le plus haut + 1)` ;
+  - la case peut elle-même devenir une lèvre → autant vers le bas, **plus le sous-pied**.
+
+  ⚠ **LE PAN SE COMPARE À LA VOISINE, ET LA CASCADE S'ARRÊTE LÀ.** Changer une colonne
+  change le pan de celles d'à côté, jamais plus loin — un pan ne modifie aucune lèvre.
+
+  ⚠ **ON RAMASSE LES LÈVRES PLUS LARGE QU'ON NE POSE.** Le pan d'une case se lit de ce que
+  les robes **voisines** couvrent à cette hauteur : en n'assemblant que la zone, les colonnes
+  du bord auraient un pan faux. On assemble sur une zone élargie, on ne garde que le dedans.
+
+  ⚠ **UNE BORNE QU'ON FRANCHIT À LA LECTURE N'EST PAS UNE BORNE.** Première version : la
+  zone était bornée mais le filtrage parcourait tout le dictionnaire, et `top_level` aussi.
+  Le coût suivait donc encore la carte — 1,4 ms à 32x24, 9,8 à 256x192, pour une zone qui ne
+  bougeait pas d'une case. On parcourt la **zone**, et `top` se passe en paramètre.
+
+  **Résultat : le coût ne dépend plus de la carte.** 1,3 ms à 768 cases, **2,0 ms à 196 608**.
+
+  ⚠ **Un `top` trop grand n'est jamais faux, seulement un peu lent** — la zone est alors
+  plus large que nécessaire, donc elle contient toujours ce qu'il fallait refaire. C'est la
+  bonne direction pour une approximation ; l'inverse laisserait le monde faux.
+
+  ⚠ **Deux fautes possibles, une seule se voit.** Une zone trop grande coûte du temps ; une
+  zone trop petite laisse le monde faux **pendant qu'on le dessine**, et rien ne le signale.
+  Le test mesure donc la seconde : sur soixante reliefs, **tout** ce qu'une retouche change
+  tombe dans la zone, et le calcul borné dit **exactement** ce que dirait le complet.
+
+- **⚠ UNE COUCHE QU'ON POSE SANS LA NETTOYER EST UNE FUITE.** `rebuild()` effaçait la couche
+  des surfaces et celle des falaises — **mais pas celle du sous-pied**. Ses tuiles
+  s'accumulaient à chaque coup de crayon et ne disparaissaient jamais : retirer un plateau
+  laissait la roche de sa falaise sous le sol, et **le monde devenait faux pendant qu'on le
+  dessinait**. Trouvé en cherchant la complexité, pas la justesse.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que

@@ -181,16 +181,14 @@ func _gather(world: Node, at: Vector2) -> void:
 	if fresh.is_empty():
 		return
 	# On pose tout de suite : un pinceau qui ne montre rien avant le relachement se peint a
-	# l'aveugle. Le monde entier se repose a chaque case, ce qui reste tenable tant qu'il
-	# tient en memoire -- et c'est deja l'hypothese de `rebuild`.
-	var relief: Dictionary = world.heights
+	# l'aveugle. Mais on ne repose QUE la zone que le changement a pu rendre fausse -- refaire
+	# la carte entiere par case peinte coute 456 ms sur 256x192, et le pinceau devient
+	# inutilisable des qu'un monde grandit.
 	var level: int = _dock.chosen_level()
+	var changes: Dictionary = {}
 	for step: Vector2i in fresh:
-		if _erasing or level < 0:
-			relief.erase(step)
-		else:
-			relief[step] = level
-	world.heights = relief
+		changes[step] = -1 if (_erasing or level < 0) else level
+	world.apply(changes)
 
 
 ## ⚠ L'ANNULATION SE POSE AU RELACHEMENT, ET D'UN SEUL BLOC. Une action par case ferait

@@ -73,6 +73,7 @@ func _initialize() -> void:
 	_test_wireframe_joins()
 	_test_plugin_rules()
 	_test_trial_tileset()
+	_test_dirty_region()
 	_test_plugin_manifest()
 	_test_plugin_install()
 	_test_every_script_parses()
@@ -2328,6 +2329,75 @@ func _test_trial_tileset() -> void:
 
 	for path: String in done["written"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## LA ZONE A REFAIRE, QUAND LE PINCEAU CHANGE UNE CASE.
+##
+## ⚠ DEUX FAUTES POSSIBLES, ET UNE SEULE SE VOIT. Une zone TROP GRANDE coute du temps ;
+## une zone TROP PETITE laisse le monde faux pendant qu'on le dessine, et rien ne le
+## signale. On mesure donc la seconde : tout ce qui change apres une retouche doit tomber
+## DANS la zone -- sinon la zone ment.
+##
+## ⚠ ET LE CALCUL BORNE DOIT DIRE EXACTEMENT LA MEME CHOSE QUE LE COMPLET. Sans ca on
+## aurait deux regles de pose au lieu d'une, et c'est precisement ce que le manifeste-contrat
+## existe pour empecher.
+func _test_dirty_region() -> void:
+	print("le pinceau : la zone a refaire, ni trop petite ni differente")
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260823
+	var outside: int = 0
+	var apart: int = 0
+	var rounds: int = 60
+	var side: int = 12
+
+	for _round: int in range(rounds):
+		var world: Dictionary = {}
+		for y: int in range(side):
+			for x: int in range(side):
+				world[Vector2i(x, y)] = rng.randi_range(0, 2)
+		var before: Array[Dictionary] = [PluginRules.surfaces(world),
+				PluginRules.walls(world), PluginRules.underfoot(world)]
+
+		var cell: Vector2i = Vector2i(rng.randi_range(0, side - 1), rng.randi_range(0, side - 1))
+		if rng.randf() < 0.3:
+			world.erase(cell)
+		else:
+			world[cell] = rng.randi_range(0, 2)
+
+		var after: Array[Dictionary] = [PluginRules.surfaces(world),
+				PluginRules.walls(world), PluginRules.underfoot(world)]
+		var region: Rect2i = PluginRules.region_of(world, [cell])
+
+		for k: int in range(3):
+			for at: Vector2i in before[k].keys():
+				var gone: bool = not after[k].has(at)
+				if (gone or after[k][at] != before[k][at]) and not region.has_point(at):
+					outside += 1
+			for at: Vector2i in after[k].keys():
+				if not before[k].has(at) and not region.has_point(at):
+					outside += 1
+
+		var narrow: Dictionary = PluginRules.walls_in(world, region)
+		for at: Vector2i in PluginRules.surfaces_in(world, region).keys():
+			if after[0].get(at) != PluginRules.surfaces_in(world, region)[at]:
+				apart += 1
+		for at: Vector2i in after[0].keys():
+			if region.has_point(at) and not PluginRules.surfaces_in(world, region).has(at):
+				apart += 1
+		for at: Vector2i in (narrow["roles"] as Dictionary).keys():
+			if after[1].get(at) != narrow["roles"][at]:
+				apart += 1
+		for at: Vector2i in after[1].keys():
+			if region.has_point(at) and not (narrow["roles"] as Dictionary).has(at):
+				apart += 1
+		for at: Vector2i in (narrow["underfoot"] as Dictionary).keys():
+			if after[2].get(at) != narrow["underfoot"][at]:
+				apart += 1
+
+	_check_equal(outside, 0,
+			"TOUT ce qu une retouche change tombe DANS la zone : elle n est jamais trop petite")
+	_check_equal(apart, 0,
+			"et la zone dit EXACTEMENT ce que dirait le calcul complet")
 
 
 func _test_plugin_manifest() -> void:

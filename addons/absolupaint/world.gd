@@ -49,6 +49,11 @@ var _underfoot_layer: TileMapLayer = null
 var _surface_layer: TileMapLayer = null
 var _walls_layer: TileMapLayer = null
 var _manifest: Dictionary = {}
+## L'etage le plus haut du monde, garde sous la main.
+## ⚠ IL NE REDESCEND QU'AU RELEVE COMPLET, et c'est voulu : le garder trop haut elargit la
+## zone a refaire -- un peu de temps perdu -- alors que le garder trop bas la retrecirait, et
+## laisserait le monde faux. Entre les deux erreurs, une seule est tolerable.
+var _top: int = 0
 var _surface_source: int = -1
 var _walls_source: int = -1
 
@@ -117,8 +122,12 @@ func _reload() -> void:
 func rebuild() -> void:
 	if _surface_layer == null or _surface_source < 0:
 		return
-	_surface_layer.clear()
-	_walls_layer.clear()
+	# ⚠ LES TROIS COUCHES, PAS DEUX. Le sous-pied n'etait pas nettoye : ses tuiles
+	# s'accumulaient a chaque coup de crayon et ne disparaissaient jamais. Retirer un plateau
+	# laissait donc la roche de sa falaise sous le sol, et le monde devenait faux PENDANT
+	# qu'on le dessinait. Une couche qu'on pose sans la nettoyer est une fuite.
+	_clear_layers()
+	_top = Rules.top_level(heights)
 
 	var slots: Dictionary = _manifest["surface_slots"]
 	var surface: Dictionary = Rules.corners(heights) if _manifest["family"] == Manifest.BY_CORNER 			else Rules.surfaces(heights)
@@ -139,6 +148,67 @@ func rebuild() -> void:
 	var roles: Dictionary = Rules.walls(heights)
 	for cell: Vector2i in roles.keys():
 		var role: Vector2i = roles[cell]
+		if wall_slots.has(role):
+			_walls_layer.set_cell(cell, _walls_source, wall_slots[role])
+
+
+## POSE OU RETIRE UN LOT DE CASES, ET NE REPOSE QUE CE QUI A PU DEVENIR FAUX.
+##
+## ⚠ C'EST LE CHEMIN DU PINCEAU. `rebuild()` refait la carte entiere : juste, et intenable
+## au coup de crayon -- mesure, 7 ms sur 32x24 mais 456 ms sur 256x192, et c'est PAR CASE
+## PEINTE. La zone, elle, ne depend que de la portee du modele, pas de la taille du monde.
+##
+## ⚠ ON MUTE `heights` EN PLACE, SANS PASSER PAR SON SETTER. L'affectation declencherait
+## `rebuild()` -- toute la carte -- et le gain serait perdu au premier pixel. Un dictionnaire
+## se modifie par reference : c'est exactement ce qu'il faut ici.
+func apply(changes: Dictionary) -> void:
+	var touched: Array[Vector2i] = []
+	for cell: Vector2i in changes.keys():
+		var level: int = int(changes[cell])
+		if level < 0:
+			heights.erase(cell)
+		else:
+			heights[cell] = clampi(level, 0, 9)
+			_top = maxi(_top, level)
+		touched.append(cell)
+	if touched.is_empty():
+		return
+	rebuild_region(Rules.region_of(heights, touched, _top))
+
+
+## Repose une zone : on efface d'abord, puis on pose. Les trois couches.
+##
+## ⚠ EFFACER D'ABORD N'EST PAS UNE PRECAUTION. Une case qui ne porte PLUS rien doit
+## redevenir vide ; se contenter d'ecrire par-dessus laisse la tuile d'avant partout ou la
+## nouvelle passe n'ecrit pas. C'est exactement la faute qui laissait le sous-pied
+## s'accumuler sur toute la carte.
+func rebuild_region(region: Rect2i) -> void:
+	if _surface_layer == null or _surface_source < 0:
+		return
+	for y: int in range(region.position.y, region.end.y):
+		for x: int in range(region.position.x, region.end.x):
+			var at: Vector2i = Vector2i(x, y)
+			_underfoot_layer.erase_cell(at)
+			_surface_layer.erase_cell(at)
+			_walls_layer.erase_cell(at)
+
+	var slots: Dictionary = _manifest["surface_slots"]
+	var surface: Dictionary = Rules.corners_in(heights, region) \
+			if _manifest["family"] == Manifest.BY_CORNER \
+			else Rules.surfaces_in(heights, region)
+	for at: Vector2i in surface.keys():
+		var index: int = int(surface[at])
+		if slots.has(index):
+			_surface_layer.set_cell(at, _surface_source, slots[index])
+
+	var wall_slots: Dictionary = _manifest["wall_slots"]
+	var walls: Dictionary = Rules.walls_in(heights, region, _top)
+	for cell: Vector2i in (walls["underfoot"] as Dictionary).keys():
+		var under: Vector2i = walls["underfoot"][cell]
+		if wall_slots.has(under):
+			_underfoot_layer.set_cell(cell, _walls_source, wall_slots[under])
+	for cell: Vector2i in (walls["roles"] as Dictionary).keys():
+		var role: Vector2i = walls["roles"][cell]
 		if wall_slots.has(role):
 			_walls_layer.set_cell(cell, _walls_source, wall_slots[role])
 
