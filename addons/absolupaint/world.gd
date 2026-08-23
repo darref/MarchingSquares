@@ -148,12 +148,35 @@ func rebuild() -> void:
 ## ⚠ UNE CASE CHANGE BIEN PLUS QUE SA PROPRE TUILE : ses huit voisines changent d'index, et
 ## une falaise peut s'allonger de six cases vers le sud. On repose donc tout. C'est franc,
 ## et ca reste tenable tant que le monde tient en memoire.
+##
+## ⚠ ET L'ETAGE 0 EST UN ETAGE, PAS UN EFFACEMENT. Cette fonction n'avait pas suivi
+## l'inversion du vide : elle effacait la case des qu'on lui demandait l'etage 0, ce qui
+## revenait a la sortir du monde. Depuis que l'absence vaut le HORS-MONDE, poser la plaine
+## et retirer une case sont deux gestes differents -- et les confondre faisait disparaitre
+## le sol au lieu de l'aplanir. Pour retirer une case, `Rules.VOID` ou n'importe quel
+## niveau negatif.
 func set_level(cell: Vector2i, level: int) -> void:
-	var clamped: int = clampi(level, 0, 9)
-	if clamped <= 0:
+	if level < 0:
 		heights.erase(cell)
 	else:
-		heights[cell] = clamped
+		heights[cell] = clampi(level, 0, 9)
+	rebuild()
+
+
+## Retire une case du monde : elle redevient du hors-monde, pas de la plaine.
+func clear_cell(cell: Vector2i) -> void:
+	set_level(cell, Rules.VOID)
+
+
+## Pose un rectangle de monde d'un seul etage. De quoi avoir un sol sous la main avant de
+## dessiner le relief -- sans lui, un monde vide n'a rien a border et ne montre rien.
+func fill(from: Vector2i, to: Vector2i, level: int = 0) -> void:
+	for y: int in range(mini(from.y, to.y), maxi(from.y, to.y) + 1):
+		for x: int in range(mini(from.x, to.x), maxi(from.x, to.x) + 1):
+			if level < 0:
+				heights.erase(Vector2i(x, y))
+			else:
+				heights[Vector2i(x, y)] = clampi(level, 0, 9)
 	rebuild()
 
 

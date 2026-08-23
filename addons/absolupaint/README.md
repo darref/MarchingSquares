@@ -19,14 +19,44 @@ Ensuite : **Projet → Paramètres du projet → Extensions**, et cochez `Absolu
 1. Ajoutez un nœud **`AbsoluPaintWorld`** à votre scène.
 2. Dans l'inspecteur, pointez **`Manifest Path`** sur le `<nom>_tileset.txt` livré avec vos
    deux planches. Les images sont lues à côté de lui, sous les noms qu'il donne.
-3. Remplissez `heights` — un dictionnaire `Vector2i → étage`, de 1 à 9. Une case absente
-   est à la plaine.
+3. Remplissez `heights` — un dictionnaire `Vector2i → étage`, de **0 à 9**.
 
-Depuis le code :
+### ⚠ Une case absente est HORS DU MONDE, pas à la plaine
+
+C'est la règle qui donne son sol au monde, et elle se retient en une phrase : **la plaine
+se déclare**. Une case à l'étage 0 est du sol — elle porte une tuile, et une falaise là
+où elle borde le vide. Une case absente n'est rien : c'est le bord du monde.
+
+Sans cette distinction le plugin ne saurait pas où le sol s'arrête, et ne pourrait poser
+aucun étage 0.
+
+### ⚠ Il n'y a pas encore de pinceau
+
+Le relief se remplit **par l'inspecteur ou par script**. L'outil de dessin dans l'éditeur
+Godot est le prochain chantier ; en attendant, trois appels suffisent :
 
 ```gdscript
-$AbsoluPaintWorld.set_level(Vector2i(4, 3), 2)
+@onready var monde: Node2D = $AbsoluPaintWorld
+
+func _ready() -> void:
+	monde.fill(Vector2i(0, 0), Vector2i(31, 23), 0)     # du sol, d'abord
+	monde.fill(Vector2i(6, 5), Vector2i(18, 12), 1)     # un plateau
+	monde.fill(Vector2i(9, 6), Vector2i(14, 9), 2)      # un second, dessus
+	monde.set_level(Vector2i(24, 8), 1)                 # un îlot
+	monde.clear_cell(Vector2i(0, 0))                    # et un trou dans le monde
 ```
+
+| appel | ce qu'il fait |
+|---|---|
+| `fill(de, a, etage)` | pose un rectangle d'un seul étage |
+| `set_level(case, etage)` | change une case. **0 est un étage**, pas un effacement |
+| `clear_cell(case)` | retire la case du monde : elle redevient du hors-monde |
+| `level_at(case)` | l'étage d'une case, ou `-1` si elle est hors du monde |
+| `cell_at(point)` | la case sous un point local |
+
+⚠ **Commencez toujours par du sol.** Un monde où seuls les plateaux sont déclarés n'a
+rien à border : les plateaux flottent, et leurs falaises tombent dans le vide sans poser
+leur pied. C'est exact, mais ce n'est probablement pas ce que vous vouliez voir.
 
 ## Ce qu'il garantit
 
