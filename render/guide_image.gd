@@ -95,17 +95,6 @@ const STONE_CROWN: Color = Color(0.576, 0.510, 0.420)
 const STONE_BODY: Color = Color(0.478, 0.416, 0.337)
 const STONE_FOOT: Color = Color(0.318, 0.278, 0.220)
 
-## L'EPAULE : le coin de roche sous la levre sud.
-##
-## ⚠ UN COIN ARRONDI SOUS UNE LEVRE SUD N'EST PAS DU VIDE. Les coins sortants sont
-## decoupes, et sous un bord sud il y a TOUJOURS une falaise -- la case y montrait donc le
-## fond a travers la roche, dans le petit angle entre l'arrondi et le haut de la face. On le
-## remplit d'un aplat de pierre, volontairement DISTINCT du corps juste en dessous : c'est
-## le chanfrein du rocher, pas la face.
-##
-## ⚠ ET CELUI-CI EST LEGITIME LA OU LES OMBRES PORTEES NE L'ETAIENT PAS : il vit DANS la
-## tuile de surface, donc une tuile exportee peut le porter.
-const SHOULDER: Color = Color(0.404, 0.348, 0.282)
 const GROUND_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.38)
 const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
 
@@ -219,12 +208,12 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 				# 13 levres -- jusqu'a la moitie du bord pour l'index 0, dont les deux coins
 				# bas sont decoupes. Or les deux styles decrivent LA MEME GEOMETRIE : « sous
 				# un bord sud il y a toujours une falaise ». L'un des deux mentait.
-				# En peint, l'epaule est le chanfrein du rocher, volontairement distinct du
-				# corps. En fil de fer, c'est la roche du trait -- la meme que celle des
-				# tuiles de robe -- parce qu'un aplat de pierre contredirait un style fait
-				# de traits, tandis que le noir de la roche y est deja le vocabulaire.
+				# En peint comme en fil de fer, l'epaule est LA FACE QUI CONTINUE : le haut
+				# du chapiteau en peint (_shoulder_color), la roche du trait en fil de fer --
+				# la meme que celle des tuiles de robe.
 				if not south and _in_south_shoulder(px, py, last, outer, east, west):
-					_put(buffer, side, x, y, WIRE_WALL if wire else SHOULDER)
+					_put(buffer, side, x, y,
+							WIRE_WALL if wire else _shoulder_color(px, py, last, side))
 				continue
 			var color: Color = base
 			if wire:
@@ -321,6 +310,33 @@ static func _rim_shade(px: float, py: float, last: float, outer: float, lip: flo
 	if nearest >= lip:
 		return 0.0
 	return tone * smoothstep(0.0, 1.0, 1.0 - nearest / lip)
+
+
+## L'EPAULE : le coin de roche sous la levre sud -- LA FALAISE QUI CONTINUE, PLUS UN
+## CHANFREIN.
+##
+## ⚠ UN COIN ARRONDI SOUS UNE LEVRE SUD N'EST PAS DU VIDE : sous un bord sud il y a
+## TOUJOURS une falaise, et c'est ce qui rend l'epaule peignable DANS la tuile de surface,
+## la ou le nord -- variable -- ne l'est pas. Une tuile exportee peut donc la porter.
+##
+## ⚠ ET ELLE PROLONGE LE CHAPITEAU, ELLE NE LE CHAPEAUTE PLUS. C'etait un aplat de pierre
+## « volontairement distinct du corps », et l'utilisateur l'a juge : il se lisait comme une
+## encoche sombre coincee entre l'herbe et le chapiteau eclaire, pas comme de la roche qui
+## tourne. Desormais : la teinte du HAUT du chapiteau, exacte a la frontiere -- continuite
+## verticale avec la rangee d'en dessous -- un peu plus de jour en montant, l'arete de la
+## roche qui tourne vers le ciel, et la MEME striure, calee sur les memes colonnes, pour
+## que le grain de la face traverse le coin sans couture.
+##
+## ⚠ CE QUI NE PEUT PAS SE PROLONGER : les bandes de flanc. Le pan de la robe d'en dessous
+## n'est pas constant vu de la tuile de surface, et on ne peint dans la tuile que ce qui
+## est constant -- c'est la regle meme de l'epaule. Le leger ressaut qui peut en rester au
+## pied du coin est le prix, et il est petit.
+static func _shoulder_color(px: float, py: float, last: float, side: int) -> Color:
+	var rise: float = clampf((last - py) / maxf(1.0, OUTER_ROUND * last), 0.0, 1.0)
+	var color: Color = STONE_BODY.lightened(0.34 + 0.10 * rise)
+	if fmod(px / float(side) * 2.0, 1.0) < 0.05:
+		color = color.darkened(0.05)
+	return color
 
 
 ## Le pixel est-il dans un coin decoupe qui touche le bord SUD ? C'est la que la falaise

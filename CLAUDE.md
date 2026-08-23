@@ -979,14 +979,23 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   `level_at` — or **une case de robe EST une case de plaine sur la carte** : une falaise ne
   se voyait donc jamais comme « du haut ». Elle se dresse pourtant au-dessus du sol.
 
-- **L'épaule : le coin de roche sous la lèvre sud.** Les coins sortants sont découpés, et
-  sous un bord sud il y a **toujours** une falaise — la case montrait donc le fond à travers
-  la roche, dans le petit angle entre l'arrondi et le haut de la face. On le remplit d'un
-  aplat de pierre, volontairement distinct du corps juste en dessous : c'est le chanfrein du
-  rocher, pas la face.
+- **L'épaule : le coin de roche sous la lèvre sud — LA FALAISE QUI CONTINUE.** Les coins
+  sortants sont découpés, et sous un bord sud il y a **toujours** une falaise — la case
+  montrait donc le fond à travers la roche, dans le petit angle entre l'arrondi et le haut
+  de la face.
 
-  ⚠ **Et celui-là est légitime là où les ombres portées ne l'étaient pas** : il vit **dans**
-  la tuile de surface, donc une tuile exportée peut le porter.
+  ⚠ **Et l'épaule est légitime là où les ombres portées ne l'étaient pas** : il y a toujours
+  une falaise dessous, donc c'est constant, donc ça vit **dans** la tuile de surface et une
+  tuile exportée peut le porter. C'est le critère, et le nord ne le passe pas.
+
+  ⚠ **ELLE PROLONGE LE CHAPITEAU, ELLE NE LE CHAPEAUTE PLUS.** Première version : un aplat
+  de pierre « volontairement distinct du corps », le chanfrein du rocher. L'utilisateur l'a
+  jugé sur l'écran : une encoche sombre coincée entre l'herbe et le chapiteau éclairé, pas
+  de la roche qui tourne. L'épaule est désormais le **haut du chapiteau étiré dans le
+  coin** — même teinte exactement à la frontière, un peu plus de jour en montant, et la
+  même striure calée sur les mêmes colonnes, pour que le grain de la face traverse.
+  Ce qui ne peut pas se prolonger : les **bandes de flanc** — le pan d'en dessous n'est pas
+  constant vu de la tuile de surface, et on ne peint dans la tuile que ce qui est constant.
 
 - **LA PLAINE NE SE DESSINE PAS. Le logiciel n'a aucun fond.** Elle ne nous appartient pas :
   dans le jeu, le sol sous les plateaux sera **un étage plat du même tileset**, posé par le
@@ -1919,11 +1928,12 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   la roche et l'autre un trou au meme endroit, l'un des deux se trompe, et le guide perd le
   droit de dire qu'il ne peut pas mentir sur ce qu'il contient.
 
-  Le choix de la couleur suit le style plutot que de le contredire : en peint, l'epaule est
-  le **chanfrein du rocher**, volontairement distinct du corps. En fil de fer, c'est
-  `WIRE_WALL` — **la roche du trait, exactement celle des tuiles de robe** — donc l'epaule y
-  est *continue* avec la face juste en dessous. Un aplat de pierre aurait contredit un style
-  fait de traits ; le noir de la roche y est deja le vocabulaire.
+  Le choix de la couleur suit le style plutot que de le contredire, et les deux styles
+  disent desormais la meme chose : l'epaule est **la face qui continue**. En peint, le haut
+  du chapiteau etire dans le coin (le chanfrein d'aplat des debuts a ete juge et remplace —
+  voir la fiche de l'epaule). En fil de fer, `WIRE_WALL` — **la roche du trait, exactement
+  celle des tuiles de robe** — donc l'epaule y etait deja *continue* avec la face juste en
+  dessous.
 
   Asserte desormais dans les **trois** styles.
 
@@ -2058,9 +2068,10 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **6.0.0** : la POSE DERRIERE ferme l'angle noir -- le manifeste passe en v5 et la v4
-est refusee, ce qui perime les exports anterieurs : majeure. Autour, tout ce que la 5.10
-portait : noyau prouve sur les deux familles, guides complets, l'editeur qui peint,
+À **6.0.1** : l'epaule prolonge le chapiteau au lieu de le chapeauter -- correctif de
+dessin, juge a l'ecran par l'utilisateur. En 6.0.0, la POSE DERRIERE ferme l'angle noir --
+le manifeste passe en v5 et la v4 est refusee, ce qui perime les exports anterieurs :
+majeure. Autour, tout ce que la 5.10 portait : noyau prouve sur les deux familles, guides complets, l'editeur qui peint,
 l'export refuse-incomplet, le plugin AbsoluPaint qui pose le monde dans Godot, et le mode
 d'emploi a trois niveaux.
 
