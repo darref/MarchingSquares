@@ -13,6 +13,9 @@
 extends EditorPlugin
 
 const NODE_NAME: String = "AbsoluPaintWorld"
+
+## Le nom du panneau, qui est aussi le titre de son onglet.
+const DOCK_TITLE: String = "AbsoluPaint"
 const WORLD_SCRIPT: String = "res://addons/absolupaint/world.gd"
 const ICON: String = "res://addons/absolupaint/icon.svg"
 const DOCK := preload("res://addons/absolupaint/dock.gd")
@@ -45,7 +48,7 @@ func _enter_tree() -> void:
 	add_control_to_container(CONTAINER_TOOLBAR, _button)
 
 	_dock = DOCK.new()
-	_dock.name = "AbsoluPaint"
+	_dock.name = DOCK_TITLE
 	_dock.armed_changed.connect(_on_armed)
 	_dock.tileset_chosen.connect(_on_tileset_chosen)
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
@@ -82,7 +85,12 @@ func _on_pressed() -> void:
 	# ⚠ LE BOUTON EMMENE AU PANNEAU, TOUJOURS. Il pose le monde, mais tout ce qui suit --
 	# le tileset, l'etage, l'armement -- se passe dans le panneau : le laisser referme
 	# reviendrait a livrer l'outil sans dire ou il est.
-	_reveal_dock()
+	if not _reveal_dock():
+		_complain("Le panneau AbsoluPaint est masque",
+				"Tout le reste se passe dedans : le tileset, l'etage, l'armement.
+
+"
+				+ "Faites-le reapparaitre par le menu Editeur, section des panneaux.")
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
 		_complain("Aucune scene ouverte",
@@ -362,7 +370,28 @@ func _on_tileset_chosen(path: String) -> void:
 ## faisait rien du tout, sans une erreur. On remonte jusqu'a trouver la pile, et on lui
 ## demande l'index de l'enfant qu'elle connait -- jamais `get_index()`, qui compterait aussi
 ## ce qui n'est pas un onglet.
-func _reveal_dock() -> void:
+##
+## ⚠ ON CHERCHE L'ONGLET PAR SON NOM, ET C'EST CE QUI REND LA CHOSE SURE. Remonter les
+## parents depuis notre controle marche -- une fois qu'on a compris que Godot l'EMBALLE dans
+## un `EditorDock` -- mais ca depend de la facon dont il l'emballe, c'est-a-dire d'un detail
+## interne qui peut changer d'une version a l'autre. Le NOM, lui, est le notre : il n'y a
+## qu'un onglet au monde qui puisse s'appeler AbsoluPaint.
+##
+## ⚠ ET CA TIENT QUEL QUE SOIT L'ETAT DU PROJET DE L'ACHETEUR. Le panneau deplace dans une
+## autre pile -- en bas, a gauche -- se retrouve pareil, puisqu'on ne suppose rien de la pile
+## ou il est. Detache en fenetre flottante, il n'y a plus de pile du tout : c'est une
+## fenetre, on la met devant. Et s'il reste introuvable, on le DIT plutot que de laisser un
+## bouton sans effet.
+func _reveal_dock() -> bool:
+	if _dock == null:
+		return false
+	if _select_tab_named(EditorInterface.get_base_control(), DOCK_TITLE):
+		return true
+	# ⚠ ET UN FILET, PARCE QUE LE TITRE EST POSE PAR L'EDITEUR, PAS PAR NOUS. C'est lui qui
+	# le met en rangeant le panneau ; si une version le nommait autrement, la recherche par
+	# nom ne trouverait rien. On remonte alors jusqu'a la pile qui contient notre controle --
+	# quelle qu'elle soit -- en se souvenant que ce n'est pas lui l'onglet mais l'`EditorDock`
+	# qui l'emballe.
 	var node: Node = _dock
 	while node != null:
 		var tabs: TabContainer = node.get_parent() as TabContainer
@@ -370,8 +399,27 @@ func _reveal_dock() -> void:
 			var tab: int = tabs.get_tab_idx_from_control(node as Control)
 			if tab >= 0:
 				tabs.current_tab = tab
-			return
+				return true
+			break
 		node = node.get_parent()
+	var window: Window = _dock.get_window()
+	if window != null and window != EditorInterface.get_base_control().get_window():
+		window.grab_focus()
+		return true
+	return false
+
+
+static func _select_tab_named(from: Node, title: String) -> bool:
+	var tabs: TabContainer = from as TabContainer
+	if tabs != null:
+		for tab: int in range(tabs.get_tab_count()):
+			if tabs.get_tab_title(tab) == title:
+				tabs.current_tab = tab
+				return true
+	for child: Node in from.get_children():
+		if _select_tab_named(child, title):
+			return true
+	return false
 
 
 ## Dit ce qui manque, en grand, et ce qu'il faut faire.

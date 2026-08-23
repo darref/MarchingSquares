@@ -1476,6 +1476,22 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fonction d'interface qui échoue en silence ne se voit d'aucune autre façon — la suite ne
   monte pas l'éditeur, et le code était parfaitement valide.
 
+  ⚠ **ET ON CHERCHE L'ONGLET PAR SON NOM, CE QUI VAUT MIEUX QUE DE REMONTER LES PARENTS.**
+  La remonte dépend de la **façon dont Godot emballe** le panneau — un détail interne qui
+  peut changer d'une version à l'autre. Le nom, lui, est le nôtre : il n'y a qu'un onglet au
+  monde qui puisse s'appeler `AbsoluPaint`. La remonte reste en **filet**, parce que le titre
+  est posé par l'éditeur et non par nous.
+
+  **Trois états du projet de l'acheteur, et aucun n'est supposé** : panneau **déplacé** dans
+  une autre pile — on ne suppose rien de la pile où il est ; **détaché** en fenêtre
+  flottante — il n'y a plus de pile, c'est une fenêtre, on la met devant ; **introuvable** —
+  on le dit, plutôt que de laisser un bouton sans effet.
+
+  ⚠ **Je n'ai PAS pu vérifier la visibilité.** `is_visible_in_tree()` rend **false** même
+  dans l'état par défaut en headless : s'en servir comme signal aurait fait surgir un
+  « le panneau est masqué » à chaque clic. On ne se plaint donc que si l'onglet est
+  vraiment introuvable.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
