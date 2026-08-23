@@ -47,11 +47,7 @@ func _enter_tree() -> void:
 	_button.pressed.connect(_on_pressed)
 	add_control_to_container(CONTAINER_TOOLBAR, _button)
 
-	_dock = DOCK.new()
-	_dock.name = DOCK_TITLE
-	_dock.armed_changed.connect(_on_armed)
-	_dock.tileset_chosen.connect(_on_tileset_chosen)
-	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+	_install_dock()
 	# ⚠ DIFFERE D'UNE IMAGE, ET CE N'EST PAS UNE PRECAUTION. Un greffon entre dans l'arbre
 	# AVANT que l'editeur n'ait restaure la scene ouverte a la fermeture : la chercher
 	# maintenant rendrait nul, et la liste resterait vide toute la session.
@@ -59,11 +55,20 @@ func _enter_tree() -> void:
 	scene_changed.connect(func(_root: Node) -> void: _offer())
 
 
+## Cree le panneau et le range dans sa pile.
+func _install_dock() -> void:
+	_dock = DOCK.new()
+	_dock.name = DOCK_TITLE
+	_dock.armed_changed.connect(_on_armed)
+	_dock.tileset_chosen.connect(_on_tileset_chosen)
+	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+
+
 func _exit_tree() -> void:
-	if _dock != null:
+	if is_instance_valid(_dock):
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
-		_dock = null
+	_dock = null
 	if _button != null:
 		remove_control_from_container(CONTAINER_TOOLBAR, _button)
 		_button.queue_free()
@@ -85,12 +90,7 @@ func _on_pressed() -> void:
 	# ⚠ LE BOUTON EMMENE AU PANNEAU, TOUJOURS. Il pose le monde, mais tout ce qui suit --
 	# le tileset, l'etage, l'armement -- se passe dans le panneau : le laisser referme
 	# reviendrait a livrer l'outil sans dire ou il est.
-	if not _reveal_dock():
-		_complain("Le panneau AbsoluPaint est masque",
-				"Tout le reste se passe dedans : le tileset, l'etage, l'armement.
-
-"
-				+ "Faites-le reapparaitre par le menu Editeur, section des panneaux.")
+	_reveal_dock()
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
 		_complain("Aucune scene ouverte",
@@ -383,8 +383,13 @@ func _on_tileset_chosen(path: String) -> void:
 ## fenetre, on la met devant. Et s'il reste introuvable, on le DIT plutot que de laisser un
 ## bouton sans effet.
 func _reveal_dock() -> bool:
+	# ⚠ S'IL A ETE FERME A LA MAIN, ON LE REPOSE. C'est plus simple, plus sur et plus court
+	# que d'expliquer a l'acheteur ou le retrouver dans les menus de son editeur -- et ca
+	# marche aussi s'il a ete detruit, pas seulement referme.
+	if not is_instance_valid(_dock):
+		_dock = null
 	if _dock == null:
-		return false
+		_install_dock()
 	if _select_tab_named(EditorInterface.get_base_control(), DOCK_TITLE):
 		return true
 	# ⚠ ET UN FILET, PARCE QUE LE TITRE EST POSE PAR L'EDITEUR, PAS PAR NOUS. C'est lui qui
@@ -406,7 +411,23 @@ func _reveal_dock() -> bool:
 	if window != null and window != EditorInterface.get_base_control().get_window():
 		window.grab_focus()
 		return true
-	return false
+	# ⚠ INTROUVABLE VEUT DIRE FERME, ET ON LE RECREE A NEUF. On ne cherche pas a savoir
+	# comment ni pourquoi : expliquer a l'acheteur ou le retrouver dans les menus de son
+	# editeur serait plus long a lire qu'a refaire.
+	#
+	# ⚠ A NEUF, ET PAS LE MEME REPOSE. Mesure : apres `remove_control_from_docks`, rendre le
+	# MEME controle a `add_control_to_dock` recree bien un onglet -- mais le controle, lui,
+	# ne rentre jamais dans l'arbre, ni a l'image suivante. On aurait donc un onglet vide et
+	# un panneau fantome. Une instance neuve, elle, se pose.
+	#
+	# ⚠ Elle repart de ses valeurs par defaut, et c'est sans consequence : `_offer` refait
+	# aussitot la liste des tilesets, et l'etage se rechoisit d'un clic.
+	if is_instance_valid(_dock):
+		remove_control_from_docks(_dock)
+		_dock.queue_free()
+	_dock = null
+	_install_dock()
+	return _select_tab_named(EditorInterface.get_base_control(), DOCK_TITLE)
 
 
 static func _select_tab_named(from: Node, title: String) -> bool:

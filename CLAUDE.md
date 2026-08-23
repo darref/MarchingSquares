@@ -1489,8 +1489,17 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
   ⚠ **Je n'ai PAS pu vérifier la visibilité.** `is_visible_in_tree()` rend **false** même
   dans l'état par défaut en headless : s'en servir comme signal aurait fait surgir un
-  « le panneau est masqué » à chaque clic. On ne se plaint donc que si l'onglet est
-  vraiment introuvable.
+  « le panneau est masqué » à chaque clic.
+
+  ⚠ **DONC ON NE SE PLAINT PLUS DU TOUT : INTROUVABLE VEUT DIRE FERMÉ, ET ON LE RECRÉE.**
+  Expliquer à l'acheteur où retrouver un panneau dans les menus de son éditeur serait plus
+  long à lire qu'à refaire. Le bouton ne peut donc plus échouer.
+
+  ⚠ **À NEUF, ET PAS LE MÊME REPOSÉ.** Mesuré : après `remove_control_from_docks`, rendre
+  le **même** contrôle à `add_control_to_dock` recrée bien un onglet — mais le contrôle, lui,
+  **ne rentre jamais dans l'arbre**, ni à l'image suivante. On aurait donc un onglet vide et
+  un panneau fantôme, ce que rien n'aurait signalé. Une instance neuve, elle, se pose : vérifié
+  fermé → hors de l'arbre, recréé → dans l'arbre et garni.
 
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
