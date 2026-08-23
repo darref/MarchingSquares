@@ -1439,6 +1439,27 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   fermeture : chercher le monde tout de suite rend nul, et la liste resterait vide toute la
   session. C'est la leçon du pinceau de Satyron, et elle vaut ici aussi.
 
+- **UN REFUS MUET EST LE PIRE DES REFUS.** Le pinceau se désarmait tout seul quand il
+  manquait quelque chose, avec une ligne de texte dans un coin du panneau. Un bouton qui se
+  relève sans rien dire laisse croire à une panne : on cherche la cause au mauvais endroit,
+  ou on abandonne.
+
+  Chaque condition dit désormais **ce qui manque** puis **ce qu'il faut faire**, dans une
+  fenêtre qu'on ne peut pas rater — pas de scène, pas de monde, pas de tileset, tileset
+  illisible.
+
+  ⚠ **ON LES TESTE DANS L'ORDRE OÙ ON LES REMPLIT.** Annoncer « aucun tileset » à
+  quelqu'un qui n'a pas encore de scène ouverte l'enverrait résoudre le mauvais problème.
+
+  ⚠ **ET LE CLIC AUSSI EST UNE OPÉRATION TENTÉE.** La scène peut changer après l'armement :
+  le pinceau resterait alors armé et **muet**. On désarme franchement, en disant pourquoi.
+
+- **⚠ UN ONGLET QU'ON NE VOIT PAS N'EXISTE PAS.** Godot range les greffons dans des piles à
+  onglets : le nôtre pouvait très bien être derrière « Scène » ou « Importer » depuis
+  l'ouverture du projet. Le bouton de la barre du haut **met le panneau devant**, toujours —
+  il pose le monde, mais tout ce qui suit se passe dans le panneau, et le laisser refermé
+  reviendrait à livrer l'outil sans dire où il est.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que

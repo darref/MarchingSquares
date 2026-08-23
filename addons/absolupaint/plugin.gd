@@ -20,6 +20,7 @@ const Manifest := preload("res://addons/absolupaint/manifest.gd")
 
 var _button: Button = null
 var _dock: VBoxContainer = null
+var _alert: AcceptDialog = null
 
 ## Les cases du trait en cours, sans doublon. Vide hors trait.
 var _stroke: Dictionary = {}
@@ -64,6 +65,9 @@ func _exit_tree() -> void:
 		remove_control_from_container(CONTAINER_TOOLBAR, _button)
 		_button.queue_free()
 		_button = null
+	if _alert != null:
+		_alert.queue_free()
+		_alert = null
 	remove_custom_type(NODE_NAME)
 
 
@@ -75,9 +79,15 @@ func _exit_tree() -> void:
 ## scene poseraient deux fois les memes tuiles, l'un sur l'autre : on chercherait longtemps
 ## pourquoi le monde parait juste mais se comporte mal. S'il y en a deja un, on y va.
 func _on_pressed() -> void:
+	# ⚠ LE BOUTON EMMENE AU PANNEAU, TOUJOURS. Il pose le monde, mais tout ce qui suit --
+	# le tileset, l'etage, l'armement -- se passe dans le panneau : le laisser referme
+	# reviendrait a livrer l'outil sans dire ou il est.
+	_reveal_dock()
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
-		_say("Ouvrez d'abord une scene.")
+		_complain("Aucune scene ouverte",
+				"AbsoluPaint pose un monde DANS une scene.\n\n"
+				+ "Ouvrez ou creez une scene, puis recliquez sur AbsoluPaint.")
 		return
 	var world: Node = _find_world(root)
 	if world == null:
@@ -123,18 +133,50 @@ func _on_armed(armed: bool) -> void:
 	if not armed:
 		_say("")
 		return
+	var blocking: Array = _blocking()
+	if not blocking.is_empty():
+		_dock.disarm()
+		_complain(String(blocking[0]), String(blocking[1]))
+		return
+	_select(_world())
+	_say("Arme. Clic gauche pose, clic droit retire.")
+
+
+## CE QUI MANQUE POUR PEINDRE, DIT EN TOUTES LETTRES : [titre, quoi faire].
+##
+## ⚠ UN REFUS MUET EST LE PIRE DES REFUS. Un bouton qui se releve tout seul sans rien dire
+## laisse croire a une panne, et l'acheteur cherche la cause dans le mauvais endroit -- ou
+## abandonne. Chaque condition dit donc CE QUI MANQUE et CE QU'IL FAUT FAIRE, dans cet
+## ordre, et rien d'autre.
+##
+## ⚠ ET ON LES TESTE DANS L'ORDRE OU ON LES REMPLIT. Annoncer « aucun tileset » a
+## quelqu'un qui n'a pas encore de scene ouverte l'enverrait resoudre le mauvais probleme.
+func _blocking() -> Array:
+	if EditorInterface.get_edited_scene_root() == null:
+		return ["Aucune scene ouverte",
+				"Le pinceau peint une scene.\n\n"
+				+ "Ouvrez ou creez une scene, puis cliquez AbsoluPaint dans la barre du haut."]
 	var world: Node = _world()
 	if world == null:
-		_dock.disarm()
-		_say("Aucun monde AbsoluPaint dans la scene. Cliquez le bouton de la barre du haut.")
-		return
+		return ["Aucun monde dans cette scene",
+				"Il faut un noeud AbsoluPaintWorld pour peindre.\n\n"
+				+ "Cliquez le bouton AbsoluPaint de la barre du haut : il en pose un et vous "
+				+ "y emmene."]
 	if String(world.manifest_path).is_empty():
-		_dock.disarm()
-		_say("Choisissez d'abord un tileset. Aucun n'a ete trouve dans ce projet :\n"
-				+ "exportez-en un depuis AbsoluTiles, ou son essai.")
-		return
-	_select(world)
-	_say("Arme. Clic gauche pose, clic droit retire.")
+		if Manifest.discover().is_empty():
+			return ["Aucun tileset dans ce projet",
+					"Le pinceau pose des tuiles : il lui en faut.\n\n"
+					+ "Dans AbsoluTiles, cliquez \u00ab Installer le plugin Godot \u00bb et ciblez CE "
+					+ "projet. Le tileset part avec l'extension -- le votre s'il est complet, "
+					+ "son essai sinon."]
+		return ["Aucun tileset choisi",
+				"Ce projet en contient plusieurs.\n\n"
+				+ "Prenez-en un dans la liste \u00ab Tileset \u00bb du panneau AbsoluPaint."]
+	if not String(world.last_error).is_empty():
+		return ["Ce tileset ne se lit pas",
+				"%s\n\nChoisissez-en un autre dans la liste, ou reexportez-le depuis "
+				% String(world.last_error) + "AbsoluTiles."]
+	return []
 
 
 func _handles(object: Object) -> bool:
@@ -154,6 +196,14 @@ func _forward_canvas_gui_input(event: InputEvent) -> bool:
 				and click.button_index != MOUSE_BUTTON_RIGHT:
 			return false
 		if click.pressed:
+			# ⚠ LA SCENE PEUT AVOIR CHANGE DEPUIS L'ARMEMENT. Le pinceau resterait alors
+			# arme et MUET -- on clique, rien ne se passe, et rien ne dit pourquoi. On
+			# desarme franchement, en disant ce qui manque.
+			var blocking: Array = _blocking()
+			if not blocking.is_empty():
+				_dock.disarm()
+				_complain(String(blocking[0]), String(blocking[1]))
+				return true
 			_stroke.clear()
 			_before = (world.heights as Dictionary).duplicate()
 			# ⚠ LE BOUTON DROIT RETIRE TOUJOURS, quel que soit l'etage choisi. C'est le geste
@@ -288,9 +338,38 @@ func _offer() -> void:
 func _on_tileset_chosen(path: String) -> void:
 	var world: Node = _world()
 	if world == null:
+		_complain("Aucun monde dans cette scene",
+				"Le tileset se pose sur un monde, et il n'y en a pas.\n\n"
+				+ "Cliquez le bouton AbsoluPaint de la barre du haut : il en pose un.")
 		return
 	world.manifest_path = path
+	if not String(world.last_error).is_empty():
+		_complain("Ce tileset ne se lit pas", String(world.last_error))
+		return
 	_say("Tileset : %s" % path.get_file())
+
+
+## ⚠ LE PANNEAU EST UN ONGLET, ET UN ONGLET QU'ON NE VOIT PAS N'EXISTE PAS. Godot range
+## les greffons dans des piles a onglets : le notre peut tres bien etre derriere « Scene »
+## ou « Importer » depuis l'ouverture du projet. On le met devant.
+func _reveal_dock() -> void:
+	if _dock == null:
+		return
+	var tabs: TabContainer = _dock.get_parent() as TabContainer
+	if tabs != null:
+		tabs.current_tab = _dock.get_index()
+
+
+## Dit ce qui manque, en grand, et ce qu'il faut faire.
+func _complain(title: String, what_to_do: String) -> void:
+	_say(title)
+	if _alert == null:
+		_alert = AcceptDialog.new()
+		_alert.ok_button_text = "Compris"
+		EditorInterface.get_base_control().add_child(_alert)
+	_alert.title = "AbsoluPaint \u2014 %s" % title
+	_alert.dialog_text = what_to_do
+	_alert.popup_centered()
 
 
 func _say(message: String) -> void:

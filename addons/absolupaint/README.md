@@ -19,8 +19,8 @@ Vous n'avez rien à chercher.
 
 ## Usage
 
-1. Ouvrez une scène, puis cliquez le bouton **AbsoluPaint** de la barre du haut. Il pose un
-   nœud **`AbsoluPaintWorld`** dans la scène et vous y emmène — et s'il y en a déjà un, il
+1. Ouvrez une scène, puis cliquez le bouton **AbsoluPaint** de la barre du haut. Il
+   **ouvre le panneau**, pose un nœud **`AbsoluPaintWorld`** dans la scène et vous y emmène — et s'il y en a déjà un, il
    vous y emmène sans en créer un second. (À la main : « Ajouter un nœud » →
    `AbsoluPaintWorld`.)
 
@@ -50,6 +50,11 @@ Le panneau **AbsoluPaint** s'ouvre à droite dès que l'extension est cochée.
 2. **Armez le pinceau.**
 3. **Clic gauche** pose l'étage choisi, **clic droit** retire la case. Le glisser peint une
    ligne continue, sans trous.
+
+⚠ **Rien ne refuse en silence.** Chaque fois qu'une action ne peut pas aboutir — armer le
+pinceau sans scène, sans monde, sans tileset, ou avec un tileset illisible — une fenêtre
+dit **ce qui manque** et **ce qu'il faut faire**, dans cet ordre. Un bouton qui se relève
+tout seul sans rien dire laisse croire à une panne.
 
 ⚠ **Le pinceau s'arme à la main, exprès.** Tant qu'il est armé, la souris peint la carte
 au lieu de déplacer les nœuds. Un outil qui intercepte la souris sans qu'on l'ait demandé
