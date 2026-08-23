@@ -1381,6 +1381,36 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   laissait la roche de sa falaise sous le sol, et **le monde devenait faux pendant qu'on le
   dessinait**. Trouvé en cherchant la complexité, pas la justesse.
 
+- **L'ANGLE NOIR EN HAUT DES PLATEAUX : les deux lecteurs n'empilaient pas pareil.**
+  L'illustration pose **une tuile par étage et par case** — l'étage N−1 continue **sous** le
+  plateau de l'étage N, c'est déjà ce que dit la règle de pose : *« on dessine du bas vers
+  le haut, chaque couche recouvrant la précédente »*. Le plugin, lui, ne posait que la tuile
+  **visible** : une seule par case.
+
+  Conséquence : le **coin découpé** d'un plateau était plein dans le guide et **troué dans le
+  jeu**. Au sud, l'épaule bouchait le trou de pierre ; au **nord**, rien ne le bouchait —
+  d'où un angle noir en haut de chaque plateau.
+
+  ⚠ **L'ÉPAULE CACHAIT LA DIVERGENCE, ET C'EST CE QUI L'A RENDUE SI LONGUE À TROUVER.** Un
+  correctif qui masque un symptôme des deux côtés empêche de voir la cause.
+
+  **Le plugin empile donc**, une couche par étage : `SousPied0`, `Surface0`, `SousPied1`,
+  `Surface1`… puis les falaises. ⚠ **L'ordre des enfants EST l'ordre de pose**, et il faut
+  remettre les falaises à la fin à chaque nouvel étage, sinon une falaise passe derrière un
+  sommet.
+
+  ⚠ **Le sous-pied va sur la couche de l'étage OÙ IL ATTERRIT.** Une seule couche pour tous
+  ne pouvait plus convenir : il doit passer sous la surface de son étage d'atterrissage,
+  mais **au-dessus** de celle d'en dessous, sinon celle-là le recouvrirait.
+
+  **Mesuré** sur un plateau posé sur de la plaine : **108 pixels transparents sans
+  empilement, 54 avec** — et les 54 qui restent sont les coins arrondis du **bord du monde**,
+  où il n'y a légitimement rien.
+
+  ⚠ **La famille à cheval ne s'empile pas.** Une tuile de croisement se lit du sommet des
+  quatre cases qu'elle chevauche, pas d'un étage : il n'y a rien à empiler, et une seule
+  couche suffit.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que

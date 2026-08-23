@@ -73,6 +73,7 @@ func _initialize() -> void:
 	_test_wireframe_joins()
 	_test_plugin_rules()
 	_test_trial_tileset()
+	_test_stacked_levels()
 	_test_dirty_region()
 	_test_plugin_manifest()
 	_test_plugin_install()
@@ -2341,6 +2342,50 @@ func _test_trial_tileset() -> void:
 ## ⚠ ET LE CALCUL BORNE DOIT DIRE EXACTEMENT LA MEME CHOSE QUE LE COMPLET. Sans ca on
 ## aurait deux regles de pose au lieu d'une, et c'est precisement ce que le manifeste-contrat
 ## existe pour empecher.
+## LES DEUX LECTEURS EMPILENT LES ETAGES DE LA MEME FACON.
+##
+## ⚠ C'EST LA DIVERGENCE QUE L'EPAULE CACHAIT. L'illustration pose une tuile par etage et
+## par case -- l'etage N-1 continue SOUS le plateau de l'etage N -- tandis que le plugin ne
+## posait que la tuile VISIBLE. Le coin decoupe d'un plateau etait donc plein dans le guide
+## et TROUE dans le jeu : un angle noir en haut de chaque plateau. Mesure sur un plateau pose
+## sur de la plaine : 108 pixels transparents sans empilement, 54 avec -- et les 54 qui
+## restent sont les coins du BORD DU MONDE, ou il n'y a legitimement rien.
+##
+## ⚠ ON COMPARE AU NOYAU, PAS A SOI-MEME. `Coverage.index_at_level` est ce que
+## l'illustration emploie : si les deux repondent pareil sur tous les etages, il n'existe
+## aucun relief ou le guide et le jeu se contrediraient.
+func _test_stacked_levels() -> void:
+	print("les etages s empilent, et les deux lecteurs le font pareil")
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260824
+	var apart: int = 0
+	var stacked: int = 0
+	var side: int = 10
+
+	for _round: int in range(40):
+		var relief: PackedStringArray = _random_relief(rng, side, side, 3)
+		var world: Dictionary = _plugin_world(relief)
+		for level: int in range(HeightMask.top_level(relief) + 1):
+			var theirs: Dictionary = PluginRules.surfaces_at_level(world, level,
+					Rect2i(0, 0, side, side))
+			for y: int in range(side):
+				for x: int in range(side):
+					var mine: int = Coverage.index_at_level(relief, x, y, level)
+					var at: Vector2i = Vector2i(x, y)
+					if mine == Coverage.NO_INDEX:
+						if theirs.has(at):
+							apart += 1
+					elif not theirs.has(at) or int(theirs[at]) != mine:
+						apart += 1
+					elif level < HeightMask.level_at(relief, x, y):
+						stacked += 1
+
+	_check_equal(apart, 0,
+			"le plugin pose exactement les memes tuiles que l illustration, etage par etage")
+	_check(stacked > 0,
+			"et il y a bien des tuiles POSEES SOUS un plateau (%d) : l empilement sert" % stacked)
+
+
 func _test_dirty_region() -> void:
 	print("le pinceau : la zone a refaire, ni trop petite ni differente")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()

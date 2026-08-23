@@ -45,8 +45,12 @@ const TileSetBuilder := preload("res://addons/absolupaint/tileset.gd")
 ## Dit ce qui s'est passe au dernier chargement. Vide quand tout va bien.
 var last_error: String = ""
 
-var _underfoot_layer: TileMapLayer = null
-var _surface_layer: TileMapLayer = null
+## ⚠ UNE COUCHE PAR ETAGE, ET UN SOUS-PIED PAR ETAGE. L'ordre des enfants EST l'ordre de
+## pose : sous-pied 0, surface 0, sous-pied 1, surface 1... puis les falaises par-dessus.
+## Le sous-pied d'une chute qui atterrit a l'etage L doit passer sous la surface L -- et
+## au-dessus de celle d'en dessous, sans quoi elle le recouvrirait.
+var _underfoot_layers: Array[TileMapLayer] = []
+var _surface_layers: Array[TileMapLayer] = []
 var _walls_layer: TileMapLayer = null
 var _manifest: Dictionary = {}
 ## L'etage le plus haut du monde, garde sous la main.
@@ -98,19 +102,13 @@ func _reload() -> void:
 		_clear_layers()
 		return
 
+	_top = Rules.top_level(heights)
 	_ensure_layers()
-	_surface_layer.tile_set = built["tile_set"]
 	_walls_layer.tile_set = built["tile_set"]
 	_surface_source = int(built["surface_source"])
 	_walls_source = int(built["walls_source"])
 
-	# ⚠ LA FAMILLE A CHEVAL DECALE LA COUCHE D'UNE DEMI-CASE, ET C'EST TOUT LE DECALAGE
-	# QU'IL FAUT. Une tuile duale est posee sur le CROISEMENT de quatre cases : le croisement
-	# (i, j) est le coin commun, donc la tuile qui s'y centre commence a une demi-case au
-	# nord-ouest. Le decalage vaut pour la couche entiere, jamais case par case.
-	var side: int = int(_manifest["tile_size"])
-	var shift: float = -0.5 * float(side) if _manifest["family"] == Manifest.BY_CORNER else 0.0
-	_surface_layer.position = Vector2(shift, shift)
+	_dress_layers()
 
 	rebuild()
 
@@ -120,7 +118,7 @@ func _reload() -> void:
 ## ⚠ LES FACES APRES LES SOMMETS. Une falaise occupe des cases qui, vues de dessus,
 ## appartiennent au sol d'en bas : elle passe donc PAR-DESSUS, sur sa propre couche.
 func rebuild() -> void:
-	if _surface_layer == null or _surface_source < 0:
+	if _walls_layer == null or _surface_source < 0:
 		return
 	# ⚠ LES TROIS COUCHES, PAS DEUX. Le sous-pied n'etait pas nettoye : ses tuiles
 	# s'accumulaient a chaque coup de crayon et ne disparaissaient jamais. Retirer un plateau
@@ -129,27 +127,8 @@ func rebuild() -> void:
 	_clear_layers()
 	_top = Rules.top_level(heights)
 
-	var slots: Dictionary = _manifest["surface_slots"]
-	var surface: Dictionary = Rules.corners(heights) if _manifest["family"] == Manifest.BY_CORNER 			else Rules.surfaces(heights)
-	for at: Vector2i in surface.keys():
-		var index: int = int(surface[at])
-		if slots.has(index):
-			_surface_layer.set_cell(at, _surface_source, slots[index])
-
-	var wall_slots: Dictionary = _manifest["wall_slots"]
-	# ⚠ LE SOUS-PIED SE POSE SOUS LES SURFACES, sur sa propre couche. C'est le PIED repose
-	# une case plus bas : la case d'atterrissage le recouvre sauf par ses coins decoupes, et
-	# c'est exactement la que la roche manquait. Aucune tuile de plus -- une pose de plus.
-	var underfoot: Dictionary = Rules.underfoot(heights)
-	for cell: Vector2i in underfoot.keys():
-		var under: Vector2i = underfoot[cell]
-		if wall_slots.has(under):
-			_underfoot_layer.set_cell(cell, _walls_source, wall_slots[under])
-	var roles: Dictionary = Rules.walls(heights)
-	for cell: Vector2i in roles.keys():
-		var role: Vector2i = roles[cell]
-		if wall_slots.has(role):
-			_walls_layer.set_cell(cell, _walls_source, wall_slots[role])
+	_lay_surfaces(_world_region())
+	_lay_walls(Rules.underfoot(heights), Rules.walls(heights))
 
 
 ## POSE OU RETIRE UN LOT DE CASES, ET NE REPOSE QUE CE QUI A PU DEVENIR FAUX.
@@ -183,34 +162,81 @@ func apply(changes: Dictionary) -> void:
 ## nouvelle passe n'ecrit pas. C'est exactement la faute qui laissait le sous-pied
 ## s'accumuler sur toute la carte.
 func rebuild_region(region: Rect2i) -> void:
-	if _surface_layer == null or _surface_source < 0:
+	if _walls_layer == null or _surface_source < 0:
 		return
+	_ensure_layers()
 	for y: int in range(region.position.y, region.end.y):
 		for x: int in range(region.position.x, region.end.x):
 			var at: Vector2i = Vector2i(x, y)
-			_underfoot_layer.erase_cell(at)
-			_surface_layer.erase_cell(at)
 			_walls_layer.erase_cell(at)
-
-	var slots: Dictionary = _manifest["surface_slots"]
-	var surface: Dictionary = Rules.corners_in(heights, region) \
-			if _manifest["family"] == Manifest.BY_CORNER \
-			else Rules.surfaces_in(heights, region)
-	for at: Vector2i in surface.keys():
-		var index: int = int(surface[at])
-		if slots.has(index):
-			_surface_layer.set_cell(at, _surface_source, slots[index])
-
-	var wall_slots: Dictionary = _manifest["wall_slots"]
+			for level: int in range(_surface_layers.size()):
+				_underfoot_layers[level].erase_cell(at)
+				_surface_layers[level].erase_cell(at)
+	_lay_surfaces(region)
 	var walls: Dictionary = Rules.walls_in(heights, region, _top)
-	for cell: Vector2i in (walls["underfoot"] as Dictionary).keys():
-		var under: Vector2i = walls["underfoot"][cell]
-		if wall_slots.has(under):
-			_underfoot_layer.set_cell(cell, _walls_source, wall_slots[under])
-	for cell: Vector2i in (walls["roles"] as Dictionary).keys():
-		var role: Vector2i = walls["roles"][cell]
+	_lay_walls(walls["underfoot"], walls["roles"])
+
+
+## POSE LES SURFACES D'UNE ZONE, ETAGE PAR ETAGE, DU BAS VERS LE HAUT.
+##
+## ⚠ UNE CASE PORTE AUTANT DE TUILES QU'ELLE A D'ETAGES SOUS ELLE. Une case a l'etage 2
+## appartient AUSSI a la silhouette de l'etage 1 et a celle de l'etage 0 : l'etage N-1
+## continue SOUS le plateau de l'etage N. Ne poser que la tuile VISIBLE laissait le coin
+## decoupe d'un plateau ouvert sur RIEN -- un angle noir en haut de chaque plateau, la ou il
+## devrait montrer l'etage d'en dessous.
+##
+## C'est deja ce que dit la regle de pose : « on dessine du bas vers le haut, chaque couche
+## recouvrant la precedente ». L'illustration le faisait, le plugin non -- et l'epaule
+## bouchait le trou au sud, ce qui a longtemps cache la divergence.
+##
+## ⚠ LA FAMILLE A CHEVAL NE S'EMPILE PAS. Une tuile de croisement se lit du sommet des
+## quatre cases qu'elle chevauche, pas d'un etage : il n'y a rien a empiler, et une seule
+## couche suffit. On ne fabrique pas un etage qu'elle n'a pas.
+func _lay_surfaces(region: Rect2i) -> void:
+	var slots: Dictionary = _manifest["surface_slots"]
+	if _manifest["family"] == Manifest.BY_CORNER:
+		var crossings: Dictionary = Rules.corners_in(heights, region)
+		for at: Vector2i in crossings.keys():
+			var index: int = int(crossings[at])
+			if slots.has(index):
+				_surface_layers[0].set_cell(at, _surface_source, slots[index])
+		return
+	for level: int in range(_surface_layers.size()):
+		var floorwise: Dictionary = Rules.surfaces_at_level(heights, level, region)
+		for at: Vector2i in floorwise.keys():
+			var index: int = int(floorwise[at])
+			if slots.has(index):
+				_surface_layers[level].set_cell(at, _surface_source, slots[index])
+
+
+## Pose les sous-pieds et les faces.
+##
+## ⚠ LE SOUS-PIED VA SUR LA COUCHE DE L'ETAGE OU IL ATTERRIT. C'est celle-la qu'il doit
+## passer dessous -- il ne se montre que par ses coins decoupes -- et au-dessus de celle d'en
+## dessous, sinon elle le recouvrirait.
+func _lay_walls(underfoot: Dictionary, roles: Dictionary) -> void:
+	var wall_slots: Dictionary = _manifest["wall_slots"]
+	for cell: Vector2i in underfoot.keys():
+		var under: Vector2i = underfoot[cell]
+		if not wall_slots.has(under):
+			continue
+		var landing: int = clampi(Rules.level_at(heights, cell), 0,
+				_underfoot_layers.size() - 1)
+		_underfoot_layers[landing].set_cell(cell, _walls_source, wall_slots[under])
+	for cell: Vector2i in roles.keys():
+		var role: Vector2i = roles[cell]
 		if wall_slots.has(role):
 			_walls_layer.set_cell(cell, _walls_source, wall_slots[role])
+
+
+## L'etendue du monde, plus la marge qu'une falaise peut atteindre.
+func _world_region() -> Rect2i:
+	if heights.is_empty():
+		return Rect2i()
+	var cells: Array[Vector2i] = []
+	for cell: Vector2i in heights.keys():
+		cells.append(cell)
+	return Rules.region_of(heights, cells, _top)
 
 
 ## Change l'etage d'une case, et repose ce qui en depend.
@@ -262,16 +288,38 @@ func cell_at(point: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x / float(side)), floori(point.y / float(side)))
 
 
+## ⚠ L'ORDRE DES ENFANTS EST L'ORDRE DE POSE, et il dit la regle en clair : pour chaque
+## etage, son sous-pied puis sa surface ; les falaises tout au-dessus.
 func _ensure_layers() -> void:
-	# ⚠ L'ORDRE DES COUCHES EST L'ORDRE DE POSE, et le sous-pied vient EN PREMIER : il doit
-	# passer SOUS la surface, sans quoi il masquerait le sol au lieu de se montrer par les
-	# coins decoupes de la case d'atterrissage.
-	if _underfoot_layer == null:
-		_underfoot_layer = _make_layer("SousPied")
-	if _surface_layer == null:
-		_surface_layer = _make_layer("Surface")
+	var wanted: int = maxi(1, _top + 1)
+	while _surface_layers.size() < wanted:
+		var level: int = _surface_layers.size()
+		_underfoot_layers.append(_make_layer("SousPied%d" % level))
+		_surface_layers.append(_make_layer("Surface%d" % level))
 	if _walls_layer == null:
 		_walls_layer = _make_layer("Falaises")
+	else:
+		# ⚠ LES FALAISES RESTENT LES DERNIERES. Ajouter la couche d'un nouvel etage l'insere
+		# APRES elles : sans ce rappel a la fin, une falaise passerait derriere un sommet.
+		move_child(_walls_layer, get_child_count() - 1)
+	_dress_layers()
+
+
+## ⚠ LA FAMILLE A CHEVAL DECALE LA COUCHE D'UNE DEMI-CASE, ET C'EST TOUT LE DECALAGE QU'IL
+## FAUT. Une tuile duale est posee sur le CROISEMENT de quatre cases : le croisement (i, j)
+## est le coin commun, donc la tuile qui s'y centre commence a une demi-case au nord-ouest.
+## Le decalage vaut pour la couche entiere, jamais case par case.
+func _dress_layers() -> void:
+	if _walls_layer == null:
+		return
+	var side: int = int(_manifest.get("tile_size", 0))
+	var corner: bool = _manifest.get("family", "") == Manifest.BY_CORNER
+	var shift: float = -0.5 * float(side) if corner else 0.0
+	for layer: TileMapLayer in _surface_layers:
+		layer.tile_set = _walls_layer.tile_set
+		layer.position = Vector2(shift, shift)
+	for layer: TileMapLayer in _underfoot_layers:
+		layer.tile_set = _walls_layer.tile_set
 
 
 ## ⚠ LE FILTRAGE EST AU PLUS PROCHE. Un lissage bilineaire melangerait les bords voisins de
@@ -285,9 +333,9 @@ func _make_layer(layer_name: String) -> TileMapLayer:
 
 
 func _clear_layers() -> void:
-	if _underfoot_layer != null:
-		_underfoot_layer.clear()
-	if _surface_layer != null:
-		_surface_layer.clear()
+	for layer: TileMapLayer in _underfoot_layers:
+		layer.clear()
+	for layer: TileMapLayer in _surface_layers:
+		layer.clear()
 	if _walls_layer != null:
 		_walls_layer.clear()

@@ -184,6 +184,30 @@ static func surfaces(heights: Dictionary) -> Dictionary:
 	return found
 
 
+## LES SURFACES D'UN ETAGE DONNE, dans une zone : case -> index.
+##
+## ⚠ CE N'EST PAS « LA TUILE VISIBLE », ET C'EST TOUT LE POINT. Une case a l'etage 2
+## appartient AUSSI a la silhouette de l'etage 1 et a celle de l'etage 0 : les etages
+## s'empilent, l'etage N-1 continue SOUS le plateau de l'etage N. Ne poser que la tuile
+## visible laisse le coin decoupe d'un plateau ouvert sur RIEN -- un angle noir en haut de
+## chaque plateau, la ou il devrait montrer l'etage d'en dessous.
+##
+## C'est deja ce que dit la regle de pose : « on dessine du bas vers le haut, chaque couche
+## recouvrant la precedente ». L'illustration le faisait, le plugin non : l'epaule bouchait
+## le trou au sud, et au nord il n'y avait rien pour le boucher.
+static func surfaces_at_level(heights: Dictionary, level: int, region: Rect2i) -> Dictionary:
+	var found: Dictionary = {}
+	for y: int in range(region.position.y, region.end.y):
+		for x: int in range(region.position.x, region.end.x):
+			var cell: Vector2i = Vector2i(x, y)
+			if not heights.has(cell) or level_at(heights, cell) < level:
+				continue
+			var index: int = blob_index_at_level(heights, cell, level)
+			if index != NO_INDEX:
+				found[cell] = index
+	return found
+
+
 ## Tous les croisements qui dessinent quelque chose : croisement -> index dual.
 ##
 ## Un croisement ne compte que s'il touche au moins une case du relief ; on part donc des
