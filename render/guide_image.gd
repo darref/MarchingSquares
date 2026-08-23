@@ -106,11 +106,6 @@ const STONE_FOOT: Color = Color(0.318, 0.278, 0.220)
 ## ⚠ ET CELUI-CI EST LEGITIME LA OU LES OMBRES PORTEES NE L'ETAIENT PAS : il vit DANS la
 ## tuile de surface, donc une tuile exportee peut le porter.
 const SHOULDER: Color = Color(0.404, 0.348, 0.282)
-
-## De combien le sommet deborde sur sa propre falaise, en fraction de tuile.
-## ⚠ UN CHEVEU, PAS UNE CORNICHE. Trop, et la falaise perd sa hauteur ; assez pour que
-## l'oeil voie que le plateau est devant, et que l'ombre juste dessous soit son ombre.
-const LIP_OVERHANG: float = 0.18
 const GROUND_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.38)
 const CONTACT_SHADOW: Color = Color(0.086, 0.098, 0.086, 0.30)
 
@@ -219,20 +214,15 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 			var px: float = float(x)
 			var py: float = float(y)
 			if _carved(px, py, last, outer, north, east, south, west):
-				# ⚠ L'EPAULE RESTE, ET CE N'EST PLUS POUR LA RAISON D'ORIGINE. Elle bouchait
-				# de pierre le petit angle sous une levre sud, parce que le coin arrondi y
-				# laissait voir LE FOND. On a cru pouvoir la retirer une fois la plaine
-				# dessinee -- le coin montrerait alors le sol d'en bas, ce qu'on verrait
-				# vraiment en se penchant par-dessus le bord.
-				#
-				# ⚠ MAIS LES DEUX LECTEURS NE DESSINENT PAS PAREIL, ET L'EPAULE LE CACHAIT.
-				# L'illustration empile TOUS les etages, du bas vers le haut : le coin
-				# decoupe d'un plateau y montre donc l'etage d'en dessous. Le plugin, lui,
-				# ne pose QUE la tuile visible de chaque case -- une seule par case. Sans
-				# epaule, le meme coin serait donc plein dans le guide et TROUE dans le jeu.
-				#
-				# Tant que le plugin n'empile pas, l'epaule est ce qui rend les deux
-				# identiques. C'est un choix a trancher, pas un detail de dessin.
+				# ⚠ L'EPAULE SE FERME DANS LES DEUX STYLES, CHACUN DANS SA PALETTE. Elle ne
+				# l'etait qu'en peint, et le fil de fer laissait donc voir le fond sous 8 des
+				# 13 levres -- jusqu'a la moitie du bord pour l'index 0, dont les deux coins
+				# bas sont decoupes. Or les deux styles decrivent LA MEME GEOMETRIE : « sous
+				# un bord sud il y a toujours une falaise ». L'un des deux mentait.
+				# En peint, l'epaule est le chanfrein du rocher, volontairement distinct du
+				# corps. En fil de fer, c'est la roche du trait -- la meme que celle des
+				# tuiles de robe -- parce qu'un aplat de pierre contredirait un style fait
+				# de traits, tandis que le noir de la roche y est deja le vocabulaire.
 				if not south and _in_south_shoulder(px, py, last, outer, east, west):
 					_put(buffer, side, x, y, WIRE_WALL if wire else SHOULDER)
 				continue
@@ -526,19 +516,6 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 				var vertical: float = py / last
 				if role.y == Walls.ROW_CROWN:
 					color = base.lightened(0.34 * (1.0 - smoothstep(0.0, 1.0, vertical)))
-					# ⚠ L'ARETE RECULE VERS L'INTERIEUR, ET CE QUI PREND SA PLACE EST
-					# L'HERBE DU PLATEAU. Une falaise dont la roche commence au ras de la
-					# case se lit comme une dalle posee a plat : rien ne dit que le plateau
-					# est AU-DESSUS. En laissant le sommet deborder d'un cheveu sur sa propre
-					# face, le plateau surplombe -- et l'altitude se lit enfin.
-					#
-					# ⚠ CE N'EST PAS UNE LICENCE : le chapiteau descend TOUJOURS d'un
-					# plateau, quel que soit son etage -- meme la plaine, au bord du monde.
-					# L'herbe y est donc toujours juste.
-					if py < last * LIP_OVERHANG:
-						color = LEVEL_COLORS[1]
-					elif py < last * (LIP_OVERHANG + 0.06):
-						color = base.darkened(0.30)
 				elif role.y == Walls.ROW_FOOT:
 					color = base.darkened(0.34 * smoothstep(0.0, 1.0, vertical))
 				# ⚠ LA STRIURE NE SE DECALE PLUS D'UNE RANGEE A L'AUTRE. Elle le faisait,
