@@ -257,6 +257,17 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	return "\n".join(lines) + "\n"
 
 
+## LA REGLE DE POSE, telle qu'elle part dans le manifeste.
+##
+## ⚠ LE MODE D'EMPLOI LA LIT D'ICI, ET C'EST TOUT L'INTERET. La recopier dans l'interface
+## donnerait deux textes a tenir d'accord, et le jour ou la regle bouge il y en a un qui
+## ment. Ce que l'acheteur lit a l'ecran est mot pour mot ce que son moteur recevra.
+static func placement_rules() -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	_spec(lines)
+	return lines
+
+
 ## LA REGLE DE POSE, ecrite noir sur blanc.
 ##
 ## ⚠ NECESSAIRE ET SUFFISANT. Ce qui suit doit permettre a quelqu'un qui n'a QUE ce fichier

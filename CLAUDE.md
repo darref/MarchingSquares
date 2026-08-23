@@ -57,6 +57,7 @@ ui/           l'éditeur
   tool_section.gd une section d'outils repliable
   preview_panel.gd  l'aperçu en jeu : les tuiles peintes sur un décor ordinaire
   neighbours_panel.gd  la case survolée et ses voisines, collées
+  manual.gd       le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd   capture la fenêtre, pour se relire
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : une île 46x27, 47/47, 15/15 et 36/36
@@ -1953,6 +1954,52 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **aucune falaise de bord du monde**, et poserait des pieds au fond du gouffre. Le tout sans
   une seule erreur : le pire des defauts, celui qui ne se signale pas.
 
+- **Le mode d'emploi vit DANS le logiciel, à trois niveaux** (`ui/manual.gd`). Un outil qu'on
+  achète et qu'on n'arrive pas à ouvrir est un outil qu'on se fait rembourser : la première
+  raison d'abandon n'est pas la difficulté, c'est de ne pas trouver par où commencer. Le
+  mode d'emploi n'est donc ni un PDF, ni un site, ni un README — il est à un clic, dans la
+  fenêtre, et il se referme d'une croix.
+
+  Trois niveaux, et ce sont **trois lecteurs différents**, pas trois longueurs du même texte :
+  - **1 · Prise en main** — celui qui vient d'ouvrir : choisir, peindre, exporter, installer
+    le plugin, poser son monde. Rien de ce qui n'est pas nécessaire pour arriver au bout ;
+  - **2 · Comment ça marche** — celui qui veut savoir *pourquoi* le crayon refuse une case,
+    pourquoi les jumelles se remplissent ensemble, pourquoi l'export se ferme. Les règles du
+    logiciel et de l'addon, expliquées ;
+  - **3 · La règle de pose** — celui qui réimplémente : le contrat, ligne par ligne.
+
+  ⚠ **LE NIVEAU 3 N'EST PAS RECOPIÉ, IL EST LU À LA SOURCE.** `TilesetPNG.placement_rules()`
+  rend exactement les lignes que `_spec()` écrit dans le manifeste ; le manuel les met en
+  forme, il n'en réécrit aucune. Un mode d'emploi qui paraphraserait le contrat serait un
+  **second endroit où mentir** : le jour où une clause bouge, les deux textes divergeraient
+  sans que rien ne le dise — exactement le défaut que le manifeste existe pour supprimer.
+  C'est la même raison que `CANONICAL_INDICES` calculé et la planche de preuve calculée.
+
+  ⚠ **Le bandeau devient donc cliquable, et il déroule aussi des conseils.** Il ne portait que
+  les phrases de la charte ; il porte maintenant huit conseils pratiques — clic droit efface,
+  l'ambre marque les cases sans jumelle, la racine du projet est celle qui contient
+  `project.godot`. Un conseil qui passe en six secondes est un conseil qu'on rate : la zone
+  entière ouvre le manuel, où tout est écrit et où rien ne défile.
+
+  ⚠ **Deux pièges Godot payés comptant, notés pour ne pas les repayer :**
+  - `set_anchors_preset()` **conserve la taille courante** ; appelé dans `_ready()`, où elle
+    vaut zéro, il laisse le panneau minuscule en haut à gauche et le voile ne couvre rien.
+    C'est `set_anchors_and_offsets_preset()` qu'il faut ;
+  - en GDScript, `%` se lie au **dernier fragment** d'une concaténation, pas à la chaîne
+    entière : `"a" + "b %d" % n` formate `"b %d"` seul. Bâtir la chaîne dans une variable
+    d'abord.
+
+## Version
+
+Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
+le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
+
+À **5.10.0** : noyau prouvé sur les deux familles, guides complets, l'éditeur qui peint,
+l'export qui se signe, le plugin AbsoluPaint qui pose le monde dans Godot, et le mode
+d'emploi à trois niveaux, à un clic du bandeau.
+
+Quand la monter, et je le proposerai le moment venu :
+
 - **correctif** — un défaut réparé, rien de neuf à l'écran ;
 - **mineure** — une capacité de plus que l'utilisateur voit : un paysage, un outil, un
   exporteur ;
@@ -1971,10 +2018,16 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
 
 ## Questions ouvertes
 
-- **Un mode d'emploi plein ecran**, ouvert en cliquant le bandeau haut-droit, qui ferait
-  aussi defiler des conseils au lieu des seules phrases de la charte. ⚠ **Rien n'en est
-  specifie** : ni contenu, ni decoupage, ni maquette. Ces deux lignes sont tout ce qui
-  existe.
+- **L'ESSAI N'EST PAS ENCORE CONVAINCANT, ET C'EST LE CHANTIER EN COURS.** Le tileset fait
+  du dessin du guide lui-meme -- celui qui part avec le plugin quand rien n'a encore ete
+  peint -- est ce que l'acheteur voit **en premier**. Juge insuffisant en le regardant dans
+  `res://trial_absolutiles_to_absolupaint_full.tscn`. Deux pistes deja eprouvees et rangees :
+  retirer les epaules falaise-plateau et reculer l'arete (essaye, **remis comme c'etait**), et
+  l'angle noir en haut des plateaux (**regle** -- c'etait une divergence d'empilement entre
+  l'illustration et le plugin). Piste encore ouverte : une **ombre portee au pied de la
+  falaise**, qui serait la premiere tuile non-terrain du tileset. Vient ensuite l'**exemple**,
+  peint a la main, qui deviendra le choix « Example » et devra passer en conditions
+  reelles dans le logiciel **et** dans l'addon.
 - **LES MATIERES BORDEES : eau, sable, ce qui se pose DANS un plateau plat.** Une matiere
   est un **masque binaire**, donc une couche posee comme un etage, mais **sans falaise** :
   le blob 47 s'y applique sans une ligne de code de plus, et les coins arrondis laissent

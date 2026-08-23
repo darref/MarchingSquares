@@ -23,13 +23,20 @@ const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
+const MANUAL := preload("res://ui/manual.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
 
-## Le bandeau du haut, qui deroule la charte. C'est la seule fantaisie du logiciel, et elle
-## dit quelque chose de vrai a chaque phrase.
+## Le bandeau du haut, qui deroule la charte ET des conseils.
+##
+## ⚠ IL DIT QUELQUE CHOSE DE VRAI A CHAQUE PHRASE, et c'est ce qui l'autorise a etre la
+## seule fantaisie du logiciel. Une banniere qui se contenterait de vanter le produit serait
+## du bruit ; celle-ci apprend a s'en servir pendant qu'on regarde ailleurs.
+##
+## ⚠ ET ON PEUT CLIQUER DESSUS. Un conseil qui passe en six secondes est un conseil qu'on
+## rate : la zone entiere ouvre le mode d'emploi, ou tout est ecrit et rien ne defile.
 const PROMISES: Array[String] = [
 	"Le guide est prouve complet avant que vous ne posiez un pixel.",
 	"On dessine, on ne configure pas.",
@@ -39,6 +46,14 @@ const PROMISES: Array[String] = [
 	"Ce qui n'est pas garanti est interdit : le crayon refuse le reste.",
 	"47 tuiles de surface, 12 de mur. Le compte est tenu a l'ecran.",
 	"Une case laissee vierge n'est pas utilisee. Peindre, c'est choisir.",
+	"Cliquez ici : le mode d'emploi s'ouvre en grand.",
+	"Clic gauche pose, clic droit efface. Ctrl+Z defait un trait entier.",
+	"Les cases cerclees d'ambre n'ont pas de jumelle : personne d'autre ne les portera.",
+	"Peindre une case en remplit toutes les jumelles : c'est la meme tuile, vue ailleurs.",
+	"Le paysage, la taille et le reseau se choisissent AVANT de dessiner.",
+	"Installer le plugin : ciblez la racine du projet, celle qui contient project.godot.",
+	"Un tileset part avec le plugin -- le votre s'il est complet, son essai sinon.",
+	"Dans Godot : bouton AbsoluPaint dans la barre du haut, et tout est deja propose.",
 ]
 const PROMISE_SECONDS: float = 6.0
 
@@ -48,6 +63,7 @@ var _painting: RefCounted = null
 ## Le fichier de travail en cours, vide tant qu on n a pas enregistre une fois.
 var _work_path: String = ""
 var _open_dialog: FileDialog = null
+var _manual: Control = null
 var _save_dialog: FileDialog = null
 var _export_dialog: FileDialog = null
 var _plugin_dialog: FileDialog = null
@@ -86,6 +102,15 @@ func _ready() -> void:
 	(%InkChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
+	# ⚠ LE MODE D'EMPLOI SE POSE EN DERNIER, donc par-dessus tout le reste. Ajoute plus
+	# tot, il passerait sous la zone de travail et le clic ne l'atteindrait jamais.
+	_manual = MANUAL.new()
+	add_child(_manual)
+	var ticker: Label = %Ticker
+	ticker.mouse_filter = Control.MOUSE_FILTER_STOP
+	ticker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	ticker.tooltip_text = "Mode d'emploi"
+	ticker.gui_input.connect(_on_ticker_input)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
@@ -297,6 +322,14 @@ func _on_resolution_selected(_index: int) -> void:
 
 func _on_pencil_changed(color: Color) -> void:
 	(%WorkArea as Control).pencil = color
+
+
+## Le bandeau ouvre le mode d'emploi.
+func _on_ticker_input(event: InputEvent) -> void:
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		_manual.open()
+		(%Ticker as Label).accept_event()
 
 
 func _on_swatch_pressed(button: Button) -> void:

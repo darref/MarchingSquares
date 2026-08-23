@@ -71,6 +71,7 @@ func _initialize() -> void:
 	_test_underfoot()
 	_test_guide_image()
 	_test_wireframe_joins()
+	_test_manual()
 	_test_plugin_rules()
 	_test_trial_tileset()
 	_test_stacked_levels()
@@ -2145,6 +2146,60 @@ func _print_summary() -> void:
 ## ⚠ ON COMPARE LES TROIS VOCABULAIRES, PAS UN SEUL. Une divergence sur les robes ne se
 ## verrait jamais en ne comparant que les index de surface -- et c est justement la que la
 ## regle est la plus subtile, puisque le pan depend de la levre du voisin.
+## LE MODE D EMPLOI NE PARAPHRASE PAS LE CONTRAT, IL LE LIT.
+##
+## ⚠ UN SECOND ENDROIT OU DIRE LA REGLE EST UN SECOND ENDROIT OU MENTIR. Le niveau 3 du
+## manuel est la regle de pose ligne par ligne ; s'il en gardait sa propre copie, une clause
+## qui bouge laisserait les deux textes en desaccord SANS QUE RIEN NE LE SIGNALE -- exactement
+## le defaut que le manifeste existe pour supprimer. Il lit donc `placement_rules()`, la meme
+## fonction qui ecrit le fichier, et ce test le prouve : chaque ligne rendue se retrouve
+## telle quelle dans un manifeste vraiment ecrit.
+func _test_manual() -> void:
+	print("Mode d emploi : le niveau 3 est le contrat lui-meme")
+
+	var manual: Script = load("res://ui/manual.gd")
+	_check(manual != null and manual.can_instantiate(),
+			"le mode d emploi s analyse et s instancie")
+
+	var rules: PackedStringArray = TilesetPNG.placement_rules()
+	_check(rules.size() > 20, "la regle de pose fait plus de vingt lignes (%d)" % rules.size())
+
+	var folder: String = "user://manuel"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(folder))
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var painting: Painting = Trial.paint(heights, 16)
+	_check_equal(TilesetPNG.write(folder, "manuel", painting, heights, Modes.MINIMAL)["error"],
+			OK, "un manifeste s ecrit, pour avoir de quoi comparer")
+	var manifest: String = FileAccess.get_file_as_string(folder.path_join("manuel_tileset.txt"))
+
+	# ⚠ ON SAUTE LES LIGNES VIDES, et pas par commodite : `String.find("")` rend **-1** en
+	# Godot la ou Python rend 0. Les six lignes de respiration du contrat se seraient donc
+	# declarees absentes d'un fichier qui les contient -- un test faux, qui envoie corriger ce
+	# qui va bien.
+	var strays: int = 0
+	var first: String = ""
+	for line: String in rules:
+		if line.is_empty():
+			continue
+		if manifest.find(line) == -1:
+			strays += 1
+			if first.is_empty():
+				first = line
+	_check_equal(strays, 0,
+			"les %d lignes du manuel sont dans le manifeste, mot pour mot%s"
+			% [rules.size(), "" if first.is_empty() else " (manque : %s)" % first])
+
+	# ⚠ ET IL FAUT QUE LA REGLE SOIT VRAIMENT LA REGLE, pas un entete recopie. On cherche
+	# la clause qui porte le plus : celle du vide.
+	var carries: bool = false
+	for line: String in rules:
+		if line.begins_with("void "):
+			carries = true
+	_check(carries, "et elles portent bien la clause du vide, pas seulement l en-tete")
+
+	_wipe(folder)
+
+
 func _test_plugin_rules() -> void:
 	print("AbsoluPaint : la regle du plugin est CELLE DU NOYAU, case pour case")
 

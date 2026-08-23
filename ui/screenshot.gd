@@ -1,6 +1,7 @@
 extends SceneTree
 
 var _frames: int = 0
+var _manual: bool = false
 var _target: String = "shot.png"
 var _technic: int = -1
 var _ink: int = -1
@@ -41,6 +42,8 @@ func _initialize() -> void:
 				_ink = 1
 			"remontage":
 				_assembled = true
+			"manuel":
+				_manual = true
 			"apercu":
 				_preview = true
 			"preuve":
@@ -84,6 +87,14 @@ func _process(_delta: float) -> bool:
 			var check: CheckBox = _editor.get_node("%AssembledCheck")
 			check.button_pressed = true
 			check.toggled.emit(true)
+		if _manual:
+			# ⚠ ON PASSE PAR LE MEME CHEMIN QUE LE CLIC. Un outil de relecture qui prendrait
+			# un raccourci ne relirait pas ce que l'utilisateur voit.
+			var ticker: Label = _editor.get_node("%Ticker")
+			var click: InputEventMouseButton = InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.pressed = true
+			ticker.gui_input.emit(click)
 		if _preview:
 			var preview: CheckBox = _editor.get_node("%PreviewCheck")
 			preview.button_pressed = true
