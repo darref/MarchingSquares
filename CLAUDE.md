@@ -2018,7 +2018,8 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **L'ANGLE NOIR DERRIERE LES ARRONDIS : LE DEFAUT EN COURS, ET IL N'EST PAS RESOLU.**
+- **L'ANGLE NOIR DERRIERE LES ARRONDIS : LE POURQUOI EST TROUVE ET MESURE, LE CORRECTIF
+  RESTE A FAIRE.**
   ⚠ **JE ME SUIS TROMPE EN DISANT QUE L'EMPILEMENT LE REGLAIT.** L'utilisateur a fourni
   le contrexemple, et il est decisif.
 
@@ -2041,6 +2042,39 @@ Quand la monter, et je le proposerai le moment venu :
   s'y pose ; les autres n'ont pas d'atterrissage a cet endroit, donc rien ne se pose, donc
   l'arrondi tombe jusqu'au fond.
 
+  **LE POURQUOI, TROUVE ET MESURE — L'HYPOTHESE EST CONFIRMEE** (sondes du 23/08/2026 :
+  noyau, illustration, remontage, et plugin sur la scene regeneree) :
+
+  - **la geometrie des deux cases relevees** : colonne 32 (et 36 a l'identique), une masse
+    d'etage 2 jusqu'en y=16, UNE case d'etage 1 en y=17, un pilier d'etage 2 en y=18. La
+    levre (32,16) part pour une chute de 3 ; `_trim` rencontre (32,18) -- une case de SON
+    etage -- au pas 2 et rend `(1, 0)` : la robe couvre la seule case (32,17), ecretee,
+    sans pied. Le pilier (32,18) est un index 0, quatre coins decoupes ;
+  - **la seule pose « sous une surface » du modele est le sous-pied, et il est declenche
+    par l'ATTERRISSAGE, jamais par le voisinage.** Dans `assemble()` -- noyau ET plugin --
+    `underfoot` ne s'ecrit que sous `if landed:`, et une robe ecretee rend `landed = 0` :
+    ni pied, ni sous-pied. Quant a `roles`, il ne couvre que les pas 1..drop, strictement
+    AU-DESSUS de la case qui coupe. La case qui ecrete ne recoit donc rien, d'aucune des
+    deux mains -- alors que la face continue derriere elle ;
+  - ⚠ **`_trim` SAIT ou la face s'arrete, et JETTE l'information.** Sa condition d'arret
+    est exactement « la case au pas N est de mon etage » : la case fautive et le pas y
+    sont connus au moment meme de l'ecretage, et il ne rend que `(N-1, 0)`. La donnee
+    qu'il faudrait pour poser derriere existe, puis disparait ;
+  - **ce qui se voit alors derriere le coin decoupe, au pixel** : dans l'illustration et
+    dans le plugin (qui empilent les etages), la surface de l'etage d'en dessous --
+    l'HERBE #667347, ecart 0,000, aux coins NO et NE de (32,18) comme de (36,18). Dans le
+    remontage et la planche `_preuve.png` (assembly : UNE tuile visible par case, pas
+    d'empilement), le FOND -- #1b1d1f : c'est le noir que l'utilisateur a vu. Meme trou,
+    deux fonds. La banquette (10,32), elle, montre la roche aux memes coins par les deux
+    chemins : le sous-pied fait exactement ce qui manque ici ;
+  - **la famille, comptee** (coin nord decoupe + face visible au nord + rien dessous) :
+    **19 cases sur `minimal`** -- dont (32,18) et (36,18) -- et **70 sur `ample`**, contre
+    5 cases sur `minimal` ou la robe atterrit et ou le sous-pied bouche le coin ;
+  - ⚠ **LA PLANCHE DE PREUVE ACTUELLE N'EXPRIME PAS LA FAMILLE : ZERO case.** Les dents
+    de ses deux peignes atterrissent toutes -- banquette a gauche, plaine a droite. Le
+    jour du correctif il lui faudra une paire de piliers qui n'atterrit PAS, sans quoi
+    elle ne peut ni montrer le defaut ni prouver qu'il est ferme.
+
   **Ce qui est deja mesure, et qu'il ne faut pas remesurer :**
   - sur les 47 index, **5** decoupent leur coin NO, 5 le NE, 5 le SO, 5 le SE ; **5** ne
     decoupent qu'au nord ; 8 ont au moins un coin nord decoupe. Le « 5 » de l'utilisateur
@@ -2061,6 +2095,11 @@ Quand la monter, et je le proposerai le moment venu :
   pied une case plus bas, sous la surface. La question a trancher est : *quelle rangee de
   robe reposer sous une case dont le voisin nord porte une face de falaise, quand cette
   falaise n'atterrit pas la ?* Si la reponse existe, le defaut se ferme a zero tuile.
+  Fait mesure qui aide : pour les pas >= 2, la rangee d'une face ne depend PAS de la
+  longueur de la chute (`row_for` : corps `(pas - 2) % 2`) -- la continuation derriere la
+  case qui ecrete est donc calculable sans la chute perdue ; aux deux cases relevees,
+  pas 2, ce serait un corps 0. Reste a decider si c'est la bonne rangee A MONTRER, ce qui
+  est une question de dessin, pas de calcul.
 
   ⚠ **ET LA PISTE « LAISSER L'ARTISTE ARRETER LES ARETES PLUS TOT » EST FERMEE.** Proposee
   comme des modes qui laisseraient depasser les choses derriere une par une, avec un guide
@@ -2072,17 +2111,30 @@ Quand la monter, et je le proposerai le moment venu :
   tuile ce qui est derriere que si ce qui est derriere est **constant*** -- l'epaule passe, le
   nord non.
 
-  **Deux pieges de sonde, payes comptant :**
+  **Trois pieges de sonde, payes comptant :**
   - `Walls.assemble()` rend `roles` keye par **`Vector3i`** (la case **et** l'etage de la
     levre), pas `Vector2i`. Interroger en `Vector2i` ne trouve rien et fait conclure « aucune
     robe ici », ce qui est faux : la planche de preuve porte **585 cases de robe et 147
     sous-pieds** ;
-  - `String.find("")` rend **-1** en Godot la ou Python rend 0.
+  - `String.find("")` rend **-1** en Godot la ou Python rend 0 ;
+  - en script `SceneTree`, `quit()` part avant la premiere iteration : le `_ready()` d'un
+    noeud qu'on vient d'ajouter n'a PAS encore tourne quand on le sonde. Le monde
+    instancie ne montrait qu'une couche de surface -- l'etat d'avant le `_reload()` de
+    `_ready`, un etat que l'editeur ne montre jamais. Rejouer le geste de `_ready`
+    (reposer `manifest_path`) avant de mesurer.
 
-  ⚠ **`res://trial_absolutiles_to_absolupaint_full.tscn` N'EST PAS AU DEPOT.** C'est la
-  scene ou le defaut se regarde ; elle a ete fabriquee dans une session precedente et perdue.
-  **La regenerer est le premier geste** de la reprise -- et cette fois la committer, ou
-  committer le script qui la fabrique.
+  **LA SCENE OU LE DEFAUT SE REGARDE EST REVENUE AU DEPOT, AVEC SON FABRICANT.** Elle
+  avait ete fabriquee dans une session precedente et perdue, faute d'etre commitee. Cette
+  fois la scene ET son fabricant sont au depot : `tools/make_trial_scene.gd` exporte
+  l'essai dans `res://trial/`, releve le relief entier de `minimal` (2119 cases) et
+  enregistre `res://trial_absolutiles_to_absolupaint_full.tscn` -- un seul noeud
+  AbsoluPaintWorld, son manifeste, son relief ; les couches, il les repose seul a
+  l'ouverture, donc la scene ne peut pas mentir sur la pose. Pour la remettre d'accord
+  avec un guide retouche :
+
+  ```
+  godot --headless --path . --script res://tools/make_trial_scene.gd
+  ```
 
   Vient ensuite l'**exemple**, peint a la main par l'utilisateur, qui deviendra le choix
   « Example » et devra passer en conditions reelles dans le logiciel **et** dans l'addon.
