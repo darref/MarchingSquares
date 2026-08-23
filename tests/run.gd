@@ -76,6 +76,7 @@ func _initialize() -> void:
 	_test_stacked_levels()
 	_test_dirty_region()
 	_test_plugin_manifest()
+	_test_manifest_discovery()
 	_test_plugin_install()
 	_test_every_script_parses()
 	_report_candidate_guide()
@@ -2515,6 +2516,66 @@ func _test_plugin_manifest() -> void:
 
 
 ## L installateur : le bouton destine a l acheteur.
+## ABSOLUPAINT TROUVE SES TILESETS TOUT SEUL.
+##
+## ⚠ CE QU'ON PEUT TROUVER NE SE DEMANDE PAS. Pointer un manifeste a la main, c'est
+## demander a l'acheteur de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
+## occasions d'abandonner avant d'avoir rien vu. Un tileset AbsoluTiles se reconnait a son
+## nom -- donc on le trouve, et s'il n'y en a qu'un on le pose sans rien demander.
+func _test_manifest_discovery() -> void:
+	print("AbsoluPaint : les tilesets se trouvent tout seuls")
+	var folder: String = "user://decouverte"
+	var deeper: String = folder.path_join("un/deux/trois")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(deeper))
+
+	_check(PluginManifest.discover(folder).is_empty(),
+			"un projet sans tileset n en propose aucun")
+
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var painting: Painting = Trial.paint(heights, 16)
+	_check_equal(TilesetPNG.write(folder, "premier", painting, heights, Modes.MINIMAL)["error"],
+			OK, "un tileset s ecrit a la racine")
+	_check_equal(TilesetPNG.write(deeper, "second", painting, heights, Modes.MINIMAL)["error"],
+			OK, "et un autre, trois dossiers plus bas")
+
+	var found: PackedStringArray = PluginManifest.discover(folder)
+	_check_equal(found.size(), 2, "les deux se trouvent, quelle que soit leur profondeur")
+	var names: PackedStringArray = PackedStringArray()
+	for path: String in found:
+		names.append(path.get_file())
+	names.sort()
+	_check_equal(names, PackedStringArray(["premier_tileset.txt", "second_tileset.txt"]),
+			"et ce sont bien eux")
+	_check_equal(PluginManifest.label_of(found[0]).is_empty(), false,
+			"chacun sait se nommer court, pour une liste deroulante")
+
+	# ⚠ ET IL FAUT QUE CE QU ON TROUVE SE LISE. Proposer un chemin que le lecteur refuse
+	# ensuite serait pire que ne rien proposer : on aurait promis.
+	for path: String in found:
+		_check_equal(PluginManifest.parse(FileAccess.get_file_as_string(path))["error"], OK,
+				"et %s se relit vraiment" % path.get_file())
+
+	_wipe(folder)
+
+
+## Efface un dossier et tout ce qu il contient.
+func _wipe(folder: String) -> void:
+	var directory: DirAccess = DirAccess.open(folder)
+	if directory == null:
+		return
+	directory.list_dir_begin()
+	var entry: String = directory.get_next()
+	while entry != "":
+		var path: String = folder.path_join(entry)
+		if directory.current_is_dir():
+			_wipe(path)
+		else:
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		entry = directory.get_next()
+	directory.list_dir_end()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(folder))
+
+
 func _test_plugin_install() -> void:
 	print("AbsoluPaint : l installation chez l acheteur")
 

@@ -16,6 +16,7 @@ const NODE_NAME: String = "AbsoluPaintWorld"
 const WORLD_SCRIPT: String = "res://addons/absolupaint/world.gd"
 const ICON: String = "res://addons/absolupaint/icon.svg"
 const DOCK := preload("res://addons/absolupaint/dock.gd")
+const Manifest := preload("res://addons/absolupaint/manifest.gd")
 
 var _button: Button = null
 var _dock: VBoxContainer = null
@@ -45,7 +46,13 @@ func _enter_tree() -> void:
 	_dock = DOCK.new()
 	_dock.name = "AbsoluPaint"
 	_dock.armed_changed.connect(_on_armed)
+	_dock.tileset_chosen.connect(_on_tileset_chosen)
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+	# ⚠ DIFFERE D'UNE IMAGE, ET CE N'EST PAS UNE PRECAUTION. Un greffon entre dans l'arbre
+	# AVANT que l'editeur n'ait restaure la scene ouverte a la fermeture : la chercher
+	# maintenant rendrait nul, et la liste resterait vide toute la session.
+	_offer.call_deferred()
+	scene_changed.connect(func(_root: Node) -> void: _offer())
 
 
 func _exit_tree() -> void:
@@ -78,7 +85,7 @@ func _on_pressed() -> void:
 	if world == null:
 		return
 	_select(world)
-	_say("Monde pret. Pointez son manifeste, puis armez le pinceau.")
+	_offer()
 
 
 func _find_world(from: Node) -> Node:
@@ -120,6 +127,11 @@ func _on_armed(armed: bool) -> void:
 	if world == null:
 		_dock.disarm()
 		_say("Aucun monde AbsoluPaint dans la scene. Cliquez le bouton de la barre du haut.")
+		return
+	if String(world.manifest_path).is_empty():
+		_dock.disarm()
+		_say("Choisissez d'abord un tileset. Aucun n'a ete trouve dans ce projet :\n"
+				+ "exportez-en un depuis AbsoluTiles, ou son essai.")
 		return
 	_select(world)
 	_say("Arme. Clic gauche pose, clic droit retire.")
@@ -240,6 +252,45 @@ func _select(node: Node) -> void:
 	selection.clear()
 	selection.add_node(node)
 	EditorInterface.edit_node(node)
+
+
+## PROPOSE LES TILESETS DU PROJET, ET EN PREND UN S'IL N'Y EN A QU'UN.
+##
+## ⚠ TOUT DOIT SE PASSER DANS LE PRODUIT. Demander a l'acheteur de pointer un fichier,
+## c'est lui demander de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
+## occasions d'abandonner avant d'avoir rien vu. Un tileset AbsoluTiles se reconnait a son
+## nom, donc on le trouve.
+##
+## ⚠ ET ON NE CHOISIT A SA PLACE QUE QUAND IL N'Y A PAS DE CHOIX. Un seul tileset dans le
+## projet : le doute n'existe pas, on le pose. Plusieurs : on montre celui du monde, ou le
+## premier, et c'est lui qui tranche.
+func _offer() -> void:
+	if _dock == null:
+		return
+	var world: Node = _world()
+	var found: PackedStringArray = Manifest.discover()
+	var current: String = "" if world == null else String(world.manifest_path)
+	_dock.fill_tilesets(found, current)
+	if world == null:
+		_say("Cliquez le bouton de la barre du haut pour poser un monde.")
+		return
+	if current.is_empty() and found.size() == 1:
+		world.manifest_path = found[0]
+		_say("Tileset trouve et pose : %s" % found[0].get_file())
+		return
+	if current.is_empty():
+		_say("Aucun tileset trouve dans ce projet." if found.is_empty()
+				else "Choisissez le tileset a peindre.")
+		return
+	_say("Monde pret. Armez le pinceau.")
+
+
+func _on_tileset_chosen(path: String) -> void:
+	var world: Node = _world()
+	if world == null:
+		return
+	world.manifest_path = path
+	_say("Tileset : %s" % path.get_file())
 
 
 func _say(message: String) -> void:

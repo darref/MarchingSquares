@@ -1411,6 +1411,34 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   quatre cases qu'elle chevauche, pas d'un étage : il n'y a rien à empiler, et une seule
   couche suffit.
 
+- **CE QU'ON PEUT TROUVER NE SE DEMANDE PAS.** AbsoluPaint faisait pointer un
+  `manifest_path` à la main. C'est demander à l'acheteur de savoir **ce qu'il cherche, où il
+  est, et que ce soit lui** — trois occasions d'abandonner avant d'avoir rien vu.
+
+  Un tileset AbsoluTiles se reconnaît à son nom : le panneau **fouille le projet** et
+  propose ce qu'il trouve. ⚠ **Et il ne choisit à la place de personne que quand il n'y a
+  pas de choix** : un seul tileset, le doute n'existe pas, on le pose ; plusieurs, on montre
+  celui du monde et l'acheteur tranche.
+
+  ⚠ **On regarde le NOM, pas le contenu.** Ouvrir chaque `.txt` du projet coûterait un
+  balayage complet ; le suffixe suffit à *proposer*, et `parse` refuse ensuite ce qui n'en
+  est pas un. La recherche est bornée en profondeur et saute `.godot` : on fouille le projet
+  de quelqu'un d'autre, un lien circulaire ne doit pas figer son éditeur.
+
+  ⚠ **ET L'INSTALLATION DÉPOSE DE QUOI PEINDRE**, ce qui était la moitié manquante. Un
+  plugin posé dans un projet vide ne montre rien : il fallait exporter, donc savoir que
+  l'export existe, l'écrire quelque part, puis le retrouver. Un seul geste désormais — on
+  cible un projet, il repart avec **le plugin et un tileset** dans `absolutiles/`.
+
+  ⚠ **Le vôtre s'il est complet, l'essai sinon, et on le DIT.** Écrire un travail à moitié
+  peint serait un piège : des trous transparents qu'on découvrirait dans le jeu. On ne
+  contourne pas le refus d'une feuille incomplète, on retombe sur l'essai.
+
+  ⚠ **Le greffon se rafraîchit en DIFFÉRÉ d'une image, et à chaque changement de scène.**
+  Un greffon entre dans l'arbre **avant** que l'éditeur n'ait restauré la scène ouverte à la
+  fermeture : chercher le monde tout de suite rend nul, et la liste resterait vide toute la
+  session. C'est la leçon du pinceau de Satyron, et elle vaut ici aussi.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que

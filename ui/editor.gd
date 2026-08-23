@@ -630,8 +630,39 @@ func _on_trial_folder_chosen(folder: String) -> void:
 func _on_plugin_folder_chosen(folder: String) -> void:
 	var report: Dictionary = PluginInstall.install(folder)
 	var said: String = PluginInstall.summary(report)
+	if int(report["error"]) == OK:
+		said += "\n" + _install_tileset(folder)
 	_announce(said)
 	(%PluginHint as Label).text = said
+
+
+## ⚠ ON INSTALLE AUSSI DE QUOI PEINDRE, ET C'EST LA MOITIE QUI MANQUAIT. Un plugin pose
+## dans un projet vide ne montre rien : il faut un tileset, donc l'exporter, donc savoir
+## qu'il existe, ou l'ecrire, et le retrouver ensuite. Quatre gestes entre « j'installe » et
+## « je vois quelque chose » -- et chacun est une occasion d'abandonner.
+##
+## Un seul geste, donc : on cible un projet, et il repart avec le plugin ET un tileset. De
+## l'autre cote, AbsoluPaint le trouve tout seul.
+##
+## ⚠ ET C'EST LE VOTRE S'IL EST COMPLET, L'ESSAI SINON. Ecrire un travail a moitie peint
+## serait un piege : des trous transparents qu'on decouvrirait dans le jeu. L'export refuse
+## deja une feuille incomplete -- on ne contourne pas ce refus, on retombe sur l'essai, et
+## on le DIT.
+func _install_tileset(folder: String) -> String:
+	var into: String = folder.path_join("absolutiles")
+	var ready: Dictionary = TilesetPNG.analyse(_painting, _heights, _current_family())
+	if bool(ready["is_exportable"]):
+		var done: Dictionary = TilesetPNG.write(into, "mon_tileset", _painting, _heights,
+				_current_mode(), _current_family())
+		if int(done["error"]) == OK:
+			return "Votre tileset est parti avec, dans absolutiles/."
+		return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
+	var trial: Dictionary = Trial.write(into, _current_mode())
+	if int(trial["error"]) == OK:
+		return "L'essai est parti avec, dans absolutiles/ : de quoi poser un monde tout " \
+				+ "de suite, sans avoir peint."
+	return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
+
 
 
 ## Choisit dans une liste deroulante l'entree qui porte [param value]. Sans effet si elle

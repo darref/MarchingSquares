@@ -23,8 +23,13 @@ Vous n'avez rien à chercher.
    nœud **`AbsoluPaintWorld`** dans la scène et vous y emmène — et s'il y en a déjà un, il
    vous y emmène sans en créer un second. (À la main : « Ajouter un nœud » →
    `AbsoluPaintWorld`.)
-2. Dans l'inspecteur, pointez **`Manifest Path`** sur le `<nom>_tileset.txt` livré avec vos
-   deux planches. Les images sont lues à côté de lui, sous les noms qu'il donne.
+
+⚠ **Vous n'avez pas de manifeste à pointer.** Le panneau **cherche les tilesets AbsoluTiles
+du projet** et les propose ; s'il n'y en a qu'un, il le pose sans rien demander. Le bouton
+« Installer le plugin Godot » d'AbsoluTiles en dépose d'ailleurs un dans `absolutiles/` en
+même temps que l'extension — votre tileset s'il est complet, son **essai** sinon.
+2. Choisissez le **tileset** dans le panneau, si le projet en contient plusieurs. Les deux
+   planches sont lues à côté du manifeste, sous les noms qu'il donne.
 3. Remplissez `heights` — un dictionnaire `Vector2i → étage`, de **0 à 9**.
 
 ### ⚠ Une case absente est HORS DU MONDE, pas à la plaine

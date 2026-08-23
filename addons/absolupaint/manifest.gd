@@ -54,6 +54,59 @@ const BY_CORNER: StringName = &"corner"
 ##   walls_sheet    : String
 ##   wall_slots     : Dictionary[Vector2i, Vector2i]  role  -> case de la planche
 ##   proof_sheet    : String       peut rester vide : c'est une preuve, pas une donnee
+## Le suffixe qui reconnait un manifeste sans l'ouvrir.
+const SUFFIX: String = "_tileset.txt"
+
+## Les dossiers qu'on ne fouille jamais : ceux du moteur, pas ceux de l'acheteur.
+const SKIPPED: Array[String] = [".godot", ".git", ".import"]
+
+## Jusqu'ou descendre. ⚠ UNE BORNE, PARCE QU'ON FOUILLE LE PROJET DE QUELQU'UN D'AUTRE :
+## un lien circulaire ou une arborescence de mille dossiers ne doit pas figer son editeur.
+const MAX_DEPTH: int = 6
+
+
+## TOUS LES MANIFESTES DU PROJET, DANS L'ORDRE DE LECTURE.
+##
+## ⚠ ON NE DEMANDE PAS A L'ACHETEUR CE QU'ON PEUT TROUVER. Pointer un fichier a la main
+## est le genre de geste qui fait abandonner un outil : il faut savoir ce qu'on cherche, ou
+## il se trouve, et que ce soit LUI qu'on cherche. Un tileset AbsoluTiles se reconnait a son
+## nom ; on le propose, et s'il n'y en a qu'un on le prend sans rien demander.
+##
+## ⚠ ON REGARDE LE NOM, PAS LE CONTENU. Ouvrir chaque `.txt` du projet pour voir s'il
+## s'annonce couterait un balayage complet a chaque fois ; le suffixe suffit a proposer, et
+## `parse` refuse ensuite ce qui n'en est pas un.
+static func discover(from: String = "res://") -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	_walk(from, 0, found)
+	found.sort()
+	return found
+
+
+static func _walk(folder: String, depth: int, into: PackedStringArray) -> void:
+	if depth > MAX_DEPTH:
+		return
+	var directory: DirAccess = DirAccess.open(folder)
+	if directory == null:
+		return
+	directory.list_dir_begin()
+	var entry: String = directory.get_next()
+	while entry != "":
+		if directory.current_is_dir():
+			if not entry.begins_with(".") and not SKIPPED.has(entry):
+				_walk(folder.path_join(entry), depth + 1, into)
+		elif entry.ends_with(SUFFIX):
+			into.append(folder.path_join(entry))
+		entry = directory.get_next()
+	directory.list_dir_end()
+
+
+## Un nom court, pour une liste deroulante : le dossier et le tileset, sans le suffixe.
+static func label_of(path: String) -> String:
+	var name: String = path.get_file().trim_suffix(SUFFIX)
+	var folder: String = path.get_base_dir().get_file()
+	return name if folder.is_empty() else "%s  (%s)" % [name, folder]
+
+
 static func parse(text: String) -> Dictionary:
 	var result: Dictionary = _blank()
 

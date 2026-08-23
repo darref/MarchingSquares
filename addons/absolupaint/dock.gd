@@ -7,12 +7,14 @@
 extends VBoxContainer
 
 signal armed_changed(armed: bool)
+signal tileset_chosen(path: String)
 
 ## L'etage qu'on pose. `VOID` retire la case du monde.
 const VOID: int = -1
 const LEVELS: int = 10
 
 var _arm: CheckButton = null
+var _tileset: OptionButton = null
 var _status: Label = null
 var _group: ButtonGroup = null
 var _chosen: int = 1
@@ -37,6 +39,21 @@ func _build() -> void:
 	hint.add_theme_font_size_override("font_size", 11)
 	hint.modulate = Color(1, 1, 1, 0.65)
 	add_child(hint)
+
+	add_child(HSeparator.new())
+
+	# ⚠ ON NE DEMANDE PAS CE QU'ON PEUT TROUVER. Pointer un manifeste a la main est le
+	# genre de geste qui fait abandonner un outil : il faut savoir ce qu'on cherche, ou il
+	# est, et que ce soit lui. Le greffon fouille le projet et propose ; s'il n'en trouve
+	# qu'un, il le prend sans rien demander.
+	var sheet: Label = Label.new()
+	sheet.text = "Tileset"
+	add_child(sheet)
+	_tileset = OptionButton.new()
+	_tileset.clip_text = true
+	_tileset.tooltip_text = "Les tilesets AbsoluTiles trouves dans ce projet."
+	_tileset.item_selected.connect(_on_tileset_selected)
+	add_child(_tileset)
 
 	add_child(HSeparator.new())
 
@@ -111,3 +128,41 @@ func chosen_level() -> int:
 func say(message: String) -> void:
 	if _status != null:
 		_status.text = message
+
+
+## Remplit la liste des tilesets trouves, et retient celui qui est en place.
+##
+## ⚠ SANS RIEN CHOISIR A LA PLACE DE L'ACHETEUR QUAND IL Y A UN DOUTE. Un seul tileset :
+## on le prend. Plusieurs : on montre celui du monde, ou le premier, et il tranche.
+func fill_tilesets(paths: PackedStringArray, current: String) -> void:
+	if _tileset == null:
+		return
+	_tileset.clear()
+	if paths.is_empty():
+		_tileset.add_item("aucun tileset trouve")
+		_tileset.disabled = true
+		return
+	_tileset.disabled = false
+	var chosen: int = 0
+	for index: int in range(paths.size()):
+		_tileset.add_item(_short(paths[index]))
+		_tileset.set_item_metadata(index, paths[index])
+		if paths[index] == current:
+			chosen = index
+	_tileset.select(chosen)
+
+
+func chosen_tileset() -> String:
+	if _tileset == null or _tileset.disabled or _tileset.item_count == 0:
+		return ""
+	return String(_tileset.get_item_metadata(_tileset.selected))
+
+
+func _on_tileset_selected(index: int) -> void:
+	tileset_chosen.emit(String(_tileset.get_item_metadata(index)))
+
+
+func _short(path: String) -> String:
+	var name: String = path.get_file().trim_suffix("_tileset.txt")
+	var folder: String = path.get_base_dir().get_file()
+	return name if folder.is_empty() else "%s  (%s)" % [name, folder]
