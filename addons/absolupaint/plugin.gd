@@ -352,12 +352,26 @@ func _on_tileset_chosen(path: String) -> void:
 ## ⚠ LE PANNEAU EST UN ONGLET, ET UN ONGLET QU'ON NE VOIT PAS N'EXISTE PAS. Godot range
 ## les greffons dans des piles a onglets : le notre peut tres bien etre derriere « Scene »
 ## ou « Importer » depuis l'ouverture du projet. On le met devant.
+##
+## ⚠ CE N'EST PAS NOTRE NOEUD QUI EST L'ONGLET. `add_control_to_dock` l'EMBALLE dans un
+## `EditorDock`, et c'est celui-la que la pile connait -- releve dans un vrai editeur :
+##
+##     AbsoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
+##
+## Chercher un TabContainer comme parent DIRECT ne trouvait donc rien, et la fonction ne
+## faisait rien du tout, sans une erreur. On remonte jusqu'a trouver la pile, et on lui
+## demande l'index de l'enfant qu'elle connait -- jamais `get_index()`, qui compterait aussi
+## ce qui n'est pas un onglet.
 func _reveal_dock() -> void:
-	if _dock == null:
-		return
-	var tabs: TabContainer = _dock.get_parent() as TabContainer
-	if tabs != null:
-		tabs.current_tab = _dock.get_index()
+	var node: Node = _dock
+	while node != null:
+		var tabs: TabContainer = node.get_parent() as TabContainer
+		if tabs != null:
+			var tab: int = tabs.get_tab_idx_from_control(node as Control)
+			if tab >= 0:
+				tabs.current_tab = tab
+			return
+		node = node.get_parent()
 
 
 ## Dit ce qui manque, en grand, et ce qu'il faut faire.

@@ -1460,6 +1460,22 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   il pose le monde, mais tout ce qui suit se passe dans le panneau, et le laisser refermé
   reviendrait à livrer l'outil sans dire où il est.
 
+  ⚠ **ET CE N'EST PAS NOTRE NŒUD QUI EST L'ONGLET.** `add_control_to_dock` l'**emballe**
+  dans un `EditorDock`, et c'est celui-là que la pile connaît. Relevé dans un vrai éditeur :
+
+  ```
+  AbsoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
+  ```
+
+  Ma première version cherchait un `TabContainer` comme parent **direct** : elle n'en
+  trouvait aucun et **ne faisait rien du tout, sans une erreur**. On remonte donc jusqu'à la
+  pile, et on lui demande l'index de l'enfant qu'elle connaît — jamais `get_index()`, qui
+  compterait aussi ce qui n'est pas un onglet.
+
+  ⚠ **Mesuré dans un éditeur, pas raisonné** : onglet courant 0 avant, 3 après. Une
+  fonction d'interface qui échoue en silence ne se voit d'aucune autre façon — la suite ne
+  monte pas l'éditeur, et le code était parfaitement valide.
+
 - **La grille ne se trace que sur ce qui se peint.** Tracée sur tout le rectangle, elle
   quadrillait surtout **ce qui n'est pas le travail** : la plaine occupe la plus grande part
   du cadre et ne se peint pas, si bien que la grille y dessinait une feuille de calcul et que
