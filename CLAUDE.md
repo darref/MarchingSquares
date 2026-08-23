@@ -1989,14 +1989,80 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
     entière : `"a" + "b %d" % n` formate `"b %d"` seul. Bâtir la chaîne dans une variable
     d'abord.
 
+- **LA POSE DERRIERE : une robe ecretee repose son corps sous la case qui l'a coupee.**
+  C'est la fermeture de « l'angle noir derriere les arrondis », et elle generalise le
+  sous-pied au lieu d'ajouter un mecanisme : **une robe ne s'arrete jamais dans le vide**
+  -- elle atterrit et repose son PIED, ou elle bute et repose LE CORPS DU PAS SUIVANT sous
+  la case qui l'ecrete. Une pose de plus, AUCUNE tuile de plus, meme dictionnaire, meme
+  ordre de dessin, dans les deux copies de la regle (`core/walls.gd`,
+  `addons/absolupaint/rules.gd`).
+
+  **Le pourquoi, mesure avant d'ecrire.** La seule pose « sous une surface » du modele
+  etait le sous-pied, declenche par l'ATTERRISSAGE (`if landed:`) et jamais par le
+  voisinage ; une robe ecretee rend `landed = 0`, et `roles` ne couvre que les pas
+  1..drop, strictement au-dessus de la case qui coupe. La case qui ecrete ne recevait donc
+  rien -- alors que `_trim` SAVAIT ou la face s'arretait, c'est sa condition d'arret, et
+  jetait l'information. Sur `minimal` : 19 cases -- dont (32,18) et (36,18), relevees par
+  l'utilisateur -- montraient l'etage d'en dessous (l'herbe `#667347`, ecart 0,000) dans
+  l'illustration et le plugin, qui empilent, et le FOND (`#1b1d1f`, le noir) dans le
+  remontage et la planche de preuve, qui posent une seule tuile visible par case.
+
+  **La regle, precisement :**
+  - la rangee reposee est `row_for(drop + 1)` : **toujours un corps**. Jamais un pied --
+    le pied reste la preuve d'un atterrissage -- et jamais un chapiteau, un blocage au
+    premier pas reduisant la robe a neant ;
+  - ⚠ et pour les pas >= 2 la rangee ne depend PAS de la chute perdue (corps
+    `(pas - 2) % 2`) : la continuation est calculable au moment meme de l'ecretage ;
+  - le pan est celui de la derniere rangee posee, comme pour le sous-pied : meme face ;
+  - ⚠ **SEULEMENT SI LA CASE QUI ECRETE EST EXACTEMENT DE L'ETAGE DE LA LEVRE.** Plus
+    haute, son sommet depasse la face : derriere ses coins c'est l'etage d'en dessous, que
+    l'empilement montre deja. Mesure sur `ample` : les deux seules cases que la battue
+    laisse « a nu » sont de ce cas-la, et elles sont justes ;
+  - une robe qui tombe dans le vide ne pose toujours rien : aucune case derriere quoi
+    continuer.
+
+  **Apres correctif, mesure** : 0 case a nu sur `minimal` (24 couvertes), 0 sur la planche
+  de preuve, et les coins nord des piliers montrent la roche du corps par les DEUX chemins
+  -- empilement et remontage -- la ou ils montraient l'herbe ou le noir.
+
+  ⚠ **LA PLANCHE DE PREUVE A GAGNE LA PAIRE QUI N'ATTERRIT PAS** : une masse, UNE case de
+  creux, deux piliers du meme etage, a droite des peignes. Sans elle la planche
+  n'exprimait pas la famille du defaut -- toutes ses dents atterrissaient -- et n'aurait
+  pu ni le montrer ni prouver son correctif. Elle porte desormais **625 cases de robe et
+  162 poses derriere** ; les nombres de l'ancien piege de sonde (585 / 147) sont perimes.
+
+  ⚠ **LE MANIFESTE PASSE EN VERSION 5, ET LA V4 EST REFUSEE NOMMEMENT.** Meme espece de
+  changement que le sous-pied en v4, meme traitement : la regle de pose change de sens,
+  donc la version bouge et les deux bornes du lecteur montent a 5. Un plugin qui pose la
+  pose derriere en lisant un fichier v4 qui ne la decrit pas fabriquerait deux mondes pour
+  un meme fichier des le premier lecteur Unity. La clause est au contrat :
+  `backing next_body_row under_trimming_cell same_level_only`.
+
+  ⚠ **LE CONTROLE CROISE NE COMPARAIT PAS LES SOUS-PIEDS, ET C'EST BOUCHE.** Il comparait
+  surfaces, croisements et robes -- jamais la pose derriere, apparue en v4 sans que la
+  comparaison la suive. Les deux copies apprenant le meme geste le meme jour, c'etait
+  exactement le moment ou une divergence silencieuse s'installait. Les 4096 reliefs
+  exhaustifs, les 400 tires au sort, les guides et la planche comparent desormais aussi
+  les poses derriere, dans les deux sens.
+
+  **Trois pieges de sonde, gardes de la fiche :** `Walls.assemble()` rend `roles` keye par
+  `Vector3i` (la case ET l'etage de la levre) -- interroger en `Vector2i` conclut a tort
+  « aucune robe ici » ; `String.find("")` rend **-1** en Godot la ou Python rend 0 ; et en
+  script `SceneTree`, `quit()` part avant la premiere iteration, donc le `_ready()` d'un
+  noeud qu'on vient d'ajouter n'a pas encore tourne quand on le sonde -- rejouer son geste
+  avant de mesurer.
+
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **5.10.0** : noyau prouvé sur les deux familles, guides complets, l'éditeur qui peint,
-l'export qui se signe, le plugin AbsoluPaint qui pose le monde dans Godot, et le mode
-d'emploi à trois niveaux, à un clic du bandeau.
+À **6.0.0** : la POSE DERRIERE ferme l'angle noir -- le manifeste passe en v5 et la v4
+est refusee, ce qui perime les exports anterieurs : majeure. Autour, tout ce que la 5.10
+portait : noyau prouve sur les deux familles, guides complets, l'editeur qui peint,
+l'export refuse-incomplet, le plugin AbsoluPaint qui pose le monde dans Godot, et le mode
+d'emploi a trois niveaux.
 
 Quand la monter, et je le proposerai le moment venu :
 
@@ -2018,126 +2084,13 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-- **L'ANGLE NOIR DERRIERE LES ARRONDIS : LE POURQUOI EST TROUVE ET MESURE, LE CORRECTIF
-  RESTE A FAIRE.**
-  ⚠ **JE ME SUIS TROMPE EN DISANT QUE L'EMPILEMENT LE REGLAIT.** L'utilisateur a fourni
-  le contrexemple, et il est decisif.
-
-  **Le symptome, dans ses mots** : sur les peignes de la planche de preuve, « les deux
-  piliers de gauche sont corrects car celui du haut se termine la ou commence celui du bas ;
-  les deux paires suivantes sont fausses car derriere les arrondis du plateau de celui qui
-  est devant, il devrait y avoir le marron de la falaise qui est derriere, a la place
-  l'arrondi est noir ».
-
-  ⚠ **ET CE N'EST PAS SEULEMENT ABSOLUPAINT : LE GUIDE A LE MEME DEFAUT**, releve en
-  `(32,18)` et `(36,18)` de `minimal`, « et a beaucoup d'autres endroits ». Comme
-  l'illustration et le plugin le montrent tous les deux, ce n'est pas une divergence
-  d'empilement -- c'est **la regle elle-meme qui a un trou**. Le correctif d'empilement de la
-  4.x a bouche un cas, pas la famille.
-
-  **L'hypothese de l'utilisateur, et elle est la piste la plus serieuse** : « les tuiles qui
-  montrent des choses derriere existent dans le modele, mais ne sont pas utilisees a ce
-  moment de la peinture ». Autrement dit le vocabulaire suffit deja ; c'est la **pose** qui
-  manque. Le pilier de gauche est correct **parce que la robe y atterrit**, donc le sous-pied
-  s'y pose ; les autres n'ont pas d'atterrissage a cet endroit, donc rien ne se pose, donc
-  l'arrondi tombe jusqu'au fond.
-
-  **LE POURQUOI, TROUVE ET MESURE — L'HYPOTHESE EST CONFIRMEE** (sondes du 23/08/2026 :
-  noyau, illustration, remontage, et plugin sur la scene regeneree) :
-
-  - **la geometrie des deux cases relevees** : colonne 32 (et 36 a l'identique), une masse
-    d'etage 2 jusqu'en y=16, UNE case d'etage 1 en y=17, un pilier d'etage 2 en y=18. La
-    levre (32,16) part pour une chute de 3 ; `_trim` rencontre (32,18) -- une case de SON
-    etage -- au pas 2 et rend `(1, 0)` : la robe couvre la seule case (32,17), ecretee,
-    sans pied. Le pilier (32,18) est un index 0, quatre coins decoupes ;
-  - **la seule pose « sous une surface » du modele est le sous-pied, et il est declenche
-    par l'ATTERRISSAGE, jamais par le voisinage.** Dans `assemble()` -- noyau ET plugin --
-    `underfoot` ne s'ecrit que sous `if landed:`, et une robe ecretee rend `landed = 0` :
-    ni pied, ni sous-pied. Quant a `roles`, il ne couvre que les pas 1..drop, strictement
-    AU-DESSUS de la case qui coupe. La case qui ecrete ne recoit donc rien, d'aucune des
-    deux mains -- alors que la face continue derriere elle ;
-  - ⚠ **`_trim` SAIT ou la face s'arrete, et JETTE l'information.** Sa condition d'arret
-    est exactement « la case au pas N est de mon etage » : la case fautive et le pas y
-    sont connus au moment meme de l'ecretage, et il ne rend que `(N-1, 0)`. La donnee
-    qu'il faudrait pour poser derriere existe, puis disparait ;
-  - **ce qui se voit alors derriere le coin decoupe, au pixel** : dans l'illustration et
-    dans le plugin (qui empilent les etages), la surface de l'etage d'en dessous --
-    l'HERBE #667347, ecart 0,000, aux coins NO et NE de (32,18) comme de (36,18). Dans le
-    remontage et la planche `_preuve.png` (assembly : UNE tuile visible par case, pas
-    d'empilement), le FOND -- #1b1d1f : c'est le noir que l'utilisateur a vu. Meme trou,
-    deux fonds. La banquette (10,32), elle, montre la roche aux memes coins par les deux
-    chemins : le sous-pied fait exactement ce qui manque ici ;
-  - **la famille, comptee** (coin nord decoupe + face visible au nord + rien dessous) :
-    **19 cases sur `minimal`** -- dont (32,18) et (36,18) -- et **70 sur `ample`**, contre
-    5 cases sur `minimal` ou la robe atterrit et ou le sous-pied bouche le coin ;
-  - ⚠ **LA PLANCHE DE PREUVE ACTUELLE N'EXPRIME PAS LA FAMILLE : ZERO case.** Les dents
-    de ses deux peignes atterrissent toutes -- banquette a gauche, plaine a droite. Le
-    jour du correctif il lui faudra une paire de piliers qui n'atterrit PAS, sans quoi
-    elle ne peut ni montrer le defaut ni prouver qu'il est ferme.
-
-  **Ce qui est deja mesure, et qu'il ne faut pas remesurer :**
-  - sur les 47 index, **5** decoupent leur coin NO, 5 le NE, 5 le SO, 5 le SE ; **5** ne
-    decoupent qu'au nord ; 8 ont au moins un coin nord decoupe. Le « 5 » de l'utilisateur
-    est exact, et de deux facons.
-  - le **sud** est le seul cote ou ce qu'il y a derriere est **constant** (toujours une
-    falaise) : d'ou l'epaule, un seul dessin. Au nord ce n'est pas constant --
-    **8 / 11 / 4** choses differentes derriere, sur `minimal` / `ample` / le decor.
-  - une case couverte par une robe ne decoupe **jamais** son coin nord (0 cas sur les trois
-    reliefs livres) : un plateau plus haut au nord rend le nord *plein*.
-  - ⚠ **ON NE PEUT PAS PEINDRE LE DERRIERE DANS LA TUILE DE SURFACE.** Le tileset exporte
-    contient **un seul jeu de 47**, pose sur **tous** les etages (`_surface_source` unique,
-    `_surface_layers[level]`). Une tuile ne connait donc ni son etage ni ce qui est dessous ;
-    il faudrait une planche par etage. **C'est la contrainte qui elimine la solution
-    evidente**, et c'est elle qu'il faut avoir en tete avant de proposer quoi que ce soit.
-
-  **La direction qui reste, et la seule qui ne coute aucune tuile** : etendre le principe du
-  sous-pied. Le sous-pied est **une pose de plus, pas une tuile de plus** -- on redessine le
-  pied une case plus bas, sous la surface. La question a trancher est : *quelle rangee de
-  robe reposer sous une case dont le voisin nord porte une face de falaise, quand cette
-  falaise n'atterrit pas la ?* Si la reponse existe, le defaut se ferme a zero tuile.
-  Fait mesure qui aide : pour les pas >= 2, la rangee d'une face ne depend PAS de la
-  longueur de la chute (`row_for` : corps `(pas - 2) % 2`) -- la continuation derriere la
-  case qui ecrete est donc calculable sans la chute perdue ; aux deux cases relevees,
-  pas 2, ce serait un corps 0. Reste a decider si c'est la bonne rangee A MONTRER, ce qui
-  est une question de dessin, pas de calcul.
-
-  ⚠ **ET LA PISTE « LAISSER L'ARTISTE ARRETER LES ARETES PLUS TOT » EST FERMEE.** Proposee
-  comme des modes qui laisseraient depasser les choses derriere une par une, avec un guide
-  regenere a chaque changement. Refusee pour trois raisons : c'est un panneau de reglages
-  deguise en mode (regle 1) ; le guide bougerait sous le travail en cours (regle 2) ; et
-  surtout **ca casse la preuve** -- les 47 sont demontres parce qu'une tuile ne depend **que**
-  de sa fenetre 3x3, et des qu'elle depend aussi de ce qui est dessous, les 512 fenetres ne
-  prouvent plus rien. Le test a appliquer a toute idee de ce genre : *on ne peint dans la
-  tuile ce qui est derriere que si ce qui est derriere est **constant*** -- l'epaule passe, le
-  nord non.
-
-  **Trois pieges de sonde, payes comptant :**
-  - `Walls.assemble()` rend `roles` keye par **`Vector3i`** (la case **et** l'etage de la
-    levre), pas `Vector2i`. Interroger en `Vector2i` ne trouve rien et fait conclure « aucune
-    robe ici », ce qui est faux : la planche de preuve porte **585 cases de robe et 147
-    sous-pieds** ;
-  - `String.find("")` rend **-1** en Godot la ou Python rend 0 ;
-  - en script `SceneTree`, `quit()` part avant la premiere iteration : le `_ready()` d'un
-    noeud qu'on vient d'ajouter n'a PAS encore tourne quand on le sonde. Le monde
-    instancie ne montrait qu'une couche de surface -- l'etat d'avant le `_reload()` de
-    `_ready`, un etat que l'editeur ne montre jamais. Rejouer le geste de `_ready`
-    (reposer `manifest_path`) avant de mesurer.
-
-  **LA SCENE OU LE DEFAUT SE REGARDE EST REVENUE AU DEPOT, AVEC SON FABRICANT.** Elle
-  avait ete fabriquee dans une session precedente et perdue, faute d'etre commitee. Cette
-  fois la scene ET son fabricant sont au depot : `tools/make_trial_scene.gd` exporte
-  l'essai dans `res://trial/`, releve le relief entier de `minimal` (2119 cases) et
-  enregistre `res://trial_absolutiles_to_absolupaint_full.tscn` -- un seul noeud
-  AbsoluPaintWorld, son manifeste, son relief ; les couches, il les repose seul a
-  l'ouverture, donc la scene ne peut pas mentir sur la pose. Pour la remettre d'accord
-  avec un guide retouche :
-
-  ```
-  godot --headless --path . --script res://tools/make_trial_scene.gd
-  ```
-
-  Vient ensuite l'**exemple**, peint a la main par l'utilisateur, qui deviendra le choix
-  « Example » et devra passer en conditions reelles dans le logiciel **et** dans l'addon.
+- **L'EXEMPLE, PEINT A LA MAIN.** L'angle noir est ferme -- voir la decision « LA POSE
+  DERRIERE » -- et l'etape suivante du chantier est l'exemple : l'utilisateur peint
+  lui-meme un tileset, qui deviendra le choix « Example » du logiciel et devra passer en
+  conditions reelles dans le soft ET dans l'addon, par tatonnements successifs jusqu'a la
+  perfection. Le banc ou chaque iteration se regarde est au depot :
+  `tools/make_trial_scene.gd` regenere `res://trial/` et
+  `res://trial_absolutiles_to_absolupaint_full.tscn` d'une commande.
 - **LES MATIERES BORDEES : eau, sable, ce qui se pose DANS un plateau plat.** Une matiere
   est un **masque binaire**, donc une couche posee comme un etage, mais **sans falaise** :
   le blob 47 s'y applique sans une ligne de code de plus, et les coins arrondis laissent

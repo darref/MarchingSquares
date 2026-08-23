@@ -332,6 +332,10 @@ static func pan_at(heights: Dictionary, level: int, lip_of: Dictionary, at: Vect
 ## PIED une case plus bas, SOUS la surface : elle le recouvre entierement sauf par ses
 ## coins, et c'est exactement la qu'il manquait.
 ##
+## ⚠ ET LA MEME POSE DERRIERE UNE CASE QUI ECRETE : une robe coupee par une case de son
+## propre etage passe derriere elle, et repose sous cette case la rangee du pas suivant,
+## un corps. Le pied si la robe atterrit, le corps qui continue si elle bute.
+##
 ## ⚠ IL SORT A PART, PAS DANS `roles`. La case d'atterrissage est deja une case de SURFACE :
 ## la declarer case de robe la rendrait peignable deux fois, et l'editeur ne saurait plus
 ## quelle tuile elle porte. Le sous-pied n'est pas une tuile de plus, c'est une POSE de
@@ -370,9 +374,19 @@ static func assemble_walls(heights: Dictionary) -> Dictionary:
 				roles[Vector3i(at.x, at.y, level)] = Vector2i(
 						last_pan, row_for(step, drop, landed))
 			# ⚠ LE SOUS-PIED REPREND LE PAN DU PIED : c'est la MEME face, une case plus bas.
+			var next_cell: Vector2i = Vector2i(cell.x, cell.y + drop + 1)
 			if landed:
-				var under: Vector2i = Vector2i(cell.x, cell.y + drop + 1)
-				underfoot[Vector3i(under.x, under.y, level)] = Vector2i(last_pan, ROW_FOOT)
+				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
+						last_pan, ROW_FOOT)
+			elif level_at(heights, next_cell) == level:
+				# ⚠ LA POSE DERRIERE : une robe ecretee passe DERRIERE la case de son etage
+				# qui l'a coupee. On repose sous elle la rangee du pas suivant -- toujours
+				# un corps, jamais un pied ni un chapiteau -- avec le pan de la derniere
+				# rangee posee. Seulement si la case est EXACTEMENT de l'etage de la levre :
+				# plus haute, son sommet depasse la face, et l'empilement montre deja
+				# l'etage d'en dessous.
+				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
+						last_pan, row_for(drop + 1, drop + 1, false))
 	return {"roles": roles, "underfoot": underfoot}
 
 
@@ -507,9 +521,10 @@ static func walls(heights: Dictionary) -> Dictionary:
 	return visible
 
 
-## Le SOUS-PIED visible de chaque case d'atterrissage : celui de l'etage le plus haut.
-## ⚠ IL SE POSE AVANT TOUTES LES SURFACES. La case d'atterrissage le recouvre ensuite,
-## sauf par ses coins decoupes -- c'est exactement la qu'il doit se voir.
+## La POSE DERRIERE visible : le pied sous une case d'atterrissage, le corps sous une
+## case qui ecrete. Celle de l'etage le plus haut.
+## ⚠ ELLE SE POSE AVANT LA SURFACE QUI LA RECOUVRE. La case ne la laisse voir que par
+## ses coins decoupes -- c'est exactement la qu'elle doit se voir.
 static func underfoot(heights: Dictionary) -> Dictionary:
 	var under: Dictionary = assemble_walls(heights)["underfoot"]
 	var highest: Dictionary = {}

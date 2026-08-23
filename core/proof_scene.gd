@@ -55,18 +55,24 @@ const DUAL_PITCH_Y: int = DUAL_ISLAND + 4
 ##
 ## ⚠ ET LA BANQUETTE EST QUATRE RANGEES SOUS LA LEVRE, pas trois : `fall_at` sonde la case
 ## juste sous le pied, jamais celles que la robe traverse.
+##
+## ⚠ ET UNE PAIRE QUI N'ATTERRIT PAS, tout a droite : une masse, UNE case de creux, deux
+## piliers du meme etage. Leurs robes sont ecretees au premier pas -- c'est la POSE
+## DERRIERE que cette paire existe pour montrer. Sans elle, la planche n'exprimait pas la
+## famille de « l'angle noir » : toutes ses dents atterrissaient, et elle n'aurait pu ni
+## montrer le defaut ni prouver son correctif.
 const WALL_DEMO: Array[String] = [
-	"22222222..22222222",
-	"22222222..22222222",
-	"2.22.2.2..2.22.2.2",
-	"..................",
-	"..................",
-	"..................",
-	"1.11.1.1..........",
-	"..................",
-	"..................",
-	"..................",
-	"..................",
+	"22222222..22222222..2222",
+	"22222222..22222222..2222",
+	"2.22.2.2..2.22.2.2......",
+	"....................2.2.",
+	"........................",
+	"........................",
+	"1.11.1.1................",
+	"........................",
+	"........................",
+	"........................",
+	"........................",
 ]
 
 ## Le code du caractere « 0 » : un etage N s'ecrit ZERO + N.

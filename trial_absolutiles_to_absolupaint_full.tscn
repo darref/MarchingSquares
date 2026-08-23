@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/absolupaint/world.gd" id="1_i2hp6"]
 
-[node name="AbsoluPaintWorld" type="Node2D" unique_id=995179393]
+[node name="AbsoluPaintWorld" type="Node2D" unique_id=735825154]
 script = ExtResource("1_i2hp6")
 manifest_path = "res://trial/absolutiles_essai_tileset.txt"
 heights = {

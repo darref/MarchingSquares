@@ -1,4 +1,4 @@
-absolutiles-tileset 4
+absolutiles-tileset 5
 mode minimal
 tile_size 32
 
@@ -86,7 +86,7 @@ row_for crown_first foot_last body_cycle
 # voisine plus courte, un flanc redevient vide.
 pan west_times_three_plus_east lip_row_comparison per_row
 
-# --- LE SOUS-PIED ---
+# --- LA POSE DERRIERE : le sous-pied, et le corps derriere une case qui ecrete ---
 # Une robe qui atterrit repose son PIED une case plus bas, SOUS la surface
 # de cette case. Raison : la case d'atterrissage a ses coins nord decoupes
 # -- son voisin du nord est la face de la falaise -- et par ces coins on
@@ -98,6 +98,17 @@ pan west_times_three_plus_east lip_row_comparison per_row
 # etages du bas vers le haut recouvrirait sinon le sous-pied avec l'etage
 # d'en dessous, et les coins montreraient de nouveau le sol.
 underfoot foot_role redrawn_below under_landing_surface
+# ⚠ ET UNE ROBE ECRETEE PASSE DERRIERE LA CASE QUI L'A COUPEE. Sous cette
+# case -- seulement si elle est EXACTEMENT de l'etage de la levre : plus
+# haute, son sommet depasse la face -- on repose la rangee du pas suivant,
+# row_for(drop + 1) : toujours un CORPS. Jamais un pied, qui reste la preuve
+# d'un atterrissage ; jamais un chapiteau, un blocage au premier pas ayant
+# reduit la robe a neant. Le pan est celui de la derniere rangee posee, et
+# l'ordre est celui du sous-pied : juste avant la surface de l'etage de la
+# case qui la recouvre. Sans cette pose, le coin nord decoupe de la case qui
+# ecrete s'ouvre sur l'etage d'en dessous -- de l'herbe ou du vide, la ou la
+# roche continue.
+backing next_body_row under_trimming_cell same_level_only
 
 # --- LA PLANCHE ---
 # Une tuile, un dessin, une case. Les deux planches ont une taille FIXE :

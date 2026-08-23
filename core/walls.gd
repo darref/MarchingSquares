@@ -212,6 +212,12 @@ static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, 
 ## PIED une case plus bas, SOUS la surface : elle le recouvre entierement sauf par ses
 ## coins, et c'est exactement la qu'il manquait.
 ##
+## ⚠ ET LA MEME POSE DERRIERE UNE CASE QUI ECRETE. Une robe coupee par une case de son
+## propre etage passe DERRIERE elle : sous cette case on repose la rangee du pas suivant,
+## un corps. Meme mecanisme, meme dictionnaire -- le pied si la robe atterrit, le corps
+## qui continue si elle bute. Sans quoi le coin nord decoupe de la case qui ecrete
+## s'ouvrait sur l'etage d'en dessous, la ou la roche continue : l'angle noir.
+##
 ## ⚠ IL SORT A PART, PAS DANS `roles`. La case d'atterrissage est deja une case de SURFACE :
 ## la declarer case de robe la rendrait peignable deux fois, et l'editeur ne saurait plus
 ## quelle tuile elle porte. Le sous-pied n'est pas une tuile de plus, c'est une POSE de
@@ -261,9 +267,22 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 			# ⚠ LE SOUS-PIED REPREND LE PAN DU PIED, sans rien recalculer : c'est la MEME
 			# face, une case plus bas. Lui redemander ses flancs reviendrait a l'interroger
 			# sur une rangee qu'aucune robe n'occupe, et la reponse n'aurait pas de sens.
+			var next_cell: Vector2i = cell + Vector2i(0, drop + 1)
 			if landed:
-				var under: Vector2i = cell + Vector2i(0, drop + 1)
-				underfoot[Vector3i(under.x, under.y, level)] = Vector2i(last_pan, ROW_FOOT)
+				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
+						last_pan, ROW_FOOT)
+			elif HeightMask.level_at(heights, next_cell.x, next_cell.y) == level:
+				# ⚠ LA POSE DERRIERE : une robe ECRETEE ne s'arrete pas dans le vide, elle
+				# passe DERRIERE la case de son etage qui l'a coupee. On repose sous cette
+				# case la rangee que la face aurait au pas suivant -- toujours un CORPS :
+				# jamais un pied, qui reste la preuve d'un atterrissage, et jamais un
+				# chapiteau, un blocage au premier pas reduisant la robe a neant.
+				# ⚠ SEULEMENT SI LA CASE EST EXACTEMENT DE L'ETAGE DE LA LEVRE. Plus haute,
+				# son sommet depasse la face : derriere ses coins c'est l'etage d'en
+				# dessous, que l'empilement montre deja. Et le pan est celui de la derniere
+				# rangee posee, comme pour le sous-pied : c'est la meme face.
+				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
+						last_pan, row_for(drop + 1, drop + 1, false))
 	return {"roles": roles, "underfoot": underfoot, "outside": outside}
 
 
@@ -347,11 +366,12 @@ static func visible(heights: PackedStringArray) -> Dictionary:
 	return {"roles": ordered, "lips": lips}
 
 
-## Le SOUS-PIED visible de chaque case d'atterrissage : celui de l'etage le plus haut.
+## La POSE DERRIERE visible de chaque case qui en recoit une : celle de l'etage le plus
+## haut. Le pied sous une case d'atterrissage, le corps sous une case qui ecrete.
 ##
-## ⚠ IL SE POSE AVANT TOUTES LES SURFACES, ET C'EST TOUTE LA REGLE. La case
-## d'atterrissage le recouvre ensuite, sauf par ses coins decoupes -- c'est exactement la
-## qu'il doit se voir, et nulle part ailleurs.
+## ⚠ ELLE SE POSE AVANT LA SURFACE QUI LA RECOUVRE, ET C'EST TOUTE LA REGLE. La case ne
+## la laisse voir que par ses coins decoupes -- c'est exactement la qu'elle doit se voir,
+## et nulle part ailleurs.
 static func visible_underfoot(heights: PackedStringArray) -> Dictionary:
 	var under: Dictionary = assemble(heights)["underfoot"]
 	var highest: Dictionary = {}

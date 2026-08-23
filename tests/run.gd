@@ -69,6 +69,7 @@ func _initialize() -> void:
 	_test_seams()
 	_test_seam_propagation()
 	_test_underfoot()
+	_test_backing()
 	_test_guide_image()
 	_test_wireframe_joins()
 	_test_manual()
@@ -951,6 +952,7 @@ func _test_export() -> void:
 		"surface_offset none",
 		"sheet fixed_size one_drawing_per_tile no_variants",
 		"underfoot foot_role redrawn_below under_landing_surface",
+		"backing next_body_row under_trimming_cell same_level_only",
 	]
 	var absent: PackedStringArray = PackedStringArray()
 	for clause: String in contract:
@@ -1918,7 +1920,7 @@ func _test_seam_propagation() -> void:
 
 
 func _test_underfoot() -> void:
-	print("le sous-pied : la roche continue derriere les coins decoupes")
+	print("la pose derriere : la roche continue derriere les coins decoupes")
 	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
 	var under: Dictionary = Walls.visible_underfoot(heights)
 	_check(under.size() > 0, "le guide pose des sous-pieds (%d)" % under.size())
@@ -1944,23 +1946,160 @@ func _test_underfoot() -> void:
 			"LE COIN NORD-OUEST EST DE LA ROCHE : la falaise continue derriere")
 	_check(middle.g > middle.r, "et le milieu de la case est bien de l herbe")
 
-	# ⚠ ET LE SOUS-PIED N'AJOUTE AUCUNE TUILE. C'est le PIED, repose une case plus bas :
-	# tout role de sous-pied est donc l'un des 36, et c'est toujours un PIED. S'il en
-	# reclamait un autre, il faudrait le peindre -- et il n'y aurait aucune case du guide
-	# pour le porter, puisque la case d'atterrissage est deja une case de surface.
+	# ⚠ ET LE MEME PIXEL SE LIT DERRIERE UNE CASE QUI ECRETE -- l'angle noir d'hier. Le
+	# coin nord d'un pilier isole, plante devant une face qui n'atterrit pas sur lui, doit
+	# montrer la roche du corps qui continue derriere, plus jamais l'herbe ni le fond.
+	var behind: Vector2i = Vector2i(-1, -1)
+	for cell: Vector2i in under.keys():
+		if (under[cell] as Vector2i).y != Walls.ROW_FOOT \
+				and Coverage.visible_index_at(heights, cell.x, cell.y) == 0:
+			behind = cell
+			break
+	_check(behind.x >= 0, "le guide offre un pilier isole qui ecrete une robe")
+	if behind.x >= 0:
+		var notch: Color = image.get_pixel(behind.x * side + 1, behind.y * side + 1)
+		var grass: Color = image.get_pixel(behind.x * side + side / 2,
+				behind.y * side + side / 2)
+		_check(notch.r > notch.g,
+				"SON COIN NORD-OUEST EST DE LA ROCHE : la face continue derriere lui")
+		_check(grass.g > grass.r, "et son sommet reste de l herbe")
+
+	# ⚠ ET LA POSE DERRIERE N'AJOUTE AUCUNE TUILE. Pied ou corps, tout ce qui se repose
+	# est l'un des 36 roles -- s'il en reclamait un autre, il faudrait le peindre, et
+	# aucune case du guide ne pourrait le porter. Et chaque sorte dit ce qu'elle prouve :
+	# le PIED ne se repose que sous une case d'ATTERRISSAGE (du sol plus bas que la
+	# levre), le CORPS que sous une case DE L'ETAGE DE LA LEVRE, celle qui ecrete. Jamais
+	# un chapiteau derriere quoi que ce soit.
 	var known: Dictionary = {}
 	for role: Vector2i in Walls.ALL_ROLES:
 		known[role] = true
 	var strays: int = 0
-	var not_feet: int = 0
-	for role: Vector2i in under.values():
+	var feet: int = 0
+	var bodies: int = 0
+	var wrong_kind: int = 0
+	var assembled: Dictionary = Walls.assemble(heights)["underfoot"]
+	for key: Vector3i in assembled.keys():
+		var role: Vector2i = assembled[key]
 		if not known.has(role):
 			strays += 1
-		if role.y != Walls.ROW_FOOT:
-			not_feet += 1
-	_check_equal(strays, 0, "AUCUNE TUILE DE PLUS : tout sous-pied est l un des %d roles"
+		var cell_level: int = HeightMask.level_at(heights, key.x, key.y)
+		if role.y == Walls.ROW_FOOT:
+			feet += 1
+			if cell_level >= key.z:
+				wrong_kind += 1
+		elif role.y == 1 or role.y == 2:
+			bodies += 1
+			if cell_level != key.z:
+				wrong_kind += 1
+		else:
+			wrong_kind += 1
+	_check_equal(strays, 0, "AUCUNE TUILE DE PLUS : toute pose derriere est l un des %d roles"
 			% Walls.ALL_ROLES.size())
-	_check_equal(not_feet, 0, "et c est toujours un PIED : la meme face, une case plus bas")
+	_check(feet > 0, "le guide repose des pieds sous ses atterrissages (%d)" % feet)
+	_check(bodies > 0, "et des corps derriere ses cases qui ecretent (%d)" % bodies)
+	_check_equal(wrong_kind, 0,
+			"le pied dit l atterrissage, le corps dit l ecretage, jamais l inverse")
+
+
+func _test_backing() -> void:
+	print("la pose derriere : ecretage, atterrissage, et les cas ou l on ne pose rien")
+	# La geometrie du defaut, nue : une masse d'etage 2, UNE case de creux, un pilier du
+	# MEME etage. La robe de la masse est ecretee au premier pas.
+	var pillar: PackedStringArray = HeightMask.parse("..2..
+..2..
+..1..
+..2..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..")
+	_check_equal(Walls.fall_at(pillar, 2, Vector2i(2, 1)), Vector2i(1, 0),
+			"la robe de la masse est ecretee a une case, sans pied")
+	var assembled: Dictionary = Walls.assemble(pillar)
+	var under: Dictionary = assembled["underfoot"]
+	var roles: Dictionary = assembled["roles"]
+	_check_equal(under.get(Vector3i(2, 3, 2)),
+			Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID), 1),
+			"le CORPS 0 du pas suivant se repose sous le pilier, au pan de la derniere rangee")
+	_check(not roles.has(Vector3i(2, 3, 2)),
+			"et le pilier ne devient pas une case de robe : la pose sort a part")
+	_check_equal(under.get(Vector3i(2, 7, 2)),
+			Vector2i(Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID), Walls.ROW_FOOT),
+			"la robe du pilier, elle, atterrit : son PIED se repose comme avant")
+
+	# Un creux de deux cases : la rangee de la continuation alterne, comme dans une chute.
+	var deeper: PackedStringArray = HeightMask.parse("..2..
+..2..
+..1..
+..1..
+..2..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..")
+	_check_equal(Walls.fall_at(deeper, 2, Vector2i(2, 1)), Vector2i(2, 0),
+			"deux cases de creux : ecretee a deux")
+	_check_equal((Walls.assemble(deeper)["underfoot"] as Dictionary).get(Vector3i(2, 4, 2)),
+			Vector2i(0, 2), "et c est le CORPS 1 qui continue derriere : la rangee alterne")
+
+	# Ecretee a PLEINE longueur : le blocage est a la case sondee sous le pied.
+	var brink: PackedStringArray = HeightMask.parse("..2..
+..1..
+..1..
+..1..
+..2..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..
+..1..")
+	_check_equal(Walls.fall_at(brink, 2, Vector2i(2, 0)), Vector2i(3, 0),
+			"la chute fait sa longueur entiere mais ne pose pas son pied")
+	_check_equal((Walls.assemble(brink)["underfoot"] as Dictionary).get(Vector3i(2, 4, 2)),
+			Vector2i(0, 1), "le corps 0 du pas 4 se repose sous la case qui l ecrete")
+
+	# ⚠ PLUS HAUTE QUE LA LEVRE : RIEN. Le sommet du bloc depasse la face ; derriere ses
+	# coins c'est l'etage d'en dessous, que l'empilement montre deja.
+	var taller: PackedStringArray = HeightMask.parse("..1..
+.....
+..2..
+.....
+.....
+.....
+.....
+.....
+.....
+.....")
+	_check_equal(Walls.fall_at(taller, 1, Vector2i(2, 0)), Vector2i(1, 0),
+			"la robe de la masse basse est bien ecretee par le bloc haut")
+	_check(not (Walls.assemble(taller)["underfoot"] as Dictionary).has(Vector3i(2, 2, 1)),
+			"mais RIEN ne se repose sous une case plus haute que la levre")
+
+	# ⚠ ET UNE ROBE QUI TOMBE DANS LE VIDE NE POSE RIEN NON PLUS : il n'y a pas de case
+	# derriere laquelle continuer.
+	var rim: PackedStringArray = HeightMask.parse("..1..
+~~~~~
+~~~~~
+~~~~~")
+	_check_equal(Walls.fall_at(rim, 1, Vector2i(2, 0)).y, 0,
+			"la robe du bord tombe sans atterrir")
+	_check((Walls.assemble(rim)["underfoot"] as Dictionary).is_empty(),
+			"et aucune pose derriere n en sort")
+
+	# Le plugin fait mot pour mot pareil, sur la geometrie meme du defaut.
+	_check_equal(_plugin_drift(pillar, {}, {}, {}), 0,
+			"le plugin repose exactement les memes poses derriere que le noyau")
 
 
 func _test_guide_image() -> void:
@@ -2276,6 +2415,15 @@ func _plugin_drift(heights: PackedStringArray, seen_surface: Dictionary,
 	var my_walls: Dictionary = Walls.visible_roles(heights)
 	var their_walls: Dictionary = PluginRules.walls(world)
 	apart += _compare_maps(my_walls, their_walls, seen_roles)
+
+	# ⚠ LES POSES DERRIERE AUSSI, ET ELLES NE L'ETAIENT PAS. Le controle croise comparait
+	# surfaces, croisements et robes -- jamais le sous-pied, apparu en v4 sans que la
+	# comparaison le suive. Les deux copies de la regle viennent d'apprendre le meme geste
+	# (le corps derriere une case qui ecrete) : c'est exactement le moment ou une
+	# divergence silencieuse s'installerait.
+	var my_under: Dictionary = Walls.visible_underfoot(heights)
+	var their_under: Dictionary = PluginRules.underfoot(world)
+	apart += _compare_maps(my_under, their_under, seen_roles)
 
 	return apart
 

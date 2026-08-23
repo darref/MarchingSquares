@@ -46,6 +46,12 @@ const MAGIC: String = "absolutiles-tileset"
 ## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur
 ## memoire finissent toujours par diverger. La regle vit ici, une seule fois.
 ##
+## ⚠ VERSION 5 : LA POSE DERRIERE. Une robe ecretee passe derriere la case de son etage
+## qui l'a coupee, et repose sous elle la rangee du pas suivant -- un corps. Un moteur v4
+## ne pose rien la : derriere les coins decoupes de cette case, il montre l'etage d'en
+## dessous au lieu de la roche qui continue. Meme espece de changement que le sous-pied
+## en v4, meme traitement : la version bouge, et la v4 est refusee nommement.
+##
 ## ⚠ VERSION 4 : LE HORS-CARTE EST DU VIDE, ET LE PIED SE REPOSE DESSOUS.
 ##
 ## Deux changements de SENS, et la version n'avait pas bouge -- c'est le defaut qu'on repare
@@ -63,7 +69,7 @@ const MAGIC: String = "absolutiles-tileset"
 ## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
 ## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
 ## viendra plus tard, et il sera concu pour lui-meme.
-const VERSION: int = 4
+const VERSION: int = 5
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -361,7 +367,7 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("pan west_times_three_plus_east lip_row_comparison per_row")
 
 	lines.append("")
-	lines.append("# --- LE SOUS-PIED ---")
+	lines.append("# --- LA POSE DERRIERE : le sous-pied, et le corps derriere une case qui ecrete ---")
 	lines.append("# Une robe qui atterrit repose son PIED une case plus bas, SOUS la surface")
 	lines.append("# de cette case. Raison : la case d'atterrissage a ses coins nord decoupes")
 	lines.append("# -- son voisin du nord est la face de la falaise -- et par ces coins on")
@@ -373,6 +379,17 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# etages du bas vers le haut recouvrirait sinon le sous-pied avec l'etage")
 	lines.append("# d'en dessous, et les coins montreraient de nouveau le sol.")
 	lines.append("underfoot foot_role redrawn_below under_landing_surface")
+	lines.append("# ⚠ ET UNE ROBE ECRETEE PASSE DERRIERE LA CASE QUI L'A COUPEE. Sous cette")
+	lines.append("# case -- seulement si elle est EXACTEMENT de l'etage de la levre : plus")
+	lines.append("# haute, son sommet depasse la face -- on repose la rangee du pas suivant,")
+	lines.append("# row_for(drop + 1) : toujours un CORPS. Jamais un pied, qui reste la preuve")
+	lines.append("# d'un atterrissage ; jamais un chapiteau, un blocage au premier pas ayant")
+	lines.append("# reduit la robe a neant. Le pan est celui de la derniere rangee posee, et")
+	lines.append("# l'ordre est celui du sous-pied : juste avant la surface de l'etage de la")
+	lines.append("# case qui la recouvre. Sans cette pose, le coin nord decoupe de la case qui")
+	lines.append("# ecrete s'ouvre sur l'etage d'en dessous -- de l'herbe ou du vide, la ou la")
+	lines.append("# roche continue.")
+	lines.append("backing next_body_row under_trimming_cell same_level_only")
 
 	lines.append("")
 	lines.append("# --- LA PLANCHE ---")

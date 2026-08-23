@@ -33,8 +33,13 @@ const MAGIC: String = "absolutiles-tileset"
 ## regle » ; la basse dit « je ne connais plus celle-la ». La v3 est refusee parce que son
 ## sens a change sous elle : le hors-carte y valait la plaine, et rien ne distingue un v3
 ## d'avant d'un v3 d'apres.
-const READS_FROM: int = 4
-const READS_UP_TO: int = 4
+##
+## ⚠ LA V4 TOMBE POUR LA MEME RAISON : la POSE DERRIERE -- le corps repose sous une case
+## qui ecrete -- n'y est pas ecrite, et ce plugin la pose. Un second lecteur, fidele a un
+## fichier v4, poserait un autre monde que lui : deux lecteurs, deux mondes, exactement
+## ce que le contrat existe pour interdire.
+const READS_FROM: int = 5
+const READS_UP_TO: int = 5
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
