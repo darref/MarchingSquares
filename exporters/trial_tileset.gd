@@ -46,7 +46,7 @@ const TRIAL_LEVEL: int = 1
 ## petite pour que la feuille reste legere.
 const TRIAL_RESOLUTION: int = 32
 
-const TRIAL_BASENAME: String = "absolutiles_essai"
+const TRIAL_BASENAME: String = "solutiles_essai"
 
 
 ## Le carnet de peinture rempli de notre propre dessin, tuile par tuile.

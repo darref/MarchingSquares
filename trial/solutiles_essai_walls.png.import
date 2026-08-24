@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cucybdpcckfdx"
-path="res://.godot/imported/absolutiles_essai_surface.png-55cd6e5efdfdcaa79ed90c2c79f6c03f.ctex"
+uid="uid://cf5dhu7osj500"
+path="res://.godot/imported/solutiles_essai_walls.png-08296f10787eff44e99b14f6985edb57.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://trial/absolutiles_essai_surface.png"
-dest_files=["res://.godot/imported/absolutiles_essai_surface.png-55cd6e5efdfdcaa79ed90c2c79f6c03f.ctex"]
+source_file="res://trial/solutiles_essai_walls.png"
+dest_files=["res://.godot/imported/solutiles_essai_walls.png-08296f10787eff44e99b14f6985edb57.ctex"]
 
 [params]
 

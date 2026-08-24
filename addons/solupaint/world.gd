@@ -1,4 +1,4 @@
-# ABSOLUPAINT — le monde, pose avec les tuiles achetees.
+# SOLUPAINT — le monde, pose avec les tuiles achetees.
 #
 # On lui donne un relief -- une hauteur par case -- et il pose tout : les sommets de chaque
 # etage, puis les faces de falaise. Rien d'autre a savoir. C'est la moitie du projet qui
@@ -21,9 +21,9 @@
 @tool
 extends Node2D
 
-const Manifest := preload("res://addons/absolupaint/manifest.gd")
-const Rules := preload("res://addons/absolupaint/rules.gd")
-const TileSetBuilder := preload("res://addons/absolupaint/tileset.gd")
+const Manifest := preload("res://addons/solupaint/manifest.gd")
+const Rules := preload("res://addons/solupaint/rules.gd")
+const TileSetBuilder := preload("res://addons/solupaint/tileset.gd")
 
 ## Le manifeste livre avec le tileset : `<nom>_tileset.txt`. Les deux planches sont lues a
 ## cote de lui, sous les noms qu'il donne.
@@ -78,7 +78,7 @@ func _reload() -> void:
 	_manifest = Manifest.read(manifest_path)
 	if int(_manifest["error"]) != OK:
 		last_error = String(_manifest["reason"])
-		push_warning("AbsoluPaint: %s" % last_error)
+		push_warning("SoluPaint: %s" % last_error)
 		_clear_layers()
 		return
 
@@ -91,14 +91,14 @@ func _reload() -> void:
 				_manifest["wall_slots"].size(),
 				Manifest.expected_surface_tiles(_manifest["family"]),
 				Rules.PAN_COUNT * Rules.BLOCK_ROWS]
-		push_warning("AbsoluPaint: %s" % last_error)
+		push_warning("SoluPaint: %s" % last_error)
 		_clear_layers()
 		return
 
 	var built: Dictionary = TileSetBuilder.build(manifest_path.get_base_dir(), _manifest)
 	if int(built["error"]) != OK:
 		last_error = String(built["reason"])
-		push_warning("AbsoluPaint: %s" % last_error)
+		push_warning("SoluPaint: %s" % last_error)
 		_clear_layers()
 		return
 

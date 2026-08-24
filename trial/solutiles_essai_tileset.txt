@@ -1,4 +1,4 @@
-absolutiles-tileset 5
+solutiles-tileset 5
 mode minimal
 tile_size 32
 
@@ -119,7 +119,7 @@ backing next_body_row under_trimming_cell same_level_only
 sheet fixed_size one_drawing_per_tile no_variants
 # ================================================================
 
-surface absolutiles_essai_surface.png 8 6
+surface solutiles_essai_surface.png 8 6
 famille cell
 # les 47 index de la famille, en ordre croissant, huit par rangee ; les
 # cases qui restent en fin de planche sont vides.
@@ -171,11 +171,11 @@ index 247 slot 4,5  # N+NE+E+S+SW+W+NW
 index 253 slot 5,5  # N+E+SE+S+SW+W+NW
 index 255 slot 6,5  # N+NE+E+SE+S+SW+W+NW
 
-proof absolutiles_essai_preuve.png
+proof solutiles_essai_preuve.png
 # chaque index sur son propre ilot, dans l'ordre de la planche de surface :
 # la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.
 
-walls absolutiles_essai_walls.png 9 4
+walls solutiles_essai_walls.png 9 4
 # 9 pans (le couple des deux flancs) x 4 rangees = 36 tuiles.
 role 0,0 slot 0,0  # vide|vide / chapiteau
 role 0,1 slot 0,1  # vide|vide / corps 0

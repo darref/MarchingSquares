@@ -48,12 +48,14 @@ const PROMISES: Array[String] = [
 	"Une case laissee vierge n'est pas utilisee. Peindre, c'est choisir.",
 	"Cliquez ici : le mode d'emploi s'ouvre en grand.",
 	"Clic gauche pose, clic droit efface. Ctrl+Z defait un trait entier.",
+	"Huit outils, une touche chacune : P B A G L R I E. Les crochets changent la taille.",
+	"Contraindre a la tuile : le trait ne deborde plus sur la voisine.",
 	"Les cases cerclees d'ambre n'ont pas de jumelle : personne d'autre ne les portera.",
 	"Peindre une case en remplit toutes les jumelles : c'est la meme tuile, vue ailleurs.",
 	"Le paysage, la taille et le reseau se choisissent AVANT de dessiner.",
 	"Installer le plugin : ciblez la racine du projet, celle qui contient project.godot.",
 	"Un tileset part avec le plugin -- le votre s'il est complet, son essai sinon.",
-	"Dans Godot : bouton AbsoluPaint dans la barre du haut, et tout est deja propose.",
+	"Dans Godot : bouton SoluPaint dans la barre du haut, et tout est deja propose.",
 ]
 const PROMISE_SECONDS: float = 6.0
 
@@ -101,6 +103,16 @@ func _ready() -> void:
 	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%InkChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
+	(%LockCheck as CheckBox).toggled.connect(_on_lock_toggled)
+	for child: Node in %ToolGrid.get_children():
+		var tool_button: Button = child as Button
+		if tool_button != null and tool_button.has_meta("tool"):
+			tool_button.toggled.connect(_on_tool_toggled.bind(tool_button))
+	for child: Node in %BrushRow.get_children():
+		var size_button: Button = child as Button
+		if size_button != null and size_button.has_meta("size"):
+			size_button.toggled.connect(_on_size_toggled.bind(size_button))
+	work.pencil_picked.connect(_on_pencil_picked)
 	(%FitButton as Button).pressed.connect(_on_fit_pressed)
 	# ⚠ LE MODE D'EMPLOI SE POSE EN DERNIER, donc par-dessus tout le reste. Ajoute plus
 	# tot, il passerait sous la zone de travail et le clic ne l'atteindrait jamais.
@@ -162,7 +174,7 @@ func _apply_window_size() -> void:
 			int(float(usable.size.y) * WINDOW_SCREEN_SHARE))
 	window.size = target
 	window.position = usable.position + (usable.size - target) / 2
-	print("AbsoluTiles : fenetre %dx%d, ecran utile %dx%d" % [
+	print("SoluTiles : fenetre %dx%d, ecran utile %dx%d" % [
 			window.size.x, window.size.y, usable.size.x, usable.size.y])
 
 
@@ -307,7 +319,7 @@ func _load_current_mode() -> void:
 	work.guide_purpose = technic.get_item_metadata(technic.selected)
 	work.show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
-	(%NeighboursPanel as Control).show_guide(_painting)
+	(%NeighboursPanel as Control).show_guide(_painting, work.ground_stacks())
 	_apply_decor()
 	_refresh_counters()
 
@@ -330,6 +342,40 @@ func _on_ticker_input(event: InputEvent) -> void:
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		_manual.open()
 		(%Ticker as Label).accept_event()
+
+
+## LES OUTILS : une rangee de boutons exclusifs, et la zone de travail ne connait que le
+## choix. Le bouton presse est l'outil ; il n'y a rien d'autre a regler.
+func _on_tool_toggled(pressed: bool, button: Button) -> void:
+	if not pressed:
+		return
+	(%WorkArea as Control).tool = int(button.get_meta("tool"))
+
+
+func _on_size_toggled(pressed: bool, button: Button) -> void:
+	if not pressed:
+		return
+	(%WorkArea as Control).brush_size = int(button.get_meta("size"))
+
+
+func _on_lock_toggled(pressed: bool) -> void:
+	(%WorkArea as Control).lock_to_tile = pressed
+
+
+## La pipette a pris une couleur : le selecteur la montre, sinon on peindrait avec une
+## couleur qu'aucun bouton n'affiche.
+func _on_pencil_picked(color: Color) -> void:
+	(%PencilColor as ColorPickerButton).color = color
+
+
+## Presse le bouton d'outil ou de taille qui porte cette valeur. Passer par le bouton
+## garde l'ecran et la zone de travail d'accord : c'est lui qui est la source.
+func _press_meta(row: Node, key: String, value: int) -> void:
+	for child: Node in row.get_children():
+		var button: Button = child as Button
+		if button != null and button.has_meta(key) and int(button.get_meta(key)) == value:
+			button.button_pressed = true
+			return
 
 
 func _on_swatch_pressed(button: Button) -> void:
@@ -520,7 +566,7 @@ func _on_fit_pressed() -> void:
 ## c'est un outil de bureau, et celui du systeme connait les dossiers de l'utilisateur.
 func _build_dialogs() -> void:
 	var work_filter: PackedStringArray = PackedStringArray(
-			["*.%s ; Travail AbsoluTiles" % WorkIO.EXTENSION])
+			["*.%s ; Travail SoluTiles" % WorkIO.EXTENSION])
 	_open_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_FILE, "Ouvrir un travail", work_filter)
 	_open_dialog.file_selected.connect(_on_open_chosen)
 	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Enregistrer le travail", work_filter)
@@ -558,7 +604,7 @@ func _on_open_pressed() -> void:
 func _on_open_chosen(path: String) -> void:
 	var header: Dictionary = WorkIO.peek(path)
 	if int(header["error"]) != OK:
-		_announce("Ce fichier n'est pas un travail AbsoluTiles.")
+		_announce("Ce fichier n'est pas un travail SoluTiles.")
 		return
 	_select_metadata(%ModeChoice, header["mode"])
 	_select_metadata(%SizeChoice, int(header["resolution"]))
@@ -572,7 +618,8 @@ func _on_open_chosen(path: String) -> void:
 	_painting = report["painting"]
 	(%WorkArea as Control).show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
-	(%NeighboursPanel as Control).show_guide(_painting)
+	(%NeighboursPanel as Control).show_guide(_painting,
+			(%WorkArea as Control).ground_stacks())
 	_work_path = path
 	_refresh_counters()
 
@@ -654,7 +701,7 @@ func _on_trial_folder_chosen(folder: String) -> void:
 	var written: PackedStringArray = report["written"]
 	_announce("Essai ecrit : %d fichiers dans %s." % [written.size(), folder])
 	(%PluginHint as Label).text = \
-			"L essai est ecrit. Ouvrez-le avec AbsoluPaint pour poser un monde tout de suite."
+			"L essai est ecrit. Ouvrez-le avec SoluPaint pour poser un monde tout de suite."
 
 
 ## ⚠ ON REFUSE UN DOSSIER QUI N'EST PAS UN PROJET GODOT (charte, regle 5), et on le DIT.
@@ -675,24 +722,24 @@ func _on_plugin_folder_chosen(folder: String) -> void:
 ## « je vois quelque chose » -- et chacun est une occasion d'abandonner.
 ##
 ## Un seul geste, donc : on cible un projet, et il repart avec le plugin ET un tileset. De
-## l'autre cote, AbsoluPaint le trouve tout seul.
+## l'autre cote, SoluPaint le trouve tout seul.
 ##
 ## ⚠ ET C'EST LE VOTRE S'IL EST COMPLET, L'ESSAI SINON. Ecrire un travail a moitie peint
 ## serait un piege : des trous transparents qu'on decouvrirait dans le jeu. L'export refuse
 ## deja une feuille incomplete -- on ne contourne pas ce refus, on retombe sur l'essai, et
 ## on le DIT.
 func _install_tileset(folder: String) -> String:
-	var into: String = folder.path_join("absolutiles")
+	var into: String = folder.path_join("solutiles")
 	var ready: Dictionary = TilesetPNG.analyse(_painting, _heights, _current_family())
 	if bool(ready["is_exportable"]):
 		var done: Dictionary = TilesetPNG.write(into, "mon_tileset", _painting, _heights,
 				_current_mode(), _current_family())
 		if int(done["error"]) == OK:
-			return "Votre tileset est parti avec, dans absolutiles/."
+			return "Votre tileset est parti avec, dans solutiles/."
 		return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
 	var trial: Dictionary = Trial.write(into, _current_mode())
 	if int(trial["error"]) == OK:
-		return "L'essai est parti avec, dans absolutiles/ : de quoi poser un monde tout " \
+		return "L'essai est parti avec, dans solutiles/ : de quoi poser un monde tout " \
 				+ "de suite, sans avoir peint."
 	return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
 
@@ -714,15 +761,35 @@ func _announce(text: String) -> void:
 
 ## ⚠ CTRL+S EST UN REFLEXE, PAS UN CONFORT. Un outil de dessin qui ne le prend pas se fait
 ## perdre du travail par la main de l'utilisateur lui-meme.
+## Une lettre par outil, et les crochets pour la taille. ⚠ SANS MODIFICATEUR : Ctrl+S et
+## Ctrl+O sont pris au-dessus, et une lettre avec Ctrl ne doit pas changer d'outil.
+const TOOL_KEYS: Dictionary = {
+	KEY_P: 0, KEY_B: 1, KEY_A: 2, KEY_G: 3, KEY_L: 4, KEY_R: 5, KEY_I: 6, KEY_E: 7,
+}
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
-	if key == null or not key.pressed or not key.ctrl_pressed:
+	if key == null or not key.pressed:
 		return
-	if key.keycode == KEY_S:
-		_on_save_pressed()
+	if key.ctrl_pressed:
+		if key.keycode == KEY_S:
+			_on_save_pressed()
+			get_viewport().set_input_as_handled()
+		elif key.keycode == KEY_O:
+			_on_open_pressed()
+			get_viewport().set_input_as_handled()
+		return
+	if key.alt_pressed or key.meta_pressed:
+		return
+	if TOOL_KEYS.has(key.keycode):
+		_press_meta(%ToolGrid, "tool", int(TOOL_KEYS[key.keycode]))
 		get_viewport().set_input_as_handled()
-	elif key.keycode == KEY_O:
-		_on_open_pressed()
+	elif key.keycode == KEY_BRACKETLEFT or key.keycode == KEY_BRACKETRIGHT:
+		var sizes: Array[int] = (%WorkArea as Control).BRUSH_SIZES
+		var at: int = sizes.find((%WorkArea as Control).brush_size)
+		at = clampi(at + (1 if key.keycode == KEY_BRACKETRIGHT else -1), 0, sizes.size() - 1)
+		_press_meta(%BrushRow, "size", sizes[at])
 		get_viewport().set_input_as_handled()
 
 

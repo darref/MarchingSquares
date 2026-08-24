@@ -1,4 +1,4 @@
-# ABSOLUPAINT — l'enregistrement du noeud, le bouton qui le trouve, et le pinceau.
+# SOLUPAINT — l'enregistrement du noeud, le bouton qui le trouve, et le pinceau.
 #
 # ⚠ UN EditorPlugin QUI FAIT DU TRAVAIL EST UN PIEGE. Tout ce qui compte -- la regle de
 # pose, la lecture du manifeste, la fabrique du TileSet -- vit dans des fichiers qui ne
@@ -12,14 +12,14 @@
 @tool
 extends EditorPlugin
 
-const NODE_NAME: String = "AbsoluPaintWorld"
+const NODE_NAME: String = "SoluPaintWorld"
 
 ## Le nom du panneau, qui est aussi le titre de son onglet.
-const DOCK_TITLE: String = "AbsoluPaint"
-const WORLD_SCRIPT: String = "res://addons/absolupaint/world.gd"
-const ICON: String = "res://addons/absolupaint/icon.svg"
-const DOCK := preload("res://addons/absolupaint/dock.gd")
-const Manifest := preload("res://addons/absolupaint/manifest.gd")
+const DOCK_TITLE: String = "SoluPaint"
+const WORLD_SCRIPT: String = "res://addons/solupaint/world.gd"
+const ICON: String = "res://addons/solupaint/icon.svg"
+const DOCK := preload("res://addons/solupaint/dock.gd")
+const Manifest := preload("res://addons/solupaint/manifest.gd")
 
 var _button: Button = null
 var _dock: VBoxContainer = null
@@ -41,10 +41,10 @@ func _enter_tree() -> void:
 	add_custom_type(NODE_NAME, "Node2D", load(WORLD_SCRIPT), icon)
 
 	_button = Button.new()
-	_button.text = "AbsoluPaint"
+	_button.text = "SoluPaint"
 	_button.icon = icon
 	_button.flat = true
-	_button.tooltip_text = "Pose un monde AbsoluPaint dans la scene ouverte, et le\n" \
+	_button.tooltip_text = "Pose un monde SoluPaint dans la scene ouverte, et le\n" \
 			+ "selectionne. S'il y en a deja un, il vous y emmene."
 	_button.pressed.connect(_on_pressed)
 	add_control_to_container(CONTAINER_TOOLBAR, _button)
@@ -85,7 +85,7 @@ func _exit_tree() -> void:
 
 ## Emmene l'acheteur au monde, et le cree s'il n'existe pas encore.
 ##
-## ⚠ ON NE CREE JAMAIS UN SECOND MONDE EN SILENCE. Deux `AbsoluPaintWorld` dans la meme
+## ⚠ ON NE CREE JAMAIS UN SECOND MONDE EN SILENCE. Deux `SoluPaintWorld` dans la meme
 ## scene poseraient deux fois les memes tuiles, l'un sur l'autre : on chercherait longtemps
 ## pourquoi le monde parait juste mais se comporte mal. S'il y en a deja un, on y va.
 func _on_pressed() -> void:
@@ -96,8 +96,8 @@ func _on_pressed() -> void:
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
 		_complain("Aucune scene ouverte",
-				"AbsoluPaint pose un monde DANS une scene.\n\n"
-				+ "Ouvrez ou creez une scene, puis recliquez sur AbsoluPaint.")
+				"SoluPaint pose un monde DANS une scene.\n\n"
+				+ "Ouvrez ou creez une scene, puis recliquez sur SoluPaint.")
 		return
 	var world: Node = _find_world(root)
 	if world == null:
@@ -125,7 +125,7 @@ func _add_world(root: Node) -> Node:
 	var world: Node = (load(WORLD_SCRIPT) as GDScript).new()
 	world.name = NODE_NAME
 	var history: EditorUndoRedoManager = get_undo_redo()
-	history.create_action("Ajouter un monde AbsoluPaint")
+	history.create_action("Ajouter un monde SoluPaint")
 	history.add_do_method(root, "add_child", world)
 	history.add_do_property(world, "owner", root)
 	history.add_do_reference(world)
@@ -165,27 +165,27 @@ func _blocking() -> Array:
 	if EditorInterface.get_edited_scene_root() == null:
 		return ["Aucune scene ouverte",
 				"Le pinceau peint une scene.\n\n"
-				+ "Ouvrez ou creez une scene, puis cliquez AbsoluPaint dans la barre du haut."]
+				+ "Ouvrez ou creez une scene, puis cliquez SoluPaint dans la barre du haut."]
 	var world: Node = _world()
 	if world == null:
 		return ["Aucun monde dans cette scene",
-				"Il faut un noeud AbsoluPaintWorld pour peindre.\n\n"
-				+ "Cliquez le bouton AbsoluPaint de la barre du haut : il en pose un et vous "
+				"Il faut un noeud SoluPaintWorld pour peindre.\n\n"
+				+ "Cliquez le bouton SoluPaint de la barre du haut : il en pose un et vous "
 				+ "y emmene."]
 	if String(world.manifest_path).is_empty():
 		if Manifest.discover().is_empty():
 			return ["Aucun tileset dans ce projet",
 					"Le pinceau pose des tuiles : il lui en faut.\n\n"
-					+ "Dans AbsoluTiles, cliquez \u00ab Installer le plugin Godot \u00bb et ciblez CE "
+					+ "Dans SoluTiles, cliquez \u00ab Installer le plugin Godot \u00bb et ciblez CE "
 					+ "projet. Le tileset part avec l'extension -- le votre s'il est complet, "
 					+ "son essai sinon."]
 		return ["Aucun tileset choisi",
 				"Ce projet en contient plusieurs.\n\n"
-				+ "Prenez-en un dans la liste \u00ab Tileset \u00bb du panneau AbsoluPaint."]
+				+ "Prenez-en un dans la liste \u00ab Tileset \u00bb du panneau SoluPaint."]
 	if not String(world.last_error).is_empty():
 		return ["Ce tileset ne se lit pas",
 				"%s\n\nChoisissez-en un autre dans la liste, ou reexportez-le depuis "
-				% String(world.last_error) + "AbsoluTiles."]
+				% String(world.last_error) + "SoluTiles."]
 	return []
 
 
@@ -339,7 +339,7 @@ func _select(node: Node) -> void:
 ##
 ## ⚠ TOUT DOIT SE PASSER DANS LE PRODUIT. Demander a l'acheteur de pointer un fichier,
 ## c'est lui demander de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
-## occasions d'abandonner avant d'avoir rien vu. Un tileset AbsoluTiles se reconnait a son
+## occasions d'abandonner avant d'avoir rien vu. Un tileset SoluTiles se reconnait a son
 ## nom, donc on le trouve.
 ##
 ## ⚠ ET ON NE CHOISIT A SA PLACE QUE QUAND IL N'Y A PAS DE CHOIX. Un seul tileset dans le
@@ -371,7 +371,7 @@ func _on_tileset_chosen(path: String) -> void:
 	if world == null:
 		_complain("Aucun monde dans cette scene",
 				"Le tileset se pose sur un monde, et il n'y en a pas.\n\n"
-				+ "Cliquez le bouton AbsoluPaint de la barre du haut : il en pose un.")
+				+ "Cliquez le bouton SoluPaint de la barre du haut : il en pose un.")
 		return
 	world.manifest_path = path
 	if not String(world.last_error).is_empty():
@@ -387,7 +387,7 @@ func _on_tileset_chosen(path: String) -> void:
 ## ⚠ CE N'EST PAS NOTRE NOEUD QUI EST L'ONGLET. `add_control_to_dock` l'EMBALLE dans un
 ## `EditorDock`, et c'est celui-la que la pile connait -- releve dans un vrai editeur :
 ##
-##     AbsoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
+##     SoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
 ##
 ## Chercher un TabContainer comme parent DIRECT ne trouvait donc rien, et la fonction ne
 ## faisait rien du tout, sans une erreur. On remonte jusqu'a trouver la pile, et on lui
@@ -398,7 +398,7 @@ func _on_tileset_chosen(path: String) -> void:
 ## parents depuis notre controle marche -- une fois qu'on a compris que Godot l'EMBALLE dans
 ## un `EditorDock` -- mais ca depend de la facon dont il l'emballe, c'est-a-dire d'un detail
 ## interne qui peut changer d'une version a l'autre. Le NOM, lui, est le notre : il n'y a
-## qu'un onglet au monde qui puisse s'appeler AbsoluPaint.
+## qu'un onglet au monde qui puisse s'appeler SoluPaint.
 ##
 ## ⚠ ET CA TIENT QUEL QUE SOIT L'ETAT DU PROJET DE L'ACHETEUR. Le panneau deplace dans une
 ## autre pile -- en bas, a gauche -- se retrouve pareil, puisqu'on ne suppose rien de la pile
@@ -473,7 +473,7 @@ func _complain(title: String, what_to_do: String) -> void:
 		_alert = AcceptDialog.new()
 		_alert.ok_button_text = "Compris"
 		EditorInterface.get_base_control().add_child(_alert)
-	_alert.title = "AbsoluPaint \u2014 %s" % title
+	_alert.title = "SoluPaint \u2014 %s" % title
 	_alert.dialog_text = what_to_do
 	_alert.popup_centered()
 

@@ -1,4 +1,4 @@
-# INSTALLER ABSOLUPAINT CHEZ L'ACHETEUR — copier un dossier, et refuser le reste.
+# INSTALLER SOLUPAINT CHEZ L'ACHETEUR — copier un dossier, et refuser le reste.
 #
 # Le logiciel fabrique un tileset ; le plugin le pose dans un jeu. Entre les deux il y a un
 # geste que personne n'a envie de faire a la main : trouver le dossier `addons/`, creer
@@ -21,10 +21,10 @@
 extends RefCounted
 
 ## D'ou l'on copie, dans le logiciel.
-const SOURCE: String = "res://addons/absolupaint"
+const SOURCE: String = "res://addons/solupaint"
 
 ## Ou l'on ecrit, chez l'acheteur, relativement a la racine de son projet.
-const TARGET: String = "addons/absolupaint"
+const TARGET: String = "addons/solupaint"
 
 ## Ce qui compose le plugin. Verifie par la suite de tests contre le dossier reel.
 const FILES: Array[String] = [
@@ -114,7 +114,7 @@ static func summary(report: Dictionary) -> String:
 	if int(report["error"]) != OK:
 		return String(report["reason"])
 	var verb: String = "remplace" if bool(report["replaces"]) else "installe"
-	return "AbsoluPaint %s (%d fichiers). Reste a le cocher : Projet > Parametres > Extensions." 			% [verb, PackedStringArray(report["written"]).size()]
+	return "SoluPaint %s (%d fichiers). Reste a le cocher : Projet > Parametres > Extensions." 			% [verb, PackedStringArray(report["written"]).size()]
 
 
 static func _read(path: String) -> PackedByteArray:

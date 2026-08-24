@@ -10,9 +10,9 @@ config_version=5
 
 [application]
 
-config/name="AbsoluTiles"
+config/name="SoluTiles"
 config/description="Paint one landscape. Every edge case covered."
-config/version="6.0.1"
+config/version="7.0.0"
 run/main_scene="res://ui/editor.tscn"
 config/features=PackedStringArray("4.7")
 

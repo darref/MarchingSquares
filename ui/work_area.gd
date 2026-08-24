@@ -7,6 +7,16 @@
 # ⚠ LE PINCEAU REFUSE CE QUI N'EST PAS UNE TUILE (charte, regle 5). Seules les cases qui
 # portent quelque chose -- une surface visible ou une case de robe -- se peignent. La
 # plaine n'est pas une tuile du tileset : y poser un pixel ne produirait rien.
+#
+# ⚠ TOUT GESTE SE FAIT EN PIXELS GLOBAUX, PAS EN CASES. Un point de l'ecran devient un faux
+# pixel du plan entier ; c'est ce pixel qui dit quelle tuile il touche -- une case, une
+# robe, ou un croisement decale d'une demi-case -- et ou il tombe dedans. Une seule
+# resolution de « quelle tuile, quel pixel » sert tous les outils : le crayon, la brosse,
+# l'aerographe, le pot, la ligne, le rectangle, la pipette et la gomme. Avant ca, le crayon
+# lisait la CASE sous la souris, et ne savait donc pas peindre un croisement.
+#
+# ⚠ UNE TUILE, UNE IMAGE. Les jumelles partagent leur image dans le carnet (`Painting.share`)
+# : peindre l'index 255 ecrit UN pixel, pas 1553, et l'ecran le dessine a chaque jumelle.
 extends Control
 
 const HeightMask := preload("res://core/height_mask.gd")
@@ -73,6 +83,15 @@ const LONE_LINE: Color = Color(0.980, 0.760, 0.330, 0.95)
 const PIXEL_LINE: Color = Color(1.0, 1.0, 1.0, 0.05)
 const HOVER_OK: Color = Color(1.0, 1.0, 1.0, 0.85)
 const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
+## Les liees du survol : chaque case que le geste remplirait s'allume avant le clic. Un
+## bleu franc, etranger a la palette du terrain comme aux autres marques (blanc du survol,
+## rouge du refus, ambre des cases seules), pour que l'oeil ne les confonde jamais.
+const LINKED_LINE: Color = Color(0.376, 0.804, 0.910, 0.85)
+## Les raccords obliges du survol : les tuiles dont un BORD entier est le meme pixel que
+## celui de la tuile survolee (Seams). Peindre au bord de l'une ecrit dans les autres --
+## l'artiste doit le voir AVANT le clic, pas le decouvrir en aller-retour. Violet : ni le
+## bleu des identiques, ni l'ambre, ni le rouge -- une quatrieme chose, dite a part.
+const SEAM_LINE: Color = Color(0.816, 0.529, 0.949, 0.85)
 
 ## ⚠ EN VUE D'ENSEMBLE, UN FAUX PIXEL MESURE MOINS D'UN PIXEL D'ECRAN. A la taille qui
 ## montre tout le guide, une case fait une trentaine de pixels et en porte soixante-quatre :
@@ -85,8 +104,34 @@ const NOWHERE: Vector2i = Vector2i(-1048576, -1048576)
 
 const TOUCHED_FROM: float = 1.6
 const TOUCHED_MARK: Color = Color(0.949, 0.792, 0.475, 0.85)
+const LOCK_RING: Color = Color(0.706, 0.741, 0.522, 0.95)
+const PREVIEW_ERASE: Color = Color(1.0, 1.0, 1.0, 0.35)
 
 var pencil: Color = Color(0.906, 0.855, 0.671)
+
+## Emis quand la pipette a pris une couleur : l'editeur la pose dans le selecteur.
+signal pencil_picked(color: Color)
+
+## LES OUTILS. Tous posent des faux pixels par le meme chemin ; seule change la forme de ce
+## qu'un point de souris depose.
+enum Tool { PENCIL, BRUSH, AIRBRUSH, BUCKET, LINE, RECT, PICKER, ERASER }
+
+var tool: Tool = Tool.PENCIL
+
+## Le diametre, en faux pixels, de ce que posent la brosse, l'aerographe, la gomme, la
+## ligne et le rectangle. Le crayon fait toujours un pixel : c'est sa definition.
+var brush_size: int = 1
+
+## Les diametres offerts. Une rangee de boutons, pas un curseur (charte, regle 1).
+const BRUSH_SIZES: Array[int] = [1, 2, 3, 4, 6, 8]
+
+## CONTRAINDRE LE CRAYON A LA TUILE : une passe reste dans la tuile ou elle a commence.
+## Les pixels qui tombent dans une voisine sont ignores, pas ramenes au bord -- un geste
+## qui deborde ne doit rien poser qu'on n'ait pas vise.
+var lock_to_tile: bool = false
+
+## La part des pixels du disque que l'aerographe depose a chaque jet.
+const SPRAY_DENSITY: float = 0.08
 
 ## Peindre une case remplit aussi toutes ses symetriques, avec le dessin tourne ou
 ## retourne comme il faut. ⚠ CE N'EST PAS UNE CASE A COCHER : c'est le mode qui le decide,
@@ -165,11 +210,21 @@ var _origin: Vector2 = Vector2.ZERO
 var _hover: Vector2i = NOWHERE
 var _stroke: int = 0
 var _last_paint: Vector2 = Vector2.ZERO
+## La tuile ou la passe a commence, pour la contrainte.
+var _stroke_tile: Vector2i = NOWHERE
+## Le pixel global du clic, pour la ligne et le rectangle, et celui de la souris.
+var _anchor: Vector2i = Vector2i.ZERO
+var _cursor: Vector2i = Vector2i.ZERO
+## Les disques de brosse, par diametre, calcules une fois.
+var _discs: Dictionary = {}
 var _panning: bool = false
 var _stale: Dictionary = {}
 var _changed: bool = false
 var _twin_of: Dictionary = {}
 var _wall_roles: Dictionary = {}
+## Sous chaque case, la pile des sols enterres (un index par etage couvert) -- pour que le
+## remontage empile comme le jeu : une tuile par etage et par case.
+var _stack_below: Dictionary = {}
 var _by_index: Dictionary = {}
 var _by_role: Dictionary = {}
 var _targets: Dictionary = {}
@@ -197,17 +252,19 @@ func _process(_delta: float) -> void:
 		else:
 			loading_progress.emit(_job.done, _job.total)
 		queue_redraw()
+	# L'aerographe continue de cracher tant qu'on tient le bouton, meme immobile.
+	if _stroke != 0 and tool == Tool.AIRBRUSH:
+		_touch(_last_paint)
 	if not _stale.is_empty():
-		# ⚠ ON NE TELEVERSE QUE CE QU ON VOIT. Peindre les jumelles peut salir cent cases d un
-		# coup ; a 256 pixels de cote, les remonter toutes ferait vingt-cinq mega-octets par
-		# image. Les autres attendent d entrer dans le cadre.
+		# ⚠ UNE IMAGE PAR TUILE, DONC QUATRE-VINGT-TROIS AU PLUS. Les jumelles partagent leur
+		# image : un coup de crayon ne salit qu'une texture, quel que soit le nombre de cases
+		# qui la montrent. Le plafond ne sert plus qu'a l'ouverture d'un travail a 256.
 		var done: Array[Vector2i] = []
 		for cell: Vector2i in _stale.keys():
 			if done.size() >= UPLOAD_PER_FRAME:
 				break
-			if _on_screen(cell):
-				_upload_cell(cell)
-				done.append(cell)
+			_upload_cell(cell)
+			done.append(cell)
 		for cell: Vector2i in done:
 			_stale.erase(cell)
 		if not done.is_empty():
@@ -218,9 +275,19 @@ func _process(_delta: float) -> void:
 		painting_changed.emit()
 
 
-func _on_screen(cell: Vector2i) -> bool:
-	var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
-	return rect.intersects(Rect2(Vector2.ZERO, size))
+## Les cases qui touchent le cadre, en coordonnees de case, avec une case de marge pour
+## les croisements decales d'une demi-case.
+func _visible_cells() -> Rect2i:
+	var low: Vector2 = (-_origin) / _tile_px
+	var high: Vector2 = (size - _origin) / _tile_px
+	var from: Vector2i = Vector2i(floori(low.x) - 1, floori(low.y) - 1)
+	var to: Vector2i = Vector2i(ceili(high.x) + 1, ceili(high.y) + 1)
+	return Rect2i(from, to - from)
+
+
+func _on_screen(cell: Vector2i, frame: Rect2i) -> bool:
+	var at: Vector2i = Families.from_storage(guide_family, cell) if cell.y < 0 else cell
+	return frame.has_point(at)
 
 
 ## Charge un guide et la peinture qui va avec. Tout est recalcule : les cases peignables,
@@ -234,7 +301,14 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	_wall_cells.clear()
 	# La carte case -> index se calcule une fois : l'editeur en a besoin a chaque coup de
 	# crayon, et la recalculer coutait un tiers du budget d'affichage.
-	var indices: Dictionary = Families.index_map(guide_family, heights)
+	#
+	# ⚠ UNE CASE SOUS UNE ROBE PORTE LA ROBE, PAS SA SURFACE (`Families.surface_map`).
+	# `index_map` donne un index a TOUTE case de sol, y compris celles qu'une falaise
+	# recouvre -- et ces cases-la sont, sur la carte, du sol d'en bas : de l'herbe pleine,
+	# l'index 255. Elles entraient donc dans les jumelles de l'herbe, et peindre la tuile
+	# pleine repeignait les falaises en temps reel : 404 cases de robe sur `minimal`, 936
+	# sur `ample` -- et apres UNE surface peinte, les 36 roles se disaient livres.
+	var indices: Dictionary = Families.surface_map(guide_family, heights)
 	for at: Vector2i in indices.keys():
 		_surface_cells[Families.storage_key(guide_family, at)] = indices[at]
 	# Les roles de robe sont rassembles une seule fois : ca coute un parcours complet du
@@ -244,6 +318,41 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	var lips: Dictionary = seen["lips"]
 	for cell: Vector2i in _wall_roles.keys():
 		_wall_cells[cell] = true
+	# La pile des sols enterres de chaque case : son index dans CHAQUE silhouette d'etage
+	# sous son sommet -- et jusqu'au sommet inclus pour une case de robe, que la falaise
+	# recouvre. Le remontage s'en sert pour empiler comme le jeu et l'illustration : une
+	# tuile par etage et par case. Sans ca, un pixel transparent d'une tuile -- coin
+	# decoupe, bord balade -- montrait le fond du programme la ou le jeu montrera le sol.
+	_stack_below.clear()
+	if guide_family == Families.BY_CELL:
+		var columns: int = HeightMask.width(heights)
+		var rows: int = HeightMask.height(heights)
+		var top_level: int = 0
+		for y: int in range(rows):
+			for x: int in range(columns):
+				top_level = maxi(top_level, HeightMask.level_at(heights, x, y))
+		var storey_indices: Array[Dictionary] = []
+		for storey: int in range(top_level + 1):
+			var silhouette: PackedStringArray = PackedStringArray()
+			for y: int in range(rows):
+				var line: String = ""
+				for x: int in range(columns):
+					line += "#" if HeightMask.level_at(heights, x, y) >= storey else "."
+				silhouette.append(line)
+			storey_indices.append(Coverage.index_map(silhouette))
+		for y: int in range(rows):
+			for x: int in range(columns):
+				var cell: Vector2i = Vector2i(x, y)
+				var level: int = HeightMask.level_at(heights, x, y)
+				if level < 0:
+					continue
+				var covered: int = level - 1 + (1 if _wall_roles.has(cell) else 0)
+				if covered < 0:
+					continue
+				var stack: Array[int] = []
+				for storey: int in range(covered + 1):
+					stack.append(int(storey_indices[storey].get(cell, -1)))
+				_stack_below[cell] = stack
 	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
 	# la recalculer serait relire tout le relief soixante fois par seconde.
 	#
@@ -296,14 +405,24 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 		var kept_roles: Array = _only_paintable(group)
 		if kept_roles.size() == 1:
 			_lonely[kept_roles[0]] = true
+	# ⚠ ET CHAQUE GROUPE PARTAGE UNE SEULE IMAGE. C'est le carnet qui le sait, pas l'ecran :
+	# ainsi l'export, la sauvegarde, l'apercu et les voisines lisent la bonne image sans
+	# connaitre les jumelles. Un travail relu est rassemble au passage.
 	for group: Array in _by_index.values():
 		var surface_twins: Array[Vector2i] = group
 		for cell: Vector2i in surface_twins:
 			_twin_of[cell] = surface_twins
+		if _painting != null:
+			_painting.share(surface_twins)
 	for group: Array in _by_role.values():
 		var wall_twins: Array[Vector2i] = group
 		for cell: Vector2i in wall_twins:
 			_twin_of[cell] = wall_twins
+		if _painting != null:
+			_painting.share(wall_twins)
+	_discs.clear()
+	_stroke = 0
+	_stroke_tile = NOWHERE
 	# ⚠ UN TRAVAIL RELU N'A JAMAIS ETE PEINT DEVANT NOUS. Ses cases doivent etre sales des
 	# le depart : sans ca rien ne s'afficherait tant qu'on n'aurait pas repasse le crayon
 	# par-dessus. L'art serait bien en memoire, les compteurs diraient 47/47, et l'ecran
@@ -448,22 +567,142 @@ func _draw() -> void:
 		draw_texture_rect(sheet, Rect2(_origin, span), false, tint)
 
 	var pixel_px: float = _tile_px / float(_painting.resolution) if _painting != null else 1.0
-	for cell: Vector2i in (_textures.keys() if not hide_work else []):
-		var texture: ImageTexture = _textures[cell]
-		var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
-		draw_texture_rect(texture, rect, false)
-		# Trop dezoome pour qu'un faux pixel se voie : on cerne la case, sinon le travail
-		# semble ne rien produire.
-		if not assembled and pixel_px < TOUCHED_FROM and _painting.is_painted(cell):
-			draw_rect(rect, TOUCHED_MARK, false, 1.0)
+	# ⚠ UNE TEXTURE PAR TUILE, DESSINEE A CHAQUE JUMELLE. C'est l'ecran qui repete, pas la
+	# memoire : le carnet n'a qu'une image par groupe, et chaque case du groupe la montre.
+	var frame: Rect2i = _visible_cells()
+	var ring: bool = not assembled and pixel_px < TOUCHED_FROM
+	# LE REMONTAGE EMPILE, comme le jeu : sous chaque robe, le sol qu'elle couvre. Sans ce
+	# fond, un pixel de robe laisse transparent -- l'arete deplacee, un coin -- montrait le
+	# fond du programme la ou le jeu montrera l'etage d'en bas : le remontage mentait par
+	# omission. Famille par case seulement : a cheval, le dessous d'un croisement est fait
+	# de quatre tuiles, il n'y a pas UNE surface a poser dessous.
+	if not hide_work and _painting != null:
+		for under: Vector2i in _stack_below.keys():
+			if not _on_screen(under, frame):
+				continue
+			# EN PEIGNANT AUSSI, PAS SEULEMENT AU REMONTAGE : derriere la transparence
+			# d'une tuile, la matiere peinte d'en dessous, jamais le guide (decision
+			# utilisateur -- le peintre se guide sur la matiere reelle). Une nuance :
+			# le socle ne se pose que sous une tuile COMMENCEE ; une tuile vierge garde
+			# sa consigne, sans quoi l'herbe pleine d'en dessous effacerait le dessin
+			# de ce qu'il reste a faire.
+			if not assembled and not _painting.is_painted(under):
+				continue
+			for below: int in (_stack_below[under] as Array):
+				var ground_group: Array = _by_index.get(below, [])
+				if ground_group.is_empty():
+					continue
+				var ground: Vector2i = _painting.holder(ground_group[0])
+				if _textures.has(ground):
+					draw_texture_rect(_textures[ground],
+							Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)), false)
+	for holder: Vector2i in (_textures.keys() if not hide_work else []):
+		var texture: ImageTexture = _textures[holder]
+		var painted: bool = ring and _painting.is_painted(holder)
+		var twins: Array = _twin_of.get(holder, [holder])
+		for cell: Vector2i in twins:
+			if not _on_screen(cell, frame):
+				continue
+			var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
+			draw_texture_rect(texture, rect, false)
+			# Trop dezoome pour qu'un faux pixel se voie : on cerne la case, sinon le
+			# travail semble ne rien produire.
+			#
+			# ⚠ MAIS LE DECOR NE PORTE AUCUNE MARQUE -- la regle de l'etage 0, encore.
+			# La plaine est jumelle des tuiles qu'on peint et recoit le temps reel, c'est
+			# tout son interet ; le cadre, lui, dit « travaille ici », et la plaine n'est
+			# pas un endroit ou l'on travaille. Le cerne suit ce qui prend le crayon.
+			if painted and _paintable.has(cell):
+				draw_rect(rect, TOUCHED_MARK, false, 1.0)
 
 	if show_grid and not assembled:
 		_draw_grid(pixel_px)
 
+	_draw_shape_preview(pixel_px)
+
+	if _stroke != 0 and lock_to_tile and _stroke_tile != NOWHERE:
+		draw_rect(Rect2(_cell_origin(_stroke_tile), Vector2(_tile_px, _tile_px)),
+				LOCK_RING, false, 3.0)
 	if _hover != NOWHERE:
 		var accepted: bool = _is_paintable(_hover)
+		if accepted and not assembled:
+			_draw_linked(frame)
+			_draw_seam_links(frame)
 		draw_rect(Rect2(_cell_origin(_hover), Vector2(_tile_px, _tile_px)),
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
+
+
+## LES LIEES DU SURVOL : chaque case que le geste remplirait, montree AVANT le clic.
+## Les jumelles recoivent toujours le meme dessin ; les symetriques s'y joignent quand
+## « Peindre les rotations » est demande. La liste vient de _targets_for -- la fonction
+## meme qui remplit -- jamais d'un second calcul : ce qui s'allume est exactement ce qui
+## se peindra, et une case qui s'allumerait sans se peindre serait un mensonge d'ecran.
+## En remontage rien ne s'allume, comme les autres reperes : cette vue decrasse l'ecran.
+func _draw_linked(frame: Rect2i) -> void:
+	if _painting == null:
+		return
+	var side: Vector2 = Vector2(_tile_px, _tile_px)
+	for target: Array in _targets_for(_hover):
+		var holder: Vector2i = target[0]
+		var twins: Array = _twin_of.get(holder, [holder])
+		for cell: Vector2i in twins:
+			if cell == _hover or not _on_screen(cell, frame):
+				continue
+			draw_rect(Rect2(_cell_origin(cell), side), LINKED_LINE, false, 2.0)
+
+
+## LES RACCORDS OBLIGES DU SURVOL : les tuiles dont un bord entier est lie a celui de la
+## robe survolee. Peindre au bord de l'une ecrit dans les autres (Seams) -- vecu comme un
+## aller-retour hante tant qu'on ne le voit pas. La liste vient de Seams.GROUPS, la table
+## meme que l'echo suit : ce qui s'allume en violet est ce que les bords obligeront.
+## Les coins seuls (un pixel partage) ne s'allument pas : un contour de case entier pour
+## un pixel crierait plus fort que l'information.
+func _draw_seam_links(frame: Rect2i) -> void:
+	if _painting == null or not _wall_roles.has(_hover):
+		return
+	var role: Vector2i = _wall_roles[_hover]
+	var mates: Dictionary = {}
+	for side_id: int in range(4):
+		for other: Vector3i in (Seams.GROUPS.get(Vector3i(role.x, role.y, side_id), []) as Array):
+			var mate: Vector2i = Vector2i(other.x, other.y)
+			if mate != role:
+				mates[mate] = true
+	var side: Vector2 = Vector2(_tile_px, _tile_px)
+	for mate: Vector2i in mates.keys():
+		for cell: Vector2i in (_by_role.get(mate, []) as Array):
+			if cell == _hover or not _on_screen(cell, frame):
+				continue
+			draw_rect(Rect2(_cell_origin(cell), side), SEAM_LINE, false, 2.0)
+
+
+## Les socles enterres, prets a dessiner : case -> liste des cases (premieres de groupe)
+## dont les tuiles se posent SOUS la tuile de la case, du bas vers le haut. Les voisines
+## s'en servent pour empiler comme toutes les autres vues.
+func ground_stacks() -> Dictionary:
+	var stacks: Dictionary = {}
+	for cell: Vector2i in _stack_below.keys():
+		var sources: Array = []
+		for below: int in (_stack_below[cell] as Array):
+			var group: Array = _by_index.get(below, [])
+			if not group.is_empty():
+				sources.append(group[0])
+		if not sources.is_empty():
+			stacks[cell] = sources
+	return stacks
+
+
+## La ligne ou le rectangle en cours, avant qu'on ne relache : on voit ce qu'on va poser.
+func _draw_shape_preview(pixel_px: float) -> void:
+	if _stroke == 0 or _painting == null or not (tool == Tool.LINE or tool == Tool.RECT):
+		return
+	var shade: Color = pencil if _stroke > 0 else PREVIEW_ERASE
+	if _stroke > 0:
+		shade.a = 0.75
+	for pixel: Vector2i in _shape_pixels():
+		if _tile_at_pixel(pixel) == NOWHERE:
+			continue
+		var at: Vector2 = _origin + Vector2(float(pixel.x), float(pixel.y)) * pixel_px
+		draw_rect(Rect2(at, Vector2(pixel_px, pixel_px)), shade)
 
 
 ## LA GRILLE, DECOUPEE SUR CE QUI SE PEINT.
@@ -598,7 +837,12 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		var moved: bool = _set_hover(motion.position)
 		if _stroke != 0:
-			_apply_stroke(_last_paint, motion.position)
+			if tool == Tool.LINE or tool == Tool.RECT:
+				# La forme se pose au relachement ; en attendant on la montre.
+				_cursor = _pixel_at(motion.position)
+				queue_redraw()
+			else:
+				_apply_stroke(_last_paint, motion.position)
 			_last_paint = motion.position
 		elif moved:
 			queue_redraw()
@@ -607,17 +851,40 @@ func _gui_input(event: InputEvent) -> void:
 ## ⚠ LE SURVOL SE SUIT A LA CASE, PAS AU PIXEL. Suivre le pixel redessinait la zone de
 ## travail a chaque micro-mouvement de souris, pour un reperage dont on n a pas voulu.
 ## Une passe s'ouvre au clic et se ferme au relachement : c'est l'unite qu'on defait.
+##
+## ⚠ LA PIPETTE NE PEINT PAS, ET LE POT N'A PAS DE TRAJET. La premiere prend une couleur au
+## clic et ne laisse aucune passe au journal ; le second fait tout au clic, et la souris
+## peut aller ou elle veut ensuite. La ligne et le rectangle, eux, ne posent rien avant le
+## relachement : c'est la qu'on sait ou ils finissent.
 func _begin_or_end(pressed: bool, direction: int, position: Vector2) -> void:
 	if _painting == null:
 		return
 	if pressed:
+		if tool == Tool.PICKER:
+			_pick(position)
+			return
 		_stroke = direction
+		_stroke_tile = NOWHERE
 		_painting.begin_stroke()
 		_last_paint = position
-		_apply_stroke(position, position)
+		_anchor = _pixel_at(position)
+		_cursor = _anchor
+		if tool == Tool.BUCKET:
+			_pour(_anchor)
+		elif tool == Tool.LINE or tool == Tool.RECT:
+			queue_redraw()
+		else:
+			_apply_stroke(position, position)
 		return
+	if _stroke == 0:
+		return
+	if tool == Tool.LINE or tool == Tool.RECT:
+		for pixel: Vector2i in _shape_pixels():
+			_stamp_disc(pixel)
 	_stroke = 0
+	_stroke_tile = NOWHERE
 	_painting.end_stroke()
+	queue_redraw()
 
 
 ## ⚠ LES RACCOURCIS SONT PRIS ICI, PAS DANS _gui_input : celui-la exige que la zone ait le
@@ -675,6 +942,47 @@ func _cell_at(position: Vector2) -> Vector2i:
 	return Vector2i(floori(local.x), floori(local.y))
 
 
+## LE PIXEL GLOBAL sous un point de l'ecran : le plan entier est une grille de faux pixels,
+## `resolution` par case, et tout geste se fait la-dedans.
+func _pixel_at(position: Vector2) -> Vector2i:
+	var local: Vector2 = (position - _origin) / _tile_px * float(_painting.resolution)
+	return Vector2i(floori(local.x), floori(local.y))
+
+
+## LA TUILE QUI PREND CE PIXEL, ou NOWHERE. C'est l'unique endroit qui decide quelle tuile
+## est sous un point -- la meme regle que le survol : la robe gagne, puis le croisement
+## decale d'une demi-case, puis la case.
+func _tile_at_pixel(pixel: Vector2i) -> Vector2i:
+	var side: int = _painting.resolution
+	var cell: Vector2i = Vector2i(_floordiv(pixel.x, side), _floordiv(pixel.y, side))
+	if _wall_cells.has(cell):
+		return cell if _paintable.has(cell) else NOWHERE
+	if guide_family == Families.BY_CORNER:
+		var half: int = side / 2
+		var point: Vector2i = Vector2i(_floordiv(pixel.x + half, side),
+				_floordiv(pixel.y + half, side))
+		var key: Vector2i = Families.storage_key(Families.BY_CORNER, point)
+		return key if _paintable.has(key) else NOWHERE
+	return cell if _paintable.has(cell) else NOWHERE
+
+
+## Ou tombe ce pixel global dans la tuile qui le prend.
+func _pixel_in(pixel: Vector2i, key: Vector2i) -> Vector2i:
+	var side: int = _painting.resolution
+	if key.y < 0:
+		var point: Vector2i = Families.from_storage(Families.BY_CORNER, key)
+		return pixel - point * side + Vector2i(side / 2, side / 2)
+	return pixel - key * side
+
+
+static func _floordiv(value: int, by: int) -> int:
+	@warning_ignore("integer_division")
+	var quotient: int = value / by
+	if (value % by != 0) and ((value < 0) != (by < 0)):
+		quotient -= 1
+	return quotient
+
+
 func _zoom_at(pivot: Vector2, factor: float) -> void:
 	var before: Vector2 = (pivot - _origin) / _tile_px
 	_tile_px = clampf(_tile_px * factor, MIN_TILE_PX, MAX_TILE_PX)
@@ -694,19 +1002,172 @@ func _apply_stroke(from: Vector2, to: Vector2) -> void:
 		_touch(point)
 
 
+## Ce qu'un point de souris depose, selon l'outil.
 func _touch(position: Vector2) -> bool:
-	var local: Vector2 = (position - _origin) / _tile_px
-	var cell: Vector2i = Vector2i(floori(local.x), floori(local.y))
-	if not _is_paintable(cell):
+	if _painting == null:
 		return false
-	var inside: Vector2 = (local - Vector2(float(cell.x), float(cell.y))) * float(_painting.resolution)
-	var px: int = clampi(floori(inside.x), 0, _painting.resolution - 1)
-	var py: int = clampi(floori(inside.y), 0, _painting.resolution - 1)
+	var pixel: Vector2i = _pixel_at(position)
+	match tool:
+		Tool.PENCIL:
+			return _plot(pixel)
+		Tool.AIRBRUSH:
+			return _spray(pixel)
+		_:
+			return _stamp_disc(pixel)
+
+
+## Un pixel global, pose dans la tuile qui le prend -- et ses jumelles, ses symetriques,
+## ses raccords obliges.
+##
+## ⚠ LA CONTRAINTE SE JUGE ICI, UN PIXEL A LA FOIS. Une brosse a cheval sur deux tuiles
+## pose sa part dans celle qu'on tient et laisse l'autre intacte.
+func _plot(pixel: Vector2i) -> bool:
+	var key: Vector2i = _tile_at_pixel(pixel)
+	if key == NOWHERE:
+		return false
+	if lock_to_tile:
+		if _stroke_tile == NOWHERE:
+			_stroke_tile = key
+		elif key != _stroke_tile:
+			return false
+	var inside: Vector2i = _pixel_in(pixel, key)
+	return _stamp(key, inside.x, inside.y)
+
+
+## Le disque de la brosse autour d'un pixel.
+func _stamp_disc(pixel: Vector2i) -> bool:
 	var changed: bool = false
-	for target: Array in _targets_for(cell):
+	for offset: Vector2i in _disc(brush_size):
+		if _plot(pixel + offset):
+			changed = true
+	return changed
+
+
+## L'aerographe : quelques pixels tires au hasard dans le disque, a chaque jet.
+func _spray(pixel: Vector2i) -> bool:
+	var disc: Array[Vector2i] = _disc(maxi(brush_size, 2))
+	var drops: int = maxi(1, int(ceil(float(disc.size()) * SPRAY_DENSITY)))
+	var changed: bool = false
+	for _i: int in range(drops):
+		if _plot(pixel + disc[randi() % disc.size()]):
+			changed = true
+	return changed
+
+
+## LE POT : la plage contigue de meme couleur, dans la tuile sous le clic. Elle s'arrete au
+## bord de la tuile par construction -- une tuile est une image a elle seule -- donc le pot
+## n'a pas besoin de la contrainte, il la respecte d'office.
+func _pour(pixel: Vector2i) -> void:
+	var key: Vector2i = _tile_at_pixel(pixel)
+	if key == NOWHERE:
+		return
+	_stroke_tile = key
+	var inside: Vector2i = _pixel_in(pixel, key)
+	var color: Color = pencil if _stroke > 0 else Painting.TRANSPARENT
+	var last: int = _painting.resolution - 1
+	var changed: bool = false
+	for target: Array in _targets_for(key):
+		var to: Vector2i = target[0]
+		var seed: Vector2i = Symmetry.transform_pixel(inside.x, inside.y,
+				_painting.resolution, int(target[1]))
+		var poured: Array[Vector2i] = _painting.fill(to, seed.x, seed.y, color)
+		if poured.is_empty():
+			continue
+		_stale[to] = true
+		changed = true
+		# Les raccords obliges ne concernent que le bord : inutile d'interroger le dedans.
+		for at: Vector2i in poured:
+			if at.x == 0 or at.y == 0 or at.x == last or at.y == last:
+				_echo_seams(to, at.x, at.y)
+	if changed:
+		_changed = true
+
+
+## LA PIPETTE : la couleur du pixel sous le clic, si la tuile en porte un.
+func _pick(position: Vector2) -> void:
+	var pixel: Vector2i = _pixel_at(position)
+	var key: Vector2i = _tile_at_pixel(pixel)
+	if key == NOWHERE:
+		return
+	var inside: Vector2i = _pixel_in(pixel, key)
+	var color: Color = _painting.pixel_at(key, inside.x, inside.y)
+	if color.a <= 0.0:
+		return
+	pencil = color
+	pencil_picked.emit(color)
+
+
+## Les pixels de la forme en cours, entre le clic et la souris.
+func _shape_pixels() -> Array[Vector2i]:
+	if tool == Tool.RECT:
+		return _rect_pixels(_anchor, _cursor)
+	return _line_pixels(_anchor, _cursor)
+
+
+## Bresenham, borne par ses deux bouts : les deux sont des entiers finis.
+static func _line_pixels(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var delta: Vector2i = Vector2i(absi(to.x - from.x), -absi(to.y - from.y))
+	var step: Vector2i = Vector2i(1 if from.x < to.x else -1, 1 if from.y < to.y else -1)
+	var err: int = delta.x + delta.y
+	var at: Vector2i = from
+	while true:
+		out.append(at)
+		if at == to:
+			break
+		var twice: int = 2 * err
+		if twice >= delta.y:
+			err += delta.y
+			at.x += step.x
+		if twice <= delta.x:
+			err += delta.x
+			at.y += step.y
+	return out
+
+
+## Le contour du rectangle, chaque pixel une fois.
+static func _rect_pixels(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var low: Vector2i = Vector2i(mini(from.x, to.x), mini(from.y, to.y))
+	var high: Vector2i = Vector2i(maxi(from.x, to.x), maxi(from.y, to.y))
+	for x: int in range(low.x, high.x + 1):
+		out.append(Vector2i(x, low.y))
+		if high.y != low.y:
+			out.append(Vector2i(x, high.y))
+	for y: int in range(low.y + 1, high.y):
+		out.append(Vector2i(low.x, y))
+		if high.x != low.x:
+			out.append(Vector2i(high.x, y))
+	return out
+
+
+## Les decalages d'un disque de ce diametre, centres sur le pixel vise.
+func _disc(diameter: int) -> Array[Vector2i]:
+	if _discs.has(diameter):
+		return _discs[diameter]
+	var out: Array[Vector2i] = []
+	var radius: float = float(diameter) * 0.5
+	var start: int = -(diameter / 2)
+	for j: int in range(diameter):
+		for i: int in range(diameter):
+			var dx: float = float(i) + 0.5 - radius
+			var dy: float = float(j) + 0.5 - radius
+			if dx * dx + dy * dy <= radius * radius + 0.01:
+				out.append(Vector2i(start + i, start + j))
+	_discs[diameter] = out
+	return out
+
+
+## Pose un pixel d'une tuile -- dans l'image que partagent ses jumelles, dans celles de
+## ses symetriques si les rotations sont demandees, et dans les raccords obliges.
+func _stamp(key: Vector2i, px: int, py: int) -> bool:
+	var changed: bool = false
+	var erase: bool = _stroke < 0 or tool == Tool.ERASER
+	for target: Array in _targets_for(key):
 		var to: Vector2i = target[0]
 		var moved: Vector2i = Symmetry.transform_pixel(px, py, _painting.resolution, int(target[1]))
-		var touched: bool = _painting.paint(to, moved.x, moved.y, pencil) if _stroke > 0 				else _painting.erase(to, moved.x, moved.y)
+		var touched: bool = _painting.erase(to, moved.x, moved.y) if erase \
+				else _painting.paint(to, moved.x, moved.y, pencil)
 		if touched:
 			_stale[to] = true
 			changed = true
@@ -725,6 +1186,11 @@ func _touch(position: Vector2) -> bool:
 ##
 ## ⚠ ET ON NE PROPAGE PAS L'ECHO DE L'ECHO. `Seams.mirrors` rend la classe ENTIERE d'un
 ## coup : repartir de chaque copie tournerait en rond pour rien.
+##
+## ⚠ UNE FOIS PAR ROLE, PAS PAR JUMELLE. Les jumelles partagent leur image : l'echo se pose
+## sur celle qui la tient, et c'est fini. Avant ca, chaque pixel de bord d'une robe a cent
+## jumelles repassait cent fois sur les cent jumelles de chaque echo -- dix mille poses
+## pour un pixel, deux cents millisecondes par point de souris.
 func _echo_seams(cell: Vector2i, x: int, y: int) -> bool:
 	if _painting == null or not _wall_roles.has(cell):
 		return false
@@ -732,48 +1198,47 @@ func _echo_seams(cell: Vector2i, x: int, y: int) -> bool:
 			_painting.resolution)
 	if echoes.is_empty():
 		return false
+	var erase: bool = _stroke < 0 or tool == Tool.ERASER
 	var moved: bool = false
 	for echo: Vector4i in echoes:
 		var role: Vector2i = Vector2i(echo.x, echo.y)
 		if not _by_role.has(role):
 			continue
-		for twin: Vector2i in _by_role[role]:
-			var done: bool = _painting.paint(twin, echo.z, echo.w, pencil) if _stroke > 0 \
-					else _painting.erase(twin, echo.z, echo.w)
-			if done:
-				_stale[twin] = true
-				moved = true
+		var twin: Vector2i = _painting.holder(_by_role[role][0])
+		var done: bool = _painting.erase(twin, echo.z, echo.w) if erase \
+				else _painting.paint(twin, echo.z, echo.w, pencil)
+		if done:
+			_stale[twin] = true
+			moved = true
 	return moved
 
 
-## Les cases qu'un coup de crayon touche, chacune avec la transformation a appliquer a ses
+## Les tuiles qu'un coup de crayon touche, chacune avec la transformation a appliquer a ses
 ## pixels. Calcule une fois par case, puis garde : un trait repasse cent fois au meme
 ## endroit, et rien n'y bouge entre deux passages.
+##
+## ⚠ UNE CIBLE PAR GROUPE, PAS PAR JUMELLE : la case qui tient l'image partagee. C'est
+## elle qu'on peint, et l'ecran la montre a chaque jumelle.
 func _targets_for(cell: Vector2i) -> Array:
 	if _targets.has(cell):
 		return _targets[cell]
 	var list: Array = []
+	var own: Vector2i = _painting.holder(cell)
 	if paint_symmetry and _surface_cells.has(cell):
 		var source: int = int(_surface_cells[cell])
 		for target_index: int in Symmetry.ORBIT_OF[source]:
 			if not _by_index.has(target_index):
 				continue
 			var turns: int = Symmetry.turns_between(source, target_index)
-			for twin: Vector2i in _by_index[target_index]:
-				list.append([twin, turns])
+			list.append([_painting.holder(_by_index[target_index][0]), turns])
 	elif paint_symmetry and _wall_roles.has(cell):
 		var role: Vector2i = _wall_roles[cell]
 		var mirrored: Vector2i = Symmetry.mirror_role(role)
-		for twin: Vector2i in _by_role.get(role, [] as Array[Vector2i]):
-			list.append([twin, Symmetry.TURN_NONE])
-		if mirrored != role:
-			for twin: Vector2i in _by_role.get(mirrored, [] as Array[Vector2i]):
-				list.append([twin, Symmetry.MIRROR])
-	elif _twin_of.has(cell):
-		for twin: Vector2i in _twin_of[cell]:
-			list.append([twin, Symmetry.TURN_NONE])
+		list.append([own, Symmetry.TURN_NONE])
+		if mirrored != role and _by_role.has(mirrored):
+			list.append([_painting.holder(_by_role[mirrored][0]), Symmetry.MIRROR])
 	else:
-		list.append([cell, Symmetry.TURN_NONE])
+		list.append([own, Symmetry.TURN_NONE])
 	_targets[cell] = list
 	return list
 

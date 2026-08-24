@@ -1,4 +1,4 @@
-# LA SCENE OU LE DEFAUT SE REGARDE — le guide entier, pose par AbsoluPaint avec l'essai.
+# LA SCENE OU LE DEFAUT SE REGARDE — le guide entier, pose par SoluPaint avec l'essai.
 #
 # C'est la scene de la fiche « l'angle noir derriere les arrondis ». Elle avait ete
 # fabriquee a la main dans une session precedente et PERDUE, parce que ni elle ni son
@@ -10,8 +10,8 @@
 # Ce qu'elle fait :
 #   1. exporte l'essai -- le guide lui-meme livre comme tileset -- dans res://trial/ ;
 #   2. releve le relief entier de guides/minimal.txt, plaine comprise, vide exclu ;
-#   3. enregistre res://trial_absolutiles_to_absolupaint_full.tscn : un seul noeud
-#      AbsoluPaintWorld, son manifeste et son relief. Les couches, il les repose seul.
+#   3. enregistre res://trial_solutiles_to_solupaint_full.tscn : un seul noeud
+#      SoluPaintWorld, son manifeste et son relief. Les couches, il les repose seul.
 #
 # ⚠ LE RELIEF EST FIGE DANS LA SCENE, PAS RELU DU GUIDE A L'OUVERTURE. C'est voulu : la
 # scene reproduit ce qu'un acheteur fait -- un monde pose a la main dans SON projet, ou
@@ -22,10 +22,10 @@ extends SceneTree
 const HeightMask := preload("res://core/height_mask.gd")
 const Modes := preload("res://core/modes.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
-const WorldScript := preload("res://addons/absolupaint/world.gd")
+const WorldScript := preload("res://addons/solupaint/world.gd")
 
 const FOLDER: String = "res://trial"
-const SCENE_PATH: String = "res://trial_absolutiles_to_absolupaint_full.tscn"
+const SCENE_PATH: String = "res://trial_solutiles_to_solupaint_full.tscn"
 
 
 func _initialize() -> void:
@@ -55,7 +55,7 @@ func _initialize() -> void:
 	# Le relief se donne AVANT le manifeste : le second declenche la pose, et elle doit
 	# trouver le monde entier pour dimensionner ses couches.
 	var world: Node2D = WorldScript.new()
-	world.name = "AbsoluPaintWorld"
+	world.name = "SoluPaintWorld"
 	world.set("heights", heights)
 	world.set("manifest_path", manifest_path)
 	var last_error: String = String(world.get("last_error"))

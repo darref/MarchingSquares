@@ -38,7 +38,10 @@ static func from_painting(heights: PackedStringArray, painting: Painting,
 		family: StringName = Families.BY_CELL) -> Image:
 	var side: int = painting.resolution
 	var canvas: Image = _canvas(heights, side, family)
-	var by_role: Dictionary = Walls.cells_by_role(Walls.visible_roles(heights))
+	var roles: Dictionary = Walls.visible_roles(heights)
+	var by_role: Dictionary = Walls.cells_by_role(roles)
+	_blend_buried(canvas, heights, roles, WorkIO.cells_by_key(heights, family),
+			painting, side, family)
 	var underfoot: Dictionary = _underfoot(heights)
 	for cell: Vector2i in underfoot.keys():
 		var role: Vector2i = underfoot[cell]
@@ -55,6 +58,100 @@ static func from_painting(heights: PackedStringArray, painting: Painting,
 			continue
 		canvas.blend_rect(tile, Rect2i(0, 0, side, side), _where(key, side, family))
 	return canvas
+
+
+## Les etages ENTERRES de chaque case : son index dans chaque silhouette sous son sommet --
+## et le sommet inclus quand une robe la couvre, puisqu'elle passe devant. C'est la matiere
+## premiere de l'empilement : une tuile par etage et par case, comme le jeu et
+## l'illustration. Rend case -> Array[int] d'indexes, du bas vers le haut.
+static func _buried_indices(heights: PackedStringArray, roles: Dictionary) -> Dictionary:
+	var columns: int = HeightMask.width(heights)
+	var rows: int = HeightMask.height(heights)
+	var top_level: int = 0
+	for y: int in range(rows):
+		for x: int in range(columns):
+			top_level = maxi(top_level, HeightMask.level_at(heights, x, y))
+	var storey_indices: Array[Dictionary] = []
+	for storey: int in range(top_level + 1):
+		var silhouette: PackedStringArray = PackedStringArray()
+		for y: int in range(rows):
+			var line: String = ""
+			for x: int in range(columns):
+				line += "#" if HeightMask.level_at(heights, x, y) >= storey else "."
+			silhouette.append(line)
+		storey_indices.append(Coverage.index_map(silhouette))
+	var buried: Dictionary = {}
+	for y: int in range(rows):
+		for x: int in range(columns):
+			var cell: Vector2i = Vector2i(x, y)
+			var level: int = HeightMask.level_at(heights, x, y)
+			if level < 0:
+				continue
+			var covered: int = level - 1 + (1 if roles.has(cell) else 0)
+			if covered < 0:
+				continue
+			var stack: Array[int] = []
+			for storey: int in range(covered + 1):
+				stack.append(int(storey_indices[storey].get(cell, -1)))
+			buried[cell] = stack
+	return buried
+
+
+## LE SOCLE ENTERRE, SOUS TOUT LE RESTE. Une seule tuile visible par case suffisait au
+## dessin de specification -- l'epaule, le sous-pied et la pose derriere bouchent ses
+## coins -- mais elle mentait sur une peinture libre : un pixel laisse transparent -- coin
+## decoupe, bord balade -- montrait le fond la ou le jeu montrera le sol couvert. On pose
+## donc d'abord les etages enterres, du bas vers le haut.
+## ⚠ Famille par case seulement : a cheval, une tuile se lit du sommet de quatre cases,
+## il n'y a rien a empiler.
+static func _blend_buried(canvas: Image, heights: PackedStringArray, roles: Dictionary,
+		by_key: Dictionary, painting: Painting, side: int, family: StringName) -> void:
+	if family != Families.BY_CELL:
+		return
+	var buried: Dictionary = _buried_indices(heights, roles)
+	for cell: Vector2i in buried.keys():
+		for below: int in (buried[cell] as Array):
+			var ground_key: String = "S%d:0" % int(below)
+			if not by_key.has(ground_key):
+				continue
+			var ground: Image = painting.image_of(by_key[ground_key])
+			if ground != null:
+				canvas.blend_rect(ground, Rect2i(0, 0, side, side),
+						_where(cell, side, family))
+
+
+## L'APERCU EMPILE : pour chaque case du decor, la PILE des cases du guide a dessiner, du
+## bas vers le haut -- etages enterres, pied repose, puis la tuile visible. Le panneau ne
+## fait que suivre la liste ; la regle d'empilement vit ici, avec ses soeurs.
+static func borrow_layers(target: PackedStringArray, guide: PackedStringArray,
+		family: StringName = Families.BY_CELL) -> Dictionary:
+	var layers: Dictionary = {}
+	var by_key: Dictionary = WorkIO.cells_by_key(guide, family)
+	var source_of: Dictionary = borrow(target, guide, family)
+	if family == Families.BY_CELL:
+		var roles: Dictionary = Walls.visible_roles(target)
+		var buried: Dictionary = _buried_indices(target, roles)
+		for cell: Vector2i in buried.keys():
+			var stack: Array = []
+			for below: int in (buried[cell] as Array):
+				var ground_key: String = "S%d:0" % int(below)
+				if by_key.has(ground_key):
+					stack.append(by_key[ground_key])
+			if not stack.is_empty():
+				layers[cell] = stack
+		var underfoot: Dictionary = _underfoot(target)
+		for cell: Vector2i in underfoot.keys():
+			var role: Vector2i = underfoot[cell]
+			var foot_key: String = "W%d,%d:0" % [role.x, role.y]
+			if by_key.has(foot_key):
+				var stack: Array = layers.get(cell, [])
+				stack.append(by_key[foot_key])
+				layers[cell] = stack
+	for at: Vector2i in source_of.keys():
+		var stack: Array = layers.get(at, [])
+		stack.append(source_of[at])
+		layers[at] = stack
+	return layers
 
 ## Les cases d'atterrissage et le PIED a y reposer, une case plus bas.
 ##
@@ -164,6 +261,7 @@ static func from_borrowed(target: PackedStringArray, guide: PackedStringArray,
 	var canvas: Image = _canvas(target, side, family)
 	var source_of: Dictionary = borrow(target, guide, family)
 	var by_key: Dictionary = WorkIO.cells_by_key(guide, family)
+	_blend_buried(canvas, target, Walls.visible_roles(target), by_key, painting, side, family)
 	var underfoot: Dictionary = _underfoot(target)
 	for cell: Vector2i in underfoot.keys():
 		var role: Vector2i = underfoot[cell]

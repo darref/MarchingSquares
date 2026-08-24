@@ -1,4 +1,4 @@
-# Runner de tests headless du noyau AbsoluTiles.
+# Runner de tests headless du noyau SoluTiles.
 #
 #   godot --headless --path . --script res://tests/run.gd
 #
@@ -22,11 +22,12 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Families := preload("res://core/families.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
-const PluginRules := preload("res://addons/absolupaint/rules.gd")
-const PluginManifest := preload("res://addons/absolupaint/manifest.gd")
-const PluginTileSet := preload("res://addons/absolupaint/tileset.gd")
+const PluginRules := preload("res://addons/solupaint/rules.gd")
+const PluginManifest := preload("res://addons/solupaint/manifest.gd")
+const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 const Seams := preload("res://core/seams.gd")
+const WorkArea := preload("res://ui/work_area.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
 const BLOB_TILE_COUNT: int = 47
@@ -55,6 +56,10 @@ func _initialize() -> void:
 	_test_undo()
 	_test_wall_delivery()
 	_test_twins()
+	_test_shared_images()
+	_test_bucket()
+	_test_surface_map()
+	_test_work_area()
 	_test_symmetry()
 	_test_work_io()
 	_test_export()
@@ -513,26 +518,20 @@ func _check_off_plain(id: StringName, heights: PackedStringArray) -> void:
 	var promised: int = Modes.min_occurrences(id)
 
 	for family: StringName in Families.ids():
-		# ⚠ LA CARTE SE BATIT UNE FOIS. La relire par case refait un parcours complet du
-		# relief a chaque tour : sur `ample` a cheval, la mesure passait de la seconde aux
-		# minutes. Meme lecon que `CornerIndex.index_map`.
+		# ⚠ LA MEME TABLE QUE L'EDITEUR. `Families.paintable_map` est ce que la zone de
+		# travail lit pour tracer sa grille et refuser le crayon : hors de la plaine, et
+		# hors des cases qu'une robe recouvre. Ce que l'ecran accepte est ce qu'on compte.
 		var counts: Dictionary = {}
-		var indices: Dictionary = Families.index_map(family, heights)
+		var indices: Dictionary = Families.paintable_map(family, heights)
 		for at: Vector2i in indices.keys():
-			var top: int = HeightMask.level_at(heights, at.x, at.y)
-			if family == Families.BY_CORNER:
-				top = HeightMask.VOID
-				for offset: Vector2i in CornerIndex.OFFSETS:
-					top = maxi(top, HeightMask.level_at(heights, at.x + offset.x, at.y + offset.y))
-			if top >= 1:
-				var index: int = int(indices[at])
-				counts[index] = int(counts.get(index, 0)) + 1
+			var index: int = int(indices[at])
+			counts[index] = int(counts.get(index, 0)) + 1
 		var missing: Array[int] = []
 		for index: int in Families.surface_indices(family):
 			if int(counts.get(index, 0)) < promised:
 				missing.append(index)
 		_check_equal(missing, [] as Array[int],
-				"%s : les %d tuiles de surface « %s » se trouvent %d fois HORS de la plaine"
+				"%s : les %d tuiles de surface « %s » se trouvent %d fois HORS de la plaine et des robes"
 				% [Modes.label(id), Families.surface_tile_count(family),
 						Families.label(family), promised])
 
@@ -658,6 +657,255 @@ func _test_wall_delivery() -> void:
 	_check_equal(full["delivered"].size(), here.size(),
 			"tout peindre livre exactement les roles que CE relief porte (%d)" % here.size())
 	_check(full["unused"].is_empty(), "aucune case de robe inutilisee quand tout est peint")
+
+
+## UNE TUILE, UNE IMAGE : les jumelles partagent leur dessin dans le carnet.
+##
+## ⚠ C'EST LA STRUCTURE, PAS UNE OPTIMISATION. Avant le partage, peindre l'index 255
+## ecrivait le meme pixel dans 1553 images : 6,2 ms par point de crayon, 224 ms par point
+## de BORD (les echos de raccord repassaient sur chaque jumelle de chaque echo), et un
+## journal d'annulation de 1553 entrees par pixel. Mesure apres : 7 µs et 7 µs.
+func _test_shared_images() -> void:
+	print("partage : deux jumelles sont la meme image")
+	var painting: RefCounted = Painting.new(16)
+	var twins: Array[Vector2i] = [Vector2i(5, 3), Vector2i(1, 1), Vector2i(4, 3)]
+	painting.share(twins)
+	_check_equal(painting.holder(Vector2i(5, 3)), Vector2i(1, 1),
+			"la premiere jumelle en ordre de lecture tient l image")
+	_check_equal(painting.holder(Vector2i(9, 9)), Vector2i(9, 9),
+			"une case hors de tout groupe se tient elle-meme")
+	painting.begin_stroke()
+	_check(painting.paint(Vector2i(5, 3), 2, 2, Color.RED), "peindre une jumelle")
+	painting.end_stroke()
+	_check(painting.is_painted(Vector2i(4, 3)), "en peint une autre")
+	_check(painting.image_of(Vector2i(4, 3)) == painting.image_of(Vector2i(1, 1)),
+			"et c est LA MEME image, pas une copie")
+	_check_equal(painting.painted_cells(), [Vector2i(1, 1)] as Array[Vector2i],
+			"le carnet ne compte le groupe qu une fois, par la case qui le tient")
+	_check_equal(painting.pixel_at(Vector2i(5, 3), 2, 2), Color.RED, "la pipette lit a travers le groupe")
+	var undone: Array[Vector2i] = painting.undo()
+	_check_equal(undone, [Vector2i(1, 1)] as Array[Vector2i],
+			"defaire rend la case qui tient l image")
+	_check(not painting.is_painted(Vector2i(5, 3)), "et la jumelle est defaite avec")
+
+	# ⚠ CE QUI ETAIT DEJA PEINT EST RASSEMBLE, PAS JETE. Un travail relu pose ses images par
+	# rang, avant que les jumelles ne soient connues ; un fichier d avant le partage en
+	# posait une par jumelle.
+	var relu: RefCounted = Painting.new(16)
+	var image: Image = Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	image.fill(Color.BLUE)
+	relu.set_image(Vector2i(4, 3), image)
+	relu.set_image(Vector2i(5, 3), image)
+	relu.share(twins)
+	_check_equal(relu.painted_cells(), [Vector2i(1, 1)] as Array[Vector2i],
+			"deux images relues sur deux jumelles n en font plus qu une, sous la bonne case")
+	_check_equal(relu.pixel_count(Vector2i(1, 1)), 256, "et rien n est perdu")
+
+
+## LE POT DE PEINTURE : la plage contigue, bornee par la tuile.
+func _test_bucket() -> void:
+	print("pot : la plage contigue, jamais au-dela de la tuile")
+	var painting: RefCounted = Painting.new(16)
+	var cell: Vector2i = Vector2i(2, 2)
+	painting.begin_stroke()
+	for y: int in range(16):
+		painting.paint(cell, 7, y, Color.BLACK)
+	painting.end_stroke()
+	painting.begin_stroke()
+	var poured: Array[Vector2i] = painting.fill(cell, 0, 0, Color.GREEN)
+	painting.end_stroke()
+	_check_equal(poured.size(), 7 * 16, "le pot s arrete a la ligne noire : 7 colonnes sur 16")
+	_check_equal(painting.pixel_at(cell, 10, 10), Painting.TRANSPARENT, "l autre cote reste vierge")
+	_check_equal(painting.pixel_at(cell, 7, 5), Color.BLACK, "la ligne n a pas bouge")
+	_check(not painting.is_painted(Vector2i(1, 2)), "et la tuile voisine n a rien recu")
+	painting.undo()
+	_check_equal(painting.pixel_count(cell), 16, "un pot se defait d un seul geste")
+	_check_equal(painting.fill(cell, 7, 0, Color.BLACK).size(), 0,
+			"verser la couleur deja la ne change rien")
+	var blank: RefCounted = Painting.new(16)
+	blank.begin_stroke()
+	_check_equal(blank.fill(Vector2i.ZERO, 3, 3, Color.RED).size(), 256,
+			"sur une tuile vierge, le pot remplit tout")
+	blank.end_stroke()
+
+
+## CE QU UNE CASE PORTE : une case sous une face de falaise porte la robe, pas le sol d en bas.
+func _test_surface_map() -> void:
+	print("surface_map : une case sous une robe porte la robe")
+	for id: StringName in Modes.ids():
+		var heights: PackedStringArray = HeightMask.read(Modes.guide_path(id))
+		var roles: Dictionary = Walls.visible_roles(heights)
+		var carried: Dictionary = Families.surface_map(Families.BY_CELL, heights)
+		var raw: Dictionary = Families.index_map(Families.BY_CELL, heights)
+		var under: int = 0
+		for cell: Vector2i in carried.keys():
+			if roles.has(cell):
+				under += 1
+		_check_equal(under, 0, "%s : aucune case de robe ne porte aussi une surface" % Modes.label(id))
+		_check(raw.size() > carried.size(),
+				"%s : la carte brute en comptait %d de plus, toutes sous une face"
+				% [Modes.label(id), raw.size() - carried.size()])
+		var paintable: Dictionary = Families.paintable_map(Families.BY_CELL, heights)
+		var on_plain: int = 0
+		for cell: Vector2i in paintable.keys():
+			if HeightMask.level_at(heights, cell.x, cell.y) < 1:
+				on_plain += 1
+		_check_equal(on_plain, 0, "%s : rien ne se peint sur la plaine" % Modes.label(id))
+		# ⚠ ET CHAQUE RANG DE SURFACE EXISTE. Avant, la cle W ecrasait la cle S d une case
+		# sous robe, et « S255:0 » pouvait ne designer personne.
+		var by_key: Dictionary = WorkIO.cells_by_key(heights)
+		var by_cell: Dictionary = WorkIO.slots(heights)
+		var holes: int = 0
+		for key: String in by_key.keys():
+			if key.begins_with("S"):
+				var rank: int = int(WorkIO.describe(key)["rank"])
+				for lower: int in range(rank):
+					var earlier: String = "%s:%d" % [key.substr(0, key.rfind(":")), lower]
+					if not by_key.has(earlier):
+						holes += 1
+		_check_equal(holes, 0, "%s : les rangs de surface se suivent sans trou" % Modes.label(id))
+		var surface_slots: int = 0
+		for cell: Vector2i in by_cell.keys():
+			if String(by_cell[cell]).begins_with("S"):
+				surface_slots += 1
+		_check_equal(surface_slots, carried.size(), "%s : un rang par case qui porte une surface" % Modes.label(id))
+
+
+## LA ZONE DE TRAVAIL, MONTEE EN HEADLESS : ce que l ecran fait d un coup de crayon.
+##
+## ⚠ C EST LE PREMIER TEST QUI MONTE L INTERFACE, et il existe parce que deux defauts n ont
+## pu se voir nulle part ailleurs : peindre une surface « livrait » les 36 roles de robe, et
+## le crayon ne savait pas peindre un croisement. Aucun test du noyau ne pouvait les voir --
+## ils vivaient dans la traduction souris -> tuile.
+func _test_work_area() -> void:
+	print("zone de travail : le crayon, les outils, la contrainte")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var work: Control = WorkArea.new()
+	root.add_child(work)
+	work.size = Vector2(1200, 800)
+	var painting: RefCounted = Painting.new(16)
+	work.show_guide(heights, painting)
+	work._job = null
+	work._tile_px = 160.0
+	# La case la plus reproduite : l herbe pleine.
+	var grass: Vector2i = Vector2i.ZERO
+	var most: int = 0
+	for cell: Vector2i in work._paintable.keys():
+		var twins: int = work._twin_of[cell].size() if work._twin_of.has(cell) else 1
+		if twins > most:
+			most = twins
+			grass = cell
+	_check_equal(int(work.surface_index()[grass]), 255, "la case la plus reproduite est l herbe pleine")
+	work._origin = -Vector2(float(grass.x), float(grass.y)) * work._tile_px
+	work._begin_or_end(true, 1, Vector2(80, 80))
+	work._begin_or_end(false, 1, Vector2(80, 80))
+	_check_equal(painting.painted_cells().size(), 1, "un pixel d herbe : UNE image dans le carnet")
+	_check_equal(work.painted_wall_cells().size(), 0,
+			"et aucune case de robe ne se dit peinte (elles portaient l herbe avant)")
+	var walls: Dictionary = Walls.resolve_roles(work.wall_roles(), work.painted_wall_cells())
+	_check_equal(walls["delivered"].size(), 0, "donc aucun role de robe n est livre par une surface")
+	var surface: Dictionary = Delivery.resolve_indexed(work.surface_index(),
+			work.painted_surface_cells(), Families.surface_indices(Families.BY_CELL))
+	_check_equal(surface["delivered"].size(), 1, "et l index 255 l est")
+	var shown: int = 0
+	for cell: Vector2i in work._twin_of[grass]:
+		if painting.is_painted(cell):
+			shown += 1
+	_check_equal(shown, most, "toutes les jumelles (%d) montrent le pixel" % most)
+
+	# La contrainte : une passe reste dans la tuile ou elle a commence.
+	# ⚠ IL FAUT DEUX VOISINES QUI NE SOIENT PAS JUMELLES : deux jumelles partagent leur
+	# image, et « la voisine n a rien recu » n y voudrait rien dire.
+	var left: Vector2i = WorkArea.NOWHERE
+	for cell: Vector2i in work._paintable.keys():
+		var next: Vector2i = cell + Vector2i.RIGHT
+		if work._surface_cells.has(cell) and work._surface_cells.has(next) 				and work._paintable.has(next) and painting.holder(cell) != painting.holder(next):
+			left = cell
+			break
+	_check(left != WorkArea.NOWHERE, "deux surfaces voisines de tuiles differentes existent")
+	var right: Vector2i = left + Vector2i.RIGHT
+	work._origin = -Vector2(float(left.x), float(left.y)) * work._tile_px
+	work.lock_to_tile = true
+	var before: int = painting.pixel_count(right)
+	work._begin_or_end(true, 1, Vector2(150, 80))
+	work._apply_stroke(Vector2(150, 80), Vector2(170, 80))
+	work._begin_or_end(false, 1, Vector2(170, 80))
+	_check_equal(painting.pixel_count(right), before, "contrainte : le trait qui deborde ne touche pas la voisine")
+	_check(painting.pixel_at(left, 15, 8).a > 0.0, "mais il a bien peint jusqu au bord de la sienne")
+	work.lock_to_tile = false
+	work._begin_or_end(true, 1, Vector2(150, 40))
+	work._apply_stroke(Vector2(150, 40), Vector2(170, 40))
+	work._begin_or_end(false, 1, Vector2(170, 40))
+	_check(painting.pixel_count(right) > before, "sans contrainte, le meme trait passe dans la voisine")
+	work._origin = -Vector2(float(grass.x), float(grass.y)) * work._tile_px
+
+	# Le pot : la tuile entiere, et rien d autre.
+	work.tool = WorkArea.Tool.BUCKET
+	work.pencil = Color.BLUE
+	work._begin_or_end(true, 1, Vector2(40, 120))
+	work._begin_or_end(false, 1, Vector2(40, 120))
+	_check(painting.pixel_count(grass) >= 200, "le pot remplit la plage vierge de la tuile (%d pixels)" % painting.pixel_count(grass))
+	_check_equal(painting.pixel_at(grass, 1, 14), Color.BLUE, "dans la couleur du crayon")
+
+	# La pipette.
+	work.tool = WorkArea.Tool.PICKER
+	work.pencil = Color.WHITE
+	work._begin_or_end(true, 1, Vector2(40, 120))
+	_check_equal(work.pencil, Color.BLUE, "la pipette prend la couleur sous le clic")
+	_check(not painting.can_redo() and painting.can_undo(), "et ne laisse aucune passe au journal")
+
+	# La brosse : un disque, pas un point.
+	work.tool = WorkArea.Tool.ERASER
+	work.brush_size = 4
+	work._begin_or_end(true, 1, Vector2(80, 80))
+	work._begin_or_end(false, 1, Vector2(80, 80))
+	_check_equal(painting.pixel_at(grass, 8, 8), Painting.TRANSPARENT, "la gomme efface sous le clic")
+	_check_equal(painting.pixel_at(grass, 7, 7), Painting.TRANSPARENT, "et autour, a la taille choisie")
+	_check_equal(painting.pixel_at(grass, 3, 3), Color.BLUE, "pas au-dela")
+
+	# La ligne et le rectangle se posent au relachement.
+	work.tool = WorkArea.Tool.LINE
+	work.brush_size = 1
+	work.pencil = Color.RED
+	work._begin_or_end(true, 1, Vector2(5, 5))
+	work._cursor = work._pixel_at(Vector2(155, 155))
+	work._begin_or_end(false, 1, Vector2(155, 155))
+	_check_equal(painting.pixel_at(grass, 8, 8), Color.RED, "la ligne passe par le milieu")
+	_check_equal(painting.pixel_at(grass, 0, 0), Color.RED, "depuis le clic")
+	_check_equal(painting.pixel_at(grass, 15, 15), Color.RED, "jusqu au relachement")
+	work.tool = WorkArea.Tool.RECT
+	work.pencil = Color.GREEN
+	work._begin_or_end(true, 1, Vector2(25, 25))
+	work._cursor = work._pixel_at(Vector2(135, 135))
+	work._begin_or_end(false, 1, Vector2(135, 135))
+	_check_equal(painting.pixel_at(grass, 2, 9), Color.GREEN, "le rectangle trace son contour")
+	_check_equal(painting.pixel_at(grass, 8, 8), Color.RED, "et laisse l interieur")
+	root.remove_child(work)
+	work.free()
+
+	# ⚠ A CHEVAL, LE CRAYON PEINT LE CROISEMENT. Il lisait la case sous la souris : un
+	# croisement, decale d une demi-case et range dans les y negatifs, n etait jamais atteint.
+	var dual: Control = WorkArea.new()
+	root.add_child(dual)
+	dual.size = Vector2(1200, 800)
+	dual.guide_family = Families.BY_CORNER
+	var dual_painting: RefCounted = Painting.new(16)
+	dual.show_guide(heights, dual_painting)
+	dual._job = null
+	dual._tile_px = 160.0
+	var corner: Vector2i = Vector2i.ZERO
+	for key: Vector2i in dual._paintable.keys():
+		if key.y < 0 and not dual._wall_cells.has(Families.from_storage(Families.BY_CORNER, key)):
+			corner = key
+			break
+	var point: Vector2i = Families.from_storage(Families.BY_CORNER, corner)
+	dual._origin = -Vector2(float(point.x) - 0.5, float(point.y) - 0.5) * dual._tile_px
+	dual._begin_or_end(true, 1, Vector2(80, 80))
+	dual._begin_or_end(false, 1, Vector2(80, 80))
+	_check(dual_painting.is_painted(corner), "a cheval, un clic au centre d un croisement le peint")
+	_check_equal(dual_painting.pixel_at(corner, 8, 8).a > 0.0, true, "au bon pixel de sa tuile")
+	root.remove_child(dual)
+	dual.free()
 
 
 func _test_twins() -> void:
@@ -2275,7 +2523,7 @@ func _print_summary() -> void:
 		print("  - %s" % failure)
 
 
-# --- AbsoluPaint : le plugin moteur ------------------------------------------
+# --- SoluPaint : le plugin moteur ------------------------------------------
 
 ## ⚠ LE PLUGIN PORTE UNE COPIE DE LA REGLE, ET C'EST INEVITABLE : il part chez l acheteur,
 ## dans SON projet, ou `res://core/` n existe pas. La question n est donc pas « comment
@@ -2340,7 +2588,7 @@ func _test_manual() -> void:
 
 
 func _test_plugin_rules() -> void:
-	print("AbsoluPaint : la regle du plugin est CELLE DU NOYAU, case pour case")
+	print("SoluPaint : la regle du plugin est CELLE DU NOYAU, case pour case")
 
 	_check_equal(PluginRules.STOREY_TILES, Walls.STOREY_TILES, "meme hauteur d etage")
 	_check_equal(PluginRules.BODY_ROWS, Walls.BODY_ROWS, "meme nombre de rangees de corps")
@@ -2650,7 +2898,7 @@ func _test_dirty_region() -> void:
 
 
 func _test_plugin_manifest() -> void:
-	print("AbsoluPaint : le manifeste se relit, et le faux se refuse")
+	print("SoluPaint : le manifeste se relit, et le faux se refuse")
 	var folder: String = "user://plugin_manifeste"
 	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
 	var by_key: Dictionary = WorkIO.cells_by_key(heights)
@@ -2719,14 +2967,14 @@ func _test_plugin_manifest() -> void:
 
 
 ## L installateur : le bouton destine a l acheteur.
-## ABSOLUPAINT TROUVE SES TILESETS TOUT SEUL.
+## SOLUPAINT TROUVE SES TILESETS TOUT SEUL.
 ##
 ## ⚠ CE QU'ON PEUT TROUVER NE SE DEMANDE PAS. Pointer un manifeste a la main, c'est
 ## demander a l'acheteur de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
-## occasions d'abandonner avant d'avoir rien vu. Un tileset AbsoluTiles se reconnait a son
+## occasions d'abandonner avant d'avoir rien vu. Un tileset SoluTiles se reconnait a son
 ## nom -- donc on le trouve, et s'il n'y en a qu'un on le pose sans rien demander.
 func _test_manifest_discovery() -> void:
-	print("AbsoluPaint : les tilesets se trouvent tout seuls")
+	print("SoluPaint : les tilesets se trouvent tout seuls")
 	var folder: String = "user://decouverte"
 	var deeper: String = folder.path_join("un/deux/trois")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(deeper))
@@ -2780,7 +3028,7 @@ func _wipe(folder: String) -> void:
 
 
 func _test_plugin_install() -> void:
-	print("AbsoluPaint : l installation chez l acheteur")
+	print("SoluPaint : l installation chez l acheteur")
 
 	# ⚠ LA LISTE DES FICHIERS EST UNE DONNEE, DONC UN ENDROIT OU MENTIR. On la compare au
 	# dossier reel : un fichier ajoute au plugin et oublie dans la liste ne partirait jamais

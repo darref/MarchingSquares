@@ -27,12 +27,18 @@ const EDGE: Color = Color(1.0, 1.0, 1.0, 0.10)
 ## ⚠ UN TROU EST NOIR, PAS COULEUR DE SOL. Le peindre a la teinte de l'etage 0 le faisait
 ## passer pour du terrain -- or ce n'est pas du terrain, c'est ce qu'il reste a faire. Et on
 ## vient justement de decider que le sol ne nous appartient pas.
+## ⚠ MAIS UNE TUILE PEINTE POSE SON SOCLE. Depuis que la transparence est un moyen
+## d'expression, ses pixels transparents montrent le sol couvert, comme toutes les vues.
+## Le noir ne dit donc plus qu'une seule chose : cette TUILE-LA n'est pas peinte.
 const HOLE: Color = Color(0.055, 0.060, 0.066)
 const TICK: Color = Color(0.949, 0.792, 0.475, 0.9)
 const TICK_LENGTH: float = 5.0
 const MARGIN: float = 6.0
 
 var _painting: RefCounted = null
+## Case -> liste des cases dont les tuiles se posent dessous (le socle enterre), fournie
+## par la zone de travail -- la regle d'empilement ne vit pas ici.
+var _grounds: Dictionary = {}
 var _focus: Vector2i = Vector2i(-1, -1)
 var _textures: Dictionary = {}
 var _dirty: bool = true
@@ -43,8 +49,9 @@ func _ready() -> void:
 	set_process(true)
 
 
-func show_guide(painting: RefCounted) -> void:
+func show_guide(painting: RefCounted, grounds: Dictionary = {}) -> void:
 	_painting = painting
+	_grounds = grounds
 	_textures.clear()
 	_dirty = true
 	queue_redraw()
@@ -73,6 +80,12 @@ func _process(_delta: float) -> void:
 				var image: Image = _painting.image_of(cell)
 				if image != null:
 					_textures[cell] = ImageTexture.create_from_image(image)
+				for source: Vector2i in (_grounds.get(cell, []) as Array):
+					if _textures.has(source):
+						continue
+					var ground: Image = _painting.image_of(source)
+					if ground != null:
+						_textures[source] = ImageTexture.create_from_image(ground)
 	queue_redraw()
 
 
@@ -96,6 +109,11 @@ func _draw() -> void:
 			var box: Rect2 = Rect2(at, Vector2(side, side))
 			var cell: Vector2i = _focus + Vector2i(dx, dy)
 			if _textures.has(cell):
+				# La tuile peinte pose son socle : ses pixels transparents montrent le
+				# sol qu'elle couvre, comme dans toutes les autres vues.
+				for source: Vector2i in (_grounds.get(cell, []) as Array):
+					if _textures.has(source):
+						draw_texture_rect(_textures[source], box, false)
 				draw_texture_rect(_textures[cell], box, false)
 			else:
 				# ⚠ UNE VOISINE NON PEINTE EST UN TROU, pas un aplat aimable : c'est

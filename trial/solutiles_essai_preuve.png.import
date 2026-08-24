@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cwmj01u2sxpwy"
-path="res://.godot/imported/icon.svg-ce0ef45554e874fcf5b007bdc8f69621.ctex"
+uid="uid://cv4uh7kvvyrmw"
+path="res://.godot/imported/solutiles_essai_preuve.png-213225b440af3ed69e2d85240cb7ae93.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/absolupaint/icon.svg"
-dest_files=["res://.godot/imported/icon.svg-ce0ef45554e874fcf5b007bdc8f69621.ctex"]
+source_file="res://trial/solutiles_essai_preuve.png"
+dest_files=["res://.godot/imported/solutiles_essai_preuve.png-213225b440af3ed69e2d85240cb7ae93.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

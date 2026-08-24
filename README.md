@@ -1,4 +1,4 @@
-# AbsoluTiles
+# SoluTiles
 
 > **Paint one landscape. Every edge case covered.**
 > *No pixel you didn't paint.*

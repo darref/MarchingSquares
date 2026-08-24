@@ -25,6 +25,7 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Coverage := preload("res://core/coverage.gd")
 const HeightMask := preload("res://core/height_mask.gd")
+const Walls := preload("res://core/walls.gd")
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
@@ -88,6 +89,58 @@ static func analyse(family: StringName, heights: PackedStringArray) -> Dictionar
 	if family == BY_CORNER:
 		return CornerIndex.analyse_relief(heights)
 	return Coverage.analyse_relief(heights)
+
+
+## CE QU'UNE CASE PORTE EN SURFACE, une fois les robes passees devant.
+##
+## ⚠ UNE CASE SOUS UNE FACE DE FALAISE PORTE LA ROBE, PAS LE SOL D'EN BAS. Sur la carte, une
+## case de robe est une case du sol d'en dessous, et `index_map` lui donne donc un index de
+## surface -- celui d'un sol que la face recouvre entierement, et que personne ne verra ni
+## ne peindra jamais a cet endroit. La laisser dans les groupes de surface faisait ecrire
+## la peinture de l'index 255 dans 130 cases de robe du guide minimal : apres UNE surface
+## peinte, les 36 roles de robe se disaient livres, et l'export aurait pris de l'herbe pour
+## de la roche. C'est la regle que `WorkIO.slots` appliquait deja en silence -- la cle `W`
+## ecrasait la cle `S` -- et qui vit desormais ici, une seule fois.
+##
+## ⚠ MESURE AVANT D'ECRIRE : ca ne coute aucune tuile. Sur les deux guides livres,
+## l'occurrence la plus rare reste a 1 (`minimal`) et 3 (`ample`).
+##
+## A cheval, les cles sont dans un autre espace et ne rencontrent aucune robe : la carte
+## est rendue telle quelle.
+static func surface_map(family: StringName, heights: PackedStringArray) -> Dictionary:
+	var indices: Dictionary = index_map(family, heights)
+	if family == BY_CORNER:
+		return indices
+	var covered: Dictionary = Walls.visible_roles(heights)
+	for cell: Vector2i in covered.keys():
+		indices.erase(cell)
+	return indices
+
+
+## CE QUI PREND LE CRAYON : les cles de `surface_map` dont l'etage visible est au moins 1.
+##
+## ⚠ L'ETAGE 0 EST DU DECOR. La plaine reste dans les groupes de jumelles -- peindre une
+## tuile la remplit sous les yeux -- mais elle ne se peint pas. C'est la meme table que
+## lit l'editeur pour tracer sa grille et refuser le crayon, et que lit la suite pour
+## verifier qu'un mode trouve tout son vocabulaire hors de la plaine : un seul endroit.
+static func paintable_map(family: StringName, heights: PackedStringArray) -> Dictionary:
+	var kept: Dictionary = {}
+	var carried: Dictionary = surface_map(family, heights)
+	for at: Vector2i in carried.keys():
+		if visible_level(family, heights, at) >= 1:
+			kept[at] = carried[at]
+	return kept
+
+
+## L'etage que montre ce qu'on peint ici : celui de la case, ou le plus haut des quatre
+## cases d'un croisement. ⚠ ON NE VOIT QUE LE SOMMET, ici comme partout.
+static func visible_level(family: StringName, heights: PackedStringArray, at: Vector2i) -> int:
+	if family != BY_CORNER:
+		return HeightMask.level_at(heights, at.x, at.y)
+	var top: int = HeightMask.VOID
+	for offset: Vector2i in CornerIndex.OFFSETS:
+		top = maxi(top, HeightMask.level_at(heights, at.x + offset.x, at.y + offset.y))
+	return top
 
 
 ## Les jumelles : ce qui porte le meme index porte la meme tuile.

@@ -6,7 +6,7 @@
 # nous, ou chez Satyron.
 #
 # ⚠ ON LIT, ON NE COPIE PAS. Les images restent dans le projet Satyron, sur ce disque. Rien
-# n'est embarque dans AbsoluTiles : le pack de tuiles est achete, sa licence autorise
+# n'est embarque dans SoluTiles : le pack de tuiles est achete, sa licence autorise
 # l'usage et interdit la redistribution. Sur une machine ou Satyron n'est pas la, la
 # technique se ferme d'elle-meme (charte, regle 5).
 #
@@ -18,7 +18,7 @@
 # PAS la correspondance de nos 47 index : il n'existe aucune tuile en face.
 extends RefCounted
 
-## Ou trouver le projet. Surchargeable dans project.godot par `absolutiles/satyron_path`.
+## Ou trouver le projet. Surchargeable dans project.godot par `solutiles/satyron_path`.
 const DEFAULT_ROOT: String = "D:/Satyron"
 
 const TILESET_PATH: String = "WORLD/tiles/icko_tileset.tres"
@@ -34,7 +34,7 @@ const LEVEL_TERRAIN: Array[int] = [2, 0, 1, 3]
 
 
 static func root() -> String:
-	return String(ProjectSettings.get_setting("absolutiles/satyron_path", DEFAULT_ROOT))
+	return String(ProjectSettings.get_setting("solutiles/satyron_path", DEFAULT_ROOT))
 
 
 ## Vrai si le projet est la, avec ce qu'il faut dedans.

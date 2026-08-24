@@ -40,7 +40,7 @@ const Families := preload("res://core/families.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const Assembly := preload("res://render/assembly.gd")
 
-const MAGIC: String = "absolutiles-tileset"
+const MAGIC: String = "solutiles-tileset"
 ## LE MANIFESTE EST UN CONTRAT. Il ne decrit pas seulement OU sont les tuiles, il porte la
 ## REGLE DE POSE. Une seconde moitie du projet posera le monde dans Godot et dans Unity :
 ## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur

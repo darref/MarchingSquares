@@ -150,7 +150,15 @@ func _hands_on() -> String:
 
 	lines.append(_titre("2. Peindre"))
 	lines.append("[b]Clic gauche[/b] pose, [b]clic droit[/b] efface. Choisissez une couleur "
-			+ "dans la palette du Crayon.")
+			+ "dans la palette de la section Outils.")
+	lines.append("Huit outils, une touche chacun : [b]crayon[/b] (P), [b]brosse[/b] (B), "
+			+ "[b]aerographe[/b] (A), [b]pot[/b] (G), [b]ligne[/b] (L), [b]rectangle[/b] (R), "
+			+ "[b]pipette[/b] (I), [b]gomme[/b] (E). La rangee [b]Taille[/b] -- ou les touches "
+			+ "[ et ] -- donne le diametre de la brosse, de l'aerographe, de la gomme, de la "
+			+ "ligne et du rectangle ; le crayon fait toujours un pixel.")
+	lines.append("[b]Contraindre a la tuile[/b] : une passe reste dans la tuile ou elle a "
+			+ "commence, ce qui deborde sur une voisine est ignore. Le pot s'arrete de "
+			+ "lui-meme au bord de la tuile.")
 	lines.append("Les cases qui portent [b]la meme tuile[/b] se remplissent ensemble : ce "
 			+ "n'est pas une autre tuile qui se ressemble, c'est la meme, vue a plusieurs "
 			+ "endroits. Un coup de crayon peut donc en toucher cent.")
@@ -175,14 +183,14 @@ func _hands_on() -> String:
 	lines.append("Bouton [b]Installer le plugin Godot[/b], puis choisissez [b]la racine du "
 			+ "projet[/b] : le dossier qui contient [code]project.godot[/code]. Pas "
 			+ "[code]addons/[/code], pas une sous-scene -- la racine.")
-	lines.append("Un [b]tileset part avec[/b], dans [code]absolutiles/[/code] : le votre "
+	lines.append("Un [b]tileset part avec[/b], dans [code]solutiles/[/code] : le votre "
 			+ "s'il est complet, son [b]essai[/b] sinon. L'essai est fait du dessin du guide "
 			+ "lui-meme : de quoi poser un monde tout de suite, sans avoir peint.")
 
 	lines.append(_titre("5. Peindre le monde, dans Godot"))
 	lines.append("[b]Projet → Parametres du projet → Extensions[/b], cochez "
-			+ "[b]AbsoluPaint[/b].")
-	lines.append("Un bouton [b]AbsoluPaint[/b] apparait dans la barre du haut. Cliquez-le : "
+			+ "[b]SoluPaint[/b].")
+	lines.append("Un bouton [b]SoluPaint[/b] apparait dans la barre du haut. Cliquez-le : "
 			+ "il ouvre son panneau, pose un monde dans la scene ouverte et vous y emmene.")
 	lines.append("Dans le panneau : choisissez un [b]etage[/b] (0 est du sol, 1 a 9 les "
 			+ "plateaux, [b]Vide[/b] retire la case du monde), [b]armez le pinceau[/b], et "
@@ -230,7 +238,11 @@ func _how_it_works() -> String:
 	lines.append(_titre("Ce que le crayon fait sans vous le demander"))
 	lines.append("[b]Les jumelles.[/b] Deux cases qui portent la meme tuile ne se "
 			+ "ressemblent pas : c'est la meme tuile. Les remplir ensemble ne peut donc "
-			+ "jamais etre faux, et ce n'est pas une option.")
+			+ "jamais etre faux, et ce n'est pas une option. Elles partagent d'ailleurs une "
+			+ "seule image : peindre l'une, c'est peindre l'autre, au sens propre.")
+	lines.append("[b]Une case sous une falaise porte la falaise.[/b] Sur la carte c'est du "
+			+ "sol d'en bas, mais on ne voit que la face : elle ne prend que la robe, jamais "
+			+ "la surface qu'elle recouvre.")
 	lines.append("[b]Les raccords obligatoires.[/b] Par endroits, deux tuiles de falaise "
 			+ "[b]sont la meme paroi[/b] : deux rangees qui se suivent dans une chute, deux "
 			+ "flancs muets face a face. Le pixel qui borde l'une borde l'autre -- on le "

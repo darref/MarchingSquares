@@ -36,11 +36,11 @@ const Painting := preload("res://core/painting.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Families := preload("res://core/families.gd")
 
-const EXTENSION: String = "absolutiles"
+const EXTENSION: String = "solutiles"
 
 ## En-tete du fichier. Le numero monte le jour ou le format change, et il ne changera que
 ## si les CLES changent -- pas pour un guide retouche, c'est tout l'interet.
-const MAGIC: String = "absolutiles"
+const MAGIC: String = "solutiles"
 ## ⚠ VERSION 2 : LE VOCABULAIRE DES ROBES A CHANGE. Un pan v1 valait 0..2 (gauche, courant,
 ## droit) ; un pan v2 vaut 0..8 (le couple des deux flancs). Reposer une cle `W` de v1 sous
 ## v2 la mettrait de travers en silence -- exactement ce que ce fichier existe pour eviter.
@@ -60,8 +60,15 @@ static func slots(heights: PackedStringArray,
 	# ⚠ LES CLES SONT CELLES DU CARNET, PAS CELLES DE L'ECRAN. Un croisement se range
 	# dans les y negatifs (voir `Families.storage_key`) : tout ce qui suit -- serialisation,
 	# relecture, export -- travaille donc sans jamais savoir de quelle famille il s'agit.
+	#
+	# ⚠ UNE CASE SOUS UNE ROBE PORTE LA ROBE, et elle ne prend donc pas de rang de surface.
+	# Les rangs se comptaient sur toutes les cases de l'index, robes comprises, puis la cle
+	# `W` ecrasait la cle `S` de ces cases-la : le rang `S255:0` pouvait ainsi designer une
+	# case qui ne le portait plus, et tout ce qui demandait « la premiere occurrence » -- le
+	# decor de l'apercu, l'essai -- ne trouvait rien. Les rangs se comptent sur ce que la
+	# case porte vraiment (`Families.surface_map`), et chaque rang existe.
 	var letter: String = Families.key_letter(family)
-	var groups: Dictionary = Families.groups(family, Families.index_map(family, heights))
+	var groups: Dictionary = Families.groups(family, Families.surface_map(family, heights))
 	for index: int in groups.keys():
 		var cells: Array[Vector2i] = _sorted(groups[index])
 		for rank: int in range(cells.size()):
@@ -224,7 +231,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 
 	var lines: PackedStringArray = text.split("\n")
 	if lines.is_empty() or not lines[0].begins_with(MAGIC + " "):
-		push_error("work_io: ce fichier n'est pas un travail AbsoluTiles.")
+		push_error("work_io: ce fichier n'est pas un travail SoluTiles.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
 	var written_with: int = lines[0].get_slice(" ", 1).to_int()

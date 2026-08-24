@@ -29,7 +29,7 @@ func _build() -> void:
 	add_theme_constant_override("separation", 6)
 
 	var title: Label = Label.new()
-	title.text = "AbsoluPaint"
+	title.text = "SoluPaint"
 	title.add_theme_font_size_override("font_size", 15)
 	add_child(title)
 
@@ -51,7 +51,7 @@ func _build() -> void:
 	add_child(sheet)
 	_tileset = OptionButton.new()
 	_tileset.clip_text = true
-	_tileset.tooltip_text = "Les tilesets AbsoluTiles trouves dans ce projet."
+	_tileset.tooltip_text = "Les tilesets SoluTiles trouves dans ce projet."
 	_tileset.item_selected.connect(_on_tileset_selected)
 	add_child(_tileset)
 

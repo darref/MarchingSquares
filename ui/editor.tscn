@@ -275,6 +275,10 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="ButtonGroup" id="ButtonGroup_tools"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_sizes"]
+
 [node name="Editor" type="Control" unique_id=245111341]
 layout_mode = 3
 anchors_preset = 0
@@ -306,7 +310,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.706, 0.741, 0.522, 1)
-text = "AbsoluTiles"
+text = "SoluTiles"
 
 [node name="Version" type="Label" parent="Layout/TitleBar/TitleMargin/TitleLine" unique_id=212501956]
 unique_name_in_owner = true
@@ -445,6 +449,7 @@ layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
 title = "Fond du guide"
+expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection" unique_id=194400331]
 layout_mode = 2
@@ -505,48 +510,13 @@ theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 text = "La technique dit d'ou vient le fond,
 le style de quoi notre dessin est fait."
 
-[node name="NextSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=863479697]
-layout_mode = 2
-theme_override_constants/separation = 0
-script = ExtResource("4_cwcei")
-title = "A venir"
-
-[node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection" unique_id=1513618814]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
-theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
-theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
-toggle_mode = true
-button_pressed = true
-text = "▾  A venir"
-flat = true
-alignment = 0
-
-[node name="Content" type="MarginContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection" unique_id=961532201]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="Items" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection/Content" unique_id=189352820]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="NextHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/NextSection/Content/Items" unique_id=1501059973]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Les prochaines options se rangent
-ici, une section par categorie."
-
 [node name="Toolbar" type="PanelContainer" parent="Layout/Body" unique_id=133062991]
 unique_name_in_owner = true
 layout_mode = 0
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -232.0
+offset_left = -244.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_28l1f")
 script = ExtResource("3_4x3iy")
 
@@ -637,7 +607,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Crayon"
+title = "Outils"
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection" unique_id=33830096]
 layout_mode = 2
@@ -646,7 +616,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Crayon"
+text = "▾  Outils"
 flat = true
 alignment = 0
 
@@ -660,6 +630,190 @@ theme_override_constants/margin_bottom = 10
 [node name="Items" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content" unique_id=34429523]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="ToolGrid" type="GridContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3200001]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+columns = 4
+
+[node name="ToolPencil" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200002]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Un faux pixel par point. Touche P."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Crayon"
+clip_text = true
+metadata/tool = 0
+
+[node name="ToolBrush" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200003]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Un disque de la taille choisie. Touche B."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Brosse"
+clip_text = true
+metadata/tool = 1
+
+[node name="ToolAirbrush" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200004]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Quelques pixels au hasard dans le disque, tant qu'on tient le bouton. Touche A."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Aero"
+clip_text = true
+metadata/tool = 2
+
+[node name="ToolBucket" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200005]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Remplit la plage de meme couleur sous le clic, dans la tuile seulement. Touche G."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Pot"
+clip_text = true
+metadata/tool = 3
+
+[node name="ToolLine" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200006]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Du clic au relachement, a la taille choisie. Touche L."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Ligne"
+clip_text = true
+metadata/tool = 4
+
+[node name="ToolRect" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200007]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Le contour du rectangle, du clic au relachement. Touche R."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Rect."
+clip_text = true
+metadata/tool = 5
+
+[node name="ToolPicker" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200008]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Prend la couleur du pixel sous le clic. Touche I."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Pipette"
+clip_text = true
+metadata/tool = 6
+
+[node name="ToolEraser" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/ToolGrid" unique_id=3200009]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Efface un disque de la taille choisie. Le clic droit efface aussi, avec n'importe quel outil. Touche E."
+theme_override_font_sizes/font_size = 11
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tools")
+text = "Gomme"
+clip_text = true
+metadata/tool = 7
+
+[node name="BrushRow" type="HBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3200010]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="BrushLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200011]
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+tooltip_text = "Le diametre, en faux pixels, de la brosse, de l'aerographe, de la gomme, de la ligne et du rectangle. Le crayon fait toujours un pixel."
+text = "Taille"
+
+[node name="Size1" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200012]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "1"
+clip_text = true
+metadata/size = 1
+
+[node name="Size2" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200013]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "2"
+clip_text = true
+metadata/size = 2
+
+[node name="Size3" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200014]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "3"
+clip_text = true
+metadata/size = 3
+
+[node name="Size4" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200015]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "4"
+clip_text = true
+metadata/size = 4
+
+[node name="Size6" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200016]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "6"
+clip_text = true
+metadata/size = 6
+
+[node name="Size8" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200017]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+button_group = SubResource("ButtonGroup_sizes")
+text = "8"
+clip_text = true
+metadata/size = 8
 
 [node name="PencilColor" type="ColorPickerButton" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=1598189719]
 unique_name_in_owner = true
@@ -768,19 +922,11 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_i3odb")
 theme_override_styles/hover = SubResource("StyleBoxFlat_ghx7n")
 metadata/color = Color(0.451, 0.588, 0.639, 1)
 
-[node name="NeighboursLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3100019]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-autowrap_mode = 2
-text = "Les voisines de la case survolee, collees."
-
-[node name="NeighboursPanel" type="Control" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3100020]
+[node name="LockCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3200018]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 212)
 layout_mode = 2
-tooltip_text = "La case survolee et ses voisines reelles, a la meme echelle et COLLEES. Le raccord se juge pendant le geste, pas apres l'export."
-script = ExtResource("6_nghb")
+tooltip_text = "Une passe reste dans la tuile ou elle a commence : ce qui deborde sur une voisine est ignore, pas ramene au bord. Pour travailler une tuile sans salir celles d'a cote."
+text = "Contraindre a la tuile"
 
 [node name="RotationsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=542215267]
 unique_name_in_owner = true
@@ -788,11 +934,55 @@ layout_mode = 2
 tooltip_text = "Remplit aussi les tuiles obtenues par rotation, et les robes par miroir. N a de sens que si votre dessin n a pas de direction d eclairage : une rotation tournerait ses hautes lumieres avec elle."
 text = "Peindre les rotations"
 
+[node name="NeighboursSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3200019]
+layout_mode = 2
+theme_override_constants/separation = 0
+script = ExtResource("4_cwcei")
+title = "Voisines"
+expanded = false
+
+[node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection" unique_id=3200020]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
+theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
+toggle_mode = true
+text = "▸  Voisines"
+flat = true
+alignment = 0
+
+[node name="Content" type="MarginContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection" unique_id=3200021]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Items" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection/Content" unique_id=3200022]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NeighboursLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection/Content/Items" unique_id=3100019]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+autowrap_mode = 2
+text = "Les voisines de la case survolee, collees."
+
+[node name="NeighboursPanel" type="Control" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection/Content/Items" unique_id=3100020]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 212)
+layout_mode = 2
+tooltip_text = "La case survolee et ses voisines reelles, a la meme echelle et COLLEES. Le raccord se juge pendant le geste, pas apres l'export."
+script = ExtResource("6_nghb")
+
 [node name="ViewSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=582321380]
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
 title = "Vue"
+expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection" unique_id=1667700995]
 layout_mode = 2
@@ -880,7 +1070,9 @@ text = "Molette : zoom
 Clic milieu : deplacer
 Clic gauche : peindre
 Clic droit : effacer
-Ctrl+Z : annuler"
+Ctrl+Z : annuler
+P B A G L R I E : les outils
+[ et ] : la taille"
 
 [node name="WorkSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3100001]
 layout_mode = 2
@@ -935,6 +1127,7 @@ layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
 title = "Moteur"
+expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection" unique_id=3100021]
 layout_mode = 2
@@ -961,7 +1154,7 @@ theme_override_constants/separation = 6
 [node name="InstallPluginButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100024]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Copie AbsoluPaint dans un projet Godot. Reste a le cocher dans Projet > Parametres > Extensions."
+tooltip_text = "Copie SoluPaint dans un projet Godot. Reste a le cocher dans Projet > Parametres > Extensions."
 text = "Installer le plugin Godot"
 
 [node name="TrialButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100026]
@@ -976,7 +1169,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
-text = "AbsoluPaint pose votre monde avec les tuiles peintes ici."
+text = "SoluPaint pose votre monde avec les tuiles peintes ici."
 
 [node name="PreviewPanel" type="Control" parent="Layout/Body" unique_id=3100013]
 unique_name_in_owner = true

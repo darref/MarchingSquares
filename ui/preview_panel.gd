@@ -33,7 +33,10 @@ const MARGIN: float = 10.0
 var _scene: PackedStringArray = PackedStringArray()
 var _guide: PackedStringArray = PackedStringArray()
 var _painting: RefCounted = null
-var _source_of: Dictionary = {}
+## Case du decor -> PILE des cases du guide, du bas vers le haut. L'APERCU EMPILE comme le
+## jeu : etages enterres, pied repose, tuile visible -- pour qu'un pixel transparent d'une
+## tuile montre le sol couvert, jamais le fond du panneau. La regle vit dans Assembly.
+var _layers_of: Dictionary = {}
 var _textures: Dictionary = {}
 var _dirty: bool = true
 
@@ -54,7 +57,7 @@ func show_guide(guide: PackedStringArray, painting: RefCounted) -> void:
 		_scene = HeightMask.read(SCENE_PATH)
 	_guide = guide
 	_painting = painting
-	_source_of = Assembly.borrow(_scene, guide)
+	_layers_of = Assembly.borrow_layers(_scene, guide)
 	_textures.clear()
 	_dirty = true
 	queue_redraw()
@@ -65,7 +68,7 @@ func show_guide(guide: PackedStringArray, painting: RefCounted) -> void:
 func set_scene(relief: PackedStringArray) -> void:
 	_scene = relief
 	if not _guide.is_empty():
-		_source_of = Assembly.borrow(_scene, _guide)
+		_layers_of = Assembly.borrow_layers(_scene, _guide)
 	_textures.clear()
 	_dirty = true
 	queue_redraw()
@@ -82,8 +85,9 @@ func _process(_delta: float) -> void:
 	# Le decor n'emprunte qu'une trentaine de tuiles distinctes : les remonter toutes coute
 	# moins cher que de tenir la comptabilite de celles qui ont bouge.
 	var wanted: Dictionary = {}
-	for cell: Vector2i in _source_of.values():
-		wanted[cell] = true
+	for stack: Array in _layers_of.values():
+		for cell: Vector2i in stack:
+			wanted[cell] = true
 	_textures.clear()
 	for cell: Vector2i in wanted.keys():
 		var image: Image = _painting.image_of(cell)
@@ -108,9 +112,9 @@ func _draw() -> void:
 	var span: Vector2 = Vector2(float(columns), float(rows)) * side
 	var origin: Vector2 = ((size - span) * 0.5).floor()
 
-	for cell: Vector2i in _source_of.keys():
-		if not _textures.has(_source_of[cell]):
-			continue
-		draw_texture_rect(_textures[_source_of[cell]],
-				Rect2(origin + Vector2(float(cell.x), float(cell.y)) * side,
-				Vector2(side, side)), false)
+	for cell: Vector2i in _layers_of.keys():
+		var rect: Rect2 = Rect2(origin + Vector2(float(cell.x), float(cell.y)) * side,
+				Vector2(side, side))
+		for source: Vector2i in (_layers_of[cell] as Array):
+			if _textures.has(source):
+				draw_texture_rect(_textures[source], rect, false)

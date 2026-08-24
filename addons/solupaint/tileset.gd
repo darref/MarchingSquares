@@ -14,7 +14,7 @@
 # defaut que tout ce projet existe pour eviter.
 extends RefCounted
 
-const Manifest := preload("res://addons/absolupaint/manifest.gd")
+const Manifest := preload("res://addons/solupaint/manifest.gd")
 
 
 ## Fabrique le TileSet decrit par un manifeste.

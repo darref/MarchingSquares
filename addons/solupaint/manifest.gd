@@ -6,7 +6,7 @@
 #
 # ⚠ IL REFUSE PLUTOT QUE DE DEVINER (charte, regle 5). Trois refus, et chacun a sa raison :
 #
-#   - un fichier qui ne s'annonce pas comme un manifeste AbsoluTiles ;
+#   - un fichier qui ne s'annonce pas comme un manifeste SoluTiles ;
 #   - une version plus recente que celle que ce plugin sait lire -- une regle de pose a pu
 #     changer de sens, et poser quand meme serait un mensonge silencieux ;
 #   - une version TROP VIEILLE, pour exactement la meme raison. ⚠ CE REFUS-LA MANQUAIT, et
@@ -23,9 +23,9 @@
 # lit ce qui est ecrit.
 extends RefCounted
 
-const Rules := preload("res://addons/absolupaint/rules.gd")
+const Rules := preload("res://addons/solupaint/rules.gd")
 
-const MAGIC: String = "absolutiles-tileset"
+const MAGIC: String = "solutiles-tileset"
 
 ## Les versions que ce plugin sait lire, bornes comprises.
 ##
@@ -74,7 +74,7 @@ const MAX_DEPTH: int = 6
 ##
 ## ⚠ ON NE DEMANDE PAS A L'ACHETEUR CE QU'ON PEUT TROUVER. Pointer un fichier a la main
 ## est le genre de geste qui fait abandonner un outil : il faut savoir ce qu'on cherche, ou
-## il se trouve, et que ce soit LUI qu'on cherche. Un tileset AbsoluTiles se reconnait a son
+## il se trouve, et que ce soit LUI qu'on cherche. Un tileset SoluTiles se reconnait a son
 ## nom ; on le propose, et s'il n'y en a qu'un on le prend sans rien demander.
 ##
 ## ⚠ ON REGARDE LE NOM, PAS LE CONTENU. Ouvrir chaque `.txt` du projet pour voir s'il
@@ -117,7 +117,7 @@ static func parse(text: String) -> Dictionary:
 
 	var lines: PackedStringArray = text.split("\n")
 	if lines.is_empty() or not lines[0].begins_with(MAGIC + " "):
-		return _refuse(result, "Ce fichier n'est pas un manifeste AbsoluTiles.")
+		return _refuse(result, "Ce fichier n'est pas un manifeste SoluTiles.")
 	result["version"] = lines[0].get_slice(" ", 1).to_int()
 	if int(result["version"]) > READS_UP_TO:
 		return _refuse(result, "Manifeste en version %d ; ce plugin lit jusqu'a %d."

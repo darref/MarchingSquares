@@ -1,4 +1,4 @@
-# AbsoluTiles — contexte de travail
+# SoluTiles — contexte de travail
 
 ## Contexte
 
@@ -40,8 +40,8 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   walls.gd        le second vocabulaire : les robes de falaise (3 pans × 4 rangées)
   delivery.gd     quelles cases peintes deviennent des tuiles
   proof_scene.gd  la planche de preuve : un ilot par index, calculee
-  work_io.gd      lecture / ecriture du travail en cours (.absolutiles)
-  plugin_install.gd  copier AbsoluPaint dans un projet Godot
+  work_io.gd      lecture / ecriture du travail en cours (.solutiles)
+  plugin_install.gd  copier SoluPaint dans un projet Godot
   modes.gd        catalogue des modes (guide + règles d'exportation)
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
@@ -58,7 +58,7 @@ ui/           l'éditeur
   preview_panel.gd  l'aperçu en jeu : les tuiles peintes sur un décor ordinaire
   neighbours_panel.gd  la case survolée et ses voisines, collées
   manual.gd       le mode d'emploi à trois niveaux, ouvert par le bandeau
-  screenshot.gd   capture la fenêtre, pour se relire
+  screenshot.gd   capture la fenêtre, pour se relire (`trait` y pose un pot et une brosse)
 guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = étage 1)
   minimal.txt          guide du mode « minimal » : une île 46x27, 47/47, 15/15 et 36/36
   ample.txt            guide du mode « ample » : archipel 84x46, 3 occurrences minimum
@@ -70,17 +70,18 @@ tests/        tests headless
 exporters/
   tileset_png.gd  les deux planches, la planche de preuve, et leur manifeste
   trial_tileset.gd  l'essai : le guide lui-même livré comme tileset, sans peindre
-addons/absolupaint/   LE PLUGIN MOTEUR -- ce qui part chez l'acheteur
+addons/solupaint/   LE PLUGIN MOTEUR -- ce qui part chez l'acheteur
   rules.gd        la regle de pose, portee du noyau, sur un monde NON BORNE
   manifest.gd     lecture du `<nom>_tileset.txt`, et ses trois refus
   tileset.gd      du manifeste au TileSet Godot : deux sources d'atlas
-  world.gd        le noeud `AbsoluPaintWorld` : un relief, deux TileMapLayer
+  world.gd        le noeud `SoluPaintWorld` : un relief, deux TileMapLayer
   plugin.gd       l'EditorPlugin, qui ne fait qu'enregistrer le type
   README.md       la notice de l'acheteur
 tools/            outils de fabrication, jamais lus par le logiciel
   accidents.py      le vocabulaire de terrain : lacs, crêtes, coudes, escarpements
   build_minimal.py  une île qui porte tout, un exemplaire de chaque accident
   build_ample.py    trois îles, donc trois exemplaires
+  bench_stroke.gd   le banc du coup de crayon : ce que coûte un point, en µs
 ```
 
 ## Conventions
@@ -149,7 +150,7 @@ Et pour se relire avec un travail ouvert, remontage compris — les arguments ap
 `--` viennent dans n'importe quel ordre :
 
 ```
-godot --path . --script res://ui/screenshot.gd -- sortie.png mon_travail.absolutiles remontage
+godot --path . --script res://ui/screenshot.gd -- sortie.png mon_travail.solutiles remontage
 ```
 
 ## Décisions prises
@@ -413,7 +414,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **On lit, on ne copie pas.** Les images restent chez Satyron. Le pack est acheté, sa
   licence autorise l'usage et interdit la redistribution : sur une machine où le projet
   n'est pas là, la technique reste **fermée** dans la liste (règle 5). Le chemin se règle
-  par `absolutiles/satyron_path`.
+  par `solutiles/satyron_path`.
 
   ⚠ **Ce que le banc éprouve, et ce qu'il n'éprouve pas.** Mesuré avant d'écrire :
   `icko_tileset.tres` déclare `mode = 1`, c'est-à-dire **Match Corners** — chaque tuile y est
@@ -1012,7 +1013,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   côté moteur, et elle en a débloqué trois.
 
   Le modèle ne savait pas distinguer **« case à l'étage 0 »** de **« case hors du monde »**.
-  Il ne pouvait donc pas dire où le sol s'arrête, et AbsoluPaint ne posait aucun étage 0 :
+  Il ne pouvait donc pas dire où le sol s'arrête, et SoluPaint ne posait aucun étage 0 :
   le sol du jeu restait à la charge de l'acheteur.
 
   **`~` est le vide**, `HeightMask.VOID` vaut −1, et **le hors-grille est du vide**. Côté
@@ -1320,7 +1321,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **On propage depuis la tuile RÉELLEMENT peinte**, pas depuis la case survolée : avec
   les rotations, le crayon pose son pixel ailleurs et autrement.
 
-- **LE PINCEAU D'ABSOLUPAINT, ET LES TROIS LEÇONS PRISES À SATYRON.** Le plugin posait un
+- **LE PINCEAU D'SOLUPAINT, ET LES TROIS LEÇONS PRISES À SATYRON.** Le plugin posait un
   monde mais on remplissait `heights` à l'inspecteur. Un panneau à droite donne désormais
   l'étage (0 à 9, plus **Vide**), un bouton d'armement, et le clic gauche pose / le clic
   droit retire.
@@ -1421,11 +1422,11 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   quatre cases qu'elle chevauche, pas d'un étage : il n'y a rien à empiler, et une seule
   couche suffit.
 
-- **CE QU'ON PEUT TROUVER NE SE DEMANDE PAS.** AbsoluPaint faisait pointer un
+- **CE QU'ON PEUT TROUVER NE SE DEMANDE PAS.** SoluPaint faisait pointer un
   `manifest_path` à la main. C'est demander à l'acheteur de savoir **ce qu'il cherche, où il
   est, et que ce soit lui** — trois occasions d'abandonner avant d'avoir rien vu.
 
-  Un tileset AbsoluTiles se reconnaît à son nom : le panneau **fouille le projet** et
+  Un tileset SoluTiles se reconnaît à son nom : le panneau **fouille le projet** et
   propose ce qu'il trouve. ⚠ **Et il ne choisit à la place de personne que quand il n'y a
   pas de choix** : un seul tileset, le doute n'existe pas, on le pose ; plusieurs, on montre
   celui du monde et l'acheteur tranche.
@@ -1438,7 +1439,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **ET L'INSTALLATION DÉPOSE DE QUOI PEINDRE**, ce qui était la moitié manquante. Un
   plugin posé dans un projet vide ne montre rien : il fallait exporter, donc savoir que
   l'export existe, l'écrire quelque part, puis le retrouver. Un seul geste désormais — on
-  cible un projet, il repart avec **le plugin et un tileset** dans `absolutiles/`.
+  cible un projet, il repart avec **le plugin et un tileset** dans `solutiles/`.
 
   ⚠ **Le vôtre s'il est complet, l'essai sinon, et on le DIT.** Écrire un travail à moitié
   peint serait un piège : des trous transparents qu'on découvrirait dans le jeu. On ne
@@ -1474,7 +1475,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   dans un `EditorDock`, et c'est celui-là que la pile connaît. Relevé dans un vrai éditeur :
 
   ```
-  AbsoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
+  SoluPaint (VBoxContainer) <- @EditorDock@ <- DockSlotRightUL (TabContainer)
   ```
 
   Ma première version cherchait un `TabContainer` comme parent **direct** : elle n'en
@@ -1489,7 +1490,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   ⚠ **ET ON CHERCHE L'ONGLET PAR SON NOM, CE QUI VAUT MIEUX QUE DE REMONTER LES PARENTS.**
   La remonte dépend de la **façon dont Godot emballe** le panneau — un détail interne qui
   peut changer d'une version à l'autre. Le nom, lui, est le nôtre : il n'y a qu'un onglet au
-  monde qui puisse s'appeler `AbsoluPaint`. La remonte reste en **filet**, parce que le titre
+  monde qui puisse s'appeler `SoluPaint`. La remonte reste en **filet**, parce que le titre
   est posé par l'éditeur et non par nous.
 
   **Trois états du projet de l'acheteur, et aucun n'est supposé** : panneau **déplacé** dans
@@ -1523,7 +1524,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   case du dessous ou de droite, jamais aux deux.
 
 - **Les voisines : le raccord se juge PENDANT le geste** (`ui/neighbours_panel.gd`, section
-  Crayon). Trente-six tuiles de robe dont beaucoup ne diffèrent que par une arête de deux ou
+  « Voisines », repliée à l'ouverture). Trente-six tuiles de robe dont beaucoup ne diffèrent que par une arête de deux ou
   trois pixels : c'est répétitif, et la répétition est exactement là où une main diverge. Le
   test des raccords attrape la divergence — mais l'attraper veut dire du rouge et des
   retouches, soit le va-et-vient que cet outil existe pour supprimer. Le panneau montre donc
@@ -1785,7 +1786,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   une tuile neuve coûte 112 µs à 256 px, le temps d'allouer son image : une fois par tuile,
   pas par pixel.
 
-- **ABSOLUPAINT : LE PLUGIN MOTEUR, ET LA SEULE FACON HONNETE DE PORTER LA REGLE DEUX FOIS.**
+- **SOLUPAINT : LE PLUGIN MOTEUR, ET LA SEULE FACON HONNETE DE PORTER LA REGLE DEUX FOIS.**
   Le logiciel fabrique un tileset ; le plugin le pose dans un jeu. Il part chez l'acheteur,
   dans **son** projet, ou `res://core/` n'existe pas : il emporte donc **sa propre copie**
   de la regle de pose. Ce n'est pas un choix, c'est la contrainte.
@@ -1813,7 +1814,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   case -> etage, l'absence valant la plaine. Consequence gratuite : le cas « robe hors
   grille » n'existe pas cote moteur, il n'y a rien a signaler.
 
-- **⚠ ET ABSOLUPAINT NE POSE PAS DE SOL.** La plaine n'est pas une tuile du tileset, et le
+- **⚠ ET SOLUPAINT NE POSE PAS DE SOL.** La plaine n'est pas une tuile du tileset, et le
   modele ne distingue pas encore « case a l'etage 0 » de « case hors du monde » — il n'y a
   pas de gouffre. Le plugin ne peut donc pas savoir **ou le sol s'arrete**, et en inventer la
   frontiere serait decider a la place de l'acheteur (regle 3). Le sol reste a sa charge, sur
@@ -1859,7 +1860,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   liste ne partirait jamais, et le plugin arriverait casse en silence.
 
   ⚠ **A VERIFIER AVANT DE VENDRE** : que le preset d'export du logiciel embarque bien
-  `addons/absolupaint/**` — les `.gd` en clair (pas en jetons binaires) et les fichiers non
+  `addons/solupaint/**` — les `.gd` en clair (pas en jetons binaires) et les fichiers non
   ressources (`.cfg`, `.md`) via le filtre d'inclusion. Aucun test ne peut le prouver depuis
   l'interieur du projet.
 
@@ -2005,7 +2006,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   -- elle atterrit et repose son PIED, ou elle bute et repose LE CORPS DU PAS SUIVANT sous
   la case qui l'ecrete. Une pose de plus, AUCUNE tuile de plus, meme dictionnaire, meme
   ordre de dessin, dans les deux copies de la regle (`core/walls.gd`,
-  `addons/absolupaint/rules.gd`).
+  `addons/solupaint/rules.gd`).
 
   **Le pourquoi, mesure avant d'ecrire.** La seule pose « sous une surface » du modele
   etait le sous-pied, declenche par l'ATTERRISSAGE (`if landed:`) et jamais par le
@@ -2063,16 +2064,174 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   avant de mesurer.
 
 
+- **UNE TUILE, UNE IMAGE : les jumelles partagent leur dessin dans le carnet**
+  (`Painting.share()`). « Le soft rame » quand on peint une tuile massivement reproduite,
+  disait l'utilisateur. Mesuré avant d'écrire, sur `minimal` à 16 px avec le banc
+  `tools/bench_stroke.gd` : l'index 255 avait **1553 jumelles**, et chaque point de crayon
+  écrivait son pixel dans 1553 images — **6,2 ms par point**, 620 ms pour cent points ; un
+  point de **bord** coûtait **224 ms**, parce que l'écho des raccords repassait sur chaque
+  jumelle de chaque écho (quadratique) ; et le journal d'annulation prenait 1553 entrées
+  par pixel. Les compteurs, eux, relisaient 1745 cases peintes à chaque image : 12,6 ms.
+
+  Deux jumelles ne sont pas deux images qui se ressemblent : c'est **la même tuile**, et la
+  planche exportée le dit déjà — une tuile, un dessin. Le carnet le sait donc : un groupe
+  déclaré par `share()` tient **une** image, sous sa première case en ordre de lecture, et
+  toute opération par case — `paint`, `image_of`, `is_painted`, `set_image`, `undo` — passe
+  par cette case-là. `painted_cells()` ne rend que les tenantes : c'est exactement ce que
+  l'export et la sauvegarde attendent.
+
+  ⚠ **C'EST LE CARNET QUI LE SAIT, PAS L'ÉCRAN.** Mettre l'alias dans la zone de travail
+  aurait obligé l'aperçu, les voisines, l'export et la sauvegarde à connaître les jumelles.
+  Dans le carnet, ils lisent la bonne image sans rien savoir. L'écran, lui, ne fait que
+  **répéter** : une texture par tuile, dessinée à chaque jumelle visible.
+
+  ⚠ **CE QUI ÉTAIT DÉJÀ PEINT EST RASSEMBLÉ, PAS JETÉ.** Un travail relu pose ses images
+  par rang, avant que les jumelles ne soient connues ; un fichier d'avant le partage en
+  posait une par jumelle. `share()` garde la première trouvée — identiques par
+  construction — et vide les autres. Asserté.
+
+  **Mesuré après** : **6,9 µs** par point intérieur (×900), **6,8 µs** par point de bord
+  (×33 000), 25 µs sur un bord de robe, compteurs à 0,6 ms. Le coût ne dépend plus du
+  nombre de jumelles.
+
+- **⚠ UNE CASE SOUS UNE ROBE PORTE LA ROBE, PAS LE SOL D'EN BAS** (`Families.surface_map`,
+  `paintable_map`). Trouvé par le banc, pas à l'écran : après avoir peint UNE surface, les
+  **36 rôles de robe sur 36 se disaient livrés.** Sur la carte, une case de robe est une
+  case du sol d'en dessous, et `index_map` lui donnait l'index de ce sol — l'herbe pleine,
+  255, pour les 404 cases de robe de `minimal`. Elles entraient donc dans les jumelles de
+  l'herbe : peindre la tuile pleine repeignait toutes les falaises en temps réel, et
+  `painted_wall_cells()` les comptait peintes. L'export aurait pris de l'herbe pour de la
+  roche, **sans une seule erreur** — le pire des défauts.
+
+  `WorkIO.slots()` appliquait déjà la règle en silence — la clé `W` écrasait la clé `S` de
+  ces cases — mais l'éditeur lisait la carte brute. La règle vit désormais dans
+  `Families.surface_map`, **une seule fois**, et l'éditeur, le fichier et la suite la
+  lisent tous : `_check_off_plain` compte sur `paintable_map`, la même table que la grille.
+
+  ⚠ **Mesuré avant d'écrire : ça ne coûte aucune tuile.** L'occurrence la plus rare reste à
+  1 sur `minimal` et 3 sur `ample` ; seul 255 perd des jumelles (411 → 281).
+
+  ⚠ **Et les rangs de surface se suivent sans trou.** Avant, `S255:0` pouvait désigner une
+  case devenue `W` : tout ce qui demandait « la première occurrence » — le décor de
+  l'aperçu, l'essai — ne trouvait rien. Les rangs se comptent sur `surface_map`. Asserté.
+
+- **LES OUTILS : huit, une rangée, et tous passent par le même pixel.** Crayon, brosse,
+  aérographe, pot, ligne, rectangle, pipette, gomme — section « Outils », deux rangées de
+  boutons exclusifs, une rangée de tailles (1 2 3 4 6 8 : des boutons, **pas un curseur**,
+  charte règle 1), une touche chacun (P B A G L R I E, crochets pour la taille).
+
+  ⚠ **TOUT GESTE SE FAIT EN PIXELS GLOBAUX, PAS EN CASES.** Un point de l'écran devient un
+  faux pixel du plan entier ; c'est ce pixel qui dit quelle tuile il touche — robe d'abord,
+  puis croisement décalé d'une demi-case, puis case — et où il tombe dedans
+  (`_tile_at_pixel`, `_pixel_in`). Une seule résolution sert les huit outils : la brosse est
+  un disque de pixels globaux, la ligne un Bresenham de pixels globaux, chacun résolu à sa
+  tuile. ⚠ **Et ça a réparé un défaut que personne n'avait vu** : `_touch` lisait la CASE
+  sous la souris, donc **le crayon ne savait pas peindre un croisement** — dans la famille à
+  cheval, rien ne se posait. Asserté désormais.
+
+  **« Contraindre à la tuile »** : une passe reste dans la tuile où elle a commencé ; ce qui
+  déborde sur une voisine est **ignoré, pas ramené au bord** — un geste qui déborde ne doit
+  rien poser qu'on n'ait pas visé. Le pot, lui, s'arrête au bord par construction : une
+  tuile est une image à elle seule.
+
+  ⚠ **Le pot et la pipette lisent à travers le groupe** ; la ligne et le rectangle ne posent
+  rien avant le relâchement et se montrent en attendant ; l'aérographe crache à chaque image
+  tant qu'on tient le bouton ; la gomme est une brosse qui efface, et le clic droit efface
+  avec n'importe quel outil. Tout passe par `paint()`, donc tout se défait d'un bloc.
+
+  ⚠ **PREMIER TEST QUI MONTE L'INTERFACE** (`_test_work_area`). Il existe parce que deux
+  défauts n'ont pu se voir nulle part ailleurs — les falaises livrées par une surface, le
+  crayon aveugle aux croisements — : ils vivaient dans la traduction souris → tuile, que
+  le noyau ne connaît pas. La zone de travail s'instancie en headless comme n'importe quel
+  `Control`, et on lui parle par les mêmes fonctions que la souris.
+
+- **LA PREMIÈRE OUVERTURE NE MONTRE QUE CE QU'IL FAUT.** « Voisines », « Vue », « Moteur »
+  et « Fond du guide » partent **repliés** ; « Outils » et « Travail » ouverts. La section
+  « À venir » — un texte qui annonçait des options futures — est retirée : une promesse
+  n'est pas un outil. ⚠ **Un libellé trop long pousse la barre hors de l'écran** (leçon
+  déjà écrite ici, repayée une fois) : « Contraindre le crayon à la tuile » est devenu
+  « Contraindre à la tuile », l'infobulle dit le reste ; et la barre est passée de 232 à
+  **244 px** pour que « Gomme » tienne dans sa colonne.
+
+
+- **LE NOM : SoluTiles et SoluPaint.** « AbsoluTiles / AbsoluPaint » sonnaient arrogants ;
+  renommage global appliqué le 23/08/2026 — 148 occurrences, `addons/solupaint/`,
+  extension `.solutiles`, onglet de dock, clé `solutiles/satyron_path`, banc trial
+  régénéré, suite verte (482 vérifications). Collision vérifiée au web avant de renommer :
+  les deux noms sont libres. ⚠ **Les deux MAGIC de format ont changé avec la marque**
+  (`solutiles`, `solutiles-tileset`) : rupture ASSUMÉE, décidée et non subie — rien n'est
+  vendu, et la 6.0.0 avait déjà périmé les manifestes antérieurs. Un `.absolutiles`
+  d'avant le renommage serait refusé ; s'il en existe un jour, une ligne de compat en
+  lecture suffit. Le dossier racine du dépôt, lui, garde son nom sur le disque tant que
+  des sessions y travaillent — à renommer à un moment calme, hors session.
+
+- **LES RACCORDS OBLIGES SE VOIENT AU SURVOL, ET LE REMONTAGE EMPILE.** Nes de la
+  premiere seance de peinture reelle : l'utilisateur a bute sur « un aller-retour sans
+  solution » au bord d'une arete deplacee. Verifie avant de toucher quoi que ce soit
+  (`tools/check_seams.gd`, garde au depot) : AUCUN defaut -- les classes verticales
+  restent dans leur pan, l'horizontal ne lie que muet-muet, les flancs devant/vide sont
+  libres lateralement, le miroir echange les flancs et retourne x. L'aller-retour etait
+  le modele qui marche : toutes les frontieres de rangees d'un pan partagent UN profil
+  (chute de 6 = c0,c1,c0,c1 -- les corps se repetent, leurs bords sont identiques ou la
+  paroi saute). **La regle rectifiee de l'arete** : deplacable, mais au meme x a chaque
+  frontiere de rangees, pour toutes les rangees du pan a la fois, et le fond decouvert
+  se laisse en TRANSPARENCE -- le jeu montre le vrai sol d'en dessous, et la completude
+  ne compte que des tuiles (>= 1 pixel), jamais des pixels.
+  Deux consequences a l'ecran :
+  - **le violet** (`SEAM_LINE`) : survoler une robe allume les tuiles dont un bord entier
+    est lie (la table meme de l'echo, `Seams.GROUPS`) -- l'artiste voit AVANT le clic ou
+    ses bords ecriront. Quatre marques, quatre sens : blanc survol, cyan identiques,
+    violet bords lies, ambre sans jumelle. Les coins seuls ne s'allument pas : un contour
+    entier pour un pixel crierait plus fort que l'information ;
+  - **le remontage empile** : sous chaque case, la pile ENTIERE des etages couverts --
+    robes ET surfaces (`_stack_below`, un index par silhouette d'etage via
+    `Coverage.index_map`). D'abord fait pour les seules robes ; le cas concret
+    (20,15)/(23,18) a montre le meme fond sombre sous un bord de surface balade, et la
+    generalisation a suivi. Mesure au pixel : une
+    encoche transparente percee dans un corps rend l'herbe #667347 la ou elle rendait le
+    fond #1b1d1f -- le remontage mentait par omission. Famille par case seulement : a
+    cheval, le dessous d'un croisement est fait de quatre tuiles, il n'y a pas UNE
+    surface a poser dessous.
+  - **et l'empilement vit dans Assembly, pour tous les chemins** : `_blend_buried`
+    (`from_painting` / `from_borrowed`, les remontages-fichier) et `borrow_layers`
+    (l'apercu en jeu, qui posait une tuile par case). L'utilisateur l'a formule en
+    peignant : « impossible sans plusieurs layers et la transparence pour le fond
+    intra-tuile » -- c'est exactement l'architecture du systeme, et elle est desormais
+    partout : jeu (6.0.0), illustration, remontage (zone de travail), remontage-fichier,
+    apercu en jeu. Verifie a l'oeil : les bords tailles des terrasses de la colline
+    montrent l'herbe d'en dessous, et le bord du monde son vide.
+  - **et il vaut PENDANT le geste, pas seulement au remontage** : derriere la
+    transparence d'une tuile COMMENCEE, la matiere peinte d'en dessous, jamais le guide
+    (decision utilisateur : « le peintre se guide sur la matiere reelle »). Une tuile
+    vierge garde sa consigne du guide -- sans quoi l'herbe pleine d'en dessous
+    effacerait le dessin de ce qu'il reste a faire.
+  ⚠ **`screenshot.gd survol=x,y` pose desormais le survol sur la ZONE DE TRAVAIL**, par
+  le meme chemin que la souris (`_set_hover`), et plus seulement sur le releve : un
+  survol que la zone de travail ignore ne montre ni cercle ni liees, et la capture
+  semblait prouver qu'une fonction n'existait pas.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **6.0.1** : l'epaule prolonge le chapiteau au lieu de le chapeauter -- correctif de
+À **7.0.0** : le logiciel devient **SoluTiles** et le plugin **SoluPaint** — les deux
+MAGIC de format suivent la marque (`solutiles`, `solutiles-tileset`), ce qui périme
+sauvegardes et exports antérieurs : majeure. Autour : la matière derrière chaque
+transparence — toutes les vues empilent (remontage, aperçu en jeu, voisines, et la zone
+de travail dès qu'une tuile est commencée) ; le survol allume les identiques (cyan) et
+les bords liés (violet) ; la chaîne entière se prouve d'une commande (`chain_proof`,
+`chain_pose`, `check_seams`, hors suite) ; et les lois de l'arête sont vérifiées et
+écrites — déplaçable, pincée aux frontières de rangées, fond découvert en transparence.
+
+À **6.1.0** : les huit outils de dessin, la contrainte à la tuile, et une image par tuile
+partagée entre jumelles -- le coup de crayon passe de 6 ms à 7 µs, et une surface peinte
+ne « livre » plus les 36 robes : mineure, une capacité visible de plus. En 6.0.1, l'epaule
+prolonge le chapiteau au lieu de le chapeauter -- correctif de
 dessin, juge a l'ecran par l'utilisateur. En 6.0.0, la POSE DERRIERE ferme l'angle noir --
 le manifeste passe en v5 et la v4 est refusee, ce qui perime les exports anterieurs :
 majeure. Autour, tout ce que la 5.10 portait : noyau prouve sur les deux familles, guides complets, l'editeur qui peint,
-l'export refuse-incomplet, le plugin AbsoluPaint qui pose le monde dans Godot, et le mode
+l'export refuse-incomplet, le plugin SoluPaint qui pose le monde dans Godot, et le mode
 d'emploi a trois niveaux.
 
 Quand la monter, et je le proposerai le moment venu :
@@ -2086,7 +2245,7 @@ Quand la monter, et je le proposerai le moment venu :
 ## Références
 
 - **Satyron** (`D:\Satyron`) — le jeu où ce modèle a été établi empiriquement puis éprouvé
-  sur une vraie carte. AbsoluTiles en fait un outil universaliste. À lire quand un doute
+  sur une vraie carte. SoluTiles en fait un outil universaliste. À lire quand un doute
   survient sur le comportement d'une falaise :
   - `WORLD/cliffs.gd` — `assemble_walls`, `_fall_at`, `_trim`, `_column_at` ;
   - `WORLD/tiles/cliff_kit.gd` — le bloc 3 pans × 4 rangées et `atlas_row` ;
@@ -2101,7 +2260,7 @@ Quand la monter, et je le proposerai le moment venu :
   conditions reelles dans le soft ET dans l'addon, par tatonnements successifs jusqu'a la
   perfection. Le banc ou chaque iteration se regarde est au depot :
   `tools/make_trial_scene.gd` regenere `res://trial/` et
-  `res://trial_absolutiles_to_absolupaint_full.tscn` d'une commande.
+  `res://trial_solutiles_to_solupaint_full.tscn` d'une commande.
 - **LES MATIERES BORDEES : eau, sable, ce qui se pose DANS un plateau plat.** Une matiere
   est un **masque binaire**, donc une couche posee comme un etage, mais **sans falaise** :
   le blob 47 s'y applique sans une ligne de code de plus, et les coins arrondis laissent
@@ -2218,7 +2377,7 @@ utilisable au lieu d'un liseré de bord du monde**. À prouver, pas à promettre
 - `render/guide_image.gd`, `render/assembly.gd` — une couche de plus à empiler, dans
   l'ordre des matières.
 - `core/proof_scene.gd` — une planche de preuve par matière.
-- `addons/absolupaint/` — un `TileMapLayer` par matière, et le contrôle croisé étendu.
+- `addons/solupaint/` — un `TileMapLayer` par matière, et le contrôle croisé étendu.
 
 ⚠ **ET LES DEUX RESTRICTIONS S'ASSERTENT, ELLES NE SE DOCUMENTENT PAS** (règles 4 et 5).
 Une matière qui touche une lèvre, ou deux matières non ordonnées qui se rencontrent, doivent
@@ -2228,7 +2387,7 @@ projet n'en fait pas.
 ### Fiche : LA SIGNATURE DU MANIFESTE
 
 **À dire avant tout le reste : un verrou dans l'addon ne protège de rien.**
-`addons/absolupaint/` part en GDScript **en clair** dans le projet de l'acheteur. Toute
+`addons/solupaint/` part en GDScript **en clair** dans le projet de l'acheteur. Toute
 vérification qu'on y met s'efface en supprimant une ligne. Dans cette forme le problème
 **est insoluble**, et la charte interdit de le maquiller : un contrôle qui saute en trente
 secondes n'est pas une protection, c'est un décor qui *donne l'air* d'un contrôle — la même
@@ -2294,7 +2453,7 @@ suit les versions de Godot, et le contrôle croisé à faire tourner contre un b
 
 - `exporters/tileset_png.gd` — les deux empreintes, le condensé canonique, la ligne
   `signature`, et la clause correspondante dans `_spec()` ;
-- `addons/absolupaint/manifest.gd` — **un quatrième et un cinquième refus** : signature
+- `addons/solupaint/manifest.gd` — **un quatrième et un cinquième refus** : signature
   absente ou invalide, planches qui ne sont pas celles que le manifeste signe. Ils rejoignent
   les trois qui existent ;
 - le tileset de démo dans l'addon, signé ;

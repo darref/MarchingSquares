@@ -1,4 +1,4 @@
-# LE BANC D'ABSOLUPAINT — l'exactitude du plugin, et ses couts, hors suite.
+# LE BANC D'SOLUPAINT — l'exactitude du plugin, et ses couts, hors suite.
 #
 # ⚠ POURQUOI CE FICHIER N'EST PAS DANS tests/run.gd : au moment de l'ecrire, l'arbre de
 # travail portait le chantier NON COMMITE d'une autre session sur tests/run.gd. On ne pose
@@ -16,14 +16,14 @@
 #     posee sur SousPied1+, elle passait DEVANT elles et couvrait la case d'atterrissage
 #     d'un carre de roche.
 #
-#     godot --headless --path . --script res://tools/check_absolupaint.gd
+#     godot --headless --path . --script res://tools/check_solupaint.gd
 extends SceneTree
 
-const WorldScript := preload("res://addons/absolupaint/world.gd")
-const Rules := preload("res://addons/absolupaint/rules.gd")
+const WorldScript := preload("res://addons/solupaint/world.gd")
+const Rules := preload("res://addons/solupaint/rules.gd")
 
-const TRIAL_MANIFEST: String = "res://trial/absolutiles_essai_tileset.txt"
-const CORNER_FOLDER: String = "user://absolupaint_check"
+const TRIAL_MANIFEST: String = "res://trial/solutiles_essai_tileset.txt"
+const CORNER_FOLDER: String = "user://solupaint_check"
 
 var _checks: int = 0
 var _failures: PackedStringArray = PackedStringArray()
@@ -44,10 +44,10 @@ func _initialize() -> void:
 	_bench()
 	print("")
 	if _failures.is_empty():
-		print("BANC ABSOLUPAINT : %d verifications, 0 echec." % _checks)
+		print("BANC SOLUPAINT : %d verifications, 0 echec." % _checks)
 		quit(0)
 	else:
-		print("BANC ABSOLUPAINT : %d verifications, %d ECHEC(S) :" % [_checks, _failures.size()])
+		print("BANC SOLUPAINT : %d verifications, %d ECHEC(S) :" % [_checks, _failures.size()])
 		for failure: String in _failures:
 			print("  - %s" % failure)
 		quit(1)
@@ -232,7 +232,7 @@ func _write_corner_kit() -> String:
 	walls.save_png(ProjectSettings.globalize_path(CORNER_FOLDER.path_join("cheval_walls.png")))
 
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("absolutiles-tileset 5")
+	lines.append("solutiles-tileset 5")
 	lines.append("mode minimal")
 	lines.append("tile_size 16")
 	lines.append("storey_tiles 3")
