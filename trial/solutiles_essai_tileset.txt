@@ -1,4 +1,4 @@
-solutiles-tileset 6
+solutiles-tileset 7
 mode epais
 tile_size 32
 
@@ -47,8 +47,8 @@ surface_offset none
 # on voit son dessus, puis le sol d'en dessous, sans transition.
 faces south_only
 storey_tiles 3
-body_rows 2
-block_rows 4
+body_rows 3
+block_rows 5
 # LA CHUTE. Sous une levre de l'etage N -- une case de l'etage N dont la case
 # au sud est plus basse -- on cherche l'etage le plus haut M reellement
 # atteint, et la chute vaut storey_tiles * (N - M).
@@ -72,6 +72,11 @@ fall_into_void one_storey_more no_foot
 # n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire
 # entier qui survit a cet interdit.
 thin_forbidden run_shorter_than_three all_storeys both_states
+# ET C'EST L'EPAISSEUR QUI TUE LE SEUL PAN MORT. `(devant, devant)`
+# demanderait un eperon d'UNE colonne -- une course d'une case, donc
+# fine. Ce n'est pas une regle de plus : c'est une consequence de la
+# precedente. Les huit autres pans vivent, a toutes les rangees.
+pan_dead front_front_needs_a_one_column_spur
 # RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle
 # s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,
 # elle bute contre un voisin de son niveau.
@@ -79,12 +84,20 @@ trim stop_on_same_level no_foot
 # LA RANGEE, au pas `step` (1 = premiere case sous la levre) d'une chute de
 # `drop` cases :
 #     step == 1               -> 0  chapiteau
-#     step == drop et posee   -> 3  pied
+#     step == drop et posee   -> 4  pied
 #     sinon                   -> 1 + (step - 2) modulo body_rows
 row_for crown_first foot_last body_cycle
 # LE PAN. C'est le couple des deux flancs : pan = ouest * 3 + est.
 #     0 VIDE    aucune roche a ce flanc
-#     1 MUET    la meme face continue, OU le voisin est DEVANT moi
+#     1 MUET    de la ROCHE a ce flanc : la meme face, ou celle d'un
+#               voisin DEVANT moi
+# ⚠ MUET VEUT DIRE DE LA ROCHE, ET RIEN D'AUTRE. Il a voulu dire aussi
+# "le sommet d'un plateau est a cote, donc il est devant moi, c'est A LUI
+# de tracer" -- et "lui" est une tuile de SURFACE, la meme a des dizaines
+# d'endroits dont la plupart n'ont aucune falaise a cote. Elle ne peut pas
+# tracer, et l'arete de cette jonction n'appartenait a personne. Le sommet
+# d'un plateau est de la TERRE : il rend `vide`, et c'est la tuile de robe
+# qui trace le bord de sa propre roche -- la seule qui le sache.
 #     2 DEVANT  le voisin est en retrait : je porte l'angle
 # ⚠ « EN RETRAIT » SE MESURE A LA LEVRE : la levre du voisin est plus au NORD
 # que la mienne. Deux faces mitoyennes issues de levres decalees ne sont PAS la
@@ -170,30 +183,43 @@ proof solutiles_essai_preuve.png
 # chaque index sur son propre ilot, dans l'ordre de la planche de surface :
 # la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.
 
-walls solutiles_essai_walls.png 9 4
-# 9 pans (le couple des deux flancs) x 4 rangees = 36 tuiles.
+walls solutiles_essai_walls.png 9 5
+# 9 pans (le couple des deux flancs) x 5 rangees = 45 tuiles.
+role 0,0 slot 0,0  # vide|vide / chapiteau
 role 0,1 slot 0,1  # vide|vide / corps 0
 role 0,2 slot 0,2  # vide|vide / corps 1
-role 0,3 slot 0,3  # vide|vide / pied
+role 0,3 slot 0,3  # vide|vide / corps 2
+role 0,4 slot 0,4  # vide|vide / pied
 role 1,0 slot 1,0  # vide|muet / chapiteau
 role 1,1 slot 1,1  # vide|muet / corps 0
 role 1,2 slot 1,2  # vide|muet / corps 1
-role 1,3 slot 1,3  # vide|muet / pied
+role 1,3 slot 1,3  # vide|muet / corps 2
+role 1,4 slot 1,4  # vide|muet / pied
+role 2,0 slot 2,0  # vide|devant / chapiteau
+role 2,1 slot 2,1  # vide|devant / corps 0
 role 2,2 slot 2,2  # vide|devant / corps 1
+role 2,3 slot 2,3  # vide|devant / corps 2
 role 3,0 slot 3,0  # muet|vide / chapiteau
 role 3,1 slot 3,1  # muet|vide / corps 0
 role 3,2 slot 3,2  # muet|vide / corps 1
-role 3,3 slot 3,3  # muet|vide / pied
+role 3,3 slot 3,3  # muet|vide / corps 2
+role 3,4 slot 3,4  # muet|vide / pied
 role 4,0 slot 4,0  # muet|muet / chapiteau
 role 4,1 slot 4,1  # muet|muet / corps 0
 role 4,2 slot 4,2  # muet|muet / corps 1
-role 4,3 slot 4,3  # muet|muet / pied
+role 4,3 slot 4,3  # muet|muet / corps 2
+role 4,4 slot 4,4  # muet|muet / pied
 role 5,0 slot 5,0  # muet|devant / chapiteau
 role 5,1 slot 5,1  # muet|devant / corps 0
 role 5,2 slot 5,2  # muet|devant / corps 1
-role 5,3 slot 5,3  # muet|devant / pied
+role 5,3 slot 5,3  # muet|devant / corps 2
+role 5,4 slot 5,4  # muet|devant / pied
+role 6,0 slot 6,0  # devant|vide / chapiteau
+role 6,1 slot 6,1  # devant|vide / corps 0
 role 6,2 slot 6,2  # devant|vide / corps 1
+role 6,3 slot 6,3  # devant|vide / corps 2
 role 7,0 slot 7,0  # devant|muet / chapiteau
 role 7,1 slot 7,1  # devant|muet / corps 0
 role 7,2 slot 7,2  # devant|muet / corps 1
-role 7,3 slot 7,3  # devant|muet / pied
+role 7,3 slot 7,3  # devant|muet / corps 2
+role 7,4 slot 7,4  # devant|muet / pied

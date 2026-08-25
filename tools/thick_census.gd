@@ -74,14 +74,18 @@ func _mask_thick(mask: PackedStringArray) -> bool:
 	return Thickness.thin_cells(mask).is_empty()
 
 
+## ⚠ UN RELIEF LEGAL EST SIMPLEMENT EPAIS. La regle « au moins un flanc muet » a ete posee
+## puis retiree : elle repondait au symptome, pas a la cause -- voir `role_survives`.
 func _relief_thick(heights: PackedStringArray, _top: int) -> bool:
 	return Thickness.thin_cells(heights).is_empty()
 
-
-## Un relief epais tire au sort : des blocs d'au moins 2x2, rejet des fins.
 func _random_relief(rng: RandomNumberGenerator) -> PackedStringArray:
-	var columns: int = 16
-	var rows: int = 14
+	# ⚠ LA BATTUE DOIT ETRE ASSEZ GRANDE POUR QUE LES ROLES PROFONDS EXISTENT. A 16x14 et
+	# deux etages, la chute la plus longue fait six cases : le redan n'y etait rencontre
+	# qu'au premier corps, et la forme fermee se serait figee sur ce sous-compte. Trois
+	# etages donnent des chutes de neuf, donc les trois corps.
+	var columns: int = 22
+	var rows: int = 20
 	for _try: int in range(60):
 		var levels: Array = []
 		for y: int in range(rows):
@@ -89,20 +93,34 @@ func _random_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 			line.resize(columns)
 			line.fill(0)
 			levels.append(line)
-		for _block: int in range(rng.randi_range(2, 4)):
-			var w: int = rng.randi_range(3, 6)
-			var h: int = rng.randi_range(3, 6)
+		for _block: int in range(rng.randi_range(3, 6)):
+			var w: int = rng.randi_range(3, 7)
+			var h: int = rng.randi_range(3, 7)
 			var px: int = rng.randi_range(0, columns - w)
 			var py: int = rng.randi_range(0, rows - h)
-			var lift: int = rng.randi_range(1, 2)
+			var lift: int = rng.randi_range(1, 3)
 			for y: int in range(py, py + h):
 				for x: int in range(px, px + w):
 					levels[y][x] = maxi(levels[y][x] as int, lift)
+		# ⚠ ET DU VIDE : LE MONDE A TROIS ETATS. Une battue qui ne pose jamais de vide ne
+		# voit jamais une chute qui N'ATTERRIT PAS -- or c'est celle-la qui descend d'un
+		# etage de plus, donc plus profond, donc jusqu'aux derniers corps. Le vide se pose
+		# en blocs, jamais case par case : une case de vide isolee serait fine.
+		if rng.randf() < 0.5:
+			for _hole: int in range(rng.randi_range(1, 2)):
+				var hw: int = rng.randi_range(3, 6)
+				var hh: int = rng.randi_range(3, 6)
+				var hx: int = rng.randi_range(0, columns - hw)
+				var hy: int = rng.randi_range(0, rows - hh)
+				for y: int in range(hy, hy + hh):
+					for x: int in range(hx, hx + hw):
+						levels[y][x] = -1
 		var heights: PackedStringArray = PackedStringArray()
 		for y: int in range(rows):
 			var line: String = ""
 			for x: int in range(columns):
-				line += str(levels[y][x] as int)
+				var level: int = levels[y][x] as int
+				line += "~" if level < 0 else str(level)
 			heights.append(line)
 		if _relief_thick(heights, 2):
 			return heights
@@ -111,6 +129,19 @@ func _random_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 
 ## Les escarpements construits : eperons de TROIS colonnes -- bord + centre + bord --
 ## avec et sans banquette, plus la gorge et la tour du cap pour les (vide,vide).
+## ⚠ CHAQUE RELIEF CONSTRUIT EST AUSSI POSE EN MIROIR. Le miroir echange les deux flancs :
+## l'ensemble des roles vivants est donc symetrique PAR CONSTRUCTION. Ne poser qu'un cote
+## laissait la battue annoncer `(vide,devant)` a trois corps et `(devant,vide)` a un seul --
+## un sous-compte qui ne vient pas du modele mais de ce qu'on a pris la peine de dessiner.
+## C'est la meme faute que « le hasard seul ne rencontre pas les pans a angle », vue de
+## l'autre cote.
+func _mirrored(relief: PackedStringArray) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for line: String in relief:
+		out.append(String(line).reverse())
+	return out
+
+
 func _escarpments() -> Array[PackedStringArray]:
 	var out: Array[PackedStringArray] = []
 	# Massif etage 1, deux eperons triples, chute vers la plaine.
@@ -232,6 +263,8 @@ func _escarpments() -> Array[PackedStringArray]:
 		"0000000000000000",
 		"0000000000000000",
 	]))
+	for built: int in range(out.size()):
+		out.append(_mirrored(out[built]))
 	return out
 
 

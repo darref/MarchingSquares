@@ -45,7 +45,15 @@ const MAGIC: String = "solutiles"
 ## droit) ; un pan v2 vaut 0..8 (le couple des deux flancs). Reposer une cle `W` de v1 sous
 ## v2 la mettrait de travers en silence -- exactement ce que ce fichier existe pour eviter.
 ## Les cles `S` de surface, elles, n'ont pas bouge et se relisent sans rien perdre.
-const VERSION: int = 2
+## ⚠ VERSION 3 : LE NUMERO DE RANGEE A CHANGE DE SENS. A deux rangees de corps, le PIED
+## portait le numero 3 ; a trois, c'est le corps 2 qui le porte et le pied passe a 4.
+## Reposer un fichier v2 tel quel mettrait CHAQUE PIED SUR UN CORPS -- de travers, et en
+## silence, ce que ce fichier existe pour empecher.
+const VERSION: int = 3
+
+## Ce que valaient les rangees quand un fichier v2 a ete ecrit.
+const V2_BODY_ROWS: int = 2
+const V2_ROW_FOOT: int = 1 + V2_BODY_ROWS
 
 
 ## La cle de la tuile portee par chaque case du guide.
@@ -286,10 +294,19 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 			result["error"] = ERR_FILE_CORRUPT
 			continue
 		# ⚠ LES ROBES D'UN FICHIER v1 SONT RENDUES, JAMAIS REPOSEES. Leur numero de pan ne
-		# veut plus la meme chose ; les placer serait un mensonge silencieux.
+		# veut plus la meme chose, et rien ne permet de deviner lequel : les placer serait
+		# un mensonge silencieux.
 		if written_with < 2 and head.begins_with("W"):
 			unplaced.append(head)
 			continue
+		# ⚠ CELLES D'UN v2 SE TRADUISENT, PARCE QUE LA TRADUCTION EST EXACTE -- et c'est
+		# toute la difference avec le v1. Le passage a trois rangees de corps a decale le
+		# PIED de la rangee 3 a la rangee 4 ; le chapiteau et les deux premiers corps n'ont
+		# pas bouge d'un cran. On sait donc ou chaque tuile doit aller, et rendre un travail
+		# qu'on sait replacer serait le perdre pour rien. La troisieme rangee de corps est
+		# simplement neuve -- une tuile de plus a peindre, aucune de moins a garder.
+		if written_with < 3 and head.begins_with("W"):
+			head = _row_from_v2(head)
 		if not by_key.has(head):
 			unplaced.append(head)
 			continue
@@ -351,6 +368,22 @@ static func read(path: String, heights: PackedStringArray) -> Dictionary:
 	var text: String = file.get_as_text()
 	file.close()
 	return parse(text, heights)
+
+
+## La cle d'une robe v2, traduite en v3 : seul le PIED change de numero.
+##
+## ⚠ ON NE TRADUIT QUE CE QU'ON SAIT TRADUIRE. Un pan v2 vaut deja ce qu'il vaut en v3 --
+## neuf pans des la version 2 -- donc seule la rangee bouge. Si la cle ne se lit pas, on la
+## rend telle quelle : elle finira dans `unplaced`, dit et non jete.
+static func _row_from_v2(key: String) -> String:
+	var comma: int = key.find(",")
+	var colon: int = key.find(":")
+	if comma < 0 or colon < 0 or colon < comma:
+		return key
+	var row: int = int(key.substr(comma + 1, colon - comma - 1))
+	if row == V2_ROW_FOOT:
+		row = Walls.ROW_FOOT
+	return "%s,%d%s" % [key.substr(0, comma), row, key.substr(colon)]
 
 
 static func _decode(payload: String, line_number: int) -> Image:

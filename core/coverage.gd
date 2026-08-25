@@ -12,7 +12,6 @@ const Thickness := preload("res://core/thickness.gd")
 const NO_INDEX: int = -1
 
 
-## Voisinage brut 8 bits de la case (x, y), hors-grille compris comme vide.
 static func raw_neighbourhood(mask: PackedStringArray, x: int, y: int) -> int:
 	var raw: int = 0
 	for bit_index: int in range(BlobIndex.BITS.size()):

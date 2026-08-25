@@ -257,7 +257,7 @@ func _test_modes_catalogue() -> void:
 			"27 tuiles de surface, calculees")
 	_check_equal(Modes.wall_tile_count(Modes.EPAIS), Thickness.wall_roles().size(),
 			"25 tuiles de mur, calculees")
-	_check_equal(Modes.tile_count(Modes.EPAIS), 52, "52 tuiles en tout")
+	_check_equal(Modes.tile_count(Modes.EPAIS), 65, "65 tuiles en tout")
 	_check_equal(Modes.min_occurrences(Modes.EPAIS), 1, "epais ne promet qu une occurrence")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
@@ -309,8 +309,11 @@ func _test_wall_rows() -> void:
 	var rows: Array[int] = []
 	for step: int in range(1, 7):
 		rows.append(Walls.row_for(step, 6, true))
-	var expected_rows: Array[int] = [0, 1, 2, 1, 2, 3]
-	_check_equal(rows, expected_rows, "chute de six : chapiteau, corps 0, corps 1, corps 0, corps 1, pied")
+	# ⚠ TROIS CORPS : la chute de six montre les trois avant de reboucler, et c est ce
+	# rebouclage-la qui laisse trois profils de bord independants au lieu d un seul.
+	var expected_rows: Array[int] = [0, 1, 2, 3, 1, 4]
+	_check_equal(rows, expected_rows,
+			"chute de six : chapiteau, corps 0, corps 1, corps 2, corps 0, pied")
 	_check_equal(Walls.row_for(3, 3, false), 2, "sans atterrissage, la derniere case reste du corps")
 
 
@@ -402,7 +405,12 @@ func _test_wall_assembly() -> void:
 ........")
 	var stair_roles: Dictionary = Walls.assemble(stair)["roles"]
 	_check_equal(Walls.pan_east(stair_roles[Vector3i(2, 2, 2)].x), Walls.SIDE_VOID, "en haut, rien a l est : flanc vide")
-	_check_equal(Walls.pan_east(stair_roles[Vector3i(2, 5, 2)].x), Walls.SIDE_MUTE, "plus bas, l etage voisin borde : flanc muet")
+	# ⚠ L ETAGE VOISIN N EST PAS DE LA ROCHE. Il rendait `muet` -- « il est devant moi,
+	# c est a lui de tracer » -- et le delegataire etait une tuile de SURFACE, la meme a
+	# des dizaines d endroits, incapable de tracer. `muet` ne dit plus qu une chose : de
+	# la roche a cote. Un sommet de plateau, meme au ras de ma face, est de la terre.
+	_check_equal(Walls.pan_east(stair_roles[Vector3i(2, 5, 2)].x), Walls.SIDE_VOID,
+			"plus bas, l etage voisin n est pas de la roche : flanc vide")
 
 
 ## ⚠ TOUT MODE OUVERT DOIT PROUVER SON GUIDE. La boucle vaut declaration : ajouter un mode
@@ -952,7 +960,7 @@ func _test_symmetry() -> void:
 	for orbit: PackedInt32Array in Symmetry.ROTATION_ORBITS:
 		counted += orbit.size()
 	_check_equal(counted, BLOB_TILE_COUNT, "les orbites couvrent les 47 index, sans doublon")
-	_check_equal(Symmetry.MIRROR_ORBITS.size(), 24, "les 36 roles se rangent en 24 orbites de miroir")
+	_check_equal(Symmetry.MIRROR_ORBITS.size(), 30, "les 45 roles se rangent en 30 orbites de miroir")
 
 	# Un tour complet ramene chaque index a lui-meme.
 	var closes: bool = true
@@ -1125,7 +1133,7 @@ func _test_export() -> void:
 
 	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
 	_check_equal(kit.get_width(), Walls.PAN_COUNT * 16, "la planche de robes fait neuf pans")
-	_check_equal(kit.get_height(), Walls.BLOCK_ROWS * 16, "et quatre rangees")
+	_check_equal(kit.get_height(), Walls.BLOCK_ROWS * 16, "et cinq rangees")
 	var roles_astray: int = 0
 	for role: Vector2i in Thickness.wall_roles():
 		var at: Vector2i = TilesetPNG.wall_slot(role)
@@ -1522,7 +1530,7 @@ func _test_proof_scene() -> void:
 	var report: Dictionary = Coverage.analyse_relief(relief)
 	_check(report["is_complete"], "la planche couvre les 27 index")
 	var walls: Dictionary = Walls.analyse(relief, Thickness.wall_roles())
-	_check(walls["is_complete"], "et les 25 roles de falaise, par les cinq accidents epais")
+	_check(walls["is_complete"], "et les 25 roles de falaise, par les accidents epais")
 	_check_equal(walls["outside"].size(), 0, "aucune robe de la planche ne tombe hors du cadre")
 
 	# La planche doit pouvoir se remplir avec les tuiles du guide, sinon elle montrerait des
@@ -1707,16 +1715,19 @@ func _test_seam_census() -> void:
 	# ⚠ ET LA BATTUE DOIT AVOIR VRAIMENT CHERCHE. Un recensement qui ne rencontre rien
 	# passerait au vert en ne prouvant rien -- meme piege que la battue des robes. La graine
 	# est fixe, donc le compte est reproductible. ⚠ ET IL NE PRETEND PAS A L EXHAUSTIVITE :
-	# `tools/seam_census.gd`, qui tire plus large et plus longtemps, en rencontre 70 et 39.
+	# `tools/seam_census.gd`, qui tire plus large et plus longtemps, en rencontre davantage.
 	# La suite garde le garde-fou, l outil garde la battue.
-	_check(vertical.size() >= 55 and mutes >= 37,
+	_check(vertical.size() >= 50 and mutes >= 37,
 			"le recensement a vraiment cherche (%d verticales, %d muettes)"
 			% [vertical.size(), mutes])
 
 	# ⚠ LA FERMETURE EST PRUDENTE, ELLE N EST PAS DEGENEREE. Sur-joindre ne peut jamais
 	# rendre un tileset faux, seulement plus contraint -- mais tout joindre le rendrait
 	# impeignable, et un test qui ne verifie que « assez lie » passerait sur UNE classe.
-	# Le monde autorise exactement 29 classes sur les 25 roles vivants ; on en garde 28.
+	# ⚠ ET LE COMPTE SE SEPARE PAR AXE, parce que c est la moitie haut/bas qui porte la
+	# liberte de l ARETE. A deux rangees de corps elle valait UNE classe -- un fil a
+	# plomb, aucun vagabondage possible. A trois, elle en vaut TROIS : l arete se deplace
+	# en trois crans le long d un etage, puis se repete.
 	var seat: Dictionary = {}
 	for role: Vector2i in Families.wall_roles():
 		for side: int in range(4):
@@ -1731,7 +1742,21 @@ func _test_seam_census() -> void:
 					or (other.y == best.y and other.z < best.z))):
 				best = other
 		roots[best] = true
-	_check_equal(roots.size(), 28, "la fermeture laisse 28 classes de bords independantes")
+	var upright: Dictionary = {}
+	for edge: Vector3i in seat:
+		if edge.z != Seams.TOP and edge.z != Seams.BOTTOM:
+			continue
+		var head: Vector3i = edge
+		for other: Vector3i in (Seams.GROUPS[edge] as Array):
+			if not seat.has(other):
+				continue
+			if other.x < head.x or (other.x == head.x and (other.y < head.y
+					or (other.y == head.y and other.z < head.z))):
+				head = other
+		upright[head] = true
+	_check_equal(roots.size(), 50, "la fermeture laisse 50 classes de bords independantes")
+	_check_equal(upright.size(), 3,
+			"et trois profils de frontiere de rangees -- le vagabondage de l arete")
 
 
 func _test_seams() -> void:
@@ -2433,7 +2458,10 @@ func _test_underfoot() -> void:
 			feet += 1
 			if cell_level >= key.z:
 				wrong_kind += 1
-		elif role.y == 1 or role.y == 2:
+		elif role.y >= 1 and role.y <= Walls.BODY_ROWS:
+			# ⚠ « corps 0 ou corps 1 » ETAIT ECRIT EN DUR. A trois rangees de corps, la
+			# pose derriere d'un pas 4 rend le corps 2, que ce test rangeait dans « ni pied
+			# ni corps » -- il accusait le modele d'une faute qu'il n'a pas.
 			bodies += 1
 			if cell_level != key.z:
 				wrong_kind += 1
@@ -2514,7 +2542,9 @@ func _test_backing() -> void:
 	_check_equal(Walls.fall_at(brink, 2, Vector2i(2, 0)), Vector2i(3, 0),
 			"la chute fait sa longueur entiere mais ne pose pas son pied")
 	_check_equal((Walls.assemble(brink)["underfoot"] as Dictionary).get(Vector3i(2, 4, 2)),
-			Vector2i(0, 1), "le corps 0 du pas 4 se repose sous la case qui l ecrete")
+			Vector2i(0, Walls.row_for(4, 4, false)),
+			"le corps du pas 4 se repose sous la case qui l ecrete (%s)"
+			% Walls.ROW_NAMES[Walls.row_for(4, 4, false)])
 
 	# ⚠ PLUS HAUTE QUE LA LEVRE : RIEN. Le sommet du bloc depasse la face ; derriere ses
 	# coins c'est l'etage d'en dessous, que l'empilement montre deja.
@@ -3573,21 +3603,39 @@ func _test_thickness() -> void:
 		_check(index in Thickness.SURFACE_INDICES, "l index %d survit" % index)
 	for index: int in [0, 1, 4, 16, 17, 21, 68, 85, 87, 95]:
 		_check(not (index in Thickness.SURFACE_INDICES), "l index %d meurt" % index)
-	_check_equal(Thickness.wall_roles().size(), 25, "25 roles de robe survivent")
+	_check_equal(Thickness.wall_roles().size(), 38, "38 roles de robe survivent")
 	var front_front: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_FRONT)
 	var void_void: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID)
-	_check(not Thickness.role_survives(Vector2i(front_front, 1)), "(devant,devant) meurt")
-	_check(not Thickness.role_survives(Vector2i(void_void, Walls.ROW_CROWN)),
-			"le chapiteau de (vide,vide) meurt")
-	_check(Thickness.role_survives(Vector2i(void_void, 1)), "le corps de (vide,vide) survit")
-	# LE REDAN, revele par min trois : un couple vide-devant n'existe qu'au corps 1.
 	var void_front: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_FRONT)
 	var front_void: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_VOID)
-	_check(Thickness.role_survives(Vector2i(void_front, 2)), "(vide,devant) corps 1 survit")
-	_check(Thickness.role_survives(Vector2i(front_void, 2)), "(devant,vide) corps 1 survit")
-	for row: int in [Walls.ROW_CROWN, 1, 3]:
-		_check(not Thickness.role_survives(Vector2i(void_front, row)),
-				"(vide,devant) n'existe qu'au corps 1")
+	_check(not Thickness.role_survives(Vector2i(front_front, 1)), "(devant,devant) meurt")
+	# ⚠ LE VOCABULAIRE DE ROBE NE SE RESTREINT PLUS QUE PAR L EPAISSEUR DU RELIEF.
+	# `(devant,devant)` demanderait un eperon d UNE colonne -- une course d une case, donc
+	# fine. C est la seule mort demontree ; les huit autres pans vivent.
+	#
+	# ⚠ ET LA REGLE « AU MOINS UN FLANC MUET » A ETE POSEE PUIS RETIREE, EN UNE HEURE. Elle
+	# repondait a un vrai defaut -- une meme tuile sommee de border tantot de l herbe, tantot
+	# de la roche -- mais au SYMPTOME. La cause etait que `muet` voulait dire deux choses,
+	# dont « le sommet d un plateau est a cote, c est A LUI de tracer » : et « lui » etait une
+	# tuile de surface, incapable de tracer. Cause corrigee, la regle n avait plus de raison
+	# d etre, et son prix avait triple -- 96 % des reliefs acceptables, puis 68 %.
+	for row: int in range(Walls.BLOCK_ROWS):
+		_check(not Thickness.role_survives(Vector2i(front_front, row)),
+				"(devant,devant) meurt au %s : un eperon d une colonne serait fin"
+				% Walls.ROW_NAMES[row])
+		_check(Thickness.role_survives(Vector2i(void_void, row)),
+				"(vide,vide) vit au %s" % Walls.ROW_NAMES[row])
+	# ⚠ SAUF LES DEUX MIXTES AU PIED, que la battue ne rencontre jamais -- ni a min deux ni
+	# a min trois, ni avec du vide ni avec les miroirs. C est la partie CHERCHEE de la forme,
+	# pas la partie demontree, et c est la battue continue qui la garde.
+	for body: int in range(1, Walls.BODY_ROWS + 1):
+		_check(Thickness.role_survives(Vector2i(void_front, body)),
+				"(vide,devant) vit au %s" % Walls.ROW_NAMES[body])
+	_check(not Thickness.role_survives(Vector2i(void_front, Walls.ROW_FOOT)),
+			"mais jamais au pied")
+	_check(not Thickness.role_survives(Vector2i(front_void, Walls.ROW_FOOT)),
+			"son miroir non plus")
+
 	# Les cases fines se detectent : une bande d une case, un trou d une case.
 	var thin_band: PackedStringArray = PackedStringArray(["000000", "011110", "000000"])
 	_check(not Thickness.thin_cells(thin_band).is_empty(), "une bande d une case est fine")
@@ -3656,7 +3704,12 @@ func _random_thick_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 			for x: int in range(14):
 				line += str(levels[y][x] as int)
 			heights.append(line)
-		if Thickness.thin_cells(heights).is_empty():
+		# ⚠ UN RELIEF LEGAL EST EPAIS DANS LE RELIEF **ET** DANS LA ROBE. La battue qui
+		# n'exigeait que la premiere moitie fabriquait des parois sans masse d'aucun cote --
+		# des pans que le vocabulaire ne contient plus -- et accusait le noyau de les nier.
+		if not Thickness.thin_cells(heights).is_empty():
+			continue
+		if Thickness.lonely_robe_cells(heights).is_empty():
 			return heights
 	return PackedStringArray()
 
@@ -3668,7 +3721,7 @@ func _test_thickness_cross_check() -> void:
 	_check_equal(PluginManifest.SURFACE_TILES, Thickness.SURFACE_INDICES.size(),
 			"le lecteur du plugin attend les 27 surfaces du noyau")
 	_check_equal(PluginManifest.WALL_TILES, Thickness.wall_roles().size(),
-			"et les 23 roles du noyau")
+			"et les 25 roles du noyau")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x7413C
 	var drift: int = 0

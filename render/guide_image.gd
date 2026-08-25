@@ -234,6 +234,25 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 					color = base.lightened(0.34 * shade)
 				elif shade < 0.0:
 					color = base.darkened(0.30 * -shade)
+			# ⚠ L'EPAISSEUR DU PLATEAU, A L'EST ET A L'OUEST. Un bord vide dans la
+			# silhouette d'un etage veut TOUJOURS dire que la voisine est plus bas -- donc
+			# qu'il y a une chute. C'est aussi constant que la falaise sous un bord sud, et
+			# ca a donc le meme droit que l'epaule de vivre DANS la tuile. Sans ce lisere le
+			# plateau s'arrete A PLAT contre ce qui le borde, et rien ne dit qu'il y a une
+			# marche : c'est ce qui faisait chercher a peindre de la roche dans une tuile
+			# partagee entre des dizaines d'endroits qui n'en veulent pas.
+			#
+			# ⚠ ET RIEN AU NORD : une face nord se cache derriere son propre plateau, on ne
+			# la voit jamais. Ce qui est CONSTANT n'est pas forcement VISIBLE.
+			#
+			# ⚠ ET LE LISERE NE DIT PAS DE COMBIEN CA TOMBE. La chute peut faire un etage ou
+			# quatre : il dit « ca tombe », et c'est tout ce qu'il a le droit de dire. Une
+			# epaisseur qui pretendrait mesurer la hauteur mentirait une fois sur deux.
+			var brink: float = STROKE * float(side) * 2.6
+			if not east and px > last - brink:
+				color = WIRE_WALL if wire else STONE_BODY.darkened(0.20)
+			elif not west and px < brink:
+				color = WIRE_WALL if wire else STONE_BODY.lightened(0.08)
 			if marks and _on_inner_tick(px, py, last, stroke, index,
 					north, east, south, west):
 				color = mark
@@ -596,8 +615,12 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 				# ⚠ CE QUI DISTINGUE LES DEUX RANGEES DE CORPS EST UNE ASSISE, PAS UN
 				# DECALAGE DE GRAIN. Elle se tient loin des deux bords, donc elle ne peut pas
 				# se voir au raccord, quelle que soit la rangee qui suit.
-				if role.y == 1 or role.y == 2:
-					var ledge: float = 0.40 if role.y == 1 else 0.62
+				# ⚠ UNE ASSISE PAR RANGEE DE CORPS, ETALEES SUR LA HAUTEUR. Deux positions
+				# etaient ecrites en dur ; a trois corps la troisieme rangee n'avait plus rien
+				# qui la distingue, et deux tuiles differentes se seraient dessinees pareil.
+				if role.y >= 1 and role.y <= Walls.BODY_ROWS:
+					var spread: float = float(maxi(1, Walls.BODY_ROWS - 1))
+					var ledge: float = lerpf(0.32, 0.68, float(role.y - 1) / spread)
 					if absf(vertical - ledge) < 0.055:
 						color = color.darkened(0.07 * row_amp)
 				if west == Walls.SIDE_VOID and px < rim:
@@ -611,12 +634,16 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.
-			if marks and px > inset and px < last - inset:
-				if role.y == 1 and absf(py - last * 0.5) < stroke * 0.6:
-					color = mark
-				elif role.y == 2 and (absf(py - last * 0.35) < stroke * 0.6 \
-						or absf(py - last * 0.65) < stroke * 0.6):
-					color = mark
+			# ⚠ ET LE CODE DE RANGEE SE COMPTE : un tiret pour le premier corps, deux pour
+			# le second, trois pour le troisieme. Ecrit en dur pour deux rangees, il aurait
+			# laisse la troisieme muette -- et c'est justement ce qu'il faut savoir en
+			# peignant, puisque rien d'autre ne distingue deux corps.
+			if marks and px > inset and px < last - inset \
+					and role.y >= 1 and role.y <= Walls.BODY_ROWS:
+				for dash: int in range(role.y):
+					var at: float = last * float(dash + 1) / float(role.y + 1)
+					if absf(py - at) < stroke * 0.6:
+						color = mark
 			_put(buffer, side, x, y, color)
 	return _finish(buffer, side, tile_size)
 

@@ -2438,10 +2438,116 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   passait, le banc passait, et le dessin cassait aux deux tiers de ses jonctions. Un test
   qui redérive la formule qu'il contrôle ne contrôle rien — il la certifie.
 
+- **LE VAGABONDAGE DE L'ARÊTE, ET `MUET` QUI VOULAIT DIRE DEUX CHOSES.** Deux corps de
+  travail, et le second est venu d'une case que l'utilisateur a montrée du doigt.
+
+  **TROIS RANGÉES DE CORPS, ET LE CHIFFRE EST ARITHMÉTIQUE.** Avec deux corps et un étage
+  de trois cases, le pied suit tantôt le corps 0 (chute de 3), tantôt le corps 1 (chute de
+  6) : la chaîne des rangées se referme, **toutes** les frontières portent le même profil,
+  et l'arête est un fil à plomb qu'aucun dessin ne peut faire bouger. À trois corps la
+  période du corps vaut celle de l'étage, la chaîne ne se referme plus :
+
+  | `BODY_ROWS` | 1 | 2 | **3** | 4 | 5 | 6 | 7 | 8 | 9 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | classes de frontière | 1 | **1** | **3** | 1 | 1 | 5 | 1 | 1 | 7 |
+
+  ⚠ **IL FAUT QUE `BODY_ROWS` SOIT UN MULTIPLE DE `STOREY_TILES`** : 4 ou 5 corps coûtent
+  une rangée de tuiles de plus pour **zéro** liberté gagnée.
+
+  ⚠ **ET `row_chains` FABRIQUAIT DES ATTERRISSAGES QUI N'EXISTENT PAS.** Il itérait toutes
+  les longueurs de chute avec `landed = true` — or *atterrir est quantifié par trois*. Ces
+  fausses chutes de 4, 5, 7 cases faisaient suivre le pied tantôt du corps 1, tantôt du
+  corps 2, et refermaient la chaîne : **trois profils retombaient à un seul**. La faute
+  contre laquelle l'en-tête de cette fonction met en garde, commise dedans. Invisible à deux
+  rangées de corps : tout s'y effondrait de toute façon.
+
+  **PUIS L'UTILISATEUR A MONTRÉ DEUX CASES.** Ligne 14, colonnes 12 et 18 : la même tuile
+  (index 241), six colonnes d'écart. À l'est de la première, la falaise du bloc voisin ; à
+  l'est de la seconde, l'herbe. *« Si je mets du marron, le marron se retrouve dans celle de
+  gauche à la place de l'herbe, et inversement. »*
+
+  Mesuré (`tools/edge_beyond.gd`) : **9 couples (index, bord) voient les deux espèces, 95
+  cases au moins sont fausses quoi qu'on peigne.** L'index 241 borde de la roche 21 fois et
+  de l'herbe 68 fois. ⚠ Et le contraste qui prouve la règle : au bord **sud**, la liste est
+  vide — c'est exactement pourquoi l'épaule est légitime là et nulle part ailleurs.
+
+  ⚠ **LA CAUSE ÉTAIT ÉCRITE DANS LE CODE, EN TOUTES LETTRES.** `Walls._side` rendait `muet`
+  pour un sommet de plateau voisin, avec ce commentaire : *« il est devant moi — c'est à lui
+  de tracer, pas à moi »*. **« Lui » est une tuile de SURFACE**, la même à des dizaines
+  d'endroits dont la plupart n'ont aucune falaise à côté. Elle ne peut pas tracer.
+  **L'arête de cette jonction n'appartenait à personne.** C'est mot pour mot la faute des
+  trois pans, un cran plus loin : *on demandait à une tuile d'être juste dans une situation
+  qu'elle ne peut pas exprimer.*
+
+  **`MUET` NE VEUT PLUS DIRE QU'UNE CHOSE : DE LA ROCHE À CÔTÉ.** La coupure est là, et
+  elle est nette :
+
+  - `muet` — de la **roche** : la même face, ou celle d'un voisin en avant ;
+  - `vide` — ma roche s'arrête : de la terre, le sol d'en bas, le vide ;
+  - `devant` — de la roche en retrait : je porte l'angle.
+
+  Le sommet d'un plateau est de la terre. Il rend `vide`, et **c'est la tuile de robe qui
+  trace le bord de sa propre roche** — la seule qui le sache. Vérifié : la case (13,14) est
+  passée de `muet|muet` à `vide|muet`.
+
+  ⚠ **UNE RÈGLE A ÉTÉ POSÉE PUIS RETIRÉE EN UNE HEURE, ET C'EST À NOTER.** « Toute case de
+  robe porte au moins un flanc muet » répondait au même symptôme et semblait magnifique :
+  elle ramenait le vocabulaire de 35 à 25 rôles, rendait le vagabondage gratuit, et faisait
+  disparaître quatre rôles impossibles à peindre. Elle répondait au **symptôme**. Une fois
+  la cause corrigée, plus aucune tuile n'était sommée d'être deux choses — la règle n'avait
+  plus de justification, et son prix avait triplé : les reliefs acceptables passaient de
+  **96 % à 68 %**. Retirée. Elle aura servi à trouver la vraie.
+
+  **Ce qui reste du vocabulaire est CALCULÉ, plus décidé** : un seul pan meurt,
+  `(devant,devant)`, et **c'est min trois qui le tue** — il demanderait un éperon d'une
+  seule colonne. Ce n'est pas une règle de plus, c'est une conséquence. Plus deux rôles que
+  la battue ne rencontre jamais (`vide/devant` **au pied**) : c'est la partie *cherchée* de
+  la forme, gardée par la battue continue.
+
+  | | rôles de robe | tuiles |
+  |---|---|---|
+  | 8.0.1 | 25 | 52 |
+  | trois rangées de corps | 35 | 62 |
+  | + `muet` qui ne dit plus qu'une chose | **38** | **65** |
+
+  **Deux accidents nouveaux au guide et à la planche de preuve** : *le pignon à deux
+  marches* — un bord sud qui descend d'une rangée à chaque bout, la colonne du milieu ayant
+  une face en retrait d'un côté et le sommet du plateau de l'autre — et *le cap à une
+  marche*, une colonne qui tombe seule une rangée avant ses voisines, seul endroit où une
+  lèvre n'a de masse d'aucun côté.
+
+  ⚠ **ET LE LISERÉ D'ÉPAISSEUR, À L'EST ET À L'OUEST.** Un bord vide dans la silhouette veut
+  **toujours** dire que la voisine est plus bas, donc qu'il y a une chute : aussi constant
+  que la falaise sous un bord sud, donc le même droit que l'épaule de vivre **dans** la
+  tuile. Sans lui le plateau s'arrête à plat contre ce qui le borde, et c'est ce qui faisait
+  chercher à peindre de la roche dans une tuile partagée. ⚠ **Rien au nord** : une face nord
+  se cache derrière son propre plateau — *ce qui est constant n'est pas forcément visible*.
+  ⚠ **Et il ne dit pas de combien ça tombe** : la chute peut faire un étage ou quatre.
+
+  ⚠ **LA SAUVEGARDE PASSE EN VERSION 3, ET LES ROBES v2 SE TRADUISENT AU LIEU D'ÊTRE
+  RENDUES.** Le PIED valait 3, il vaut 4 : reposer un v2 tel quel mettrait chaque pied sur
+  un corps, en silence. Mais à la différence du passage v1→v2 — où le numéro de pan changeait
+  sans qu'on puisse deviner lequel — **la traduction est exacte**. Rendre un travail qu'on
+  sait replacer, ce serait le perdre pour rien.
+
+  ⚠ **ET C'EST LE FICHIER DE LA VRAIE SESSION DE PEINTURE QUI L'A PROUVÉ**, relu sans jamais
+  être réécrit (`tools/reload_work.gd`) : **27/27 surfaces, 25/38 falaises, ZÉRO tuile
+  rendue.** Les treize manquantes sont toutes neuves — la troisième rangée de corps, et les
+  pans que le correctif fait apparaître. Un test ne pouvait pas le dire : la suite peint des
+  couleurs tirées de la position, un fichier de session porte du vrai travail.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
+
+À **9.0.0** : **le vagabondage de l'arête**, et `muet` qui ne veut plus dire qu'une chose.
+Trois rangées de corps donnent trois profils de frontière indépendants au lieu d'un —
+l'arête se déplace enfin. Et le sommet d'un plateau voisin, qui rendait `muet` en déléguant
+l'arête à une tuile de surface incapable de la tracer, rend désormais `vide` : plus aucune
+tuile n'est sommée d'être deux choses. Vocabulaire à **27 + 38 = 65 tuiles**, liseré
+d'épaisseur à l'est et à l'ouest, manifeste v7 (v6 refusée), sauvegarde v3 (les robes v2 se
+traduisent) : majeure, tout l'existant est périmé.
 
 À **8.0.1** : les raccords que la formule ne voyait pas — `Seams` déduisait ses classes
 de `row_for` (pas 1..drop, à pan constant) au lieu de les lire du monde, et ignorait donc

@@ -78,7 +78,7 @@ const MAGIC: String = "solutiles-tileset"
 ## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
 ## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
 ## viendra plus tard, et il sera concu pour lui-meme.
-const VERSION: int = 6
+const VERSION: int = 7
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -359,6 +359,11 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire")
 	lines.append("# entier qui survit a cet interdit.")
 	lines.append("thin_forbidden run_shorter_than_three all_storeys both_states")
+	lines.append("# ET C'EST L'EPAISSEUR QUI TUE LE SEUL PAN MORT. `(devant, devant)`")
+	lines.append("# demanderait un eperon d'UNE colonne -- une course d'une case, donc")
+	lines.append("# fine. Ce n'est pas une regle de plus : c'est une consequence de la")
+	lines.append("# precedente. Les huit autres pans vivent, a toutes les rangees.")
+	lines.append("pan_dead front_front_needs_a_one_column_spur")
 	lines.append("# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle")
 	lines.append("# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,")
 	lines.append("# elle bute contre un voisin de son niveau.")
@@ -372,8 +377,16 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# LE PAN. C'est le couple des deux flancs : pan = ouest * %d + est."
 			% Walls.SIDE_COUNT)
 	lines.append("#     %d VIDE    aucune roche a ce flanc" % Walls.SIDE_VOID)
-	lines.append("#     %d MUET    la meme face continue, OU le voisin est DEVANT moi"
+	lines.append("#     %d MUET    de la ROCHE a ce flanc : la meme face, ou celle d'un"
 			% Walls.SIDE_MUTE)
+	lines.append("#               voisin DEVANT moi")
+	lines.append("# ⚠ MUET VEUT DIRE DE LA ROCHE, ET RIEN D'AUTRE. Il a voulu dire aussi")
+	lines.append("# \"le sommet d'un plateau est a cote, donc il est devant moi, c'est A LUI")
+	lines.append("# de tracer\" -- et \"lui\" est une tuile de SURFACE, la meme a des dizaines")
+	lines.append("# d'endroits dont la plupart n'ont aucune falaise a cote. Elle ne peut pas")
+	lines.append("# tracer, et l'arete de cette jonction n'appartenait a personne. Le sommet")
+	lines.append("# d'un plateau est de la TERRE : il rend `vide`, et c'est la tuile de robe")
+	lines.append("# qui trace le bord de sa propre roche -- la seule qui le sache.")
 	lines.append("#     %d DEVANT  le voisin est en retrait : je porte l'angle"
 			% Walls.SIDE_FRONT)
 	lines.append("# ⚠ « EN RETRAIT » SE MESURE A LA LEVRE : la levre du voisin est plus au NORD")

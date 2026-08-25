@@ -29,16 +29,10 @@
 #   l'exterieur n'ajoute jamais de contrainte : c'est une equivalence, pas une borne.
 #   Resultat : 27 index sur 47.
 #
-#   ROBES : une forme fermee, PORTEE par le recensement (tools/thick_census.gd -- battue
-#   sur reliefs epais plus escarpements construits) :
-#     - un flanc DEVANT exige un flanc MUET de l'autre cote : un bloc qui avance fait au
-#       moins deux colonnes, donc sa colonne d'angle a toujours sa jumelle muette a cote.
-#       (vide,devant), (devant,vide) et (devant,devant) exigeraient un surplomb d'une
-#       colonne -- une levre fine ;
-#     - le CHAPITEAU exige au moins un flanc muet : une levre aux deux flancs vides
-#       serait une langue d'une case. Les rangees basses de (vide,vide) survivent : une
-#       colonne peut finir seule en profondeur, ses voisines ayant atterri avant elle.
-#   Resultat : 23 roles sur 36.
+#   ROBES : un seul pan meurt, et c'est encore min trois qui le tue. `(devant,devant)`
+#   demanderait un eperon d'UNE colonne -- une course d'une case, donc fine. Les huit
+#   autres pans vivent, a toutes les rangees.
+#   Resultat : 40 roles sur 45 -- huit pans x cinq rangees.
 #
 #   CROISEMENTS : les 15 survivent tous (temoins en blocs 2x2 au recensement).
 extends RefCounted
@@ -85,29 +79,59 @@ static func window_realizable(raw: int) -> bool:
 	return true
 
 
-## Un role de robe existe-t-il en relief epais ? Forme fermee, portee par le recensement.
+## Un role de robe existe-t-il en relief epais ? UNE SEULE REGLE, et elle vient de
+## l'epaisseur du RELIEF, pas d'une regle propre aux robes.
 ##
-## ⚠ LE PASSAGE A MIN TROIS EN A REVELE DEUX DE PLUS : (vide,devant) et (devant,vide) au
-## corps 1 -- le REDAN, une colonne qui plonge seule entre un tablier partiel et des
-## colonnes en retrait. Ils etaient atteignables des min deux, la battue d'alors ne les
-## avait pas rencontres : un sous-compte, expose avant qu'un acheteur ne tombe dessus.
-## La battue continue de la suite garde cette forme : si un 26e role apparait un jour
-## sur un relief epais, elle echoue, et la forme se corrige.
+## ⚠ `(devant, devant)` EST LE SEUL MORT, ET C'EST LA BARRE DE MIN TROIS QUI LE TUE. Une
+## colonne dont les DEUX voisines sont en retrait est un eperon d'UNE colonne -- une course
+## d'une case dans la silhouette de son etage, donc fine, donc interdite. Un eperon epais
+## fait au moins trois colonnes : ses deux bords portent (devant,muet) et (muet,devant), son
+## milieu (muet,muet). Ce n'est donc pas une regle de plus, c'est une consequence.
+##
+## ⚠ ET LA REGLE « AU MOINS UN FLANC MUET » A ETE RETIREE, APRES AVOIR ETE POSEE. Elle
+## repondait a un vrai defaut -- une meme tuile sommee de border tantot de l'herbe, tantot
+## de la roche -- mais elle repondait au SYMPTOME. La cause etait que `muet` voulait dire
+## deux choses, dont « le sommet d'un plateau est a cote, c'est A LUI de tracer » : et « lui »
+## etait une tuile de SURFACE, la meme a des dizaines d'endroits, incapable de tracer quoi que
+## ce soit. Depuis que le sommet d'un plateau rend `vide`, chaque etat ne dit plus qu'une
+## chose et AUCUNE tuile n'est sommee d'etre deux choses. La regle n'avait plus de
+## justification, et son prix avait triple : mesure, elle faisait passer les reliefs
+## acceptables de 96 % a 68 %.
 static func role_survives(role: Vector2i) -> bool:
 	var west: int = Walls.pan_west(role.x)
 	var east: int = Walls.pan_east(role.x)
-	# (devant,devant) : mort -- si je suis devant mon voisin, il n'est pas devant moi.
 	if west == Walls.SIDE_FRONT and east == Walls.SIDE_FRONT:
 		return false
-	# Le chapiteau exige un flanc muet : une levre sans voisine serait une bande fine.
-	if role.y == Walls.ROW_CROWN and west != Walls.SIDE_MUTE and east != Walls.SIDE_MUTE:
-		return false
-	# Un couple vide-devant -- le redan -- n'existe qu'au corps 1, seul en profondeur.
-	var mixed: bool = (west == Walls.SIDE_VOID and east == Walls.SIDE_FRONT) \
-			or (west == Walls.SIDE_FRONT and east == Walls.SIDE_VOID)
-	if mixed and role.y != 2:
-		return false
-	return true
+	# ⚠ ET LE COUPLE vide/devant NE SE RENCONTRE JAMAIS AU PIED. Une robe qui ATTERRIT a,
+	# a son dernier pas, du sol sous elle -- et ce sol porte ses voisines : celle qui est en
+	# retrait a l'est n'a pas encore fini de tomber, mais celle de l'ouest, s'il n'y a rien,
+	# laisse une colonne seule poser son pied entre le vide et une face qui continue. La
+	# battue ne l'a jamais rencontre, ni a min deux ni a min trois, ni avec du vide ni avec
+	# les miroirs. C'est la partie CHERCHEE de la forme, pas la partie demontree -- et c'est
+	# la battue continue de la suite qui la garde : si un 39e role apparait un jour, elle
+	# echoue et la forme se corrige.
+	var mixed: bool = (west == Walls.SIDE_VOID and east == Walls.SIDE_FRONT) 			or (west == Walls.SIDE_FRONT and east == Walls.SIDE_VOID)
+	return not (mixed and role.y == Walls.ROW_FOOT)
+
+
+## Les cases de robe BORD DES DEUX COTES d'un relief : la regle ci-dessus, vue du monde.
+##
+## ⚠ ELLE NE SE LIT PAS SUR UNE FENETRE, IL FAUT ASSEMBLER. L'epaisseur du relief se voit
+## sur une course de trois cases ; celle de la robe depend de la profondeur ou chaque
+## colonne atterrit, donc des chutes. C'est la difference de nature entre les deux regles, et
+## c'est ce qui la rend plus chere a controler sous le crayon -- mais pas plus chere que le
+## remontage que le pinceau fait deja sur sa zone.
+static func lonely_robe_cells(heights: PackedStringArray) -> Array[Vector3i]:
+	var out: Array[Vector3i] = []
+	var roles: Dictionary = (Walls.assemble(heights)["roles"] as Dictionary)
+	for key: Vector3i in roles:
+		var pan: int = (roles[key] as Vector2i).x
+		if Walls.pan_west(pan) == Walls.SIDE_MUTE:
+			continue
+		if Walls.pan_east(pan) == Walls.SIDE_MUTE:
+			continue
+		out.append(key)
+	return out
 
 
 ## Les roles de robe du mode epais, dans l'ordre des pans puis des rangees.

@@ -79,7 +79,7 @@ const SIDE_COUNT: int = 3
 const PAN_COUNT: int = SIDE_COUNT * SIDE_COUNT
 
 const ROW_CROWN: int = 0
-const BODY_ROWS: int = 2
+const BODY_ROWS: int = 3
 const ROW_FOOT: int = 1 + BODY_ROWS
 const BLOCK_ROWS: int = ROW_FOOT + 1
 
@@ -295,18 +295,12 @@ static func _side(heights: Dictionary, lip_of: Dictionary, at: Vector2i, level: 
 		step: int, my_lip: int) -> int:
 	if lip_of.has(at):
 		return SIDE_FRONT if int(lip_of[at]) < my_lip else SIDE_MUTE
-	# Le sommet d'un plateau a cote : sa propre face tombe plus au sud, donc il est devant
-	# moi -- c'est a lui de tracer, pas a moi.
-	if level_at(heights, at) >= level:
-		return SIDE_MUTE
-	# ⚠ L'ETAGE QU'ON BORDE COMPTE A TOUTES LES RANGEES, pas seulement au premier cran :
-	# c'est l'angle rentrant, deux morceaux du meme plateau separes d'un creux.
-	# ⚠ ET ON NE SONDE JAMAIS L'ETAGE 0 : toute case est a la plaine ou au-dessus, le
-	# tester rendrait « haut » partout et tous les flancs seraient muets.
-	var span: int = (maxi(1, step) - 1) / STOREY_TILES
-	var beside: int = level - span
-	if beside >= 1 and level_at(heights, at) >= beside:
-		return SIDE_MUTE
+	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
+	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
+	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
+	# dont la plupart n'ont pas de falaise a cote. L'arete n'appartenait a personne.
+	# C'est donc MOI qui trace le bord de ma roche, et `vide` est ce qui le dit.
+	var _span: int = (maxi(1, step) - 1) / STOREY_TILES
 	return SIDE_VOID
 
 

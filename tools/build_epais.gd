@@ -116,6 +116,26 @@ func _compose() -> void:
 	_fill(93, 10, 97, 10, 2)
 	_fill(94, 11, 97, 14, 1)
 
+	# I. LE PIGNON A DEUX MARCHES -- les deux couples vide/devant du CORPS 1.
+	# Un bloc dont le bord sud descend d'une rangee a CHAQUE bout, puis d'une autre : la
+	# colonne du milieu de chaque marche a, d'un cote, une face lancee d'une levre plus au
+	# nord (`devant`) et de l'autre LE SOMMET DU PLATEAU qui continue vers le sud (`vide`
+	# depuis que le sommet d'un plateau n'est plus de la roche). Le pignon donne les deux
+	# orientations d'un seul bloc, ce qui vaut mieux que deux accidents miroirs a caser.
+	_fill(86, 18, 101, 21, 2)
+	_fill(89, 22, 98, 22, 2)
+	_fill(90, 23, 97, 29, 2)
+
+	# J. LE CAP A UNE MARCHE -- (vide,vide) au CHAPITEAU. Une colonne qui tombe SEULE une
+	# rangee avant ses voisines, au bout ouest d'une levre : a l'ouest le sol d'en bas, a
+	# l'est le sommet du plateau qui n'est pas encore tombe. Ni l'un ni l'autre n'est de la
+	# roche, donc les deux flancs sont vides -- et c'est le seul endroit du guide ou une
+	# levre n'a de masse d'aucun cote.
+	# ⚠ TROIS RANGEES DE PLAINE LA SEPARENT DES CONTACTS DIAGONAUX : posee plus haut,
+	# elle laissait une rangee vide d'une case entre les deux -- fine.
+	_fill(6, 32, 13, 35, 1)
+	_fill(7, 36, 13, 36, 1)
+
 	# D. LES CONTACTS DIAGONAUX : deux paires de blocs 3x3, une par orientation.
 	_fill(5, 23, 7, 25, 1)
 	_fill(8, 26, 10, 28, 1)

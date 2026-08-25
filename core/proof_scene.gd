@@ -92,7 +92,9 @@ const DUAL_PITCH_Y: int = DUAL_ISLAND + 5
 ##     planche -- (vide,vide) corps 0, son dernier pas est un corps seul en profondeur ;
 ##   - les DEUX REDANS, les roles que min trois a reveles : un bord sud a decrochement
 ##     d'une rangee sur un tablier partiel -- (vide,devant) et (devant,vide) corps 1.
-const DEMO_WIDTH: int = 71
+## ⚠ LA DEMONSTRATION S'EST ELARGIE avec le vocabulaire : le pignon a deux marches et le
+## cap a une marche demandent de la place a l'est des quatre accidents d'origine.
+const DEMO_WIDTH: int = 100
 const DEMO_HEIGHT: int = 15
 
 ## Le code du caractere « 0 » : un etage N s'ecrit ZERO + N.
@@ -267,6 +269,17 @@ static func _stamp_wall_demo(cells: Array, left: int, top: int) -> void:
 	_block(cells, left + 64, top + 0, 7, 4, 2)
 	_block(cells, left + 66, top + 4, 5, 1, 2)
 	_block(cells, left + 67, top + 5, 4, 4, 1)
+	# Le pignon a deux marches : le bord sud descend d'une rangee a chaque bout, puis
+	# d'une autre. La colonne du milieu de chaque marche a une face en retrait d'un cote
+	# et LE SOMMET DU PLATEAU de l'autre -- (vide,devant) et son miroir, jusqu'au corps 1.
+	_block(cells, left + 74, top + 0, 16, 4, 2)
+	_block(cells, left + 77, top + 4, 10, 1, 2)
+	_block(cells, left + 78, top + 5, 8, 4, 2)
+	# Le cap a une marche : une colonne tombe SEULE une rangee avant ses voisines, au bout
+	# ouest d'une levre -- rien a l'ouest, le sommet du plateau a l'est : (vide,vide) au
+	# chapiteau, le seul endroit ou une levre n'a de masse d'aucun cote.
+	_block(cells, left + 91, top + 0, 8, 4, 1)
+	_block(cells, left + 92, top + 4, 7, 1, 1)
 
 
 static func _block(cells: Array, x0: int, y0: int, w: int, h: int, level: int) -> void:

@@ -196,8 +196,35 @@ static func _corner_of(edge: Vector3i, far: int) -> Vector3i:
 static func row_chains() -> Array[Vector2i]:
 	var seen: Dictionary = {}
 	var chains: Array[Vector2i] = []
-	for drop: int in range(1, Walls.STOREY_TILES * 9 + 1):
+	# ⚠ ET UNE CHUTE NE FAIT JAMAIS MOINS D'UN ETAGE, EN EPAIS. Celle qui atterrit est
+	# un multiple de `STOREY_TILES` ; celle qui tombe dans le vide vaut au moins un
+	# etage ; et celle qui s'ecrete laisse, entre la levre et la case qui la coupe, une
+	# COURSE de cases sous le niveau de la levre -- que la barre de min trois oblige a
+	# faire trois au moins. Iterer depuis 1 fabriquait une chute d'UNE case, laquelle
+	# n'a meme pas de chapiteau (`row_for` n'en rend qu'a partir de `drop > 1`) et pose
+	# un corps sur lui-meme : cet enchainement-la, que le monde ne produit pas, refermait
+	# la chaine et faisait tomber la liberte de trois profils a deux. Une seule chute
+	# degeneree valait une classe.
+	#
+	# ⚠ C'est une claim sur LE MONDE, pas sur la formule : elle est donc gardee par
+	# `_test_seam_census`, qui recense les jonctions reellement posees et echoue si l'une
+	# d'elles sort de ces chaines.
+	for drop: int in range(Walls.STOREY_TILES, Walls.STOREY_TILES * 9 + 1):
 		for landed: bool in [true, false]:
+			# ⚠ ATTERRIR EST QUANTIFIE PAR TROIS ; DESCENDRE NE L'EST PAS. `fall_at` ne rend
+			# une chute qui ATTERRIT que pour un multiple de `STOREY_TILES` -- c'est la
+			# difference d'etage, en cases. Fabriquer un atterrissage de quatre ou de cinq
+			# cases inventait des enchainements que le monde ne produit pas : le pied y
+			# suivait tantot le corps 1, tantot le corps 2, alors qu'il suit TOUJOURS le
+			# corps 0. Et ces faux enchainements refermaient la chaine : les trois profils
+			# independants que trois rangees de corps achetent retombaient a UN SEUL.
+			#
+			# ⚠ C'est la faute exacte contre laquelle l'en-tete de cette fonction met en
+			# garde -- deviner un enchainement plutot que le lire -- commise en croyant s'en
+			# garder. Elle ne se voyait pas a deux rangees de corps : la chaine s'y refermait
+			# de toute facon.
+			if landed and drop % Walls.STOREY_TILES != 0:
+				continue
 			var rows: Array[int] = []
 			# L'adossement sous la levre porte la rangee du PREMIER PAS.
 			rows.append(Walls.row_for(1, drop, landed))

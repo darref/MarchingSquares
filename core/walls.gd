@@ -51,8 +51,23 @@ extends RefCounted
 const HeightMask := preload("res://core/height_mask.gd")
 
 ## Les trois etats d'un flanc.
-const SIDE_VOID: int = 0   ## Ma roche s'arrete : rien a cote.
-const SIDE_MUTE: int = 1   ## Meme face, ou voisin DEVANT moi -- rien a tracer de ce cote.
+##
+## ⚠ MUET VEUT DIRE « DE LA ROCHE A COTE », ET RIEN D'AUTRE. Il a longtemps voulu dire
+## aussi « le sommet d'un plateau est a cote, donc il est devant moi, c'est A LUI de tracer ».
+## C'etait faux : « lui » est une tuile de SURFACE, la meme a des dizaines d'endroits dont la
+## plupart n'ont aucune falaise a cote. Elle ne peut pas tracer. L'arete de cette jonction
+## n'appartenait donc a PERSONNE, et la tuile d'herbe se retrouvait sommee d'etre deux
+## choses -- de la roche ici, de l'herbe la, sous un seul dessin. Mesure sur le guide : neuf
+## couples (index, bord) voient les deux especes, 95 cases au moins fausses quoi qu'on peigne.
+##
+## C'est la faute des trois pans, un cran plus loin : on demandait a une tuile d'etre juste
+## dans une situation qu'elle ne peut pas exprimer.
+##
+## La coupure est donc : de la ROCHE a cote, ou pas de roche. Ce qui n'est pas de la roche --
+## de la terre plus haute, le sol d'en bas, le vide -- se dit `vide`, et c'est MA tuile qui
+## trace son bord, puisque c'est la seule qui le sache.
+const SIDE_VOID: int = 0   ## Ma roche s'arrete : ce qui est a cote n'est pas de la roche.
+const SIDE_MUTE: int = 1   ## De la roche a cote : la meme face, ou celle d'un voisin DEVANT.
 const SIDE_FRONT: int = 2  ## Voisin en retrait : je suis devant, je trace mon angle.
 const SIDE_COUNT: int = 3
 
@@ -60,8 +75,28 @@ const SIDE_COUNT: int = 3
 const PAN_COUNT: int = SIDE_COUNT * SIDE_COUNT
 
 ## Les rangees du bloc.
+##
+## ⚠ TROIS RANGEES DE CORPS, ET LE CHIFFRE N'EST PAS ESTHETIQUE : IL EST ARITHMETIQUE.
+## `Seams` range dans UNE MEME classe tous les bords que la chaine des rangees relie. Avec
+## deux corps et un etage de trois cases, le pied suit tantot le corps 0 (chute de 3),
+## tantot le corps 1 (chute de 6) : la chaine se referme sur elle-meme et TOUTES les
+## frontieres de rangees portent le meme profil. L'arete est alors un fil a plomb, et
+## aucun dessin ne peut la faire vagabonder.
+##
+## Avec TROIS corps, la periode du corps vaut celle de l'etage : le pied suit toujours le
+## corps 0, le chapiteau precede toujours le corps 0, et la chaine ne se referme plus.
+## Mesure, en faisant tourner les chutes hors du moteur :
+##
+##     BODY_ROWS   1   2   3   4   5   6   7   8   9
+##     classes     1   1   3   1   1   5   1   1   7
+##
+## Trois profils independants, donc l'arete se deplace en trois crans le long d'un etage,
+## puis se repete d'un etage a l'autre -- ce qui est de toute facon ce qu'on veut voir sur
+## une falaise de N etages. ⚠ ET IL FAUT QUE `BODY_ROWS` SOIT UN MULTIPLE DE
+## `STOREY_TILES` : 4 ou 5 corps rendent une seule classe, c'est-a-dire cinq ou six
+## rangees de tuiles a peindre pour zero liberte gagnee.
 const ROW_CROWN: int = 0
-const BODY_ROWS: int = 2
+const BODY_ROWS: int = 3
 const ROW_FOOT: int = 1 + BODY_ROWS
 const BLOCK_ROWS: int = ROW_FOOT + 1
 
@@ -69,13 +104,21 @@ const BLOCK_ROWS: int = ROW_FOOT + 1
 const STOREY_TILES: int = 3
 
 const SIDE_NAMES: Array[String] = ["vide", "muet", "devant"]
-const ROW_NAMES: Array[String] = ["chapiteau", "corps 0", "corps 1", "pied"]
+
+## ⚠ CALCULE, JAMAIS ECRIT EN DUR. Une liste ecrite a la main est une donnee a maintenir
+## et un endroit ou mentir : elle survivait au passage de deux corps a trois en annoncant
+## un « pied » la ou le modele pose un corps.
+static var ROW_NAMES: Array[String] = []
 
 ## Les 36 roles (pan, rangee) qu'un guide doit faire apparaitre.
 ## Calcules au chargement, jamais ecrits en dur.
 static var ALL_ROLES: Array[Vector2i] = []
 
 static func _static_init() -> void:
+	ROW_NAMES.append("chapiteau")
+	for body: int in range(BODY_ROWS):
+		ROW_NAMES.append("corps %d" % body)
+	ROW_NAMES.append("pied")
 	for pan: int in range(PAN_COUNT):
 		for row: int in range(BLOCK_ROWS):
 			ALL_ROLES.append(Vector2i(pan, row))
@@ -184,17 +227,12 @@ static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, 
 		step: int, my_lip: int) -> int:
 	if lip_of.has(at):
 		return SIDE_FRONT if int(lip_of[at]) < my_lip else SIDE_MUTE
-	# Le sommet d'un plateau a cote : sa propre face tombe plus au sud, donc il est devant
-	# moi -- c'est a lui de tracer, pas a moi.
-	if HeightMask.level_at(heights, at.x, at.y) >= level:
-		return SIDE_MUTE
-	# ⚠ L'ETAGE QU'ON BORDE COMPTE A TOUTES LES RANGEES, pas seulement au premier cran :
-	# c'est l'angle rentrant, deux morceaux du meme plateau separes d'un creux dont la robe
-	# longe le second.
-	var span: int = (maxi(1, step) - 1) / STOREY_TILES
-	var beside: int = level - span
-	if beside >= 1 and HeightMask.level_at(heights, at.x, at.y) >= beside:
-		return SIDE_MUTE
+	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
+	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
+	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
+	# dont la plupart n'ont pas de falaise a cote. L'arete n'appartenait a personne.
+	# C'est donc MOI qui trace le bord de ma roche, et `vide` est ce qui le dit.
+	var _span: int = (maxi(1, step) - 1) / STOREY_TILES
 	return SIDE_VOID
 
 
