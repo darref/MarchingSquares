@@ -2635,6 +2635,100 @@ Quand la monter, et je le proposerai le moment venu :
 - **Le plugin Unity.** Rien de commence. Le controle croise du plugin Godot est le modele a
   reprendre : c'est lui qui empeche les deux lecteurs de diverger.
 
+### Fiche : LE SWEET SPOT — CHIFFRER LA GRAMMAIRE, PLUS SEULEMENT LES TUILES
+
+**Le constat, et c'est une faute de methode a moi.** Le vocabulaire est calcule comme
+*« tout ce que le modele peut produire sur un relief epais »*. Personne n'a jamais demande
+*« qu'est-ce qu'on accepte de construire ? »* — si bien qu'a chaque correctif de justesse, ce
+que la tuile doit savoir s'elargit et le compte se multiplie. En une journee : **52 -> 65 ->
+90 -> 96**. La grammaire est une monnaie, ecrite comme telle des le premier jour, et elle n'a
+ete depensee qu'une fois (min trois), sur le relief seulement.
+
+**A 3/4 DEPUIS LE HAUT IL N'EXISTE QUE QUATRE JONCTIONS VISIBLES**, et c'est ce qui fait
+croire le decoupage bon :
+
+| jonction | qui la porte |
+|---|---|
+| sommet contre sommet, meme etage | la silhouette (les 8 bits) |
+| sommet contre **face** | le **bord** (`nu` / `roche`) |
+| face contre face | le **pan** |
+| sommet **au-dessus de** sa face | la levre, l'epaule |
+
+Il n'y en a pas de cinquieme. Les trois correctifs de la journee n'ont rien AJOUTE a cette
+liste : ils ont corrige la *definition* de trois d'entre elles, qui rangeaient chacune deux
+situations sous un seul nom.
+
+⚠ **LES CHUTES DE PLUSIEURS ETAGES SONT NON NEGOCIABLES** (decision utilisateur). Toute
+clause de grammaire qui les limiterait est ecartee d'office.
+
+⚠ **ET L'ARETE VAGABONDE A UNE LIMITE QUI EST UN THEOREME.** A l'interieur d'une tuile elle
+est totalement libre, hauteur et largeur. Aux FRONTIERES entre tuiles, non : une falaise de
+hauteur quelconque avec une feuille finie doit se repeter, donc les profils de frontiere sont
+en nombre fini. Aujourd'hui trois par etage (trois rangees de corps) ; six rangees en
+donneraient cinq, neuf en donneraient sept — lineaire, a 9 tuiles la rangee.
+
+**CLAUSES CANDIDATES A CHIFFRER**, dans l'ordre ou je les essaierais :
+
+1. **aucune paroi plus etroite que trois colonnes** — l'epaisseur portee a la ROBE. Posee
+   puis retiree dans la journee : comme reponse au symptome elle etait mauvaise, comme
+   clause de grammaire elle est peut-etre excellente. Mesure d'alors : 96 % des reliefs
+   epais tires au sort la respectaient deja spontanement ;
+2. **deux faces d'etages differents ne se touchent pas lateralement** — c'est le cas qui a
+   ressuscite `(devant,devant)` ;
+3. **une levre ne se decale que par blocs de trois colonnes** — les escaliers restent, plus
+   grossiers.
+
+**Pari pose avant de mesurer, pour qu'il soit reprochable** : (1) et (2) ensemble ramenent
+autour de 60-65 tuiles sans rien retirer de ce qu'on veut dessiner.
+
+### Fiche : DEUX CORRECTIFS MESURES, ECRITS, ET MIS DE COTE
+
+Tous deux sont **justes** et tous deux ont ete retires de l'arbre en revenant a l'etat vert :
+la grammaire va rebattre les cartes, et les propager avant elle serait du travail perime. Ils
+sont ici pour ne pas se reperdre.
+
+**1. LE BORD — une tuile de surface est un couple `(silhouette, bord)`.** Un bord vide ne
+veut pas toujours dire une chute : quand la case d'a cote est couverte par une FACE, cette
+face a son sommet au niveau de mon propre sol, la roche continue de plain-pied et il n'y a
+aucune marche. Une seule image ne peut pas etre juste dans les deux cas.
+
+  - mesure : **neuf couples (index, bord) voient les deux especes, 95 cases au moins fausses
+    quoi qu'on peigne** ; l'index 241 borde de la roche 191 fois pour 3206 fois du nu ;
+  - ⚠ **LE SUD N'EN EST PAS, ET C'EST UN THEOREME** : une case dont le sud est vide est une
+    levre, sa propre face couvre la case d'en dessous, toujours. C'est exactement ce qui rend
+    l'EPAULE peignable dans la tuile de surface la ou aucun autre bord ne le serait. Restent
+    le nord, l'est et l'ouest ;
+  - forme fermee : **52 tuiles de surface** au lieu de 27. La battue n'en rencontre que 40 —
+    les douze manquantes sont sur les silhouettes de COIN, que des blocs rectangulaires ne
+    produisent pas, mais elles sont realisables ;
+  - le dessin : **l'eclairage de contour et le lisere d'epaisseur ne se posent que contre du
+    `nu`**. Contre de la roche, la matiere s'arrete contre de la matiere.
+
+**2. LES LEVRES GLOBALES — `vide` confondait « rien » et « la face d'un autre etage ».**
+`lip_of` etait construit par etage, donc une paroi voisine d'un AUTRE etage tombait dans le
+`else` et se lisait `vide` : de la roche lue comme du rien.
+
+  - mesure : **19 roles sur 38 voyaient les deux especes derriere un meme `vide`**, jusqu'a
+    519 occurrences pour un seul ;
+  - correctif : calculer les levres de TOUS les etages d'abord, la pose ensuite ; la case
+    garde la levre de la robe la plus HAUTE, celle qu'on voit ; la comparaison porte sur la
+    LEVRE, pas sur l'etage ;
+  - ⚠ **prix mesure : le vocabulaire de robe passe de 38 a 44.** `(devant,devant)`
+    ressuscite — l'argument « min trois le tue » ne valait que pour un eperon d'une colonne
+    AU MEME ETAGE ; entre etages, deux faces plus au nord de part et d'autre est banal.
+
+**3. LE DETECTEUR GENERAL** (`tools/tile_agreement.gd`) est reste, lui, et c'est lui qui a
+trouve le second correctif sans qu'on ait rien a montrer du doigt. Il compare toutes les
+occurrences d'une meme tuile et dit sur quel fait elles divergent.
+
+  - ⚠ **LES DIAGONALES NE SONT PAS UNE FAUTE, ET L'ARGUMENT EST GEOMETRIQUE** : une voisine
+    cardinale partage un BORD avec ma case -- une colonne ou une rangee entiere de pixels --
+    tandis qu'une diagonale ne partage qu'un POINT. Mesure a l'appui : les diagonales que la
+    canonicalisation GARDE ne varient jamais, celles qu'elle JETTE varient librement ;
+  - ⚠ **et son controle des cardinaux est devenu tautologique** depuis que le bord est dans
+    l'identite de la tuile. Sa valeur est ailleurs : il aurait trouve les neuf cas tout seul,
+    et il criera le jour ou quelqu'un ajoutera une distinction que l'identite ne porte pas.
+
 ### Fiche : LES MATIÈRES BORDÉES
 
 **Ce qu'une matière est, en une phrase : un étage sans falaise.**
