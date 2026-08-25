@@ -26,6 +26,7 @@ const PluginRules := preload("res://addons/solupaint/rules.gd")
 const PluginManifest := preload("res://addons/solupaint/manifest.gd")
 const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
+const Thickness := preload("res://core/thickness.gd")
 const Seams := preload("res://core/seams.gd")
 const WorkArea := preload("res://ui/work_area.gd")
 
@@ -66,11 +67,14 @@ func _initialize() -> void:
 	_test_assembly()
 	_test_preview_scene()
 	_test_vocabulary_is_closed()
+	_test_thickness()
+	_test_thickness_cross_check()
 	_test_deep_falls()
 	_test_proof_scene()
 	_test_corner_network()
 	_test_families()
 	_test_dual_end_to_end()
+	_test_seam_census()
 	_test_seams()
 	_test_seam_propagation()
 	_test_underfoot()
@@ -190,8 +194,8 @@ func _test_coverage_on_simple_mask() -> void:
 	_check_equal(report["filled_count"], 9, "9 cases pleines")
 	var expected_present: PackedInt32Array = PackedInt32Array([7, 28, 31, 112, 124, 193, 199, 241, 255])
 	_check_equal(report["present"], expected_present, "index presents attendus")
-	_check_equal(report["missing"].size(), BLOB_TILE_COUNT - expected_present.size(), "38 index manquants")
-	_check_equal(report["is_complete"], false, "le bloc 3x3 ne couvre pas les 47 index")
+	_check_equal(report["missing"].size(), Thickness.SURFACE_INDICES.size() - expected_present.size(), "18 index manquants")
+	_check_equal(report["is_complete"], false, "le bloc 3x3 ne couvre pas les 27 index")
 	var all_single: bool = true
 	for index: int in expected_present:
 		if int(report["occurrences"][index]) != 1:
@@ -208,59 +212,53 @@ func _test_coverage_on_simple_mask() -> void:
 
 func _test_variant_selection() -> void:
 	print("livraison : la case peinte est retenue, l autre ne sert pas")
-	# Deux ilots portant le meme index 0 : deux variantes possibles du meme index.
-	var mask: PackedStringArray = MaskIO.parse("#.#")
+	# Deux blocs 2x2 jumeaux : leurs coins haut-gauche portent le meme index 28 (E+SE+S),
+	# un index EPAIS -- l ilot d une case est mort avec le mode.
+	var mask: PackedStringArray = MaskIO.parse("##.##\n##.##")
 	var painted: Array[Vector2i] = [Vector2i(0, 0)]
 	var resolved: Dictionary = Delivery.resolve(mask, painted)
 	var expected_retained: Array[Vector2i] = [Vector2i(0, 0)]
-	_check_equal(resolved["retained"][0], expected_retained, "seule la variante peinte est retenue")
-	var expected_unused: Array[Vector2i] = [Vector2i(2, 0)]
-	_check_equal(resolved["unused"], expected_unused, "la variante non peinte n est pas utilisee")
-	_check_equal(resolved["delivered"], PackedInt32Array([0]), "l index 0 est livre")
-	_check_equal(resolved["missing"].size(), BLOB_TILE_COUNT - 1, "les 46 autres index manquent")
+	_check_equal(resolved["retained"][28], expected_retained, "seule la variante peinte est retenue")
+	_check_equal(resolved["unused"].size(), 7, "les sept autres cases ne servent pas")
+	_check_equal(resolved["delivered"], PackedInt32Array([28]), "l index 28 est livre")
+	_check_equal(resolved["missing"].size(), Thickness.SURFACE_INDICES.size() - 1,
+			"les 26 autres index manquent")
 	_check_equal(resolved["is_exportable"], false, "un seul index livre n est pas exportable")
 
 	var nothing_painted: Array[Vector2i] = []
 	var untouched: Dictionary = Delivery.resolve(mask, nothing_painted)
 	_check(untouched["retained"].is_empty(), "sans peinture, aucune tuile n est retenue")
-	_check_equal(untouched["unused"].size(), 2, "sans peinture, les deux cases restent inutilisees")
+	_check_equal(untouched["unused"].size(), 8, "sans peinture, les huit cases restent inutilisees")
 
 	# Peindre hors du guide est signale, jamais jete en silence.
-	var outside_painted: Array[Vector2i] = [Vector2i(1, 0)]
+	var outside_painted: Array[Vector2i] = [Vector2i(2, 0)]
 	var outside_resolved: Dictionary = Delivery.resolve(mask, outside_painted)
-	var expected_outside: Array[Vector2i] = [Vector2i(1, 0)]
+	var expected_outside: Array[Vector2i] = [Vector2i(2, 0)]
 	_check_equal(outside_resolved["outside"], expected_outside, "une case peinte hors du guide est signalee")
 
 	# L ordre des cases fournies ne change pas le resultat.
-	var both_orders: Array[Vector2i] = [Vector2i(2, 0), Vector2i(0, 0)]
+	var both_orders: Array[Vector2i] = [Vector2i(3, 0), Vector2i(0, 0)]
 	var reversed_resolved: Dictionary = Delivery.resolve(mask, both_orders)
-	var expected_both: Array[Vector2i] = [Vector2i(0, 0), Vector2i(2, 0)]
-	_check_equal(reversed_resolved["retained"][0], expected_both, "les variantes sont rendues en ordre de lecture")
+	var expected_both: Array[Vector2i] = [Vector2i(0, 0), Vector2i(3, 0)]
+	_check_equal(reversed_resolved["retained"][28], expected_both, "les variantes sont rendues en ordre de lecture")
 
 
 func _test_modes_catalogue() -> void:
 	print("modes : catalogue")
 	var ids: Array[StringName] = Modes.ids()
-	# ⚠ UN MODE EST UN PAYSAGE, RIEN D AUTRE. La technique et le style du fond sont des
-	# outils : les avoir ranges ici avait suffi a rendre l un a la place de l autre.
-	_check_equal(ids.size(), 2, "deux paysages au catalogue")
-	_check_equal(ids[0], Modes.MINIMAL, "le premier est minimal")
-	_check_equal(ids[1], Modes.AMPLE, "le second est ample")
-	# ⚠ LES MIROIRS DE SURFACE N Y GAGNERAIENT QU UNE TUILE (15 orbites deviennent 14) : on
-	# les a ecartes pour ca. Les robes, elles, n ont que le miroir -- et depuis que le pan
-	# est le couple de ses deux flancs, le miroir les ECHANGE : 36 roles, 24 orbites.
-	_check_equal(Symmetry.surface_work_count() + Symmetry.wall_work_count(), 39,
-			"avec les rotations : %d surfaces + %d robes = %d, contre %d" % [Symmetry.surface_work_count(), Symmetry.wall_work_count(), Symmetry.surface_work_count() + Symmetry.wall_work_count(), BLOB_TILE_COUNT + Walls.ALL_ROLES.size()])
-	_check(Modes.is_available(Modes.MINIMAL), "minimal a son guide, il se choisit")
-		# ⚠ FERME, ET C EST VOULU : son guide ne couvre plus les 36 roles. Ce qui n est pas
-	# garanti ne se choisit pas (regle 5).
-	_check(Modes.is_available(Modes.AMPLE), "ample a son guide refait, il se choisit")
-	_check_equal(Modes.label(Modes.MINIMAL), "Minimal", "libelle du mode minimal")
-	_check_equal(Modes.surface_tile_count(Modes.MINIMAL), BLOB_TILE_COUNT, "47 tuiles de surface")
-	_check_equal(Modes.wall_tile_count(Modes.MINIMAL), Walls.ALL_ROLES.size(), "12 tuiles de mur")
-	_check_equal(Modes.tile_count(Modes.MINIMAL), BLOB_TILE_COUNT + Walls.ALL_ROLES.size(), "59 tuiles en tout")
-	_check_equal(Modes.min_occurrences(Modes.MINIMAL), 1, "minimal ne promet qu une occurrence")
-	_check_equal(Modes.min_occurrences(Modes.AMPLE), 3, "ample en promet trois")
+	# ⚠ UN SEUL MODE : EPAIS. Decision utilisateur du 24/08/2026 -- minimal et ample sont
+	# RETIRES, pas fermes. Le vocabulaire du mode est CALCULE de l'interdit d'epaisseur.
+	_check_equal(ids.size(), 1, "un seul paysage au catalogue")
+	_check_equal(ids[0], Modes.EPAIS, "et c est epais")
+	_check_equal(Modes.MINIMAL, Modes.EPAIS, "l ancien nom pointe le meme mode")
+	_check(Modes.is_available(Modes.EPAIS), "epais a son guide, il se choisit")
+	_check_equal(Modes.label(Modes.EPAIS), "Epais", "libelle du mode epais")
+	_check_equal(Modes.surface_tile_count(Modes.EPAIS), Thickness.SURFACE_INDICES.size(),
+			"27 tuiles de surface, calculees")
+	_check_equal(Modes.wall_tile_count(Modes.EPAIS), Thickness.wall_roles().size(),
+			"25 tuiles de mur, calculees")
+	_check_equal(Modes.tile_count(Modes.EPAIS), 52, "52 tuiles en tout")
+	_check_equal(Modes.min_occurrences(Modes.EPAIS), 1, "epais ne promet qu une occurrence")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
 
@@ -435,7 +433,7 @@ func _check_one_guide(id: StringName) -> void:
 			lonely += 1
 	print("  %d tuiles n ont AUCUNE variante : autant de cases obligatoires" % lonely)
 
-	# Tout peindre livre les 47 index : c est la borne haute de ce que le guide permet.
+	# Tout peindre livre les 27 index epais : la borne haute de ce que le guide permet.
 	var every_cell: Array[Vector2i] = []
 	for y: int in range(HeightMask.height(heights)):
 		for x: int in range(HeightMask.width(heights)):
@@ -443,7 +441,7 @@ func _check_one_guide(id: StringName) -> void:
 				every_cell.append(Vector2i(x, y))
 	var resolved: Dictionary = Delivery.resolve_relief(heights, every_cell)
 	_check(resolved["is_exportable"], "guide complet entierement peint : exportable")
-	_check_equal(resolved["delivered"].size(), BLOB_TILE_COUNT, "les 47 index sont livres")
+	_check_equal(resolved["delivered"].size(), Thickness.SURFACE_INDICES.size(), "les 27 index sont livres")
 	_check(resolved["unused"].is_empty(), "aucune case inutilisee quand tout est peint")
 
 	# ⚠ LA PROMESSE DU MODE EST CHIFFREE, DONC ELLE SE PROUVE. `minimal` annonce 1 variante
@@ -482,7 +480,7 @@ func _check_one_guide_walls(id: StringName) -> void:
 	var guide_path: String = Modes.guide_path(id)
 	var heights: PackedStringArray = HeightMask.read(guide_path)
 	_check(HeightMask.top_level(heights) >= 2, "le guide a du relief : au moins deux etages")
-	var report: Dictionary = Walls.analyse(heights)
+	var report: Dictionary = Walls.analyse(heights, Thickness.wall_roles())
 	var present: Array[Vector2i] = report["present"]
 	_check_equal(present.size(), Modes.wall_tile_count(id), "les %d roles de mur sont couverts" % Modes.wall_tile_count(id))
 	_check(report["is_complete"], "aucun role de mur manquant")
@@ -543,12 +541,12 @@ func _check_off_plain(id: StringName, heights: PackedStringArray) -> void:
 		if int(lips[cell]) >= 1:
 			role_counts[roles[cell]] = int(role_counts.get(roles[cell], 0)) + 1
 	var absent_roles: Array[Vector2i] = []
-	for role: Vector2i in Walls.ALL_ROLES:
+	for role: Vector2i in Thickness.wall_roles():
 		if int(role_counts.get(role, 0)) < promised:
 			absent_roles.append(role)
 	_check_equal(absent_roles, [] as Array[Vector2i],
 			"%s : les %d roles de robe descendent %d fois d'une levre qui n'est pas la plaine"
-			% [Modes.label(id), Walls.ALL_ROLES.size(), promised])
+			% [Modes.label(id), Thickness.wall_roles().size(), promised])
 
 
 func _test_painting() -> void:
@@ -1106,8 +1104,8 @@ func _test_export() -> void:
 			first_keys.append(key)
 	for key: String in first_keys:
 		painting.paint(by_key[key], 0, 0, _key_colour(key))
-	_check_equal(first_keys.size(), BLOB_TILE_COUNT + Walls.ALL_ROLES.size(),
-			"le guide minimal porte exactement 59 tuiles obligatoires")
+	_check_equal(first_keys.size(), Modes.tile_count(Modes.EPAIS),
+			"le guide epais porte exactement 52 tuiles obligatoires")
 
 	var report: Dictionary = TilesetPNG.analyse(painting, heights)
 	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
@@ -1116,25 +1114,25 @@ func _test_export() -> void:
 
 	var sheet: Image = TilesetPNG.compose(painting, heights, report, false)
 	_check_equal(sheet.get_width(), TilesetPNG.SURFACE_COLUMNS * 16, "huit tuiles de large")
-	_check_equal(sheet.get_height(), TilesetPNG.surface_rows() * 16, "six rangees de haut")
+	_check_equal(sheet.get_height(), TilesetPNG.surface_rows() * 16, "quatre rangees de haut")
 	var astray: int = 0
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in Thickness.SURFACE_INDICES:
 		var slot: Vector2i = TilesetPNG.surface_slot(index)
 		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
 				_key_colour("S%d:0" % index)):
 			astray += 1
-	_check_equal(astray, 0, "les 47 index tombent chacun sur SA case de la planche")
+	_check_equal(astray, 0, "les 27 index tombent chacun sur SA case de la planche")
 
 	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
-	_check_equal(kit.get_width(), Walls.PAN_COUNT * 16, "la planche de robes fait trois pans")
+	_check_equal(kit.get_width(), Walls.PAN_COUNT * 16, "la planche de robes fait neuf pans")
 	_check_equal(kit.get_height(), Walls.BLOCK_ROWS * 16, "et quatre rangees")
 	var roles_astray: int = 0
-	for role: Vector2i in Walls.ALL_ROLES:
+	for role: Vector2i in Thickness.wall_roles():
 		var at: Vector2i = TilesetPNG.wall_slot(role)
 		if not kit.get_pixel(at.x * 16, at.y * 16).is_equal_approx(
 				_key_colour("W%d,%d:0" % [role.x, role.y])):
 			roles_astray += 1
-	_check_equal(roles_astray, 0, "les douze robes tombent chacune sur SA case")
+	_check_equal(roles_astray, 0, "les 25 robes tombent chacune sur SA case")
 
 	# Une tuile peinte a son rang 2 sans son rang 0 devient la variante 0 de la planche :
 	# sinon un moteur qui tire une variante au hasard tomberait sur du vide.
@@ -1201,6 +1199,8 @@ func _test_export() -> void:
 		"sheet fixed_size one_drawing_per_tile no_variants",
 		"underfoot foot_role redrawn_below under_landing_surface",
 		"backing next_body_row under_trimming_cell same_level_only",
+		"lip_backing first_fall_row under_lip_cell",
+		"thin_forbidden run_shorter_than_three all_storeys both_states",
 	]
 	var absent: PackedStringArray = PackedStringArray()
 	for clause: String in contract:
@@ -1509,20 +1509,20 @@ func _test_proof_scene() -> void:
 	# vrai par construction -- et reverifie quand meme, puisque c est le genre d evidence qui
 	# se revele fausse.
 	var centres: Dictionary = ProofScene.centres()
-	_check_equal(centres.size(), BLOB_TILE_COUNT, "un ilot par index, ni plus ni moins")
+	_check_equal(centres.size(), Thickness.SURFACE_INDICES.size(), "un ilot par index, ni plus ni moins")
 	var misplaced: Array[int] = []
 	for index: int in centres.keys():
 		var at: Vector2i = centres[index]
 		if Coverage.visible_index_at(relief, at.x, at.y) != index:
 			misplaced.append(index)
 	_check_equal(misplaced, [] as Array[int],
-			"les 47 ilots portent chacun SON index, a la case annoncee")
+			"les 27 ilots portent chacun SON index, a la case annoncee")
 
 	# Et les ilots ne se contaminent pas : la planche entiere ne montre que les 47.
 	var report: Dictionary = Coverage.analyse_relief(relief)
-	_check(report["is_complete"], "la planche couvre les 47 index")
-	var walls: Dictionary = Walls.analyse(relief)
-	_check(walls["is_complete"], "et les douze roles de falaise, grace a la butte a deux etages")
+	_check(report["is_complete"], "la planche couvre les 27 index")
+	var walls: Dictionary = Walls.analyse(relief, Thickness.wall_roles())
+	_check(walls["is_complete"], "et les 25 roles de falaise, par les cinq accidents epais")
 	_check_equal(walls["outside"].size(), 0, "aucune robe de la planche ne tombe hors du cadre")
 
 	# La planche doit pouvoir se remplir avec les tuiles du guide, sinon elle montrerait des
@@ -1619,6 +1619,121 @@ const SEAM_TOLERANCE: float = 0.04
 const WALL_SEAM_TOLERANCE: float = 0.015
 
 
+## LE RECENSEMENT DES JONCTIONS — tout ce que le modele pose cote a cote, `Seams` le sait.
+##
+## ⚠ ON COMPARE DANS LES DEUX SENS, ET C'EST LA LECON QUI MANQUAIT ICI. `tools/check_seams.gd`
+## verifiait depuis longtemps que `Seams` ne lie pas TROP ; personne ne verifiait qu il lie
+## ASSEZ. Mesure avant correctif : le modele posait 70 jonctions verticales distinctes et
+## `Seams` en connaissait 26, 39 muet/muet horizontales et il en connaissait 23 -- et
+## l illustration cassait aux 60 inconnues SANS EXCEPTION, jusqu a 22 % d ecart. Deux causes,
+## toutes deux des formules qui decrivaient ce qu on CROYAIT poser : les trois adossements
+## (chapiteau sous la levre, sous-pied, pose derriere) sortent des pas 1..drop, et le pan
+## d une colonne CHANGE en descendant des que la robe voisine s arrete.
+##
+## ⚠ ET ON LIT LES JONCTIONS D UN RELIEF ASSEMBLE, jamais de `row_for`. Deduire d une
+## formule, c est enumerer ce qu on croit poser. Meme methode que `row_chains` un cran plus
+## bas, et meme raison.
+func _test_seam_census() -> void:
+	var reliefs: Array[PackedStringArray] = []
+	reliefs.append(HeightMask.read(Modes.guide_path(Modes.EPAIS)))
+	for family: StringName in Families.ids():
+		reliefs.append(ProofScene.relief(family))
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260824
+	for _try: int in range(120):
+		var drawn: PackedStringArray = _random_thick_relief(rng)
+		if not drawn.is_empty():
+			reliefs.append(drawn)
+
+	var vertical: Dictionary = {}
+	var horizontal: Dictionary = {}
+	for heights: PackedStringArray in reliefs:
+		var assembled: Dictionary = Walls.assemble(heights)
+		var roles: Dictionary = assembled["roles"]
+		var underfoot: Dictionary = assembled["underfoot"]
+		# ⚠ UNE CASE PORTE JUSQU A DEUX FRAGMENTS : la face devant, l adossement derriere.
+		var frags: Dictionary = {}
+		for key: Vector3i in roles:
+			var bag: Array[Vector2i] = []
+			bag.append(roles[key] as Vector2i)
+			frags[key] = bag
+		for key: Vector3i in underfoot:
+			if not frags.has(key):
+				var fresh: Array[Vector2i] = []
+				frags[key] = fresh
+			(frags[key] as Array[Vector2i]).append(underfoot[key] as Vector2i)
+		for key: Vector3i in frags:
+			var here: Array[Vector2i] = frags[key]
+			var south: Vector3i = key + Vector3i(0, 1, 0)
+			if frags.has(south):
+				var below: Array[Vector2i] = frags[south]
+				for up: Vector2i in here:
+					for down: Vector2i in below:
+						vertical[Vector4i(up.x, up.y, down.x, down.y)] = true
+			var east: Vector3i = key + Vector3i(1, 0, 0)
+			if frags.has(east):
+				var beside: Array[Vector2i] = frags[east]
+				for left: Vector2i in here:
+					for right: Vector2i in beside:
+						horizontal[Vector4i(left.x, left.y, right.x, right.y)] = true
+
+	var unknown: Array[String] = []
+	for key: Vector4i in vertical:
+		var above: Vector3i = Vector3i(key.x, key.y, Seams.BOTTOM)
+		var under: Vector3i = Vector3i(key.z, key.w, Seams.TOP)
+		if not (Seams.GROUPS.get(above, []) as Array).has(under):
+			unknown.append("%s %s SUR %s %s" % [Walls.SIDE_NAMES[Walls.pan_west(key.x)],
+					Walls.ROW_NAMES[key.y], Walls.SIDE_NAMES[Walls.pan_west(key.z)],
+					Walls.ROW_NAMES[key.w]])
+	var mutes: int = 0
+	for key: Vector4i in horizontal:
+		if Walls.pan_east(key.x) != Walls.SIDE_MUTE:
+			continue
+		if Walls.pan_west(key.z) != Walls.SIDE_MUTE:
+			continue
+		mutes += 1
+		var left_edge: Vector3i = Vector3i(key.x, key.y, Seams.RIGHT)
+		var right_edge: Vector3i = Vector3i(key.z, key.w, Seams.LEFT)
+		if not (Seams.GROUPS.get(left_edge, []) as Array).has(right_edge):
+			unknown.append("%s CONTRE %s" % [Walls.ROW_NAMES[key.y], Walls.ROW_NAMES[key.w]])
+	print("  jonctions posees : %d verticales, %d muet/muet horizontales, %d inconnues"
+			% [vertical.size(), mutes, unknown.size()])
+	if not unknown.is_empty():
+		print("    %s" % ", ".join(unknown.slice(0, mini(6, unknown.size()))))
+	_check(unknown.is_empty(),
+			"toute jonction posee par le modele est connue de Seams (%d verticales, %d muettes)"
+			% [vertical.size(), mutes])
+
+	# ⚠ ET LA BATTUE DOIT AVOIR VRAIMENT CHERCHE. Un recensement qui ne rencontre rien
+	# passerait au vert en ne prouvant rien -- meme piege que la battue des robes. La graine
+	# est fixe, donc le compte est reproductible. ⚠ ET IL NE PRETEND PAS A L EXHAUSTIVITE :
+	# `tools/seam_census.gd`, qui tire plus large et plus longtemps, en rencontre 70 et 39.
+	# La suite garde le garde-fou, l outil garde la battue.
+	_check(vertical.size() >= 55 and mutes >= 37,
+			"le recensement a vraiment cherche (%d verticales, %d muettes)"
+			% [vertical.size(), mutes])
+
+	# ⚠ LA FERMETURE EST PRUDENTE, ELLE N EST PAS DEGENEREE. Sur-joindre ne peut jamais
+	# rendre un tileset faux, seulement plus contraint -- mais tout joindre le rendrait
+	# impeignable, et un test qui ne verifie que « assez lie » passerait sur UNE classe.
+	# Le monde autorise exactement 29 classes sur les 25 roles vivants ; on en garde 28.
+	var seat: Dictionary = {}
+	for role: Vector2i in Families.wall_roles():
+		for side: int in range(4):
+			seat[Vector3i(role.x, role.y, side)] = true
+	var roots: Dictionary = {}
+	for edge: Vector3i in seat:
+		var best: Vector3i = edge
+		for other: Vector3i in (Seams.GROUPS[edge] as Array):
+			if not seat.has(other):
+				continue
+			if other.x < best.x or (other.x == best.x and (other.y < best.y
+					or (other.y == best.y and other.z < best.z))):
+				best = other
+		roots[best] = true
+	_check_equal(roots.size(), 28, "la fermeture laisse 28 classes de bords independantes")
+
+
 func _test_seams() -> void:
 	print("RACCORDS : tous les bords partages, verifies un par un")
 	# ⚠ CE TEST EXISTE PARCE QUE CHERCHER LES COUTURES A L OEIL NE DIT JAMAIS SI ON LES A
@@ -1641,49 +1756,103 @@ func _test_seams() -> void:
 ## chute decrivent la meme paroi, a la meme lumiere : ce qui traverse leur bord commun --
 ## rainure, teinte, grain -- doit le traverser sans se decaler. Une rainure qui saute a
 ## chaque cran, c est une falaise rayee de traits que la roche n a pas.
+##
+## ⚠ ON VERIFIE LES CLASSES DE `Seams`, PLUS DES COUPLES REDEVINES. Ce test derivait ses
+## enchainements de `row_for` sur trois chutes, a pan constant -- exactement la formule qui
+## laissait 60 jonctions hors de toute classe. UN TEST QUI REFAIT LE CALCUL DU CODE QU IL
+## VERIFIE NE VERIFIE RIEN : il recopie la meme erreur, et il l a fait tout du long. On lit
+## donc `Seams.GROUPS`, c est-a-dire ce que la propagation ECRIT vraiment sous le crayon.
+## Si l illustration contredit une classe, l artiste qui peint par-dessus voit son pixel
+## bouger tout seul -- c est ca, l aller-retour.
+##
+## ⚠ ET LA COMPARAISON EST PAR CLASSE, PAS PAR COUPLE. Une classe est transitive : dans une
+## chute de six, le chapiteau et le corps 1 ne se touchent jamais directement, et pourtant
+## leurs bords portent le meme profil par la chaine qui les relie. Couple a couple, une
+## derive qui s accumule le long de la chaine passerait inapercue.
+##
+## ⚠ ET LES DEUX AXES SONT ICI. L egalite laterale des flancs muets vivait dans
+## `_check_wall_side_seams`, avec sa propre idee de ce qui doit etre egal ; deux endroits
+## pour une seule regle finissent toujours par se contredire. Il ne lui reste que les trous.
 func _check_wall_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
+	var live: Array[Vector2i] = Families.wall_roles()
 	var tiles: Dictionary = {}
-	for role: Vector2i in Walls.ALL_ROLES:
+	var seat: Dictionary = {}
+	for role: Vector2i in live:
 		tiles[role] = GuideImage.make_wall(role, SEAM_TILE, ink, marks)
+		for side: int in range(4):
+			seat[Vector3i(role.x, role.y, side)] = true
 
-	# Les enchainements de rangees qu une chute produit reellement.
-	var sequences: Array = []
-	for drop: int in [Walls.STOREY_TILES, Walls.STOREY_TILES * 2, Walls.STOREY_TILES * 3]:
-		var rows: Array[int] = []
-		# ⚠ `row_for` COMPTE LES PAS A PARTIR DE 1 : le premier pas sous la levre est 1, et le
-		# dernier vaut `drop`. Iterer depuis 0 fabriquait une sequence qui n existe pas, et le
-		# test accusait un enchainement « corps 0 -> chapiteau » que la chute ne produit jamais.
-		for step: int in range(1, drop + 1):
-			rows.append(Walls.row_for(step, drop, true))
-		sequences.append(rows)
-
-	var pairs: Dictionary = {}
-	for rows: Array in sequences:
-		for k: int in range(rows.size() - 1):
-			for pan: int in range(Walls.PAN_COUNT):
-				pairs[Vector3i(pan, int(rows[k]), int(rows[k + 1]))] = true
+	var classes: Dictionary = {}
+	for edge: Vector3i in seat:
+		var best: Vector3i = edge
+		for other: Vector3i in (Seams.GROUPS[edge] as Array):
+			if not seat.has(other):
+				continue
+			if other.x < best.x or (other.x == best.x and (other.y < best.y
+					or (other.y == best.y and other.z < best.z))):
+				best = other
+		if not classes.has(best):
+			var fresh: Array[Vector3i] = []
+			classes[best] = fresh
+		(classes[best] as Array[Vector3i]).append(edge)
 
 	var worst: float = 0.0
 	var worst_pair: String = ""
 	var guilty: Array[String] = []
-	for pair: Vector3i in pairs.keys():
-		var upper: Image = tiles[Vector2i(pair.x, pair.y)]
-		var lower: Image = tiles[Vector2i(pair.x, pair.z)]
-		var jump: float = _seam_jump(upper, lower, false)
-		var name: String = "%s|%s pan %d" % [Walls.ROW_NAMES[pair.y], Walls.ROW_NAMES[pair.z],
-				pair.x]
-		if jump > worst:
-			worst = jump
-			worst_pair = name
-		if jump > WALL_SEAM_TOLERANCE:
-			guilty.append("%s (%.1f%%)" % [name, jump * 100.0])
-	print("  %s : %d enchainements de rangees, saut le pire %.1f%% (%s)" % [label,
-			pairs.size(), worst * 100.0, worst_pair])
+	var compared: int = 0
+	for rep: Vector3i in classes:
+		var members: Array[Vector3i] = classes[rep]
+		if members.size() < 2:
+			continue
+		var head: Vector3i = members[0]
+		var reference: PackedColorArray = _edge_profile(
+				tiles[Vector2i(head.x, head.y)] as Image, head.z)
+		for k: int in range(1, members.size()):
+			var edge: Vector3i = members[k]
+			var mine: PackedColorArray = _edge_profile(
+					tiles[Vector2i(edge.x, edge.y)] as Image, edge.z)
+			compared += 1
+			var gap: float = 0.0
+			for i: int in range(mine.size()):
+				var one: Color = reference[i]
+				var two: Color = mine[i]
+				gap = maxf(gap, maxf(maxf(absf(one.r - two.r), absf(one.g - two.g)),
+						maxf(absf(one.b - two.b), absf(one.a - two.a))))
+			if gap > worst:
+				worst = gap
+				worst_pair = "%s / %s" % [_edge_name(head), _edge_name(edge)]
+			if gap > WALL_SEAM_TOLERANCE:
+				guilty.append("%s | %s (%.1f%%)" % [_edge_name(head), _edge_name(edge),
+						gap * 100.0])
+	print("  %s : %d classes de bords, %d comparaisons, le pire %.1f%% (%s)"
+			% [label, classes.size(), compared, worst * 100.0, worst_pair])
 	if guilty.size() > 0:
-		print("    %s" % ", ".join(guilty.slice(0, mini(8, guilty.size()))))
+		print("    %s" % ", ".join(guilty.slice(0, mini(6, guilty.size()))))
 	_check(worst <= WALL_SEAM_TOLERANCE,
-			"%s : une falaise est UNE face -- profils identiques entre deux rangees (le pire : %.1f%%, %d fautifs)"
+			"%s : les bords d une meme classe portent le MEME profil (le pire : %.1f%%, %d fautifs)"
 			% [label, worst * 100.0, guilty.size()])
+
+
+## Les pixels d un bord, lus dans le sens de la pose : jamais retournes.
+func _edge_profile(tile: Image, side: int) -> PackedColorArray:
+	var out: PackedColorArray = PackedColorArray()
+	var last: int = SEAM_TILE - 1
+	for i: int in range(SEAM_TILE):
+		match side:
+			Seams.TOP:
+				out.append(tile.get_pixel(i, 0))
+			Seams.BOTTOM:
+				out.append(tile.get_pixel(i, last))
+			Seams.LEFT:
+				out.append(tile.get_pixel(0, i))
+			_:
+				out.append(tile.get_pixel(last, i))
+	return out
+
+
+func _edge_name(edge: Vector3i) -> String:
+	var sides: Array[String] = ["haut", "bas", "gauche", "droite"]
+	return "%s %s %s" % [Walls.pan_name(edge.x), Walls.ROW_NAMES[edge.y], sides[edge.z]]
 
 
 ## LES ROBES, FLANC CONTRE FLANC.
@@ -1692,10 +1861,14 @@ func _check_wall_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 ## est, l'autre le met a son bord ouest. Mais elles ne doivent pas toujours dire la MEME
 ## chose, et c'est tout l'interet du vocabulaire a neuf pans.
 ##
-## ⚠ DEUX FLANCS `MUET` FACE A FACE SIGNIFIENT LA MEME LEVRE -- donc la meme face, donc le
-## meme pas de chute, donc la MEME RANGEE. C'est le seul cas ou l'on exige des profils
-## identiques, et il faut l'avoir compris pour ne pas exiger l'impossible : un chapiteau a
-## cote d'un pied n'a aucune raison d'avoir la meme teinte.
+## ⚠ « DEUX FLANCS MUETS SIGNIFIENT LA MEME RANGEE » ETAIT FAUX, et ce test le supposait.
+## Deux colonnes d'une meme levre peuvent avoir des chutes differentes -- l'une atterrit sur
+## une banquette pendant que l'autre continue -- et un `pied` se retrouve alors contre un
+## `corps 1`. Le recensement en a compte 16 couples, que ce test sautait d'une ligne.
+##
+## ⚠ ET L EGALITE DES PROFILS N EST PLUS ICI. Elle vit dans `_check_wall_seams`, sur les
+## classes de `Seams` elles-memes : une seule regle, un seul endroit. Il ne reste donc a ce
+## test que ce que lui seul sait faire -- chercher les TROUS.
 ##
 ## ⚠ ET LA OU UN FLANC DIT `DEVANT`, UNE ARETE EST ATTENDUE. Exiger l'identite y
 ## accuserait le dessin de faire exactement ce qu'on lui demande. On n'exige donc que
@@ -1727,9 +1900,6 @@ func _check_wall_side_seams(ink: GuideImage.Ink, marks: bool, label: String) -> 
 			var same_face: bool = mine == Walls.SIDE_MUTE and theirs == Walls.SIDE_MUTE
 			for left_row: int in range(Walls.BLOCK_ROWS):
 				for right_row: int in range(Walls.BLOCK_ROWS):
-					# Meme levre, donc meme pas de chute, donc meme rangee.
-					if same_face and left_row != right_row:
-						continue
 					var a: Image = tiles[Vector2i(left_pan, left_row)]
 					var b: Image = tiles[Vector2i(right_pan, right_row)]
 					var gap: int = 0
@@ -1742,26 +1912,15 @@ func _check_wall_side_seams(ink: GuideImage.Ink, marks: bool, label: String) -> 
 							Walls.ROW_NAMES[right_row]]
 					if gap > 0:
 						holes.append(name)
-					if not same_face:
+					if same_face:
+						flush += 1
+					else:
 						stepped += 1
-						continue
-					flush += 1
-					var jump: float = _seam_jump(a, b, true)
-					if jump > worst:
-						worst = jump
-						worst_pair = name
-					if jump > WALL_SEAM_TOLERANCE:
-						guilty.append("%s (%.1f%%)" % [name, jump * 100.0])
 
 	print("  %s : %d raccords de paroi continue, %d au droit d une arete" % [label, flush,
 			stepped])
 	_check_equal(holes.size(), 0,
 			"%s : aucun trou entre deux robes voisines%s" % [label, _first_few(holes)])
-	_check(worst <= WALL_SEAM_TOLERANCE,
-			"%s : deux flancs MUETS sont la MEME paroi -- profils identiques (le pire : %.1f%%, %d fautifs)"
-			% [label, worst * 100.0, guilty.size()])
-	if guilty.size() > 0:
-		print("    %s" % ", ".join(guilty.slice(0, mini(6, guilty.size()))))
 
 
 func _check_surface_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
@@ -1893,8 +2052,8 @@ func _first_few(items: Array[String]) -> String:
 func _test_families() -> void:
 	print("familles : les deux vocabulaires de surface, interchangeables")
 	_check_equal(Families.ids().size(), 2, "deux familles au catalogue")
-	_check_equal(Families.surface_tile_count(Families.BY_CELL), BLOB_TILE_COUNT,
-			"par case : 47 tuiles")
+	_check_equal(Families.surface_tile_count(Families.BY_CELL), Thickness.SURFACE_INDICES.size(),
+			"par case : 27 tuiles")
 	_check_equal(Families.surface_tile_count(Families.BY_CORNER), CornerIndex.TILE_COUNT,
 			"a cheval : 15 tuiles")
 	_check_equal(Families.key_letter(Families.BY_CELL), "S", "la surface par case s ecrit S")
@@ -1992,7 +2151,7 @@ func _test_dual_end_to_end() -> void:
 	_check_equal(misplaced, [] as Array[int],
 			"les quinze ilots portent chacun SON croisement, a la case annoncee")
 	_check(Families.is_covered(family, relief), "la planche couvre les quinze")
-	_check(Walls.analyse(relief)["is_complete"], "et les 36 roles de falaise")
+	_check(Walls.analyse(relief, Thickness.wall_roles())["is_complete"], "et les 25 roles de falaise")
 	_check_equal(Walls.analyse(relief)["outside"].size(), 0, "aucune robe hors du cadre")
 
 	# L export complet, dans la famille duale.
@@ -2004,9 +2163,9 @@ func _test_dual_end_to_end() -> void:
 		if String(by_cell[at]).ends_with(":0"):
 			firsts.append(String(by_cell[at]))
 			painting.paint(at, 0, 0, _key_colour(String(by_cell[at])))
-	_check_equal(firsts.size(), CornerIndex.TILE_COUNT + Walls.ALL_ROLES.size(),
-			"a cheval, le guide porte 15 + 36 = %d tuiles obligatoires"
-			% (CornerIndex.TILE_COUNT + Walls.ALL_ROLES.size()))
+	_check_equal(firsts.size(), CornerIndex.TILE_COUNT + Thickness.wall_roles().size(),
+			"a cheval, le guide porte 15 + 25 = %d tuiles obligatoires"
+			% (CornerIndex.TILE_COUNT + Thickness.wall_roles().size()))
 
 	var report: Dictionary = TilesetPNG.analyse(painting, heights, family)
 	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
@@ -2173,14 +2332,44 @@ func _test_underfoot() -> void:
 	var under: Dictionary = Walls.visible_underfoot(heights)
 	_check(under.size() > 0, "le guide pose des sous-pieds (%d)" % under.size())
 
-	# Une case d'atterrissage ISOLEE : ses quatre coins sont decoupes, donc le defaut s'y voit.
+	# ⚠ LE CHAPITEAU SOUS SA LEVRE (v6) : chaque levre porte, sous sa surface, la premiere
+	# rangee de SA propre chute -- le vrai flanc de la vraie face de chaque occurrence.
+	# C'est la pose qui rend honnetes les marges transparentes du peintre au bord sud.
+	var lips_total: int = 0
+	var lips_backed: int = 0
+	var lips_exact: int = 0
+	var roles_map: Dictionary = Walls.visible_roles(heights)
+	for y: int in range(HeightMask.height(heights)):
+		for x: int in range(HeightMask.width(heights)):
+			var level: int = HeightMask.level_at(heights, x, y)
+			if level < 0 or HeightMask.level_at(heights, x, y + 1) >= level:
+				continue
+			lips_total += 1
+			var lip: Vector2i = Vector2i(x, y)
+			if not under.has(lip):
+				continue
+			lips_backed += 1
+			var south: Vector2i = lip + Vector2i(0, 1)
+			if roles_map.has(south) and under[lip] == roles_map[south]:
+				lips_exact += 1
+	_check(lips_total > 0, "le guide a des levres (%d)" % lips_total)
+	_check_equal(lips_backed, lips_total,
+			"CHAQUE levre porte sa face reposee sous elle (%d/%d)" % [lips_backed, lips_total])
+	_check(lips_exact > lips_total / 2,
+			"et la rangee reposee est celle que la chute montre juste dessous (%d/%d)"
+			% [lips_exact, lips_total])
+
+	# Une case d'atterrissage au NORD DECOUPE : son voisin nord est la face, ses coins
+	# nord laissent voir derriere -- c'est la que le defaut se voyait. (La case isolee de
+	# l'ancien guide est morte avec le mode epais : l'ilot d'une case n'existe plus.)
 	var target: Vector2i = Vector2i(-1, -1)
 	for cell: Vector2i in under.keys():
 		if HeightMask.level_at(heights, cell.x, cell.y) >= 1 \
-				and Coverage.visible_index_at(heights, cell.x, cell.y) == 0:
+				and (Coverage.visible_index_at(heights, cell.x, cell.y)
+				& (BlobIndex.N | BlobIndex.W)) == 0:
 			target = cell
 			break
-	_check(target.x >= 0, "et le guide en offre une isolee, ou le defaut se voyait")
+	_check(target.x >= 0, "et le guide en offre une au nord-ouest decoupe, ou le defaut se voyait")
 	if target.x < 0:
 		return
 
@@ -2200,10 +2389,12 @@ func _test_underfoot() -> void:
 	var behind: Vector2i = Vector2i(-1, -1)
 	for cell: Vector2i in under.keys():
 		if (under[cell] as Vector2i).y != Walls.ROW_FOOT \
-				and Coverage.visible_index_at(heights, cell.x, cell.y) == 0:
+				and HeightMask.level_at(heights, cell.x, cell.y) >= 1 \
+				and (Coverage.visible_index_at(heights, cell.x, cell.y)
+				& (BlobIndex.N | BlobIndex.W)) == 0:
 			behind = cell
 			break
-	_check(behind.x >= 0, "le guide offre un pilier isole qui ecrete une robe")
+	_check(behind.x >= 0, "le guide offre une case au nord-ouest decoupe qui ecrete une robe")
 	if behind.x >= 0:
 		var notch: Color = image.get_pixel(behind.x * side + 1, behind.y * side + 1)
 		var grass: Color = image.get_pixel(behind.x * side + side / 2,
@@ -2216,14 +2407,15 @@ func _test_underfoot() -> void:
 	# est l'un des 36 roles -- s'il en reclamait un autre, il faudrait le peindre, et
 	# aucune case du guide ne pourrait le porter. Et chaque sorte dit ce qu'elle prouve :
 	# le PIED ne se repose que sous une case d'ATTERRISSAGE (du sol plus bas que la
-	# levre), le CORPS que sous une case DE L'ETAGE DE LA LEVRE, celle qui ecrete. Jamais
-	# un chapiteau derriere quoi que ce soit.
+	# levre), le CORPS que sous une case DE L'ETAGE DE LA LEVRE, celle qui ecrete, et la
+	# PREMIERE RANGEE (v6) que sous une LEVRE -- la case d'ou sa propre chute part.
 	var known: Dictionary = {}
 	for role: Vector2i in Walls.ALL_ROLES:
 		known[role] = true
 	var strays: int = 0
 	var feet: int = 0
 	var bodies: int = 0
+	var crowns: int = 0
 	var wrong_kind: int = 0
 	var assembled: Dictionary = Walls.assemble(heights)["underfoot"]
 	for key: Vector3i in assembled.keys():
@@ -2231,7 +2423,13 @@ func _test_underfoot() -> void:
 		if not known.has(role):
 			strays += 1
 		var cell_level: int = HeightMask.level_at(heights, key.x, key.y)
-		if role.y == Walls.ROW_FOOT:
+		var south_level: int = HeightMask.level_at(heights, key.x, key.y + 1)
+		var is_lip: bool = cell_level >= key.z and south_level < key.z
+		if is_lip:
+			# La pose de levre : la premiere rangee de SA chute -- chapiteau d'ordinaire,
+			# pied pour une chute d'une case qui atterrit.
+			crowns += 1
+		elif role.y == Walls.ROW_FOOT:
 			feet += 1
 			if cell_level >= key.z:
 				wrong_kind += 1
@@ -2241,6 +2439,7 @@ func _test_underfoot() -> void:
 				wrong_kind += 1
 		else:
 			wrong_kind += 1
+	_check(crowns > 0, "et chaque levre porte sa premiere rangee sous elle (%d)" % crowns)
 	_check_equal(strays, 0, "AUCUNE TUILE DE PLUS : toute pose derriere est l un des %d roles"
 			% Walls.ALL_ROLES.size())
 	_check(feet > 0, "le guide repose des pieds sous ses atterrissages (%d)" % feet)
@@ -2331,8 +2530,12 @@ func _test_backing() -> void:
 .....")
 	_check_equal(Walls.fall_at(taller, 1, Vector2i(2, 0)), Vector2i(1, 0),
 			"la robe de la masse basse est bien ecretee par le bloc haut")
-	_check(not (Walls.assemble(taller)["underfoot"] as Dictionary).has(Vector3i(2, 2, 1)),
-			"mais RIEN ne se repose sous une case plus haute que la levre")
+	# ⚠ Depuis la pose de levre (v6), la case haute porte quand meme SA PROPRE premiere
+	# rangee -- elle est une levre elle aussi -- mais jamais le corps de la robe ecretee.
+	var taller_entry: Vector2i = (Walls.assemble(taller)["underfoot"] as Dictionary).get(
+			Vector3i(2, 2, 1), Vector2i(0, Walls.ROW_CROWN))
+	_check_equal(taller_entry.y, Walls.ROW_CROWN,
+			"mais RIEN de la robe ecretee ne se repose sous une case plus haute que la levre")
 
 	# ⚠ ET UNE ROBE QUI TOMBE DANS LE VIDE NE POSE RIEN NON PLUS : il n'y a pas de case
 	# derriere laquelle continuer.
@@ -2342,8 +2545,13 @@ func _test_backing() -> void:
 ~~~~~")
 	_check_equal(Walls.fall_at(rim, 1, Vector2i(2, 0)).y, 0,
 			"la robe du bord tombe sans atterrir")
-	_check((Walls.assemble(rim)["underfoot"] as Dictionary).is_empty(),
-			"et aucune pose derriere n en sort")
+	var rim_under: Dictionary = Walls.assemble(rim)["underfoot"]
+	var rim_backing: int = 0
+	for key: Vector3i in rim_under.keys():
+		if (rim_under[key] as Vector2i).y != Walls.ROW_CROWN:
+			rim_backing += 1
+	_check_equal(rim_backing, 0,
+			"et aucune pose derriere n en sort -- seule sa levre porte sa premiere rangee")
 
 	# Le plugin fait mot pour mot pareil, sur la geometrie meme du defaut.
 	_check_equal(_plugin_drift(pillar, {}, {}, {}), 0,
@@ -2392,8 +2600,10 @@ func _test_guide_image() -> void:
 	# styles. Aucun ne doit ressembler a un autre, sans quoi l un serait rendu a la place
 	# de l autre sans que personne ne le voie.
 	var drawings: Array[PackedByteArray] = []
-	for id: StringName in Modes.ids():
-		var relief: PackedStringArray = HeightMask.read(Modes.guide_path(id))
+	# Un seul mode desormais : le second paysage est le decor de l apercu, qui a autant
+	# le droit d etre distinct dans chaque encre et chaque etat de marques.
+	for relief_path: String in [Modes.guide_path(Modes.EPAIS), "res://guides/preview.txt"]:
+		var relief: PackedStringArray = HeightMask.read(relief_path)
 		for ink: GuideImage.Ink in [GuideImage.Ink.PAINTED, GuideImage.Ink.WIREFRAME]:
 			for marks: bool in [true, false]:
 				drawings.append(GuideImage.render(relief, 8, ink,
@@ -2498,7 +2708,7 @@ func _report_candidate_guide() -> void:
 	var report: Dictionary = Coverage.analyse(mask)
 	var present: PackedInt32Array = report["present"]
 	print("  grille %dx%d, %d cases pleines" % [MaskIO.width(mask), MaskIO.height(mask), report["filled_count"]])
-	print("  couverture %d/%d" % [present.size(), BLOB_TILE_COUNT])
+	print("  couverture %d/%d" % [present.size(), Thickness.SURFACE_INDICES.size()])
 	var missing: PackedInt32Array = report["missing"]
 	if missing.is_empty():
 		print("  aucun index manquant")
@@ -2626,6 +2836,16 @@ func _test_plugin_rules() -> void:
 	_check_equal(on_guides, 0,
 			"sur les guides livres et la planche de preuve : aucune divergence")
 
+	# ⚠ LES ANCIENS GUIDES RESTENT DES TEMOINS DE BATTUE. Le monde d un acheteur peut
+	# encore porter des reliefs fins -- le dictionnaire `heights` se remplit aussi a
+	# l inspecteur -- donc la regle de pose du plugin doit s accorder au noyau sur TOUT
+	# relief, pas seulement les epais. Minimal et ample portent les 36 roles, dont les
+	# treize qu epais ne produit plus.
+	on_guides += _plugin_drift(HeightMask.read("res://guides/minimal.txt"),
+			seen_surface, seen_roles, seen_corners)
+	on_guides += _plugin_drift(HeightMask.read("res://guides/ample.txt"),
+			seen_surface, seen_roles, seen_corners)
+
 	# ET AU HASARD, sur du relief a etages -- c est la que les robes se compliquent.
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 20260822
@@ -2727,9 +2947,9 @@ func _test_trial_tileset() -> void:
 
 	# Une occurrence par tuile, pas une par case : c'est tout ce que l'export retient.
 	_check_equal(painting.painted_cells().size(),
-			BLOB_TILE_COUNT + Walls.ALL_ROLES.size(),
+			Modes.tile_count(Modes.EPAIS),
 			"l essai dessine exactement %d tuiles, une fois chacune"
-			% (BLOB_TILE_COUNT + Walls.ALL_ROLES.size()))
+			% Modes.tile_count(Modes.EPAIS))
 	var report: Dictionary = TilesetPNG.analyse(painting, heights)
 	_check(report["is_exportable"],
 			"SANS QU UN PIXEL SOIT PEINT A LA MAIN, la feuille est complete")
@@ -2913,9 +3133,9 @@ func _test_plugin_manifest() -> void:
 	_check_equal(report["error"], OK, "le manifeste se lit sans reproche")
 	_check_equal(int(report["tile_size"]), 16, "la taille de tuile est relue")
 	_check_equal(report["family"], PluginManifest.BY_CELL, "la famille est relue")
-	_check_equal(report["surface_slots"].size(), BLOB_TILE_COUNT, "les 47 cases de surface")
-	_check_equal(report["wall_slots"].size(), Walls.ALL_ROLES.size(),
-			"les %d cases de robe" % Walls.ALL_ROLES.size())
+	_check_equal(report["surface_slots"].size(), Thickness.SURFACE_INDICES.size(), "les 27 cases de surface")
+	_check_equal(report["wall_slots"].size(), Thickness.wall_roles().size(),
+			"les %d cases de robe" % Thickness.wall_roles().size())
 	_check(PluginManifest.is_complete(report), "et le manifeste se sait complet")
 
 	# ⚠ LA TABLE DOIT DIRE LA MEME CHOSE QUE L EXPORTATEUR. Le plugin lit ce qui est ecrit ;
@@ -2939,10 +3159,10 @@ func _test_plugin_manifest() -> void:
 	if tile_set != null:
 		var surface: TileSetAtlasSource = tile_set.get_source(int(built["surface_source"])) as TileSetAtlasSource
 		var walls: TileSetAtlasSource = tile_set.get_source(int(built["walls_source"])) as TileSetAtlasSource
-		_check_equal(surface.get_tiles_count(), BLOB_TILE_COUNT,
-				"47 tuiles creees, pas la grille entiere : la 48e case reste vide")
-		_check_equal(walls.get_tiles_count(), Walls.ALL_ROLES.size(),
-				"et les %d robes" % Walls.ALL_ROLES.size())
+		_check_equal(surface.get_tiles_count(), Thickness.SURFACE_INDICES.size(),
+				"27 tuiles creees, pas la grille entiere : les cases restantes sont vides")
+		_check_equal(walls.get_tiles_count(), Thickness.wall_roles().size(),
+				"et les %d robes" % Thickness.wall_roles().size())
 
 	# LES REFUS (charte, regle 5).
 	_check(int(PluginManifest.parse("n importe quoi\n")["error"]) != OK,
@@ -3340,3 +3560,137 @@ func _check_lip_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	# mentait. L epaule se ferme desormais dans les deux, chacune dans sa palette.
 	_check_equal(pierced, PackedStringArray([]) as Array,
 			"%s : aucun bord sud ne laisse voir le fond -- l epaule bouche l angle" % label)
+
+
+func _test_thickness() -> void:
+	print("thickness : le vocabulaire du mode epais")
+	# Le vocabulaire est CALCULE (theoreme des 256 fenetres) ; le test epingle le
+	# resultat du recensement (tools/thick_census.gd) pour attraper toute derive.
+	_check_equal(Thickness.SURFACE_INDICES.size(), 27, "27 index de surface survivent")
+	for index: int in Thickness.SURFACE_INDICES:
+		_check(BlobIndex.is_canonical(index), "l index epais %d est canonique" % index)
+	for index: int in [255, 31, 119, 124, 127, 253]:
+		_check(index in Thickness.SURFACE_INDICES, "l index %d survit" % index)
+	for index: int in [0, 1, 4, 16, 17, 21, 68, 85, 87, 95]:
+		_check(not (index in Thickness.SURFACE_INDICES), "l index %d meurt" % index)
+	_check_equal(Thickness.wall_roles().size(), 25, "25 roles de robe survivent")
+	var front_front: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_FRONT)
+	var void_void: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID)
+	_check(not Thickness.role_survives(Vector2i(front_front, 1)), "(devant,devant) meurt")
+	_check(not Thickness.role_survives(Vector2i(void_void, Walls.ROW_CROWN)),
+			"le chapiteau de (vide,vide) meurt")
+	_check(Thickness.role_survives(Vector2i(void_void, 1)), "le corps de (vide,vide) survit")
+	# LE REDAN, revele par min trois : un couple vide-devant n'existe qu'au corps 1.
+	var void_front: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_FRONT)
+	var front_void: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_VOID)
+	_check(Thickness.role_survives(Vector2i(void_front, 2)), "(vide,devant) corps 1 survit")
+	_check(Thickness.role_survives(Vector2i(front_void, 2)), "(devant,vide) corps 1 survit")
+	for row: int in [Walls.ROW_CROWN, 1, 3]:
+		_check(not Thickness.role_survives(Vector2i(void_front, row)),
+				"(vide,devant) n'existe qu'au corps 1")
+	# Les cases fines se detectent : une bande d une case, un trou d une case.
+	var thin_band: PackedStringArray = PackedStringArray(["000000", "011110", "000000"])
+	_check(not Thickness.thin_cells(thin_band).is_empty(), "une bande d une case est fine")
+	var thin_hole: PackedStringArray = PackedStringArray(
+			["11111", "11011", "11111"])
+	_check(not Thickness.thin_cells(thin_hole).is_empty(), "un trou d une case est fin")
+	var pair_block: PackedStringArray = PackedStringArray(["0000", "0110", "0110", "0000"])
+	_check(not Thickness.thin_cells(pair_block).is_empty(),
+			"un bloc 2x2 est fin -- min trois, bord + centre + bord")
+	var block: PackedStringArray = PackedStringArray(
+			["00000", "01110", "01110", "01110", "00000"])
+	_check(Thickness.thin_cells(block).is_empty(), "un bloc 3x3 est epais")
+	# LA BATTUE : sur des reliefs epais tires au sort, tout ce qui devient visible tombe
+	# dans le vocabulaire calcule -- surfaces ET robes. Une battue qui ne rencontre rien
+	# ne prouve rien : on assere aussi qu elle a vu du pays.
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 0xE5A15
+	var seen_indices: Dictionary = {}
+	var seen_roles: Dictionary = {}
+	var sampled: int = 0
+	for _trial: int in range(400):
+		var relief: PackedStringArray = _random_thick_relief(rng)
+		if relief.is_empty():
+			continue
+		sampled += 1
+		var indices: Dictionary = Families.surface_map(Families.BY_CELL, relief)
+		for at: Vector2i in indices.keys():
+			seen_indices[int(indices[at])] = true
+			if not (int(indices[at]) in Thickness.SURFACE_INDICES):
+				_check(false, "index %d visible sur un relief epais mais hors vocabulaire"
+						% int(indices[at]))
+		var roles: Dictionary = Walls.visible(relief)["roles"]
+		for cell: Vector2i in roles.keys():
+			seen_roles[roles[cell]] = true
+			if not Thickness.role_survives(roles[cell]):
+				_check(false, "role (%d,%d) visible sur un relief epais mais hors vocabulaire"
+						% [(roles[cell] as Vector2i).x, (roles[cell] as Vector2i).y])
+	_check(sampled >= 200, "la battue a echantillonne assez de reliefs (%d)" % sampled)
+	_check(seen_indices.size() >= 15, "la battue a rencontre des surfaces variees (%d)"
+			% seen_indices.size())
+	_check(seen_roles.size() >= 10, "la battue a rencontre des roles varies (%d)"
+			% seen_roles.size())
+
+
+## Un relief epais tire au sort : des blocs d au moins 2x2, rejet de tout relief fin.
+func _random_thick_relief(rng: RandomNumberGenerator) -> PackedStringArray:
+	for _try: int in range(40):
+		var levels: Array = []
+		for y: int in range(12):
+			var line: Array = []
+			line.resize(14)
+			line.fill(0)
+			levels.append(line)
+		for _block: int in range(rng.randi_range(2, 4)):
+			var w: int = rng.randi_range(3, 6)
+			var h: int = rng.randi_range(3, 6)
+			var px: int = rng.randi_range(0, 14 - w)
+			var py: int = rng.randi_range(0, 12 - h)
+			var lift: int = rng.randi_range(1, 2)
+			for y: int in range(py, py + h):
+				for x: int in range(px, px + w):
+					levels[y][x] = maxi(levels[y][x] as int, lift)
+		var heights: PackedStringArray = PackedStringArray()
+		for y: int in range(12):
+			var line: String = ""
+			for x: int in range(14):
+				line += str(levels[y][x] as int)
+			heights.append(line)
+		if Thickness.thin_cells(heights).is_empty():
+			return heights
+	return PackedStringArray()
+
+
+## ⚠ LE PLUGIN PORTE SA COPIE DE LA REGLE D'EPAISSEUR, DONC ON LES COMPARE -- meme
+## traitement que la regle de pose : deux copies qui se fient a leur memoire divergent.
+func _test_thickness_cross_check() -> void:
+	print("thickness : la copie du plugin dit exactement ce que dit le noyau")
+	_check_equal(PluginManifest.SURFACE_TILES, Thickness.SURFACE_INDICES.size(),
+			"le lecteur du plugin attend les 27 surfaces du noyau")
+	_check_equal(PluginManifest.WALL_TILES, Thickness.wall_roles().size(),
+			"et les 23 roles du noyau")
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 0x7413C
+	var drift: int = 0
+	var probed: int = 0
+	for _trial: int in range(40):
+		var relief: PackedStringArray = _random_relief(rng, 8, 8, 3)
+		var heights: Dictionary = {}
+		for y: int in range(HeightMask.height(relief)):
+			for x: int in range(HeightMask.width(relief)):
+				var level: int = HeightMask.level_at(relief, x, y)
+				if level >= 0:
+					heights[Vector2i(x, y)] = level
+		for y: int in range(-1, HeightMask.height(relief) + 1):
+			for x: int in range(-1, HeightMask.width(relief) + 1):
+				probed += 1
+				var core_thin: bool = false
+				var top: int = HeightMask.top_level(relief)
+				for storey: int in range(0, top + 1):
+					if Thickness.thin_at(relief, x, y, storey):
+						core_thin = true
+						break
+				if PluginRules.thin_after(heights, {}, Vector2i(x, y)) != core_thin:
+					drift += 1
+	_check_equal(drift, 0, "sur %d cases sondees, la finesse du plugin est celle du noyau"
+			% probed)

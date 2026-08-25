@@ -457,6 +457,17 @@ static func _corners(last: float, north: bool, east: bool, south: bool, west: bo
 	]
 
 
+## L'ourlet : 0 sur le premier et le dernier pixel FINAL d'un bord, puis 1 a l'interieur.
+## Ce qui le multiplie ne peut donc pas se voir au raccord, quelle que soit la tuile d'en
+## face -- c'est la seule facon d'honorer une classe de bords qui traverse les pans et les
+## rangees.
+static func _hem(v: float, last: float, hem: float, ramp: float) -> float:
+	var from_edge: float = minf(v, last - v)
+	if from_edge <= hem:
+		return 0.0
+	return smoothstep(0.0, 1.0, minf(1.0, (from_edge - hem) / ramp))
+
+
 static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> Image:
 	var side: int = tile_size * SUPERSAMPLE
 	var wire: bool = ink == Ink.WIREFRAME
@@ -465,7 +476,7 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 	# ⚠ TROIS ETATS PAR FLANC, ET CHACUN A SON TRACE.
 	#   VIDE   la roche s'arrete : un liseré au bord, et la case voisine dessine la plaine.
 	#   MUET   rien : ou la meme face continue, ou c'est le voisin qui portera l'angle.
-	#   DEVANT je suis le bloc qui avance : je porte mon angle, POSE JUSQU'AU BORD.
+	#   DEVANT je suis le bloc qui avance : je porte mon angle.
 	# ⚠ ET L'ANGLE N'EST PAS SYMETRIQUE : lumiere du nord-ouest, donc l'angle ouest accroche
 	# le jour et l'angle est recule. C'est ce qui fait qu'on lit DE QUEL COTE est le retrait.
 	var west: int = Walls.pan_west(role.x)
@@ -494,10 +505,38 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 	var buffer: PackedByteArray = _blank(side, base)
 	var mark: Color = MARK_WIRE if wire else MARK_PAINT
 	var inset: float = last * 0.32
+	# ⚠ L'OURLET : LE BORD D'UNE TUILE DE ROBE NE PORTE QUE CE QUI EST VRAI DE TOUTE FACE.
+	# `Seams` range TOUS les bords haut/bas des 25 roles dans UNE SEULE classe, et tous les
+	# flancs muets dans une autre -- parce que le modele pose reellement ces jonctions-la. Le
+	# recensement en a trouve une qui tranche a elle seule : `(muet,vide) chapiteau SUR
+	# (muet,muet) corps 0`, c'est-a-dire une bande de flanc FACE A UNE ABSENCE DE BANDE. Aucun
+	# talent de dessin ne raccorde ces deux-la : il faut que ni l'une ni l'autre ne parle au
+	# bord. D'ou les deux regles, et elles ne sont que la generalisation de l'assise :
+	#   -- ce qui nomme un PAN se tait sur les rangees du haut et du bas ;
+	#   -- ce qui nomme une RANGEE se tait sur les colonnes de gauche et de droite.
+	# Il reste au bord la teinte du corps et sa striure -- vraies partout, donc raccordables
+	# partout.
+	#
+	# ⚠ ET L'OURLET VAUT UN PIXEL FINAL, PAS UNE FRACTION DE TUILE. `_finish` reduit en
+	# bilineaire d'un facteur SUPERSAMPLE : le pixel final 0 se prend au sur-echantillon 1.
+	# Un ourlet plus mince laisserait la modulation deborder dans le pixel de bord et le test
+	# echouerait de quelques pour mille -- assez pour etre faux, trop peu pour se voir.
+	#
+	# ⚠ ET ON LE FAIT LE PLUS ETROIT POSSIBLE : UN PIXEL, PAS DEUX. La consequence visible
+	# est que l'arete se COUPE d'un pixel a chaque assise -- et c'est un theoreme, pas un
+	# choix de dessin : le flanc peut changer d'etat a n'importe quelle frontiere de rangees,
+	# donc aucune tuile n'a le droit de se prononcer sur cette ligne-la. Autant que ca se lise
+	# comme une articulation de paroi et non comme un pointille : ourlet d'un pixel final,
+	# remontee immediate.
+	var hem: float = float(SUPERSAMPLE)
+	var ramp: float = float(SUPERSAMPLE) * 0.5
 	for y: int in range(side):
 		for x: int in range(side):
 			var px: float = float(x)
 			var py: float = float(y)
+			# `pan_amp` s'eteint en haut et en bas, `row_amp` aussi a gauche et a droite.
+			var pan_amp: float = _hem(py, last, hem, ramp)
+			var row_amp: float = pan_amp * _hem(px, last, hem, ramp)
 			# ⚠ ON NE RENTRE PLUS LE FLANC VIDE. Il rentrait de 10 %, et c'etait faux deux
 			# fois. D'abord parce qu'UNE CASE DE FALAISE EST UNE CASE DE ROCHE : la mettre a
 			# 80 % de sa case fait disparaitre de la matiere que le modele affirme. Ensuite
@@ -512,17 +551,21 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 				# bas du pied est le sol ; entre deux rangees de corps il n'y a AUCUNE
 				# ligne, la face est continue -- sans quoi la falaise serait rayee de traits
 				# que rien ne justifie.
-				if west == Walls.SIDE_VOID and px < rim:
+				# ⚠ MEME OURLET QU'EN PEINT, ET POUR LA MEME RAISON. Le trait du chapiteau
+				# partait de py = 0 : le haut d'un chapiteau ne ressemblait donc a aucun autre
+				# haut de tuile, alors que le modele les pose les uns sur les autres. Il descend
+				# d'un pixel, et la bande de flanc s'arrete un pixel avant les deux bouts.
+				if pan_amp > 0.0 and west == Walls.SIDE_VOID and px < rim:
 					color = WIRE_EDGE
-				elif east == Walls.SIDE_VOID and px > last - rim:
+				elif pan_amp > 0.0 and east == Walls.SIDE_VOID and px > last - rim:
 					color = WIRE_EDGE
-				elif west == Walls.SIDE_FRONT and px < edge:
+				elif pan_amp > 0.0 and west == Walls.SIDE_FRONT and px < edge:
 					color = WIRE_LIP
-				elif east == Walls.SIDE_FRONT and px > last - edge:
+				elif pan_amp > 0.0 and east == Walls.SIDE_FRONT and px > last - edge:
 					color = WIRE_FACE
-				elif role.y == Walls.ROW_CROWN and py < stroke:
+				elif row_amp > 0.0 and role.y == Walls.ROW_CROWN and py < hem + stroke:
 					color = WIRE_LIP
-				elif role.y == Walls.ROW_FOOT and py > last - stroke:
+				elif row_amp > 0.0 and role.y == Walls.ROW_FOOT and py > last - hem - stroke:
 					color = WIRE_FACE
 			else:
 				# ⚠ CHAQUE RANGEE COMMENCE ET FINIT SUR LA TEINTE DU CORPS. Le chapiteau part de
@@ -531,15 +574,23 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 				# differentes, et la falaise est barree d'une couture a chaque cran.
 				var vertical: float = py / last
 				if role.y == Walls.ROW_CROWN:
-					color = base.lightened(0.34 * (1.0 - smoothstep(0.0, 1.0, vertical)))
+					color = base.lightened(
+							0.34 * (1.0 - smoothstep(0.0, 1.0, vertical)) * row_amp)
 				elif role.y == Walls.ROW_FOOT:
-					color = base.darkened(0.34 * smoothstep(0.0, 1.0, vertical))
+					color = base.darkened(0.34 * smoothstep(0.0, 1.0, vertical) * row_amp)
 				# ⚠ LA STRIURE NE SE DECALE PLUS D'UNE RANGEE A L'AUTRE. Elle le faisait,
 				# pour « varier le grain » -- et cassait CHAQUE rainure a CHAQUE cran : sur
 				# une chute de six cases, la paroi se lisait comme une pile de tuiles au lieu
 				# d'une face. Mesuree, la rupture ne pesait que 2,4 % de teinte et elle
 				# sautait aux yeux : une LIGNE BRISEE se voit bien mieux qu'un degrade.
-				var streak: float = fmod(px / float(side) * 2.0, 1.0)
+				# ⚠ ET LA STRIURE NE TOMBE PLUS SUR LES COLONNES DE BORD. Elle y tombait a
+				# gauche (px = 0) et pas a droite : or la colonne droite d'une tuile EST la
+				# colonne gauche de sa voisine des que les deux flancs sont muets. Une rainure
+				# au bord se dedoublait donc a chaque case, et l'ecart valait 2,4 % -- assez
+				# pour etre faux, trop peu pour se voir. Un quart de periode de decalage met les
+				# deux rainures au quart et aux trois quarts de la tuile : meme densite, bords
+				# libres, et le grain traverse la falaise sans se dedoubler.
+				var streak: float = fmod(px / float(side) * 2.0 + 0.5, 1.0)
 				if streak < 0.05:
 					color = color.darkened(0.05)
 				# ⚠ CE QUI DISTINGUE LES DEUX RANGEES DE CORPS EST UNE ASSISE, PAS UN
@@ -548,15 +599,15 @@ static func make_wall(role: Vector2i, tile_size: int, ink: Ink, marks: bool) -> 
 				if role.y == 1 or role.y == 2:
 					var ledge: float = 0.40 if role.y == 1 else 0.62
 					if absf(vertical - ledge) < 0.055:
-						color = color.darkened(0.07)
+						color = color.darkened(0.07 * row_amp)
 				if west == Walls.SIDE_VOID and px < rim:
-					color = color.lightened(0.13)
+					color = color.lightened(0.13 * pan_amp)
 				elif west == Walls.SIDE_FRONT and px < edge:
-					color = color.lightened(0.30)
+					color = color.lightened(0.30 * pan_amp)
 				if east == Walls.SIDE_VOID and px > last - rim:
-					color = color.darkened(0.16)
+					color = color.darkened(0.16 * pan_amp)
 				elif east == Walls.SIDE_FRONT and px > last - edge:
-					color = color.darkened(0.36)
+					color = color.darkened(0.36 * pan_amp)
 			# ⚠ LE CODE DE RANGEE EST UNE MARQUE, PAS UN TRAIT. Un tiret pour le premier
 			# corps, deux pour le second : sans lui rien ne distingue les deux rangees, et
 			# c'est exactement ce qu'il faut savoir en peignant.

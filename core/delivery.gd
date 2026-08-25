@@ -19,6 +19,7 @@ const MaskIO := preload("res://core/mask_io.gd")
 const Coverage := preload("res://core/coverage.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const HeightMask := preload("res://core/height_mask.gd")
+const Thickness := preload("res://core/thickness.gd")
 
 
 ## Resout la livraison d'un guide en fonction des cases peintes.
@@ -68,7 +69,7 @@ static func resolve(mask: PackedStringArray, painted_cells: Array[Vector2i]) -> 
 
 	var delivered: PackedInt32Array = PackedInt32Array()
 	var missing: PackedInt32Array = PackedInt32Array()
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in Thickness.SURFACE_INDICES:
 		if retained.has(index):
 			delivered.append(index)
 		else:
@@ -105,7 +106,7 @@ static func resolve_relief(heights: PackedStringArray, painted_cells: Array[Vect
 ## du blob : en famille « a cheval » le compte aurait annonce quarante-sept manquants alors
 ## qu'il n'y en a que quinze a peindre. Le vocabulaire attendu appartient a l'appelant.
 static func resolve_indexed(index_by_cell: Dictionary, painted_cells: Array[Vector2i],
-		wanted: PackedInt32Array = BlobIndex.CANONICAL_INDICES) -> Dictionary:
+		wanted: PackedInt32Array = Thickness.SURFACE_INDICES) -> Dictionary:
 	var painted: Dictionary = {}
 	for cell: Vector2i in painted_cells:
 		painted[cell] = true

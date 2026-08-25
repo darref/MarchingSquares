@@ -13,6 +13,7 @@ extends Control
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
+const Thickness := preload("res://core/thickness.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 
 const VEIL: Color = Color(0.055, 0.063, 0.055, 0.82)
@@ -212,12 +213,13 @@ func _how_it_works() -> String:
 	# ⚠ ON FORME LA PHRASE PUIS ON LA REMPLIT. En GDScript, `%` mord sur le DERNIER
 	# fragment d'une concatenation, pas sur l'ensemble : ecrit d'un trait, il cherchait ses
 	# arguments dans un morceau qui n'en attendait aucun.
-	var count: int = BlobIndex.CANONICAL_INDICES.size()
+	var count: int = Thickness.SURFACE_INDICES.size()
 	var neighbourhood: String = ("Une tuile de surface ne depend que du voisinage de sa "
-			+ "case : huit voisins, donc 256 configurations, qui se ramenent a [b]%d[/b] une "
-			+ "fois qu'on jette les coins diagonaux isoles -- ils ne changent pas la "
-			+ "silhouette.")
-	lines.append(neighbourhood % count)
+			+ "case : huit voisins, donc 256 configurations, qui se ramenent a %d une fois "
+			+ "qu'on jette les coins diagonaux isoles -- puis a [b]%d[/b] par la regle du "
+			+ "mode : [b]rien ne fait une tuile d'epaisseur[/b]. Pointes, isthmes, ilots et "
+			+ "trous d'une case n'existent pas, et le pinceau du moteur les refuse.")
+	lines.append(neighbourhood % [BlobIndex.CANONICAL_INDICES.size(), count])
 	var proven: String = ("Le guide livre contient les %d, verifie par programme. Ce n'est "
 			+ "pas une promesse : c'est un compte.")
 	lines.append(proven % count)
@@ -229,7 +231,8 @@ func _how_it_works() -> String:
 	var families: String = ("D'ou deux familles : [b]%d[/b] tuiles de surface et [b]%d[/b] "
 			+ "de mur, soit [b]%d[/b] en tout -- et deux planches separees, pour qu'on sache "
 			+ "toujours ou l'une s'arrete.")
-	lines.append(families % [count, Walls.ALL_ROLES.size(), count + Walls.ALL_ROLES.size()])
+	lines.append(families % [count, Thickness.wall_roles().size(),
+			count + Thickness.wall_roles().size()])
 	var astride: String = ("En reseau [b]a cheval[/b], une tuile est posee sur le croisement "
 			+ "de quatre cases : [b]%d[/b] tuiles de surface au lieu de %d, les murs ne "
 			+ "changeant pas.")

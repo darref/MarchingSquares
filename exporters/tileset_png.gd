@@ -46,6 +46,15 @@ const MAGIC: String = "solutiles-tileset"
 ## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur
 ## memoire finissent toujours par diverger. La regle vit ici, une seule fois.
 ##
+## ⚠ VERSION 6 : LE MODE EPAIS EST LE PRODUIT, A MIN TROIS. Rien ne fait une bande
+## fine -- une case, pleine OU vide, dont la COURSE (la suite de cases du meme etat
+## qui la contient le long d'un axe) fait moins de trois est FINE, dans chaque
+## silhouette d'etage, et le pinceau du moteur la refuse : le tileset n'a pas de
+## tuile pour elle. Le vocabulaire tombe a 27 index de surface et 25 roles de robe
+## (le redan compris -- vide-devant au corps 1, dans les deux sens). Un moteur v5
+## poserait des reliefs fins avec des tuiles qui n'existent plus : la version bouge,
+## et la v5 est refusee nommement.
+##
 ## ⚠ VERSION 5 : LA POSE DERRIERE. Une robe ecretee passe derriere la case de son etage
 ## qui l'a coupee, et repose sous elle la rangee du pas suivant -- un corps. Un moteur v4
 ## ne pose rien la : derriere les coins decoupes de cette case, il montre l'etage d'en
@@ -69,7 +78,7 @@ const MAGIC: String = "solutiles-tileset"
 ## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
 ## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
 ## viendra plus tard, et il sera concu pour lui-meme.
-const VERSION: int = 5
+const VERSION: int = 6
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -130,7 +139,8 @@ static func analyse(painting: Painting, heights: PackedStringArray,
 	missing_surface.sort()
 
 	var missing_wall: Array[Vector2i] = []
-	for role: Vector2i in Walls.ALL_ROLES:
+	# ⚠ La barre est celle du MODE : les 25 roles epais, pas les 36 de la mathematique.
+	for role: Vector2i in Families.wall_roles():
 		if not wall_source.has(role):
 			missing_wall.append(role)
 
@@ -341,6 +351,14 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# recevoir. Partir de storey_tiles * N donnerait zero pour la plaine, qui")
 	lines.append("# n'aurait alors jamais de falaise du tout.")
 	lines.append("fall_into_void one_storey_more no_foot")
+	lines.append("# LE MODE EPAIS, A MIN TROIS. Rien ne fait une bande fine : une case --")
+	lines.append("# pleine OU vide -- dont la course (la suite de cases du meme etat qui la")
+	lines.append("# contient le long d'un axe) fait moins de trois -- bord + centre + bord --")
+	lines.append("# est FINE, et ce dans CHAQUE silhouette d'etage, plaine comprise.")
+	lines.append("# Le pinceau du moteur refuse tout geste qui en creerait une : le tileset")
+	lines.append("# n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire")
+	lines.append("# entier qui survit a cet interdit.")
+	lines.append("thin_forbidden run_shorter_than_three all_storeys both_states")
 	lines.append("# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle")
 	lines.append("# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,")
 	lines.append("# elle bute contre un voisin de son niveau.")
@@ -390,6 +408,13 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# ecrete s'ouvre sur l'etage d'en dessous -- de l'herbe ou du vide, la ou la")
 	lines.append("# roche continue.")
 	lines.append("backing next_body_row under_trimming_cell same_level_only")
+	lines.append("# LE CHAPITEAU SOUS SA LEVRE. La face COMMENCE sous la case qui la lance :")
+	lines.append("# sous chaque levre se repose la premiere rangee de SA chute, avec le pan")
+	lines.append("# du premier pas. Les marges transparentes de la tuile de surface montrent")
+	lines.append("# ainsi le VRAI flanc de la vraie face de chaque occurrence, au lieu de")
+	lines.append("# l'etage d'en dessous vu a travers le haut de la paroi. Une pose de plus,")
+	lines.append("# AUCUNE tuile de plus. Le sous-pied garde une case disputee.")
+	lines.append("lip_backing first_fall_row under_lip_cell")
 
 	lines.append("")
 	lines.append("# --- LA PLANCHE ---")

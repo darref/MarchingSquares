@@ -38,8 +38,8 @@ const MAGIC: String = "solutiles-tileset"
 ## qui ecrete -- n'y est pas ecrite, et ce plugin la pose. Un second lecteur, fidele a un
 ## fichier v4, poserait un autre monde que lui : deux lecteurs, deux mondes, exactement
 ## ce que le contrat existe pour interdire.
-const READS_FROM: int = 5
-const READS_UP_TO: int = 5
+const READS_FROM: int = 6
+const READS_UP_TO: int = 6
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
@@ -193,8 +193,16 @@ static func read(path: String) -> Dictionary:
 
 ## Le nombre de tuiles de surface que la famille attend. Sert au controle de completude :
 ## une planche a qui il manque une case laisserait un trou dans le monde de l'acheteur.
+## ⚠ V6, LE MODE EPAIS : 27 index par case, 15 a cheval, 25 roles de robe (le redan
+## compris -- vide-devant au corps 1, dans les deux sens). Le plugin est
+## SEUL dans le projet de l acheteur, il porte donc sa copie des comptes -- et la suite
+## la compare au vocabulaire calcule du noyau, comme le reste de la regle de pose.
+const SURFACE_TILES: int = 27
+const WALL_TILES: int = 25
+
+
 static func expected_surface_tiles(family: StringName) -> int:
-	return 15 if family == BY_CORNER else 47
+	return 15 if family == BY_CORNER else SURFACE_TILES
 
 
 ## Vrai si le manifeste place toutes les tuiles que sa famille exige.
@@ -203,7 +211,7 @@ static func is_complete(report: Dictionary) -> bool:
 		return false
 	if report["surface_slots"].size() != expected_surface_tiles(report["family"]):
 		return false
-	return report["wall_slots"].size() == Rules.PAN_COUNT * Rules.BLOCK_ROWS
+	return report["wall_slots"].size() == WALL_TILES
 
 
 static func _point(text: String) -> Vector2i:

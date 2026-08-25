@@ -3,44 +3,41 @@
 # Un mode reunit un guide et des regles d'exportation. L'interface en fera une liste
 # deroulante ; le noyau se contente de la table et n'a pas d'avis sur son affichage.
 #
-# Un mode, c'est un PAYSAGE : le relief du guide et ce qu'il faut en tirer. Ni la
-# technique du fond ni son style n'entrent ici -- ce sont des outils, pas des modes.
-# Chacun livre DEUX familles de tuiles : le blob 47
-# pour la surface des plateaux, et les 12 tuiles de robe pour les falaises. Un terrain Wang
-# resout les coins d'un plan ; une falaise sort du plan, et son vocabulaire est autre.
-# C'est le choix de ce qu'on fabrique, fait une fois avant de dessiner, pas un reglage a
-# ajuster en cours de route (charte, regle 1).
+# UN SEUL MODE : EPAIS. Decision utilisateur du 24/08/2026, prise apres une session de
+# peinture reelle sur l'ancien mode 47 : les tuiles a matiere minoritaire -- pointes,
+# isthmes, ilots, trous d'une case -- concentraient tous les problemes d'expression.
+# Le mode epais interdit tout relief d'une tuile d'epaisseur (core/thickness.gd) ; son
+# vocabulaire est CALCULE de cette interdiction : 27 index de surface (theoreme des 256
+# fenetres), 25 roles de robe (redan compris), 15 croisements. Les anciens modes minimal et ample ne
+# sont pas fermes : ils sont RETIRES -- leurs guides restent au depot comme temoins.
 #
-# La disposition de la feuille exportee ne figure pas ici : elle est la MEME pour tous
-# les modes, puisque tous livrent les memes 59 tuiles. Elle vit donc dans
-# `exporters/tileset_png.gd`, une fois, plutot que recopiee dans chaque entree.
+# La disposition de la feuille exportee ne figure pas ici : elle se deduit du vocabulaire
+# (exporters/tileset_png.gd), une fois, plutot que recopiee dans chaque entree.
 extends RefCounted
 
-const MINIMAL: StringName = &"minimal"
-const AMPLE: StringName = &"ample"
+const Thickness := preload("res://core/thickness.gd")
 
-const MODES: Dictionary = {
-	MINIMAL: {
-		"label": "Minimal",
-		"guide_path": "res://guides/minimal.txt",
-		"surface_tiles": 47,
-		"wall_tiles": 36,
-		"min_occurrences": 1,
-	},
-	# Meme completude que `minimal`, mais volontairement plus de repetitions : chaque tuile
-	# se voit dans plusieurs contextes, ce qui rend le geste plus sur. La promesse est
-	# chiffree par `min_occurrences` et prouvee par la suite de tests.
-	AMPLE: {
-		"label": "Ample",
-		"guide_path": "res://guides/ample.txt",
-		"surface_tiles": 47,
-		"wall_tiles": 36,
-		# ⚠ TROIS, ET C'EST UNE BARRE TROIS FOIS PLUS HAUTE QUE CELLE DE `minimal`. Elle
-		# porte sur les TROIS vocabulaires -- 47 index de surface, 15 croisements, 36 roles
-		# de robe -- et elle est prouvee par la suite, pas promise.
-		"min_occurrences": 3,
-	},
-}
+const EPAIS: StringName = &"epais"
+
+## L'ancien nom du mode par defaut, garde comme alias le temps que tout le monde parle
+## epais. Il pointe le MEME mode : il n'y en a qu'un.
+const MINIMAL: StringName = EPAIS
+
+static var MODES: Dictionary = {}
+
+
+static func _static_init() -> void:
+	# Les comptes sont CALCULES du vocabulaire epais, jamais ecrits en dur -- meme raison
+	# que CANONICAL_INDICES : une liste ecrite a la main est un endroit ou mentir.
+	MODES = {
+		EPAIS: {
+			"label": "Epais",
+			"guide_path": "res://guides/epais.txt",
+			"surface_tiles": Thickness.SURFACE_INDICES.size(),
+			"wall_tiles": Thickness.wall_roles().size(),
+			"min_occurrences": 1,
+		},
+	}
 
 
 ## Identifiants des modes, dans l'ordre de la liste deroulante.
@@ -56,8 +53,7 @@ static func has(id: StringName) -> bool:
 
 
 ## Vrai si le guide du mode existe reellement.
-## ⚠ UN MODE SANS GUIDE NE SE CHOISIT PAS (charte, regle 5). Il figure au catalogue parce
-## qu'il est decide et nomme, mais il reste ferme tant qu'on ne peut rien prouver dessus.
+## ⚠ UN MODE SANS GUIDE NE SE CHOISIT PAS (charte, regle 5).
 static func is_available(id: StringName) -> bool:
 	if not MODES.has(id) or bool(MODES[id].get("closed", false)):
 		return false
@@ -81,13 +77,6 @@ static func guide_path(id: StringName) -> String:
 
 
 ## Nombre minimal d'OCCURRENCES que chaque tuile doit avoir dans le guide du mode.
-##
-## ⚠ C'EST LA PROMESSE DU MODE, ET ELLE EST PROUVEE. `ample` ne dit pas « plus redondant »
-## en esperant que ce soit vrai : il annonce 3, et la suite de tests le verifie.
-##
-## ⚠ CE NE SONT PAS DES VARIANTES. Une occurrence est un ENDROIT de plus ou la meme tuile
-## se voit ; toutes portent le meme dessin. Ce qu'elles apportent, c'est que peindre une
-## tuile en remplit des dizaines sous les yeux -- pas que la planche grossisse.
 static func min_occurrences(id: StringName) -> int:
 	if not MODES.has(id):
 		push_error("modes: mode inconnu '%s'." % id)
@@ -95,7 +84,7 @@ static func min_occurrences(id: StringName) -> int:
 	return MODES[id]["min_occurrences"]
 
 
-## Nombre de tuiles de surface -- le blob 47.
+## Nombre de tuiles de surface du mode -- les 27 index epais, calcules.
 static func surface_tile_count(id: StringName) -> int:
 	if not MODES.has(id):
 		push_error("modes: mode inconnu '%s'." % id)
@@ -103,7 +92,7 @@ static func surface_tile_count(id: StringName) -> int:
 	return MODES[id]["surface_tiles"]
 
 
-## Nombre de tuiles de mur -- trois pans par quatre rangees.
+## Nombre de tuiles de mur du mode -- les 25 roles epais, calcules.
 static func wall_tile_count(id: StringName) -> int:
 	if not MODES.has(id):
 		push_error("modes: mode inconnu '%s'." % id)

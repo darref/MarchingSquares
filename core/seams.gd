@@ -10,21 +10,48 @@
 # demontree. Et comme elle l'est, ne pas recopier ne produirait qu'un tileset faux --
 # d'ou l'absence de case a cocher (regle 5).
 #
-# DEUX FAMILLES DE CONTRAINTES, ET ELLES SONT DEJA ASSERTEES PAR LA SUITE.
+# DEUX FAMILLES DE CONTRAINTES, ET ELLES SONT ASSERTEES PAR LA SUITE — DANS LES DEUX SENS.
 #
 #   VERTICALEMENT. Deux rangees qui se suivent dans une meme chute sont la meme face :
-#   la derniere ligne de pixels de l'une EST la premiere de l'autre. Les enchainements se
-#   lisent des chutes reelles, pas d'une intuition.
+#   la derniere ligne de pixels de l'une EST la premiere de l'autre.
 #
 #   ⚠ ET LA CHAINE BOUCLE, CE QUI VA PLUS LOIN QU'IL N'Y PARAIT. Une chute de trois donne
 #   « chapiteau, corps 0, pied » et une de six « chapiteau, corps 0, corps 1, corps 0,
-#   corps 1, pied » : par transitivite, TOUS les raccords internes d'un pan portent LE
-#   MEME profil. Le haut et le bas d'une tuile de corps sont donc identiques -- ce qui est
-#   exactement ce qu'on attend d'une tuile qui se repete verticalement.
+#   corps 1, pied » : par transitivite, TOUS les raccords internes portent LE MEME profil.
+#   Le haut et le bas d'une tuile de corps sont donc identiques -- ce qui est exactement ce
+#   qu'on attend d'une tuile qui se repete verticalement.
 #
-#   HORIZONTALEMENT. Deux flancs `muet` face a face signifient LA MEME LEVRE, donc la meme
-#   face, donc le meme pas de chute, donc la meme rangee. La colonne droite de l'une EST la
-#   colonne gauche de l'autre.
+#   HORIZONTALEMENT. Deux flancs `muet` face a face signifient la meme levre, donc la meme
+#   face. La colonne droite de l'une EST la colonne gauche de l'autre.
+#
+# ⚠ ON FERME PRUDEMMENT, ET C'EST UNE DECISION. Deux formulations de ce fichier etaient
+# FAUSSES, et le recensement des jonctions les a prises en flagrant delit
+# (`tools/seam_census.gd`, qui assemble des reliefs au lieu de relire `row_for`) :
+#
+#   « la meme rangee » -- non : deux colonnes d'une meme levre peuvent avoir des chutes
+#   differentes, l'une atterrissant sur une banquette pendant que l'autre continue. Un
+#   `pied` se retrouve alors contre un `corps 1`.
+#
+#   « d'un meme pan » -- non : l'etat d'un flanc CHANGE en descendant, des que la robe
+#   voisine s'arrete. Une colonne traverse plusieurs pans.
+#
+# Mesure avant correctif : le modele posait 70 jonctions verticales distinctes, `Seams` en
+# connaissait 26 ; 39 muet/muet horizontales, il en connaissait 23. Et l'illustration
+# cassait aux 60 jonctions inconnues, SANS EXCEPTION, jusqu'a 22 % d'ecart.
+#
+# On joint donc a TOUS les couples de pans et a TOUTES les rangees muettes, sans chercher
+# lesquels sont realisables. Sur-joindre ne peut jamais rendre un tileset faux -- seulement
+# plus contraint -- et le prix est mesure : 28 classes independantes au lieu des 29 que le
+# monde autorise exactement. UNE classe sur vingt-neuf, contre une forme fermee a demontrer
+# et a maintenir, c'est-a-dire un endroit de plus ou mentir. Le choix n'est pas serre.
+#
+# ⚠ ET DEUX REGLES DE DESSIN EN DECOULENT, qui rendent la fusion gratuite :
+#   -- ce qui depend du PAN se tient a distance des bords HAUT et BAS (le pan change d'une
+#      rangee a l'autre) ;
+#   -- ce qui depend de la RANGEE se tient a distance des bords GAUCHE et DROIT (la colonne
+#      voisine peut etre a une autre rangee).
+# C'est la generalisation de l'assise, « tenue a distance des deux bords, donc incapable de
+# se voir au raccord ».
 #
 # ⚠ ET LES SURFACES N'EN SONT PAS. Le modele n'y exige que l'absence de TROU, jamais
 # l'egalite : a la frontiere entre une case dont le nord est plein et une case dont il est
@@ -75,20 +102,30 @@ static func _static_init() -> void:
 			for side: int in range(4):
 				_root(Vector3i(pan, row, side))
 
-	# --- VERTICALEMENT : les enchainements de rangees, lus des chutes REELLES.
+	# --- VERTICALEMENT : les enchainements de rangees, A TOUS LES COUPLES DE PANS.
+	# ⚠ LE PAN D'UNE COLONNE CHANGE EN DESCENDANT. L'etat d'un flanc se lit de ce que la
+	# robe voisine couvre A CETTE HAUTEUR : quand elle s'arrete, le flanc passe de `muet`
+	# a `vide` en pleine paroi. Joindre a pan constant laissait donc 33 jonctions
+	# verticales hors de toute classe, toutes en plein milieu d'une face.
 	for pair: Vector2i in row_chains():
-		for pan: int in range(Walls.PAN_COUNT):
-			_join(Vector3i(pan, pair.x, BOTTOM), Vector3i(pan, pair.y, TOP))
+		for above: int in range(Walls.PAN_COUNT):
+			for below: int in range(Walls.PAN_COUNT):
+				_join(Vector3i(above, pair.x, BOTTOM), Vector3i(below, pair.y, TOP))
 
-	# --- HORIZONTALEMENT : les flancs muets qui se font face, a la meme rangee.
-	for row: int in range(Walls.BLOCK_ROWS):
-		for left: int in range(Walls.PAN_COUNT):
-			if Walls.pan_east(left) != Walls.SIDE_MUTE:
-				continue
-			for right: int in range(Walls.PAN_COUNT):
-				if Walls.pan_west(right) != Walls.SIDE_MUTE:
+	# --- HORIZONTALEMENT : les flancs muets face a face, A TOUTES LES RANGEES.
+	# ⚠ « MEME LEVRE DONC MEME RANGEE » ETAIT FAUX. Deux colonnes d'une meme levre peuvent
+	# avoir des chutes DIFFERENTES -- l'une atterrit sur une banquette pendant que l'autre
+	# continue -- et alors un `pied` se retrouve contre un `corps 1`, deux flancs muets a
+	# deux rangees. Recense sur le guide livre : 16 couples, ecart 18 % dans l'illustration.
+	for left_row: int in range(Walls.BLOCK_ROWS):
+		for right_row: int in range(Walls.BLOCK_ROWS):
+			for left: int in range(Walls.PAN_COUNT):
+				if Walls.pan_east(left) != Walls.SIDE_MUTE:
 					continue
-				_join(Vector3i(left, row, RIGHT), Vector3i(right, row, LEFT))
+				for right: int in range(Walls.PAN_COUNT):
+					if Walls.pan_west(right) != Walls.SIDE_MUTE:
+						continue
+					_join(Vector3i(left, left_row, RIGHT), Vector3i(right, right_row, LEFT))
 
 	var members: Dictionary = {}
 	for edge: Vector3i in _parent.keys():
@@ -144,23 +181,37 @@ static func _corner_of(edge: Vector3i, far: int) -> Vector3i:
 	return Vector3i(edge.x, edge.y, corner)
 
 
-## Les couples de rangees qui se suivent dans une chute reelle.
+## Les couples de rangees que le modele pose l'une SUR l'autre, adossements compris.
 ##
 ## ⚠ ON LES LIT DE `row_for`, ON NE LES DEVINE PAS. Deviner depuis les noms de rangees
 ## fabriquerait des enchainements que la chute ne produit jamais -- et un test faux coute
 ## plus cher qu'un test absent : il envoie corriger ce qui va bien.
+##
+## ⚠ MAIS UNE CHUTE NE COMMENCE PAS AU PAS 1 ET NE FINIT PAS AU PAS `drop`. `assemble()`
+## pose AUSSI le chapiteau sous sa levre (pas 0) et, sous la case qui l'arrete, le pied ou
+## le corps du pas suivant (pas drop+1). N'iterer que 1..drop laissait « chapiteau sur
+## chapiteau » et « pied sur pied » hors de TOUTE classe : le modele les posait, la
+## propagation ne les ecrivait pas, la preuve ne les regardait pas. Recense sur le guide
+## livre : 7 431 et 1 641 occurrences.
 static func row_chains() -> Array[Vector2i]:
 	var seen: Dictionary = {}
 	var chains: Array[Vector2i] = []
 	for drop: int in range(1, Walls.STOREY_TILES * 9 + 1):
-		var rows: Array[int] = []
-		for step: int in range(1, drop + 1):
-			rows.append(Walls.row_for(step, drop, true))
-		for k: int in range(rows.size() - 1):
-			var pair: Vector2i = Vector2i(rows[k], rows[k + 1])
-			if not seen.has(pair):
-				seen[pair] = true
-				chains.append(pair)
+		for landed: bool in [true, false]:
+			var rows: Array[int] = []
+			# L'adossement sous la levre porte la rangee du PREMIER PAS.
+			rows.append(Walls.row_for(1, drop, landed))
+			for step: int in range(1, drop + 1):
+				rows.append(Walls.row_for(step, drop, landed))
+			# L'adossement sous la case qui l'arrete : le pied si la robe atterrit, le
+			# corps qui continue si elle bute.
+			rows.append(Walls.ROW_FOOT if landed
+					else Walls.row_for(drop + 1, drop + 1, false))
+			for k: int in range(rows.size() - 1):
+				var pair: Vector2i = Vector2i(rows[k], rows[k + 1])
+				if not seen.has(pair):
+					seen[pair] = true
+					chains.append(pair)
 	return chains
 
 

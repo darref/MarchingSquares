@@ -802,11 +802,12 @@ func _refresh_counters() -> void:
 			work.painted_surface_cells(), Families.surface_indices(_current_family()))
 	# On repasse par les roles deja rassembles : les recalculer a chaque coup de crayon
 	# relirait tout le relief pour rien.
-	var walls: Dictionary = Walls.resolve_roles(work.wall_roles(), work.painted_wall_cells())
+	var walls: Dictionary = Walls.resolve_roles(work.wall_roles(), work.painted_wall_cells(),
+			Families.wall_roles())
 	var surface_done: int = surface["delivered"].size()
 	var surface_total: int = Families.surface_tile_count(_current_family())
 	var wall_done: int = walls["delivered"].size()
-	var wall_total: int = Walls.ALL_ROLES.size()
+	var wall_total: int = Families.wall_roles().size()
 
 	(%SurfaceLabel as Label).text = "Surfaces     %d / %d" % [surface_done, surface_total]
 	(%SurfaceBar as ProgressBar).max_value = float(surface_total)

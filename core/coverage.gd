@@ -6,6 +6,7 @@ extends RefCounted
 const BlobIndex := preload("res://core/blob_index.gd")
 const MaskIO := preload("res://core/mask_io.gd")
 const HeightMask := preload("res://core/height_mask.gd")
+const Thickness := preload("res://core/thickness.gd")
 
 ## Index retourne pour une case vide : une case vide ne produit aucune tuile.
 const NO_INDEX: int = -1
@@ -35,7 +36,7 @@ static func index_at(mask: PackedStringArray, x: int, y: int) -> int:
 ##   missing      : PackedInt32Array         index encore absents, tries
 ##   occurrences  : Dictionary[int, int]     index -> nombre de cases
 ##   positions    : Dictionary[int, Array]   index -> Array[Vector2i] des cases
-##   is_complete  : bool                     vrai si les 47 index sont couverts
+##   is_complete  : bool                     vrai si les 27 index EPAIS sont couverts
 ## Les occurrences multiples ne sont pas des doublons : ce sont les jumelles d'une tuile.
 static func analyse(mask: PackedStringArray) -> Dictionary:
 	var occurrences: Dictionary = {}
@@ -55,7 +56,7 @@ static func analyse(mask: PackedStringArray) -> Dictionary:
 			cells.append(Vector2i(x, y))
 	var present: PackedInt32Array = PackedInt32Array()
 	var missing: PackedInt32Array = PackedInt32Array()
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in Thickness.SURFACE_INDICES:
 		if occurrences.has(index):
 			present.append(index)
 		else:
@@ -121,7 +122,7 @@ static func analyse_relief(heights: PackedStringArray) -> Dictionary:
 			cells.append(Vector3i(x, y, HeightMask.level_at(heights, x, y)))
 	var present: PackedInt32Array = PackedInt32Array()
 	var missing: PackedInt32Array = PackedInt32Array()
-	for index: int in BlobIndex.CANONICAL_INDICES:
+	for index: int in Thickness.SURFACE_INDICES:
 		if occurrences.has(index):
 			present.append(index)
 		else:

@@ -1,5 +1,5 @@
-solutiles-tileset 5
-mode minimal
+solutiles-tileset 6
+mode epais
 tile_size 32
 
 # ======================= LA REGLE DE POSE =======================
@@ -64,6 +64,14 @@ fall storey_tiles_times_gap probe_below_foot
 # recevoir. Partir de storey_tiles * N donnerait zero pour la plaine, qui
 # n'aurait alors jamais de falaise du tout.
 fall_into_void one_storey_more no_foot
+# LE MODE EPAIS, A MIN TROIS. Rien ne fait une bande fine : une case --
+# pleine OU vide -- dont la course (la suite de cases du meme etat qui la
+# contient le long d'un axe) fait moins de trois -- bord + centre + bord --
+# est FINE, et ce dans CHAQUE silhouette d'etage, plaine comprise.
+# Le pinceau du moteur refuse tout geste qui en creerait une : le tileset
+# n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire
+# entier qui survit a cet interdit.
+thin_forbidden run_shorter_than_three all_storeys both_states
 # RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle
 # s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,
 # elle bute contre un voisin de son niveau.
@@ -109,6 +117,13 @@ underfoot foot_role redrawn_below under_landing_surface
 # ecrete s'ouvre sur l'etage d'en dessous -- de l'herbe ou du vide, la ou la
 # roche continue.
 backing next_body_row under_trimming_cell same_level_only
+# LE CHAPITEAU SOUS SA LEVRE. La face COMMENCE sous la case qui la lance :
+# sous chaque levre se repose la premiere rangee de SA chute, avec le pan
+# du premier pas. Les marges transparentes de la tuile de surface montrent
+# ainsi le VRAI flanc de la vraie face de chaque occurrence, au lieu de
+# l'etage d'en dessous vu a travers le haut de la paroi. Une pose de plus,
+# AUCUNE tuile de plus. Le sous-pied garde une case disputee.
+lip_backing first_fall_row under_lip_cell
 
 # --- LA PLANCHE ---
 # Une tuile, un dessin, une case. Les deux planches ont une taille FIXE :
@@ -119,57 +134,37 @@ backing next_body_row under_trimming_cell same_level_only
 sheet fixed_size one_drawing_per_tile no_variants
 # ================================================================
 
-surface solutiles_essai_surface.png 8 6
+surface solutiles_essai_surface.png 8 4
 famille cell
-# les 47 index de la famille, en ordre croissant, huit par rangee ; les
+# les 27 index de la famille, en ordre croissant, huit par rangee ; les
 # cases qui restent en fin de planche sont vides.
-index 0 slot 0,0  # aucun voisin
-index 1 slot 1,0  # N
-index 4 slot 2,0  # E
-index 5 slot 3,0  # N+E
-index 7 slot 4,0  # N+NE+E
-index 16 slot 5,0  # S
-index 17 slot 6,0  # N+S
-index 20 slot 7,0  # E+S
-index 21 slot 0,1  # N+E+S
-index 23 slot 1,1  # N+NE+E+S
-index 28 slot 2,1  # E+SE+S
-index 29 slot 3,1  # N+E+SE+S
-index 31 slot 4,1  # N+NE+E+SE+S
-index 64 slot 5,1  # W
-index 65 slot 6,1  # N+W
-index 68 slot 7,1  # E+W
-index 69 slot 0,2  # N+E+W
-index 71 slot 1,2  # N+NE+E+W
-index 80 slot 2,2  # S+W
-index 81 slot 3,2  # N+S+W
-index 84 slot 4,2  # E+S+W
-index 85 slot 5,2  # N+E+S+W
-index 87 slot 6,2  # N+NE+E+S+W
-index 92 slot 7,2  # E+SE+S+W
-index 93 slot 0,3  # N+E+SE+S+W
-index 95 slot 1,3  # N+NE+E+SE+S+W
-index 112 slot 2,3  # S+SW+W
-index 113 slot 3,3  # N+S+SW+W
-index 116 slot 4,3  # E+S+SW+W
-index 117 slot 5,3  # N+E+S+SW+W
-index 119 slot 6,3  # N+NE+E+S+SW+W
-index 124 slot 7,3  # E+SE+S+SW+W
-index 125 slot 0,4  # N+E+SE+S+SW+W
-index 127 slot 1,4  # N+NE+E+SE+S+SW+W
-index 193 slot 2,4  # N+W+NW
-index 197 slot 3,4  # N+E+W+NW
-index 199 slot 4,4  # N+NE+E+W+NW
-index 209 slot 5,4  # N+S+W+NW
-index 213 slot 6,4  # N+E+S+W+NW
-index 215 slot 7,4  # N+NE+E+S+W+NW
-index 221 slot 0,5  # N+E+SE+S+W+NW
-index 223 slot 1,5  # N+NE+E+SE+S+W+NW
-index 241 slot 2,5  # N+S+SW+W+NW
-index 245 slot 3,5  # N+E+S+SW+W+NW
-index 247 slot 4,5  # N+NE+E+S+SW+W+NW
-index 253 slot 5,5  # N+E+SE+S+SW+W+NW
-index 255 slot 6,5  # N+NE+E+SE+S+SW+W+NW
+index 5 slot 0,0  # N+E
+index 7 slot 1,0  # N+NE+E
+index 20 slot 2,0  # E+S
+index 23 slot 3,0  # N+NE+E+S
+index 28 slot 4,0  # E+SE+S
+index 29 slot 5,0  # N+E+SE+S
+index 31 slot 6,0  # N+NE+E+SE+S
+index 65 slot 7,0  # N+W
+index 71 slot 0,1  # N+NE+E+W
+index 80 slot 1,1  # S+W
+index 92 slot 2,1  # E+SE+S+W
+index 112 slot 3,1  # S+SW+W
+index 113 slot 4,1  # N+S+SW+W
+index 116 slot 5,1  # E+S+SW+W
+index 119 slot 6,1  # N+NE+E+S+SW+W
+index 124 slot 7,1  # E+SE+S+SW+W
+index 127 slot 0,2  # N+NE+E+SE+S+SW+W
+index 193 slot 1,2  # N+W+NW
+index 197 slot 2,2  # N+E+W+NW
+index 199 slot 3,2  # N+NE+E+W+NW
+index 209 slot 4,2  # N+S+W+NW
+index 221 slot 5,2  # N+E+SE+S+W+NW
+index 223 slot 6,2  # N+NE+E+SE+S+W+NW
+index 241 slot 7,2  # N+S+SW+W+NW
+index 247 slot 0,3  # N+NE+E+S+SW+W+NW
+index 253 slot 1,3  # N+E+SE+S+SW+W+NW
+index 255 slot 2,3  # N+NE+E+SE+S+SW+W+NW
 
 proof solutiles_essai_preuve.png
 # chaque index sur son propre ilot, dans l'ordre de la planche de surface :
@@ -177,7 +172,6 @@ proof solutiles_essai_preuve.png
 
 walls solutiles_essai_walls.png 9 4
 # 9 pans (le couple des deux flancs) x 4 rangees = 36 tuiles.
-role 0,0 slot 0,0  # vide|vide / chapiteau
 role 0,1 slot 0,1  # vide|vide / corps 0
 role 0,2 slot 0,2  # vide|vide / corps 1
 role 0,3 slot 0,3  # vide|vide / pied
@@ -185,10 +179,7 @@ role 1,0 slot 1,0  # vide|muet / chapiteau
 role 1,1 slot 1,1  # vide|muet / corps 0
 role 1,2 slot 1,2  # vide|muet / corps 1
 role 1,3 slot 1,3  # vide|muet / pied
-role 2,0 slot 2,0  # vide|devant / chapiteau
-role 2,1 slot 2,1  # vide|devant / corps 0
 role 2,2 slot 2,2  # vide|devant / corps 1
-role 2,3 slot 2,3  # vide|devant / pied
 role 3,0 slot 3,0  # muet|vide / chapiteau
 role 3,1 slot 3,1  # muet|vide / corps 0
 role 3,2 slot 3,2  # muet|vide / corps 1
@@ -201,15 +192,8 @@ role 5,0 slot 5,0  # muet|devant / chapiteau
 role 5,1 slot 5,1  # muet|devant / corps 0
 role 5,2 slot 5,2  # muet|devant / corps 1
 role 5,3 slot 5,3  # muet|devant / pied
-role 6,0 slot 6,0  # devant|vide / chapiteau
-role 6,1 slot 6,1  # devant|vide / corps 0
 role 6,2 slot 6,2  # devant|vide / corps 1
-role 6,3 slot 6,3  # devant|vide / pied
 role 7,0 slot 7,0  # devant|muet / chapiteau
 role 7,1 slot 7,1  # devant|muet / corps 0
 role 7,2 slot 7,2  # devant|muet / corps 1
 role 7,3 slot 7,3  # devant|muet / pied
-role 8,0 slot 8,0  # devant|devant / chapiteau
-role 8,1 slot 8,1  # devant|devant / corps 0
-role 8,2 slot 8,2  # devant|devant / corps 1
-role 8,3 slot 8,3  # devant|devant / pied

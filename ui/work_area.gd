@@ -92,6 +92,10 @@ const LINKED_LINE: Color = Color(0.376, 0.804, 0.910, 0.85)
 ## l'artiste doit le voir AVANT le clic, pas le decouvrir en aller-retour. Violet : ni le
 ## bleu des identiques, ni l'ambre, ni le rouge -- une quatrieme chose, dite a part.
 const SEAM_LINE: Color = Color(0.816, 0.529, 0.949, 0.85)
+## La zone qui laisse voir derriere, hachuree legerement -- en peignant seulement. Les
+## diagonales se posent ENTRE le socle et la tuile : la tuile les couvre la ou elle a de
+## la matiere, elles ne restent donc visibles qu'au travers de sa transparence.
+const SEE_THROUGH_HATCH: Color = Color(1.0, 1.0, 1.0, 0.18)
 
 ## ⚠ EN VUE D'ENSEMBLE, UN FAUX PIXEL MESURE MOINS D'UN PIXEL D'ECRAN. A la taille qui
 ## montre tout le guide, une case fait une trentaine de pixels et en porte soixante-quatre :
@@ -225,6 +229,9 @@ var _wall_roles: Dictionary = {}
 ## Sous chaque case, la pile des sols enterres (un index par etage couvert) -- pour que le
 ## remontage empile comme le jeu : une tuile par etage et par case.
 var _stack_below: Dictionary = {}
+## Les poses du moteur : pied sous l'atterrissage, corps derriere l'ecretage, CHAPITEAU
+## SOUS LA LEVRE. Case -> role de robe a dessiner entre le socle et la tuile.
+var _under_roles: Dictionary = {}
 var _by_index: Dictionary = {}
 var _by_role: Dictionary = {}
 var _targets: Dictionary = {}
@@ -353,6 +360,8 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 				for storey: int in range(covered + 1):
 					stack.append(int(storey_indices[storey].get(cell, -1)))
 				_stack_below[cell] = stack
+	# Les poses du moteur, pretes a dessiner sous les tuiles -- memes entrees que le jeu.
+	_under_roles = Walls.visible_underfoot(heights)
 	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
 	# la recalculer serait relire tout le relief soixante fois par seconde.
 	#
@@ -596,6 +605,22 @@ func _draw() -> void:
 				if _textures.has(ground):
 					draw_texture_rect(_textures[ground],
 							Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)), false)
+			# LES POSES DU MOTEUR -- pied sous l'atterrissage, corps derriere l'ecretage,
+			# CHAPITEAU SOUS LA LEVRE : la roche vraie de chaque occurrence, entre le
+			# socle et la tuile. C'est ce qui rend les marges transparentes honnetes au
+			# bord sud : on y voit la face qui commence, plus jamais le sol a travers.
+			if _under_roles.has(under):
+				var rock_group: Array = _by_role.get(_under_roles[under], [])
+				if not rock_group.is_empty():
+					var rock: Vector2i = _painting.holder(rock_group[0])
+					if _textures.has(rock):
+						draw_texture_rect(_textures[rock],
+								Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)), false)
+			# En peignant, la case se hachure sous sa tuile : seules les zones que la
+			# tuile laisse transparentes montrent les diagonales -- « ici, on voit
+			# derriere ». Le remontage reste nu : cette vue decrasse l'ecran.
+			if not assembled:
+				_draw_hatch(Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)))
 	for holder: Vector2i in (_textures.keys() if not hide_work else []):
 		var texture: ImageTexture = _textures[holder]
 		var painted: bool = ring and _painting.is_painted(holder)
@@ -646,7 +671,10 @@ func _draw_linked(frame: Rect2i) -> void:
 		var holder: Vector2i = target[0]
 		var twins: Array = _twin_of.get(holder, [holder])
 		for cell: Vector2i in twins:
-			if cell == _hover or not _on_screen(cell, frame):
+			# ⚠ LE DECOR NE PORTE AUCUNE MARQUE -- la regle de l'etage 0. Ses jumelles
+			# recoivent bien le geste, et ca se VOIT : la peinture y tombe en temps
+			# reel. La marque, elle, designe du travail, et le decor n'en est pas.
+			if cell == _hover or not _paintable.has(cell) or not _on_screen(cell, frame):
 				continue
 			draw_rect(Rect2(_cell_origin(cell), side), LINKED_LINE, false, 2.0)
 
@@ -670,9 +698,23 @@ func _draw_seam_links(frame: Rect2i) -> void:
 	var side: Vector2 = Vector2(_tile_px, _tile_px)
 	for mate: Vector2i in mates.keys():
 		for cell: Vector2i in (_by_role.get(mate, []) as Array):
-			if cell == _hover or not _on_screen(cell, frame):
+			# ⚠ Meme regle que les jumelles : aucune marque sur le decor (etage 0).
+			if cell == _hover or not _paintable.has(cell) or not _on_screen(cell, frame):
 				continue
 			draw_rect(Rect2(_cell_origin(cell), side), SEAM_LINE, false, 2.0)
+
+
+## De fines diagonales sur toute la case, a pas regulier. Posees entre le socle et la
+## tuile, elles ne se voient qu'au travers de la transparence de celle-ci.
+func _draw_hatch(box: Rect2) -> void:
+	var step: float = maxf(5.0, box.size.x * 0.125)
+	var travel: float = box.size.x + box.size.y
+	var d: float = step
+	while d < travel:
+		var from: Vector2 = box.position + Vector2(maxf(0.0, d - box.size.y), minf(d, box.size.y))
+		var to: Vector2 = box.position + Vector2(minf(d, box.size.x), maxf(0.0, d - box.size.x))
+		draw_line(from, to, SEE_THROUGH_HATCH, 1.0)
+		d += step
 
 
 ## Les socles enterres, prets a dessiner : case -> liste des cases (premieres de groupe)
@@ -686,6 +728,10 @@ func ground_stacks() -> Dictionary:
 			var group: Array = _by_index.get(below, [])
 			if not group.is_empty():
 				sources.append(group[0])
+		if _under_roles.has(cell):
+			var rock_group: Array = _by_role.get(_under_roles[cell], [])
+			if not rock_group.is_empty():
+				sources.append(rock_group[0])
 		if not sources.is_empty():
 			stacks[cell] = sources
 	return stacks

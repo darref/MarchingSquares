@@ -257,10 +257,13 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 				continue  # raccourcie a neant : un voisin du meme etage occupe deja la case
 			var landed: bool = fall.y == 1
 			var last_pan: int = 0
+			var crown: Vector2i = Vector2i.ZERO
 			for step: int in range(1, drop + 1):
 				var at: Vector2i = cell + Vector2i(0, step)
 				last_pan = pan_at(heights, level, lip_of, at, step, cell.y)
 				var role: Vector2i = Vector2i(last_pan, row_for(step, drop, landed))
+				if step == 1:
+					crown = role
 				roles[Vector3i(at.x, at.y, level)] = role
 				if at.y >= grid_height or at.x < 0 or at.x >= grid_width:
 					outside.append(Vector3i(at.x, at.y, level))
@@ -283,6 +286,22 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 				# rangee posee, comme pour le sous-pied : c'est la meme face.
 				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
 						last_pan, row_for(drop + 1, drop + 1, false))
+			# ⚠ LE CHAPITEAU SOUS SA LEVRE : la face COMMENCE sous la case qui la lance.
+			# Les marges transparentes de la tuile de surface -- coins arrondis, contours
+			# du peintre -- laissaient voir l'etage d'en dessous A TRAVERS le haut de la
+			# paroi. On repose donc sous chaque levre la premiere rangee de SA chute, avec
+			# le pan du premier pas : chaque occurrence montre le VRAI flanc de sa vraie
+			# face. Une pose de plus, AUCUNE tuile de plus -- la meme famille que le
+			# sous-pied et la pose derriere.
+			# ⚠ POSSIBLE DEPUIS LE MODE EPAIS SEULEMENT : avant lui, une levre au nord
+			# decoupe existait (l'ilot d'une case), et la roche reposee aurait perce la ou
+			# l'on attendait le sol. En epais, une levre a toujours son nord plein.
+			# ⚠ ET LE SOUS-PIED GAGNE la case disputee : sur un relief non epais, une case
+			# peut etre a la fois levre et atterrissage ; l'ordre de balayage fait ecrire
+			# le sous-pied d'abord, et la pose de levre s'efface devant lui.
+			var lip_key: Vector3i = Vector3i(cell.x, cell.y, level)
+			if not underfoot.has(lip_key):
+				underfoot[lip_key] = crown
 	return {"roles": roles, "underfoot": underfoot, "outside": outside}
 
 
@@ -295,7 +314,11 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 ##   positions   : Dictionary[Vector2i, Array]    role -> Array[Vector3i] des cases
 ##   outside     : Array[Vector3i]                robes tombees hors de la grille
 ##   is_complete : bool
-static func analyse(heights: PackedStringArray) -> Dictionary:
+## ⚠ `wanted` est la barre du MODE : les 23 roles epais (Families.wall_roles()) pour le
+## produit, les 36 par defaut pour la mathematique. Walls ne precharge pas Thickness --
+## ce serait un cycle -- donc la liste voyage en parametre.
+static func analyse(heights: PackedStringArray,
+		wanted: Array[Vector2i] = ALL_ROLES) -> Dictionary:
 	var assembled: Dictionary = assemble(heights)
 	var roles: Dictionary = assembled["roles"]
 	var occurrences: Dictionary = {}
@@ -310,7 +333,7 @@ static func analyse(heights: PackedStringArray) -> Dictionary:
 		cells.append(key)
 	var present: Array[Vector2i] = []
 	var missing: Array[Vector2i] = []
-	for role: Vector2i in ALL_ROLES:
+	for role: Vector2i in wanted:
 		if occurrences.has(role):
 			present.append(role)
 		else:
@@ -386,14 +409,16 @@ static func visible_underfoot(heights: PackedStringArray) -> Dictionary:
 
 ## La regle de livraison, appliquee aux robes : une case peinte est retenue pour son role,
 ## une case vierge ne sert pas. Memes cles que delivery.resolve().
-static func resolve(heights: PackedStringArray, painted_cells: Array[Vector2i]) -> Dictionary:
-	return resolve_roles(visible_roles(heights), painted_cells)
+static func resolve(heights: PackedStringArray, painted_cells: Array[Vector2i],
+		wanted: Array[Vector2i] = ALL_ROLES) -> Dictionary:
+	return resolve_roles(visible_roles(heights), painted_cells, wanted)
 
 
 ## Meme chose a partir de roles deja rassembles. ⚠ RASSEMBLER LES ROBES COUTE UN PARCOURS
 ## COMPLET DU RELIEF : l'editeur les calcule une fois au chargement, et repasse par ici a
 ## chaque coup de crayon.
-static func resolve_roles(visible: Dictionary, painted_cells: Array[Vector2i]) -> Dictionary:
+static func resolve_roles(visible: Dictionary, painted_cells: Array[Vector2i],
+		wanted: Array[Vector2i] = ALL_ROLES) -> Dictionary:
 	var painted: Dictionary = {}
 	for cell: Vector2i in painted_cells:
 		painted[cell] = true
@@ -411,7 +436,7 @@ static func resolve_roles(visible: Dictionary, painted_cells: Array[Vector2i]) -
 		kept.append(cell)
 	var delivered: Array[Vector2i] = []
 	var missing: Array[Vector2i] = []
-	for role: Vector2i in ALL_ROLES:
+	for role: Vector2i in wanted:
 		if retained.has(role):
 			delivered.append(role)
 		else:

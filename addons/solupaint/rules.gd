@@ -368,11 +368,14 @@ static func assemble_walls(heights: Dictionary) -> Dictionary:
 				continue  # raccourcie a neant : un voisin du meme etage occupe deja la case
 			var landed: bool = fall.y == 1
 			var last_pan: int = 0
+			var crown: Vector2i = Vector2i.ZERO
 			for step: int in range(1, drop + 1):
 				var at: Vector2i = Vector2i(cell.x, cell.y + step)
 				last_pan = pan_at(heights, level, lip_of, at, step, cell.y)
-				roles[Vector3i(at.x, at.y, level)] = Vector2i(
-						last_pan, row_for(step, drop, landed))
+				var role: Vector2i = Vector2i(last_pan, row_for(step, drop, landed))
+				if step == 1:
+					crown = role
+				roles[Vector3i(at.x, at.y, level)] = role
 			# ⚠ LE SOUS-PIED REPREND LE PAN DU PIED : c'est la MEME face, une case plus bas.
 			var next_cell: Vector2i = Vector2i(cell.x, cell.y + drop + 1)
 			if landed:
@@ -387,6 +390,13 @@ static func assemble_walls(heights: Dictionary) -> Dictionary:
 				# l'etage d'en dessous.
 				underfoot[Vector3i(next_cell.x, next_cell.y, level)] = Vector2i(
 						last_pan, row_for(drop + 1, drop + 1, false))
+			# ⚠ LE CHAPITEAU SOUS SA LEVRE (v6) : la face COMMENCE sous la case qui la
+			# lance. On repose sous chaque levre la premiere rangee de SA chute, pan du
+			# premier pas : les marges transparentes de la surface montrent le VRAI flanc
+			# de la vraie face. Le sous-pied garde la case disputee (ordre de balayage).
+			var lip_key: Vector3i = Vector3i(cell.x, cell.y, level)
+			if not underfoot.has(lip_key):
+				underfoot[lip_key] = crown
 	return {"roles": roles, "underfoot": underfoot}
 
 
@@ -540,3 +550,68 @@ static func underfoot(heights: Dictionary) -> Dictionary:
 			highest[cell] = key.z
 			visible[cell] = under[key]
 	return visible
+
+
+## LE MODE EPAIS (manifeste v6), A MIN TROIS : rien ne fait une bande fine. Une case --
+## pleine OU vide -- dont la COURSE (la suite de cases du meme etat qui la contient le
+## long d'un axe) fait moins de trois est FINE, dans chaque silhouette d'etage, plaine
+## comprise, et le tileset n'a pas de tuile pour elle. Le pinceau refuse donc tout geste qui en creerait une (regle 5 du logiciel :
+## ce qui n'est pas garanti est interdit). Copie de la regle du noyau
+## (core/thickness.gd), comme le reste de la regle de pose -- le plugin part seul chez
+## l'acheteur -- et COMPAREE a lui par la suite de tests.
+static func level_after(heights: Dictionary, staged: Dictionary, at: Vector2i) -> int:
+	if staged.has(at):
+		return int(staged[at])
+	return int(heights.get(at, VOID))
+
+
+## Cette case serait-elle fine -- une course de moins de TROIS (bord + centre + bord) --
+## une fois les changements mis en scene appliques ? Meme regle que core/thickness.gd.
+static func thin_after(heights: Dictionary, staged: Dictionary, at: Vector2i) -> bool:
+	var centre: int = level_after(heights, staged, at)
+	var top: int = centre
+	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+		for direction: int in [-1, 1]:
+			top = maxi(top, level_after(heights, staged, at + axis * direction))
+	for storey: int in range(0, top + 1):
+		var full: bool = centre >= storey
+		for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+			var length: int = 1
+			for direction: int in [-1, 1]:
+				for step: int in [1, 2]:
+					var beside: int = level_after(heights, staged,
+							at + axis * direction * step)
+					if (beside >= storey) != full:
+						break
+					length += 1
+			if length < 3:
+				return true
+	return false
+
+
+## Le tampon du pinceau rendrait-il une case fine ? S'il passe, ses changements RESTENT
+## en scene -- les tampons suivants du meme trait les voient ; s'il est refuse, tout est
+## remis comme avant, valeur par valeur.
+static func stamp_creates_thin(heights: Dictionary, staged: Dictionary,
+		cells: Array[Vector2i], level: int) -> bool:
+	var before: Dictionary = {}
+	for at: Vector2i in cells:
+		before[at] = staged[at] if staged.has(at) else null
+		staged[at] = level
+	var probes: Dictionary = {}
+	for at: Vector2i in cells:
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				probes[at + Vector2i(dx, dy)] = true
+	var thin: bool = false
+	for probe: Vector2i in probes.keys():
+		if thin_after(heights, staged, probe):
+			thin = true
+			break
+	if thin:
+		for at: Vector2i in cells:
+			if before[at] == null:
+				staged.erase(at)
+			else:
+				staged[at] = before[at]
+	return thin

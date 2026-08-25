@@ -2210,10 +2210,252 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   survol que la zone de travail ignore ne montre ni cercle ni liees, et la capture
   semblait prouver qu'une fonction n'existait pas.
 
+- **LE MODE EPAIS EST LE PRODUIT, ET LE SEUL.** Decision utilisateur du 24/08/2026, prise
+  apres la premiere session de peinture reelle : les tuiles a matiere minoritaire --
+  pointes, isthmes, ilots, trous d'une case -- concentraient tous les problemes
+  d'expression (fond intra-tuile variable, profondeur impossible, jonctions ambigues).
+  La regle : **rien ne fait une tuile d'epaisseur** -- une case, pleine OU vide, dont les
+  deux voisines opposees d'un meme axe sont de l'etat contraire est FINE, dans chaque
+  silhouette d'etage, plaine comprise.
+
+  ⚠ **LE VOCABULAIRE EST CALCULE, PAS DECIDE** (`core/thickness.gd`) : les surfaces par
+  un THEOREME -- les 256 fenetres 3x3, realisables ssi ni le centre ni une cardinale
+  n'est fine par sa paire interne, l'exterieur etant libre sur un plan non borne --
+  soit **27 index sur 47** ; les robes par une forme fermee portee par le recensement
+  (`tools/thick_census.gd`) : *un flanc devant exige un flanc muet en face* (le bloc qui
+  avance fait deux colonnes) et *un chapiteau exige un flanc muet* (une levre seule
+  serait fine), soit **23 roles sur 36** -- morts : (vide,devant), (devant,vide),
+  (devant,devant), et le chapiteau de (vide,vide) dont les rangees basses survivent
+  (une colonne peut finir seule en profondeur). Les 15 croisements survivent tous.
+  **50 tuiles par case (-40 %), 38 a cheval.** Battue continue dans la suite : sur des
+  reliefs epais tires au sort, tout ce qui devient visible tombe dans le vocabulaire.
+
+  ⚠ **LES MATHS NE BOUGENT PAS.** Les 47 restent le theoreme (BlobIndex, 512 fenetres),
+  les 36 la mecanique des robes : `Walls` et `Coverage` gardent leur savoir entier et
+  recoivent la barre du mode en parametre -- un preload Walls -> Thickness ferait un
+  cycle, donc la barre vit dans `Families` (surface_indices, wall_roles), une fois.
+
+  **Le guide epais** (`guides/epais.txt`, 76x35) est bati par `tools/build_epais.gd`
+  (GDScript headless, s'auto-verifie : epaisseur, 27/27, 23/23, 15/15, zero robe hors
+  grille, tout hors plaine). Ses accidents redessines en gras : massif a encoches 2x2,
+  sablier (pincements 119/221), quatre moulins (les coudes), contacts diagonaux, LE
+  DEFILE (un bloc qui ecrete -- la pose derriere doit se mesurer), la GORGE DECALEE
+  ((vide,vide) corps 1 et pied), la TOUR DU CAP ((vide,vide) corps 0 : la chute qui
+  n'atterrit pas, temoin mine avant d'etre dessine), deux escarpements a eperons
+  DOUBLES. ⚠ Premiere version encore « planche d'echantillons » -- a fondre en ile
+  continue dans une iteration dediee, le carnet par tuile rendant le redessin gratuit.
+
+  **La planche de preuve est epaisse aussi** : l'ilot d'un index se batit depuis sa PLUS
+  PETITE fenetre realisable (les coins caches que la canonicalisation jette) puis se
+  repare par extension -- jamais a moins de deux pas du centre, la fenetre de la preuve
+  ne bouge pas. L'ilot dual : chaque quadrant plein est un bloc 2x2 qui s'etend en
+  s'eloignant du croisement. La demonstration de falaise reprend les quatre accidents
+  du guide en miniature. ⚠ La marge basse des planches vaut une chute d'etage 1 dans le
+  vide : SIX rangees, pas trois -- le bloc cotier de la tour y tombe sans pied.
+
+  ⚠ **LE PINCEAU DE SOLUPAINT POSE DES TAMPONS 2x2 ET REFUSE LES CASES FINES** -- la
+  regle 5 en code, plus en discipline. Une case seule est fine par definition : un
+  pinceau case par case refuserait chaque premier coup de crayon. Le tampon n'est
+  jamais fin par lui-meme ; le controle (`rules.gd`, copie du noyau COMPAREE a lui par
+  la suite) garde le reste -- trous, ponts, tranchees -- et le refus se dit au
+  relachement, jamais tu. Manifeste **v6** (clause `thin_forbidden`), la v5 refusee
+  nommement ; le lecteur du plugin porte ses comptes (27/23), croises avec le noyau.
+
+  ⚠ **LES ANCIENS GUIDES RESTENT DES TEMOINS.** minimal.txt et ample.txt quittent le
+  catalogue mais pas le depot : le monde d'un acheteur peut porter des reliefs fins
+  (l'inspecteur le permet), donc le controle croise noyau/plugin les parcourt toujours
+  pour rencontrer les 36 roles, dont les treize qu'epais ne produit plus.
+
+- **LE CHAPITEAU SOUS SA LEVRE — la troisieme pose, proposee par l'utilisateur.** Sa
+  formulation du probleme etait la bonne : une tuile partagee n'a qu'une image, et
+  partout ou deux occurrences exigent matiere ICI et transparence LA, le partage ne
+  suffit pas. La transparence ne resout que le DESSOUS (l'empilement) ; pour la matiere
+  qui varie, il faut que LE MOTEUR pose la vraie matiere -- la famille sous-pied / pose
+  derriere. La face COMMENCE sous la case qui la lance : sous chaque levre se repose la
+  premiere rangee de SA chute, pan du premier pas -- les marges transparentes du peintre
+  (coins arrondis, contours) montrent le VRAI flanc de la vraie face de chaque
+  occurrence, plus jamais le sol a travers le haut de la paroi.
+
+  ⚠ **DEBLOQUEE PAR LE MODE EPAIS.** Avant lui, une levre au nord decoupe existait
+  (l'ilot d'une case) et la roche reposee aurait perce la ou l'on attendait le sol ;
+  en epais, une levre a toujours son nord plein.
+
+  ⚠ **LE SOUS-PIED GAGNE une case disputee** (relief non epais seulement : levre ET
+  atterrissage a la fois y est possible) -- l'ordre de balayage l'ecrit d'abord, la pose
+  de levre s'efface devant lui, dans les DEUX copies de la regle.
+
+  Clause au contrat : `lip_backing first_fall_row under_lip_cell` (v6, non livree, donc
+  pliee dans la version). Les trois especes de poses disent chacune ce qu'elles
+  prouvent : pied = atterrissage, corps = ecretage, premiere rangee = levre -- asserte,
+  et le controle croise compare les deux copies pose par pose.
+
+- **LA BARRE MONTE A TROIS -- BORD + CENTRE + BORD -- ET ELLE REVELE LE REDAN.**
+  Decision utilisateur du 24/08/2026 (« tu n'as pas fait le min 3 ») : une bande de deux
+  n'a pas d'interieur -- deux bords dos a dos -- et le peintre ne peut rien supposer du
+  cote masse de ses tuiles de bord. La regle devient : une case dont la COURSE (la suite
+  de cases du meme etat qui la contient le long d'un axe) fait moins de TROIS est fine,
+  dans chaque silhouette d'etage, pleine ou vide.
+
+  ⚠ **LES SURFACES NE BOUGENT PAS, ET C'EST UN THEOREME** : dans une fenetre 3x3, toute
+  course a un bout sur le bord -- prolongeable dehors -- sauf la course d'une case bornee
+  des deux cotes, deja interdite a min deux. Memes 27 index. Ce que min trois change,
+  ce sont les adjacences et la geometrie de tout ce qui se dessine.
+
+  ⚠ **LA BATTUE MIN-3 A REVELE DEUX ROLES QUE LE COMPTE DE 23 AVAIT MANQUES** :
+  (vide,devant) et (devant,vide) au CORPS 1 -- le REDAN, une colonne qui plonge seule
+  entre un tablier partiel d'etage 1 et des colonnes en retrait d'une rangee. Ils
+  etaient atteignables des min deux : la battue d'alors, en blocs de deux, ne les avait
+  jamais rencontres. Un sous-compte, expose avant qu'un acheteur ne tombe dessus.
+  **25 roles, 52 tuiles par case, 40 a cheval.** La forme fermee (`role_survives`) est
+  comparee au rencontre DANS LES DEUX SENS par le recensement, redans construits.
+
+  **Tout ce qui se dessine est passe a min trois :**
+  - le guide (`tools/build_epais.gd`, 104x44) : encoches 3 de long, trous 3x3, moulins a
+    bras triples, contacts 3x3, eperons triples, banquettes de trois rangees, et DEUX
+    REDANS mirroir l'un de l'autre -- 0 probleme au batisseur auto-verifiant ;
+  - la planche de preuve : l'ilot 7x7 ETIRE remplace la reparation -- chaque case prend
+    l'etat de la case de fenetre la plus proche vers le centre (clamp), et toute course
+    y fait mecaniquement trois : une courte exigerait une cardinale sans partenaire
+    lateral, ce que la realisabilite rejette. Un theoreme, plus une boucle. Ilots duaux
+    en blocs 3x3, demonstration a CINQ accidents (redans compris) ;
+  - le tampon de SoluPaint passe a **3x3, y compris sur le vide** (decision utilisateur).
+
+  ⚠ **LE MANIFESTE V6 EST AMENDE EN PLACE** -- il n'a jamais ete livre, la clause
+  devient `thin_forbidden run_shorter_than_three all_storeys both_states`.
+
+  ⚠ **LE TRAVAIL PEINT RETOMBE SUR SES PIEDS, MESURE** : le fichier de la session de
+  peinture recharge a 27/27 surfaces et 23/25 falaises -- deux tuiles neuves seulement,
+  les deux redans. Le carnet par tuile a paye une fois de plus.
+
+- **LE RECENSEMENT DES JONCTIONS — `Seams` ne connaissait qu'un raccord sur deux, et
+  l'illustration cassait à TOUS les autres.** Né de « ça n'a encore pas marché partout ».
+  La cause n'était ni la peinture ni le manque de liberté : `Seams` déduisait ses classes
+  d'une **formule** (`row_for`, pas 1..drop, à pan constant) au lieu de les lire du monde.
+
+  **Mesuré avant d'écrire une ligne** (`tools/seam_census.gd`, qui assemble le guide épais,
+  les deux planches de preuve et 300 reliefs épais tirés au sort, puis note tout ce que
+  `Walls.assemble()` pose côte à côte) :
+
+  ```
+  VERTICAL   : 70 jonctions distinctes posées, 26 connues de Seams, 44 INCONNUES
+  HORIZONTAL : 39 muet/muet posées, 23 connues, 16 INCONNUES
+  l'illustration à ces 60 jonctions : 60 cassées sur 60, jusqu'à 22,4 % d'écart
+  ```
+
+  **Trois causes, une seule espèce : une formule qui décrit ce qu'on CROYAIT poser.**
+  - ⚠ **Le pan d'une colonne CHANGE en descendant.** L'état d'un flanc se lit de ce que la
+    robe voisine couvre *à cette hauteur* ; quand elle s'arrête, le flanc passe de `muet` à
+    `vide` en pleine paroi. Joindre à pan constant laissait 33 jonctions de pleine face hors
+    de toute classe — les plus visibles du tileset.
+  - ⚠ **Une chute ne commence pas au pas 1 et ne finit pas au pas `drop`.** Les trois
+    adossements posent aux pas 0 et drop+1, donc **chapiteau sur chapiteau** (7 431 fois sur
+    le guide) et **pied sur pied** (1 641 fois) — que `row_chains()` ne peut pas produire,
+    `row_for` ne rendant `CROWN` qu'au pas 1 et `FOOT` qu'au dernier.
+  - ⚠ **« Deux flancs muets face à face ⇒ la même rangée » était FAUX.** Deux colonnes d'une
+    même lèvre peuvent avoir des chutes différentes — l'une atterrit sur une banquette
+    pendant que l'autre continue — et un `pied` se retrouve contre un `corps 1`.
+
+  ⚠ **ET LA FORME DU DÉFAUT EST LA LEÇON.** `tools/check_seams.gd` existait pour vérifier
+  que `Seams` **ne lie pas trop**. Personne n'a jamais vérifié qu'il **lie assez**. C'est
+  mot pour mot « ON COMPARE DANS LES DEUX SENS », déjà payé sur le contrôle croisé du
+  plugin, et jamais appliqué ici. Un garde-fou qui ne regarde que d'un côté ne garde rien.
+
+  **On ferme PRUDEMMENT, et c'est chiffré.** On joint à *tous* les couples de pans et à
+  *toutes* les rangées muettes, sans chercher lesquels sont réalisables :
+
+  | fermeture | classes indépendantes sur les 25 rôles vivants |
+  |---|---|
+  | `Seams` d'avant | **49** — la liberté qu'on croyait avoir |
+  | les jonctions réelles | **29** — celle que le monde autorise |
+  | la fermeture prudente, livrée | **28** |
+
+  Sur-joindre ne peut **jamais** rendre un tileset faux, seulement plus contraint. Le prix
+  est d'**une classe sur vingt-neuf**, contre une forme fermée à démontrer et à maintenir —
+  c'est-à-dire un endroit de plus où mentir. Le choix n'est pas serré. Et les 49 annoncées
+  étaient pire que fausses : elles promettaient vingt libertés qui cassaient en silence.
+
+  ⚠ **DEUX RÈGLES DE DESSIN EN DÉCOULENT, et elles rendent la fusion gratuite** — c'est la
+  généralisation de l'assise, *« tenue à distance des deux bords, donc incapable de se voir
+  au raccord »* :
+  - **ce qui dépend du PAN se tient à distance des bords haut et bas** (le pan change d'une
+    rangée à l'autre) ;
+  - **ce qui dépend de la RANGÉE se tient à distance des bords gauche et droit** (la colonne
+    voisine peut être à une autre rangée).
+
+  ⚠ **Le seul vrai prix, dit franchement : le chapiteau a sa première rangée de pixels
+  identique à sa dernière**, à cause de l'adossement sous la lèvre. Sa lèvre éclairée
+  descend d'un pixel. L'alternative — une cinquième rangée « sous-lèvre » dédiée — coûterait
+  +9 tuiles brutes pour racheter ce pixel-là. On paie le pixel.
+
+  **Asserté dans les deux sens** : `_test_seam_census` vérifie que toute jonction posée est
+  connue de `Seams` (57 verticales, 37 muettes sur une battue à graine fixe) ; le banc
+  vérifie qu'aucune classe ne mélange les deux axes, qu'aucun flanc `devant` ou `vide`
+  n'oblige quoi que ce soit latéralement, et que la fermeture **laisse exactement 28
+  classes** — sans ce dernier compte, tout joindre passerait au vert.
+
+  ⚠ **ET LE TEST REFAISAIT LE CALCUL DU CODE QU'IL VÉRIFIAIT.** `_check_wall_seams`
+  redérivait ses enchaînements de `row_for` sur trois chutes, à pan constant : **la même
+  formule, donc la même erreur, donc rien de vérifié.** Il lit désormais `Seams.GROUPS` —
+  ce que la propagation écrit vraiment sous le crayon — et compare **par classe, pas par
+  couple** : une classe est transitive, et couple à couple une dérive qui s'accumule le long
+  de la chaîne passerait inaperçue. L'égalité latérale des flancs muets, qui vivait à part
+  dans `_check_wall_side_seams` avec sa propre idée de ce qui doit être égal, l'a rejoint :
+  une seule règle, un seul endroit. Il ne reste à l'autre que les **trous**.
+
+  **Le verdict, en le posant : 66 comparaisons fautives sur 72, jusqu'à 27,8 %.** Puis le
+  dessin s'est mis en règle, et il tient en une phrase :
+
+  > **Le bord d'une tuile de robe ne porte QUE ce qui est vrai de toute face : la teinte du
+  > corps et sa striure. Tout ce qui nomme une rangée ou un pan vit à l'intérieur.**
+
+  Trois corrections dans `guide_image.gd`, toutes de la même famille :
+  - **l'ourlet** (`_hem`) éteint la lumière du chapiteau, l'enfoncement du pied et l'assise
+    sur les colonnes de gauche et de droite, et les **bandes de flanc** sur les rangées du
+    haut et du bas ;
+  - le trait du chapiteau et celui du pied, en fil de fer, **descendent d'un pixel** ;
+  - la **striure** tombait sur la colonne 0 et pas sur la dernière — or ces deux colonnes
+    sont le même point de roche dès que les deux flancs sont muets. Un quart de période de
+    décalage met les deux rainures au quart et aux trois quarts : même densité, bords libres.
+    Écart : **2,4 %** — assez pour être faux, trop peu pour se voir.
+
+  ⚠ **L'OURLET VAUT UN PIXEL FINAL, ET C'EST `_finish` QUI LE DIT.** La réduction est
+  bilinéaire d'un facteur `SUPERSAMPLE` : le pixel final 0 se prend au sur-échantillon 1. Un
+  ourlet plus mince laisserait la modulation déborder et le test échouerait de quelques pour
+  mille — assez pour être faux, trop peu pour se voir. Encore.
+
+  ⚠ **L'ARÊTE SE COUPE D'UN PIXEL À CHAQUE ASSISE, ET C'EST UN THÉORÈME, PAS UN CHOIX.** Le
+  flanc peut changer d'état à n'importe quelle frontière de rangées — le recensement porte
+  `(muet,vide) chapiteau SUR (muet,muet) corps 0`, une bande **face à une absence de
+  bande** — donc aucune tuile n'a le droit de se prononcer sur cette ligne. Aucun talent de
+  dessin ne rattrape ça : **c'est la même impossibilité que celle des trois pans**, un cran
+  plus fin. On fait donc l'ourlet le plus étroit possible pour que ça se lise comme une
+  articulation de paroi, jugé à l'écran sur quatre chutes de six dont deux à pan changeant.
+
+  **Résultat : 0,0 % d'écart dans les trois styles, 0 trou, 28 classes.** `trial/` régénéré,
+  puisqu'il est dérivé de l'illustration.
+
+  ⚠ **ET LE VERT D'AVANT ÉTAIT LE PIRE DE TOUS LES VERTS.** Pendant tout ce temps la suite
+  passait, le banc passait, et le dessin cassait aux deux tiers de ses jonctions. Un test
+  qui redérive la formule qu'il contrôle ne contrôle rien — il la certifie.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
+
+À **8.0.1** : les raccords que la formule ne voyait pas — `Seams` déduisait ses classes
+de `row_for` (pas 1..drop, à pan constant) au lieu de les lire du monde, et ignorait donc
+**60 jonctions sur 109** que le modèle pose vraiment ; l'illustration cassait aux 60, sans
+exception. Fermeture prudente (28 classes au lieu des 29 exactes), recensement asserté dans
+les deux sens, et le dessin mis en règle : rien de neuf à l'écran, un défaut réparé —
+correctif.
+
+À **8.0.0** : le mode **épais** est le produit, et le seul — rien ne fait une bande
+fine, à la barre de **min trois** (bord + centre + bord), le vocabulaire tombe à
+**27 + 25 = 52 tuiles** (calculé, prouvé, battu en continu — et la battue min-3 a
+révélé le redan que le premier compte manquait), le guide et les planches de preuve
+sont épais, le pinceau de SoluPaint pose des tampons 3×3 et refuse les cases fines,
+manifeste v6 (v5 refusée) : majeure, tout l'existant est périmé.
 
 À **7.0.0** : le logiciel devient **SoluTiles** et le plugin **SoluPaint** — les deux
 MAGIC de format suivent la marque (`solutiles`, `solutiles-tileset`), ce qui périme

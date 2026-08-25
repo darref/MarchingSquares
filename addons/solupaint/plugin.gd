@@ -20,6 +20,7 @@ const WORLD_SCRIPT: String = "res://addons/solupaint/world.gd"
 const ICON: String = "res://addons/solupaint/icon.svg"
 const DOCK := preload("res://addons/solupaint/dock.gd")
 const Manifest := preload("res://addons/solupaint/manifest.gd")
+const Rules := preload("res://addons/solupaint/rules.gd")
 
 var _button: Button = null
 var _dock: VBoxContainer = null
@@ -27,6 +28,8 @@ var _alert: AcceptDialog = null
 
 ## Les cases du trait en cours, sans doublon. Vide hors trait.
 var _stroke: Dictionary = {}
+## Tampons refuses pendant le trait en cours -- dits au relachement, jamais tus.
+var _refused: int = 0
 ## Le contre-geste du trait : la valeur d'AVANT de chaque case changee, premiere touche.
 var _undo_delta: Dictionary = {}
 ## Le geste net du trait : la valeur FINALE de chaque case reellement changee.
@@ -225,6 +228,7 @@ func _forward_canvas_gui_input(event: InputEvent) -> bool:
 			# de retouche -- reprendre un bord sans changer de reglage.
 			_erasing = click.button_index == MOUSE_BUTTON_RIGHT
 			_has_last = false
+			_refused = 0
 			_gather(world, click.position)
 		else:
 			_commit(world)
@@ -263,8 +267,25 @@ func _gather(world: Node, at: Vector2) -> void:
 	# inutilisable des qu'un monde grandit.
 	var level: int = _dock.chosen_level()
 	var changes: Dictionary = {}
+	# ⚠ LE PINCEAU EPAIS POSE DES TAMPONS 3x3 -- bord + centre + bord. Une bande de moins --
+	# le mode l'interdit -- et un pinceau qui refuserait chaque premier coup de crayon
+	# serait inutilisable. Le tampon n'est jamais fin par lui-meme ; le controle
+	# d'epaisseur garde le reste : trous d'une case, ponts, tranchees. Un tampon qui en
+	# creerait un est REFUSE en entier, et le trait le dit au relachement.
+	var staged: Dictionary = {}
+	var wanted: int = -1 if (_erasing or level < 0) else level
 	for step: Vector2i in fresh:
-		changes[step] = -1 if (_erasing or level < 0) else level
+		var stamp: Array[Vector2i] = []
+		for dy: int in range(3):
+			for dx: int in range(3):
+				stamp.append(step + Vector2i(dx, dy))
+		if Rules.stamp_creates_thin(world.get("heights"), staged, stamp, wanted):
+			_refused += 1
+			continue
+		for spot: Vector2i in stamp:
+			changes[spot] = wanted
+	if changes.is_empty():
+		return
 	var inverse: Dictionary = world.apply(changes)
 	# Premiere touche gagne cote annulation, geste final cote refaire : l'aller-retour est
 	# exact, et une case que le trait n'a pas vraiment changee n'entre dans aucun des deux.
@@ -296,7 +317,12 @@ func _commit(world: Node) -> void:
 	history.add_do_method(world, "apply", _redo_delta.duplicate())
 	history.add_undo_method(world, "apply", _undo_delta.duplicate())
 	history.commit_action(false)
-	_say("%d cases posees." % _redo_delta.size())
+	if _refused > 0:
+		# ⚠ UN REFUS MUET EST LE PIRE DES REFUS : on dit ce qui a ete refuse, et pourquoi.
+		_say("%d cases posees, %d tampon(s) refuses : un relief d'une tuile d'epaisseur n'a pas de tuiles."
+				% [_redo_delta.size(), _refused])
+	else:
+		_say("%d cases posees." % _redo_delta.size())
 	_undo_delta = {}
 	_redo_delta = {}
 

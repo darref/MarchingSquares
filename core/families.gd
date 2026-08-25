@@ -26,6 +26,7 @@ const CornerIndex := preload("res://core/corner_index.gd")
 const Coverage := preload("res://core/coverage.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
+const Thickness := preload("res://core/thickness.gd")
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
@@ -33,7 +34,7 @@ const BY_CORNER: StringName = &"corner"
 const FAMILIES: Dictionary = {
 	BY_CELL: {
 		"label": "Par case",
-		"note": "47 tuiles de surface",
+		"note": "27 tuiles de surface",
 	},
 	BY_CORNER: {
 		"label": "A cheval",
@@ -62,14 +63,25 @@ static func note(family: StringName) -> String:
 
 
 ## Les index de surface que la famille livre.
+##
+## ⚠ LE MODE EPAIS EST LE PRODUIT : par case, la famille livre les 27 index qui survivent
+## a l'interdit des reliefs d'une tuile d'epaisseur (core/thickness.gd), pas les 47 de la
+## mathematique. Les 47 restent le theoreme (BlobIndex) ; les 27 sont le vocabulaire.
 static func surface_indices(family: StringName) -> PackedInt32Array:
 	if family == BY_CORNER:
 		return CornerIndex.all_indices()
-	return BlobIndex.CANONICAL_INDICES
+	return Thickness.SURFACE_INDICES
 
 
 static func surface_tile_count(family: StringName) -> int:
 	return surface_indices(family).size()
+
+
+## Les roles de robe que le mode livre -- les 23 epais, pour les deux familles.
+## ⚠ C'EST ICI QUE LA BARRE VIT, une seule fois : Walls garde sa mathematique des 36 et
+## recoit la liste voulue en parametre (un preload Walls -> Thickness ferait un cycle).
+static func wall_roles() -> Array[Vector2i]:
+	return Thickness.wall_roles()
 
 
 ## Ce qu'on peint -> l'index qu'il porte.
