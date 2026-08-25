@@ -195,7 +195,7 @@ func _test_coverage_on_simple_mask() -> void:
 	var expected_present: PackedInt32Array = PackedInt32Array([7, 28, 31, 112, 124, 193, 199, 241, 255])
 	_check_equal(report["present"], expected_present, "index presents attendus")
 	_check_equal(report["missing"].size(), Thickness.SURFACE_INDICES.size() - expected_present.size(), "18 index manquants")
-	_check_equal(report["is_complete"], false, "le bloc 3x3 ne couvre pas les 27 index")
+	_check_equal(report["is_complete"], false, "le bloc 3x3 ne couvre pas les 48 tuiles")
 	var all_single: bool = true
 	for index: int in expected_present:
 		if int(report["occurrences"][index]) != 1:
@@ -254,10 +254,12 @@ func _test_modes_catalogue() -> void:
 	_check(Modes.is_available(Modes.EPAIS), "epais a son guide, il se choisit")
 	_check_equal(Modes.label(Modes.EPAIS), "Epais", "libelle du mode epais")
 	_check_equal(Modes.surface_tile_count(Modes.EPAIS), Thickness.SURFACE_INDICES.size(),
-			"27 tuiles de surface, calculees")
+			"48 tuiles de surface, calculees")
 	_check_equal(Modes.wall_tile_count(Modes.EPAIS), Thickness.wall_roles().size(),
-			"25 tuiles de mur, calculees")
-	_check_equal(Modes.tile_count(Modes.EPAIS), 65, "65 tuiles en tout")
+			"44 tuiles de mur, calculees")
+	_check_equal(Modes.tile_count(Modes.EPAIS),
+			Thickness.SURFACE_INDICES.size() + Thickness.wall_roles().size(),
+			"92 tuiles en tout, et le compte est la somme des deux, jamais un nombre ecrit")
 	_check_equal(Modes.min_occurrences(Modes.EPAIS), 1, "epais ne promet qu une occurrence")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
@@ -449,7 +451,7 @@ func _check_one_guide(id: StringName) -> void:
 				every_cell.append(Vector2i(x, y))
 	var resolved: Dictionary = Delivery.resolve_relief(heights, every_cell)
 	_check(resolved["is_exportable"], "guide complet entierement peint : exportable")
-	_check_equal(resolved["delivered"].size(), Thickness.SURFACE_INDICES.size(), "les 27 index sont livres")
+	_check_equal(resolved["delivered"].size(), Thickness.SURFACE_INDICES.size(), "les 48 tuiles sont livrees")
 	_check(resolved["unused"].is_empty(), "aucune case inutilisee quand tout est peint")
 
 	# ⚠ LA PROMESSE DU MODE EST CHIFFREE, DONC ELLE SE PROUVE. `minimal` annonce 1 variante
@@ -761,14 +763,24 @@ func _test_surface_map() -> void:
 		# sous robe, et « S255:0 » pouvait ne designer personne.
 		var by_key: Dictionary = WorkIO.cells_by_key(heights)
 		var by_cell: Dictionary = WorkIO.slots(heights)
-		var holes: int = 0
+		# ⚠ ON COMPTE, ON NE FOUILLE PAS. Chercher chaque rang inferieur un par un est
+		# quadratique en occurrences : sur un guide ou une tuile se voit deux mille fois,
+		# c'est deux millions de chaines bâties pour une question qui se repond par une
+		# soustraction. Les rangs se suivent sans trou si, et seulement si, le plus grand
+		# vaut le nombre moins un.
+		var top_rank: Dictionary = {}
+		var count_rank: Dictionary = {}
 		for key: String in by_key.keys():
-			if key.begins_with("S"):
-				var rank: int = int(WorkIO.describe(key)["rank"])
-				for lower: int in range(rank):
-					var earlier: String = "%s:%d" % [key.substr(0, key.rfind(":")), lower]
-					if not by_key.has(earlier):
-						holes += 1
+			if not key.begins_with("S"):
+				continue
+			var cut: int = key.rfind(":")
+			var prefix: String = key.substr(0, cut)
+			var rank: int = int(key.substr(cut + 1))
+			top_rank[prefix] = maxi(int(top_rank.get(prefix, 0)), rank)
+			count_rank[prefix] = int(count_rank.get(prefix, 0)) + 1
+		var holes: int = 0
+		for prefix: String in top_rank.keys():
+			holes += int(top_rank[prefix]) + 1 - int(count_rank[prefix])
 		_check_equal(holes, 0, "%s : les rangs de surface se suivent sans trou" % Modes.label(id))
 		var surface_slots: int = 0
 		for cell: Vector2i in by_cell.keys():
@@ -1113,7 +1125,7 @@ func _test_export() -> void:
 	for key: String in first_keys:
 		painting.paint(by_key[key], 0, 0, _key_colour(key))
 	_check_equal(first_keys.size(), Modes.tile_count(Modes.EPAIS),
-			"le guide epais porte exactement 52 tuiles obligatoires")
+			"le guide epais porte exactement autant de tuiles obligatoires que le vocabulaire")
 
 	var report: Dictionary = TilesetPNG.analyse(painting, heights)
 	_check(report["is_exportable"], "une occurrence de chaque tuile suffit a exporter")
@@ -1129,7 +1141,7 @@ func _test_export() -> void:
 		if not sheet.get_pixel(slot.x * 16, slot.y * 16).is_equal_approx(
 				_key_colour("S%d:0" % index)):
 			astray += 1
-	_check_equal(astray, 0, "les 27 index tombent chacun sur SA case de la planche")
+	_check_equal(astray, 0, "les 48 tuiles tombent chacune sur SA case de la planche")
 
 	var kit: Image = TilesetPNG.compose(painting, heights, report, true)
 	_check_equal(kit.get_width(), Walls.PAN_COUNT * 16, "la planche de robes fait neuf pans")
@@ -1297,10 +1309,10 @@ func _test_preview_scene() -> void:
 	var indices: Dictionary = Coverage.index_map(scene)
 	var roles: Dictionary = Walls.visible_roles(scene)
 	var wild: int = 0
-	for index: int in indices.values():
-		if not BlobIndex.is_canonical(index):
+	for tile: int in indices.values():
+		if not BlobIndex.is_canonical(BlobIndex.silhouette(tile)):
 			wild += 1
-	_check_equal(wild, 0, "chaque case du decor porte un index des 47")
+	_check_equal(wild, 0, "chaque case du decor porte une silhouette des 47")
 
 	var seen: Dictionary = {}
 	for role: Vector2i in roles.values():
@@ -1401,8 +1413,10 @@ func _test_vocabulary_is_closed() -> void:
 			seen_roles[role] = true
 			if not known.has(role):
 				ternary_strays += 1
-		for index: int in Coverage.index_map(relief).values():
-			if not canonical.has(index):
+		# ⚠ UNE TUILE DE SURFACE EST UN COUPLE (silhouette, bord) : la battue compare la
+		# SILHOUETTE aux 47 canoniques, le bord n'ayant rien a voir avec la canonicalisation.
+		for tile: int in Coverage.index_map(relief).values():
+			if not canonical.has(BlobIndex.silhouette(tile)):
 				ternary_strays += 1
 	_check_equal(ternary_strays, 0,
 			"les %d reliefs 3x3 a TROIS etats -- vide, plaine, plateau -- ne donnent rien d autre"
@@ -1417,15 +1431,15 @@ func _test_vocabulary_is_closed() -> void:
 		# qui ne trouve rien sous elle, celle du bord du monde, et la plaine qui devient une
 		# ile. On cherche aussi la.
 		var holed: PackedStringArray = _with_void(rng, heights)
-		for index: int in Coverage.index_map(holed).values():
-			if not canonical.has(index):
+		for tile: int in Coverage.index_map(holed).values():
+			if not canonical.has(BlobIndex.silhouette(tile)):
 				wild += 1
 		for role: Vector2i in Walls.visible_roles(holed).values():
 			seen_roles[role] = true
 			if not known.has(role):
 				wild += 1
-		for index: int in Coverage.index_map(heights).values():
-			if not canonical.has(index):
+		for tile: int in Coverage.index_map(heights).values():
+			if not canonical.has(BlobIndex.silhouette(tile)):
 				wild += 1
 		for role: Vector2i in Walls.visible_roles(heights).values():
 			seen_roles[role] = true
@@ -1518,19 +1532,23 @@ func _test_proof_scene() -> void:
 	# se revele fausse.
 	var centres: Dictionary = ProofScene.centres()
 	_check_equal(centres.size(), Thickness.SURFACE_INDICES.size(), "un ilot par index, ni plus ni moins")
+	# ⚠ ON DEMANDE LA TUILE, PAS LA SILHOUETTE : le bord se lit des robes voisines, donc il
+	# faut la carte des robes. Sans elle la planche se compare a des index nus et croit que
+	# toutes ses cases sont fausses.
+	var board_walls: Dictionary = Walls.visible_roles(relief)
 	var misplaced: Array[int] = []
 	for index: int in centres.keys():
 		var at: Vector2i = centres[index]
-		if Coverage.visible_index_at(relief, at.x, at.y) != index:
+		if Coverage.visible_index_at(relief, at.x, at.y, board_walls) != index:
 			misplaced.append(index)
 	_check_equal(misplaced, [] as Array[int],
-			"les 27 ilots portent chacun SON index, a la case annoncee")
+			"les 48 ilots portent chacun SON index, a la case annoncee")
 
 	# Et les ilots ne se contaminent pas : la planche entiere ne montre que les 47.
 	var report: Dictionary = Coverage.analyse_relief(relief)
-	_check(report["is_complete"], "la planche couvre les 27 index")
+	_check(report["is_complete"], "la planche couvre les 48 tuiles")
 	var walls: Dictionary = Walls.analyse(relief, Thickness.wall_roles())
-	_check(walls["is_complete"], "et les 25 roles de falaise, par les accidents epais")
+	_check(walls["is_complete"], "et les 44 roles de falaise, par les accidents epais")
 	_check_equal(walls["outside"].size(), 0, "aucune robe de la planche ne tombe hors du cadre")
 
 	# La planche doit pouvoir se remplir avec les tuiles du guide, sinon elle montrerait des
@@ -1754,7 +1772,7 @@ func _test_seam_census() -> void:
 					or (other.y == head.y and other.z < head.z))):
 				head = other
 		upright[head] = true
-	_check_equal(roots.size(), 50, "la fermeture laisse 50 classes de bords independantes")
+	_check_equal(roots.size(), 62, "la fermeture laisse 62 classes de bords independantes")
 	_check_equal(upright.size(), 3,
 			"et trois profils de frontiere de rangees -- le vagabondage de l arete")
 
@@ -2176,7 +2194,7 @@ func _test_dual_end_to_end() -> void:
 	_check_equal(misplaced, [] as Array[int],
 			"les quinze ilots portent chacun SON croisement, a la case annoncee")
 	_check(Families.is_covered(family, relief), "la planche couvre les quinze")
-	_check(Walls.analyse(relief, Thickness.wall_roles())["is_complete"], "et les 25 roles de falaise")
+	_check(Walls.analyse(relief, Thickness.wall_roles())["is_complete"], "et les 44 roles de falaise")
 	_check_equal(Walls.analyse(relief)["outside"].size(), 0, "aucune robe hors du cadre")
 
 	# L export complet, dans la famille duale.
@@ -2889,8 +2907,14 @@ func _test_plugin_rules() -> void:
 	# robe ne prouve pas que les robes s accordent : elle prouve qu elle n en a pas vu.
 	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
 			"la battue a rencontre les %d roles de robe" % Walls.ALL_ROLES.size())
-	_check_equal(seen_surface.size(), BLOB_TILE_COUNT,
-			"et les %d index de surface" % BLOB_TILE_COUNT)
+	# ⚠ ON COMPTE LES SILHOUETTES, PAS LES TUILES. Une tuile de surface est le couple
+	# (silhouette, bord) : la battue en rencontre bien plus que quarante-sept, et c'est
+	# normal. Ce qu'on veut savoir ici, c'est qu'elle a vu tous les VOISINAGES.
+	var seen_shapes: Dictionary = {}
+	for tile: int in seen_surface.keys():
+		seen_shapes[BlobIndex.silhouette(tile)] = true
+	_check_equal(seen_shapes.size(), BLOB_TILE_COUNT,
+			"et les %d silhouettes de surface" % BLOB_TILE_COUNT)
 	_check_equal(seen_corners.size(), CornerIndex.TILE_COUNT,
 			"et les %d croisements" % CornerIndex.TILE_COUNT)
 
@@ -3596,45 +3620,41 @@ func _test_thickness() -> void:
 	print("thickness : le vocabulaire du mode epais")
 	# Le vocabulaire est CALCULE (theoreme des 256 fenetres) ; le test epingle le
 	# resultat du recensement (tools/thick_census.gd) pour attraper toute derive.
-	_check_equal(Thickness.SURFACE_INDICES.size(), 27, "27 index de surface survivent")
-	for index: int in Thickness.SURFACE_INDICES:
-		_check(BlobIndex.is_canonical(index), "l index epais %d est canonique" % index)
+	_check_equal(Thickness.SURFACE_INDICES.size(), 48,
+			"48 tuiles de surface survivent -- 27 silhouettes declinees selon leur BORD")
+	var thick_shapes: Dictionary = {}
+	for tile: int in Thickness.SURFACE_INDICES:
+		var shape: int = BlobIndex.silhouette(tile)
+		thick_shapes[shape] = true
+		_check(BlobIndex.is_canonical(shape), "la silhouette epaisse %d est canonique" % shape)
+	_check_equal(thick_shapes.size(), 27, "27 silhouettes, declinees en 48 tuiles")
 	for index: int in [255, 31, 119, 124, 127, 253]:
-		_check(index in Thickness.SURFACE_INDICES, "l index %d survit" % index)
+		_check(thick_shapes.has(index), "la silhouette %d survit" % index)
 	for index: int in [0, 1, 4, 16, 17, 21, 68, 85, 87, 95]:
-		_check(not (index in Thickness.SURFACE_INDICES), "l index %d meurt" % index)
-	_check_equal(Thickness.wall_roles().size(), 38, "38 roles de robe survivent")
+		_check(not thick_shapes.has(index), "la silhouette %d meurt" % index)
+	_check_equal(Thickness.wall_roles().size(), 44, "44 roles de robe survivent")
 	var front_front: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_FRONT)
 	var void_void: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID)
 	var void_front: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_FRONT)
 	var front_void: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_VOID)
-	_check(not Thickness.role_survives(Vector2i(front_front, 1)), "(devant,devant) meurt")
-	# ⚠ LE VOCABULAIRE DE ROBE NE SE RESTREINT PLUS QUE PAR L EPAISSEUR DU RELIEF.
-	# `(devant,devant)` demanderait un eperon d UNE colonne -- une course d une case, donc
-	# fine. C est la seule mort demontree ; les huit autres pans vivent.
-	#
-	# ⚠ ET LA REGLE « AU MOINS UN FLANC MUET » A ETE POSEE PUIS RETIREE, EN UNE HEURE. Elle
-	# repondait a un vrai defaut -- une meme tuile sommee de border tantot de l herbe, tantot
-	# de la roche -- mais au SYMPTOME. La cause etait que `muet` voulait dire deux choses,
-	# dont « le sommet d un plateau est a cote, c est A LUI de tracer » : et « lui » etait une
-	# tuile de surface, incapable de tracer. Cause corrigee, la regle n avait plus de raison
-	# d etre, et son prix avait triple -- 96 % des reliefs acceptables, puis 68 %.
-	for row: int in range(Walls.BLOCK_ROWS):
-		_check(not Thickness.role_survives(Vector2i(front_front, row)),
-				"(devant,devant) meurt au %s : un eperon d une colonne serait fin"
-				% Walls.ROW_NAMES[row])
-		_check(Thickness.role_survives(Vector2i(void_void, row)),
-				"(vide,vide) vit au %s" % Walls.ROW_NAMES[row])
-	# ⚠ SAUF LES DEUX MIXTES AU PIED, que la battue ne rencontre jamais -- ni a min deux ni
-	# a min trois, ni avec du vide ni avec les miroirs. C est la partie CHERCHEE de la forme,
-	# pas la partie demontree, et c est la battue continue qui la garde.
-	for body: int in range(1, Walls.BODY_ROWS + 1):
-		_check(Thickness.role_survives(Vector2i(void_front, body)),
-				"(vide,devant) vit au %s" % Walls.ROW_NAMES[body])
-	_check(not Thickness.role_survives(Vector2i(void_front, Walls.ROW_FOOT)),
-			"mais jamais au pied")
-	_check(not Thickness.role_survives(Vector2i(front_void, Walls.ROW_FOOT)),
-			"son miroir non plus")
+	# ⚠ `(devant,devant)` EST RESSUSCITE PAR LES LEVRES GLOBALES. L argument qui le tuait --
+	# il demanderait un eperon d UNE colonne, donc fin -- ne valait que pour deux faces du
+	# MEME etage. Entre etages, deux faces dont les levres sont plus au nord de part et
+	# d autre, c est banal : je suis devant les deux et je porte mes deux angles.
+	for row: int in range(Walls.BLOCK_ROWS - 1):
+		_check(Thickness.role_survives(Vector2i(front_front, row)),
+				"(devant,devant) vit au %s" % Walls.ROW_NAMES[row])
+	_check(not Thickness.role_survives(Vector2i(front_front, Walls.ROW_FOOT)),
+			"mais jamais au pied -- la battue ne l y rencontre pas")
+	# ⚠ ET TOUS LES AUTRES PANS VIVENT A TOUTES LES RANGEES. Le vocabulaire de robe ne se
+	# restreint plus du tout : c est la MINIMALITE qui le fixe desormais, prouvee en retirant
+	# chaque distinction pour voir si les occurrences se contredisent (tools/minimality.gd).
+	for pan: int in range(Walls.PAN_COUNT):
+		if pan == front_front:
+			continue
+		for row: int in range(Walls.BLOCK_ROWS):
+			_check(Thickness.role_survives(Vector2i(pan, row)),
+					"%s vit au %s" % [Walls.pan_name(pan), Walls.ROW_NAMES[row]])
 
 	# Les cases fines se detectent : une bande d une case, un trou d une case.
 	var thin_band: PackedStringArray = PackedStringArray(["000000", "011110", "000000"])
@@ -3719,9 +3739,9 @@ func _random_thick_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 func _test_thickness_cross_check() -> void:
 	print("thickness : la copie du plugin dit exactement ce que dit le noyau")
 	_check_equal(PluginManifest.SURFACE_TILES, Thickness.SURFACE_INDICES.size(),
-			"le lecteur du plugin attend les 27 surfaces du noyau")
+			"le lecteur du plugin attend les 48 surfaces du noyau")
 	_check_equal(PluginManifest.WALL_TILES, Thickness.wall_roles().size(),
-			"et les 25 roles du noyau")
+			"et les 44 roles du noyau")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x7413C
 	var drift: int = 0

@@ -25,6 +25,8 @@ const CornerIndex := preload("res://core/corner_index.gd")
 const Families := preload("res://core/families.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Thickness := preload("res://core/thickness.gd")
+const BrinkLips := preload("res://core/brink_lips.gd")
+const WallDemos := preload("res://core/wall_demos.gd")
 
 ## ⚠ L'ILOT EPAIS FAIT SEPT, ET IL EST ETIRE, PAS REPARE. Un ilot reduit a sa fenetre
 ## 3x3 canonique est fin presque partout -- c'est exactement ce que le mode interdit.
@@ -36,8 +38,14 @@ const Thickness := preload("res://core/thickness.gd")
 ## theoreme, pas une reparation, et la fenetre du centre -- la preuve -- ne bouge pas.
 const ISLAND: int = 7
 const COLUMNS: int = 8
+
+## Ou tombe le centre d'un ilot dans son pas : trois vers l'est, neuf vers le sud.
+const ISLAND_CENTRE: Vector2i = Vector2i(3, 9)
 const PITCH_X: int = ISLAND + 3
-const PITCH_Y: int = ISLAND + 5
+## ⚠ ET LE PAS VERTICAL PORTE MAINTENANT LA LEVRE ET SA CHUTE. L'ilot va de -9 (le bloc
+## de falaise que reclame un bord nord) a +3, et sous lui sa propre face tombe six rangees
+## dans le vide. Dix-neuf rangees, plus de quoi respirer.
+const PITCH_Y: int = ISLAND + 16
 
 ## L'ilot de la famille A CHEVAL : un simple bloc de 2 x 2 cases. Une tuile de croisement ne
 ## depend que des quatre cases qu'elle chevauche -- l'ilot EST donc la tuile, sans voisinage
@@ -94,8 +102,18 @@ const DUAL_PITCH_Y: int = DUAL_ISLAND + 5
 ##     d'une rangee sur un tablier partiel -- (vide,devant) et (devant,vide) corps 1.
 ## ⚠ LA DEMONSTRATION S'EST ELARGIE avec le vocabulaire : le pignon a deux marches et le
 ## cap a une marche demandent de la place a l'est des quatre accidents d'origine.
-const DEMO_WIDTH: int = 100
-const DEMO_HEIGHT: int = 15
+## ⚠ ELLE N'EST PLUS DESSINEE, ELLE EST TROUVEE. Cinq accidents ecrits a la main portaient
+## les vingt-cinq roles d'alors ; le vocabulaire est passe a quarante-quatre et sept roles
+## n'avaient plus de scene -- sans que rien ne le dise avant que la suite ne rougisse. Une
+## demonstration ecrite est une donnee a maintenir, donc un endroit ou mentir : c'est la
+## meme raison qui fait calculer les 47 index et les ilots.
+##
+## `tools/make_wall_demos.gd` simule le geste de l'acheteur -- tampons 3x3, refus du fin,
+## aucune robe hors du cadre -- garde un relief par role et n'en retient que le moins
+## possible. Les deux roles que le hasard ne rencontre pas (un pied a un flanc `devant` et
+## l'autre `vide`, qui demande un CONTREFORT) sont decoupes dans le guide, qui les porte.
+const DEMO_COLUMNS: int = 3
+const DEMO_GAP: int = 3
 
 ## Le code du caractere « 0 » : un etage N s'ecrit ZERO + N.
 const ZERO: int = 48
@@ -111,8 +129,8 @@ static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
 	var island_rows: int = (indices.size() + columns - 1) / columns
 	var width: int = columns * pitch_x
 	var wall_top: int = island_rows * pitch_y
-	width = maxi(width, DEMO_WIDTH + 2)
-	var height: int = wall_top + DEMO_HEIGHT + 1
+	width = maxi(width, _demo_size().x + 2)
+	var height: int = wall_top + _demo_size().y + 1
 
 	# ⚠ LA PLANCHE S'ENTOURE DE VIDE, ELLE AUSSI. La plaine est un plateau : au bord du
 	# monde elle a une falaise de trois cases, et sans marge celle-ci tomberait hors du
@@ -135,11 +153,11 @@ static func relief(family: StringName = Families.BY_CELL) -> PackedStringArray:
 		else:
 			_stamp_island(cells, indices[order], origin)
 
-	var wall_left: int = maxi(0, (width - DEMO_WIDTH) / 2)
+	var wall_left: int = VOID_MARGIN
 	# ⚠ LE BAS DE LA DEMONSTRATION EST LA DERNIERE RANGEE DE PLAINE. La tour du cap sonde
 	# le vide sous son pied -- c'est ce qui fait son (vide,vide) corps 0 -- donc sa chute
 	# doit finir exactement au bord du monde de la planche.
-	var demo_top: int = height - DEEP_MARGIN - DEMO_HEIGHT
+	var demo_top: int = height - DEEP_MARGIN - _demo_size().y
 	_stamp_wall_demo(cells, wall_left, demo_top)
 
 	var rows: PackedStringArray = PackedStringArray()
@@ -166,7 +184,9 @@ static func centres(family: StringName = Families.BY_CELL) -> Dictionary:
 	var by_index: Dictionary = {}
 	var indices: PackedInt32Array = Families.surface_indices(family)
 	for order: int in range(indices.size()):
-		by_index[indices[order]] = island_origin(order, family) + Vector2i(3, 3)
+		by_index[indices[order]] = island_origin(order, family) + (
+				Vector2i(DUAL_ISLAND / 2, DUAL_ISLAND / 2) if family == Families.BY_CORNER
+				else ISLAND_CENTRE)
 	return by_index
 
 
@@ -175,9 +195,17 @@ static func centres(family: StringName = Families.BY_CELL) -> Dictionary:
 ## ⚠ L'ILOT EST CONSTRUIT DEPUIS L'INDEX, PAS L'INVERSE. Le voisinage de son centre est donc
 ## exactement l'index voulu, par construction et non par verification -- et le test le
 ## reverifie quand meme, puisque c'est le genre d'evidence qui se revele fausse.
-static func _stamp_island(cells: Array, index: int, origin: Vector2i) -> void:
-	for offset: Vector2i in _thick_island(index):
-		_put(cells, origin.x + 3 + offset.x, origin.y + 3 + offset.y, 1)
+## ⚠ LE CENTRE DESCEND DE SIX, PAS DE TROIS. L'ilot s'allonge vers le nord quand le bord
+## reclame une falaise de ce cote : la levre se pose six rangees au-dessus du centre, et
+## caler le centre a trois la ferait mordre sur l'ilot du dessus.
+static func _stamp_island(cells: Array, tile: int, origin: Vector2i) -> void:
+	var centre: Vector2i = origin + ISLAND_CENTRE
+	for offset: Vector2i in island_cells(BlobIndex.silhouette(tile)):
+		_put(cells, centre.x + offset.x, centre.y + offset.y, 1)
+	# ⚠ LA FALAISE VOISINE EST LUE, PAS DEDUITE. Voir `core/brink_lips.gd` : sa position ne
+	# se raisonne pas -- trois raisonnements, trois erreurs -- elle se cherche et se verifie.
+	for offset: Variant in (BrinkLips.LIPS.get(tile, []) as Array):
+		_put(cells, centre.x + (offset as Vector2i).x, centre.y + (offset as Vector2i).y, 2)
 
 
 static var _islands: Dictionary = {}
@@ -195,26 +223,68 @@ static var _islands: Dictionary = {}
 ##      differente de ses deux voisines, c'est-a-dire une cardinale sans partenaire
 ##      lateral du meme etat -- ce que la realisabilite rejette. Les courses vides du
 ##      bord s'ouvrent sur l'exterieur de l'ilot, qui est vide.
-static func _thick_island(index: int) -> Array[Vector2i]:
-	if _islands.has(index):
-		return _islands[index]
+## ⚠ ET L'ILOT PORTE AUSSI LE BORD. Une tuile de surface est le couple (silhouette, bord) :
+## un cardinal vide borde soit du NU -- ca tombe -- soit de la ROCHE, la face d'une falaise
+## voisine dont le sommet est au niveau de mon sol. La planche doit donc mettre en scene la
+## falaise voisine quand le bord la demande, sinon elle montre une tuile qui n'est pas celle
+## qu'elle annonce.
+##
+## ⚠ A L'EST ET A L'OUEST, LA LEVRE TIENT DANS L'ILOT. Le coin diagonal de ce cote-la est
+## JETE par la canonicalisation (son cardinal est vide), donc le remplir ne change pas
+## l'index : un bloc dans le quadrant nord-est fait une levre a la rangee -1, et sa face
+## couvre exactement ma voisine de l'est.
+##
+## ⚠ AU NORD, IL FAUT L'ALLONGER. Ma voisine du nord doit rester vide -- c'est ce que dit
+## la silhouette -- et une levre juste au-dessus d'elle laisserait un creux d'UNE case, donc
+## fin. Le creux fait trois rangees et la levre se pose a la quatrieme.
+static func island_cells(tile: int) -> Array[Vector2i]:
+	if _islands.has(tile):
+		return _islands[tile]
+	var index: int = BlobIndex.silhouette(tile)
+	var edge: int = BlobIndex.brink(tile)
+	# ⚠ ON CHOISIT LA FENETRE, ON NE LA RETOUCHE PAS. Un coin JETE ne change pas l'index --
+	# mais s'il est plein, il fabrique une levre au-dessus de ma voisine, donc de la ROCHE,
+	# donc l'autre espece de bord. La tentation est de l'effacer apres coup : elle casse
+	# l'epaisseur de l'ilot, car la realisabilite garantit justement qu'une cardinale pleine
+	# a toujours un coin adjacent plein pour l'epauler. On cherche donc, parmi les fenetres
+	# realisables du meme index, celle dont les coins jetes disent DEJA le bon bord.
 	var raw: int = -1
+	var fallback: int = -1
 	for candidate: int in range(256):
-		if BlobIndex.canonicalize(candidate) == index and Thickness.window_realizable(candidate):
+		if BlobIndex.canonicalize(candidate) != index:
+			continue
+		if not Thickness.window_realizable(candidate):
+			continue
+		if fallback < 0:
+			fallback = candidate
+		var suits: bool = true
+		for pair: Array in [[BlobIndex.E, BlobIndex.NE, BlobIndex.BRINK_E],
+				[BlobIndex.W, BlobIndex.NW, BlobIndex.BRINK_W]]:
+			if (index & int(pair[0])) != 0:
+				continue  # ce cardinal est plein : il n'a pas de bord
+			var wants: bool = (edge & int(pair[2])) != 0
+			if ((candidate & int(pair[1])) != 0) != wants:
+				suits = false
+		if suits:
 			raw = candidate
 			break
+	if raw < 0:
+		raw = fallback
 	var window: Dictionary = {Vector2i.ZERO: true}
 	if raw >= 0:
 		for bit: int in range(8):
 			if (raw & (1 << bit)) != 0:
 				window[BlobIndex.OFFSETS[bit]] = true
-	var out: Array[Vector2i] = []
+	var filled: Dictionary = {}
 	for y: int in range(-3, 4):
 		for x: int in range(-3, 4):
 			if window.has(Vector2i(clampi(x, -1, 1), clampi(y, -1, 1))):
-				out.append(Vector2i(x, y))
+				filled[Vector2i(x, y)] = true
+	var out: Array[Vector2i] = []
+	for at: Vector2i in filled:
+		out.append(at)
 	out.sort()
-	_islands[index] = out
+	_islands[tile] = out
 	return out
 
 
@@ -241,45 +311,41 @@ static func _stamp_dual(cells: Array, index: int, origin: Vector2i) -> void:
 
 
 ## Les cinq accidents de la demonstration, aux geometries PROUVEES par le guide epais.
+## L'encombrement de la demonstration : une grille de specimens.
+static func _demo_size() -> Vector2i:
+	var span: Vector2i = Vector2i.ZERO
+	var row_height: int = 0
+	var row_width: int = 0
+	for order: int in range(WallDemos.SPECIMENS.size()):
+		var one: PackedStringArray = PackedStringArray(WallDemos.SPECIMENS[order] as Array)
+		row_width += one[0].length() + DEMO_GAP
+		row_height = maxi(row_height, one.size())
+		if order % DEMO_COLUMNS == DEMO_COLUMNS - 1 or order == WallDemos.SPECIMENS.size() - 1:
+			span.x = maxi(span.x, row_width)
+			span.y += row_height + DEMO_GAP
+			row_width = 0
+			row_height = 0
+	return span
+
+
+## Pose les specimens de falaise, en grille.
 static func _stamp_wall_demo(cells: Array, left: int, top: int) -> void:
-	# L'escarpement a banquette : eperons triples y4, terrasses 3x3 quatre rangees sous
-	# leur levre -- jamais sous leurs voisines, qui doivent tomber encore.
-	_block(cells, left + 0, top + 0, 16, 4, 2)
-	_block(cells, left + 3, top + 4, 3, 1, 2)
-	_block(cells, left + 10, top + 4, 3, 1, 2)
-	_block(cells, left + 3, top + 8, 3, 3, 1)
-	_block(cells, left + 10, top + 8, 3, 3, 1)
-	# L'escarpement profond : chute de six d'un trait, eperons triples.
-	_block(cells, left + 19, top + 0, 17, 5, 2)
-	_block(cells, left + 23, top + 5, 3, 1, 2)
-	_block(cells, left + 30, top + 5, 3, 1, 2)
-	# La gorge decalee : la colonne ouest de l'etage 2 chute seule, longee par les murs
-	# du bloc d'etage 1 decale d'une colonne a l'est.
-	_block(cells, left + 39, top + 0, 4, 5, 2)
-	_block(cells, left + 40, top + 5, 4, 4, 1)
-	# La tour du cap : une colonne atterrit court sur le bloc decale, l'autre plonge de
-	# six jusqu'au vide sans poser son pied -- son dernier pas est un corps.
-	_block(cells, left + 48, top + 4, 3, 5, 2)
-	_block(cells, left + 47, top + 9, 3, 4, 1)
-	# Les deux redans : le decrochement d'une rangee sur tablier partiel -- la colonne
-	# entre tablier et retrait plonge seule, (vide,devant) corps 1 -- et son miroir.
-	_block(cells, left + 54, top + 0, 7, 4, 2)
-	_block(cells, left + 54, top + 4, 5, 1, 2)
-	_block(cells, left + 54, top + 5, 4, 4, 1)
-	_block(cells, left + 64, top + 0, 7, 4, 2)
-	_block(cells, left + 66, top + 4, 5, 1, 2)
-	_block(cells, left + 67, top + 5, 4, 4, 1)
-	# Le pignon a deux marches : le bord sud descend d'une rangee a chaque bout, puis
-	# d'une autre. La colonne du milieu de chaque marche a une face en retrait d'un cote
-	# et LE SOMMET DU PLATEAU de l'autre -- (vide,devant) et son miroir, jusqu'au corps 1.
-	_block(cells, left + 74, top + 0, 16, 4, 2)
-	_block(cells, left + 77, top + 4, 10, 1, 2)
-	_block(cells, left + 78, top + 5, 8, 4, 2)
-	# Le cap a une marche : une colonne tombe SEULE une rangee avant ses voisines, au bout
-	# ouest d'une levre -- rien a l'ouest, le sommet du plateau a l'est : (vide,vide) au
-	# chapiteau, le seul endroit ou une levre n'a de masse d'aucun cote.
-	_block(cells, left + 91, top + 0, 8, 4, 1)
-	_block(cells, left + 92, top + 4, 7, 1, 1)
+	var x: int = left
+	var y: int = top
+	var row_height: int = 0
+	for order: int in range(WallDemos.SPECIMENS.size()):
+		var one: PackedStringArray = PackedStringArray(WallDemos.SPECIMENS[order] as Array)
+		for dy: int in range(one.size()):
+			for dx: int in range(one[dy].length()):
+				var level: int = HeightMask.level_at(one, dx, dy)
+				if level >= 0:
+					_put(cells, x + dx, y + dy, level)
+		x += one[0].length() + DEMO_GAP
+		row_height = maxi(row_height, one.size())
+		if order % DEMO_COLUMNS == DEMO_COLUMNS - 1:
+			x = left
+			y += row_height + DEMO_GAP
+			row_height = 0
 
 
 static func _block(cells: Array, x0: int, y0: int, w: int, h: int, level: int) -> void:

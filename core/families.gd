@@ -166,7 +166,10 @@ static func groups(family: StringName, index_by_key: Dictionary) -> Dictionary:
 static func describe(family: StringName, index: int) -> String:
 	if family == BY_CORNER:
 		return CornerIndex.describe(index)
-	return BlobIndex.describe(index)
+	# ⚠ UNE TUILE PAR CASE EST UN COUPLE : la silhouette, et ce qu'il y a au-dela de ses
+	# bords vides. Le nom doit dire les deux, sinon deux tuiles differentes portent le meme.
+	var edge: String = BlobIndex.brink_name(index)
+	return BlobIndex.describe(BlobIndex.silhouette(index)) + ("" if edge == "" else "  [%s]" % edge)
 
 
 ## ⚠ UNE FAMILLE NE SE CHOISIT QUE SI LE GUIDE LA COUVRE (charte, regle 5). Un guide complet

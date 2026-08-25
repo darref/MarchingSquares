@@ -76,13 +76,15 @@ func _prepare() -> void:
 			Image.FORMAT_RGBA8)
 	_flat.fill(GuideImage.NO_PLAIN)
 
+	# La carte des robes visibles, une fois : c'est elle qui dit le BORD de chaque tuile.
+	var walled: Dictionary = Walls.visible_roles(_heights)
 	var wanted: Dictionary = {}
 	# ⚠ ON PART DE L'ETAGE 0 : la plaine est un plateau comme les autres, elle a sa
 	# silhouette et ses 47 index. Ce qu'on ne dessine pas, c'est le VIDE.
 	for level: int in range(0, HeightMask.top_level(_heights) + 1):
 		for y: int in range(rows):
 			for x: int in range(columns):
-				var index: int = Coverage.index_at_level(_heights, x, y, level)
+				var index: int = Coverage.index_at_level(_heights, x, y, level, walled)
 				if index == Coverage.NO_INDEX:
 					continue
 				var key: Vector2i = Vector2i(index, level)

@@ -222,8 +222,11 @@ func _lay_surfaces(region: Rect2i) -> void:
 			if slots.has(index):
 				_surface_layers[0].set_cell(at, _surface_source, slots[index])
 		return
+	# ⚠ LA CARTE DES ROBES DIT LE BORD DE CHAQUE TUILE, ET ELLE SE LIT UNE CASE PLUS LARGE
+	# QUE LA ZONE : le bord d'une case du bord se lit de sa voisine, qui est dehors.
+	var walled: Dictionary = Rules.walls_in(heights, region.grow(1), _top)["roles"]
 	for level: int in range(_surface_layers.size()):
-		var floorwise: Dictionary = Rules.surfaces_at_level(heights, level, region)
+		var floorwise: Dictionary = Rules.surfaces_at_level(heights, level, region, walled)
 		for at: Vector2i in floorwise.keys():
 			var index: int = int(floorwise[at])
 			if slots.has(index):

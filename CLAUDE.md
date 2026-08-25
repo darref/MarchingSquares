@@ -2536,18 +2536,136 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   pans que le correctif fait apparaître. Un test ne pouvait pas le dire : la suite peint des
   couleurs tirées de la position, un fichier de session porte du vrai travail.
 
+- **LE BORD : une tuile de surface est le couple (silhouette, bord), et le compte passe à
+  48.** Un cardinal vide ne veut pas toujours dire une chute : quand la case d'à côté est
+  couverte par une **face**, cette face a son sommet au niveau de mon propre sol, la roche
+  continue de plain-pied, il n'y a aucune marche. Une seule image ne peut pas être juste
+  dans les deux cas — d'où un couple rangé dans un entier (silhouette dans les huit bits
+  bas, bord au-dessus : `BlobIndex.compose` / `silhouette` / `brink`).
+
+  ⚠ **LE SUD N'EN EST PAS, ET C'EST UN THÉORÈME.** Une case dont le sud est vide est une
+  lèvre : sa propre face couvre la case d'en dessous, **toujours**. C'est exactement ce qui
+  rend l'**épaule** peignable dans la tuile de surface là où aucun autre bord ne le serait.
+  Restent le nord, l'est et l'ouest.
+
+  ⚠ **ET TOUTES LES COMBINAISONS NE SONT PAS RÉALISABLES.** Le nord est libre des deux
+  côtés — couvrir ma voisine du nord demande une lèvre quatre rangées plus haut, hors de la
+  fenêtre 3x3, donc libre. L'est et l'ouest, non : la lèvre qui couvre ma voisine de l'est
+  est soit le coin NE, soit une lèvre plus haut, qui exige la colonne vide sur trois
+  rangées. Et la réalisabilité peut **forcer** le coin : pour la silhouette 5, `E=nu`
+  n'existe pas. **48 tuiles**, calculées — ni 52, ni 42.
+
+  ⚠ **Prouvé dans les deux sens** : sur 4 077 reliefs épais tirés au sort, les 48 sont
+  toutes rencontrées et aucune tuile hors forme n'apparaît (`tools/brink_census.gd`).
+
+- **LES LÈVRES SE COMPARENT SUR TOUS LES ÉTAGES, et `vide` ne confond plus « rien » avec
+  « la face d'un autre étage ».** `lip_of` se construisait étage par étage : une paroi
+  voisine d'un **autre** étage tombait dans le `else` et se lisait `vide` — de la roche lue
+  comme du rien. Mesuré : **19 rôles sur 38 voyaient les deux espèces derrière un même
+  `vide`**, jusqu'à 519 occurrences pour un seul. On calcule donc les lèvres de tous les
+  étages d'abord, la pose ensuite ; la case garde la lèvre de la robe la plus **haute**,
+  celle qu'on voit.
+
+  **Prix mesuré : le vocabulaire de robe passe de 38 à 44.** `(devant,devant)` ressuscite —
+  l'argument qui le tuait (« il demanderait un éperon d'UNE colonne, donc fin ») ne valait
+  que pour deux faces du **même** étage. Entre étages, deux faces dont les lèvres sont plus
+  au nord de part et d'autre, c'est banal. Il ne meurt plus qu'au **pied**.
+
+  **Le vocabulaire épais est donc 48 + 44 = 92 tuiles par case, et 15 + 44 = 59 à cheval.**
+
+- **CE QUE LE PINCEAU NE PEUT PAS PEINDRE N'A RIEN À FAIRE DANS LE VOCABULAIRE**, et c'est
+  l'utilisateur qui l'a formulé. Sa question : *pourquoi assumer des coudes alors que la
+  pose se fait en épaisseur de trois, et l'effacement aussi ?* Réponse **mesurée**, pas
+  raisonnée — `tools/brush_census.gd` simule le geste réel (tampon 3x3, effacement 3x3,
+  refus de tout geste laissant une case fine) :
+
+      gestes tentes : 14499   refuses (fins) : 2440
+      LE PINCEAU FABRIQUE, HORS DE LA FORME : 0
+      roles de falaise rencontres : 44 sur 44
+
+  ⚠ **Les coudes se posent en trois tampons** — un escalier — donc ils restent. Et min trois
+  garantit déjà que leurs deux bras font trois cases : ce sont des **diagonales épaisses**,
+  pas des pointes. Les coudes fins, eux, sont morts depuis la 8.0.0.
+
+  ⚠ **UNE BATTUE QUI NE RENCONTRE PAS UNE TUILE PROUVE QU'ELLE EST RARE, JAMAIS QU'ELLE EST
+  IMPOSSIBLE.** Retirer une tuile du vocabulaire sur cette preuve-là serait un compteur qui
+  ne mesure pas ce qu'il prétend mesurer (règle 4). Les huit que la marche au hasard
+  n'atteint pas ont donc été **construites**, pas jetées.
+
+- **L'ÎLOT DE PREUVE : la falaise voisine se CHERCHE, elle ne se déduit pas**
+  (`core/brink_lips.gd`, `tools/make_islands.gd`). Quand le bord d'une tuile réclame de la
+  roche, l'îlot doit mettre en scène la falaise qui la produit — et sa position ne se
+  raisonne pas. Trois essais, trois erreurs : collée à l'îlot, elle **pince une colonne de
+  vide d'une case** ; trois rangées plus haut, elle pince ailleurs ; et quand le nord veut
+  de la roche et l'est du nu, son bloc doit **chevaucher la colonne du voisin plein**. La
+  leçon « le relief se décrit accident par accident, jamais en ASCII » vaut encore.
+
+  On balaie donc les positions et **on juge** : épais ? la case centrale porte-t-elle la
+  tuile annoncée ? reste-t-elle **peignable** ? Seule la position trouvée est écrite ;
+  l'îlot lui-même reste calculé depuis l'index.
+
+  ⚠ **TROIS PIÈGES, TOUS DE LA MÊME ESPÈCE — UN JUGE QUI NE MESURE PAS CE QU'IL PRÉTEND :**
+  - **cherché sur le VIDE, posé sur la PLAINE** : une lèvre d'étage 2 tombe de neuf rangées
+    sur le vide et de **six** sur la plaine ; sa face s'arrête une rangée trop haut, et six
+    tuiles sortaient en bord `nu` en annonçant `roche`. Un témoin se cherche dans le
+    contexte où il servira ;
+  - **un îlot dont la lèvre surplombe sa propre colonne SE COUVRE LUI-MÊME** : l'index reste
+    juste — il se lit de la silhouette de l'étage — mais la case porte désormais la
+    **robe**, donc plus aucune surface. L'îlot annonçait une tuile que personne ne pourrait
+    peindre. Le juge lit donc `Families.surface_map`, la même carte que l'éditeur ;
+  - **la réserve comptait sur la carte brute, le contrôle final hors plaine et hors robe** :
+    deux tuiles se croyaient déjà là, portées par une case de plaine, c'est-à-dire par
+    personne. Et la réserve **se modifie elle-même** — poser un îlot change les cases
+    autour — d'où une boucle jusqu'au point fixe.
+
+- **LA DÉMONSTRATION DE FALAISE EST DÉCOUPÉE DANS LE GUIDE, plus dessinée à la main**
+  (`core/wall_demos.gd`, `tools/make_wall_demos.gd`). Cinq accidents écrits à la main
+  portaient les 25 rôles d'alors ; le vocabulaire est passé à 44 et **sept rôles n'avaient
+  plus de scène** — sans que rien ne le dise avant que la suite ne rougisse. Une
+  démonstration écrite est une donnée à maintenir, donc un endroit où mentir : même raison
+  qui fait calculer les 47 index et les îlots.
+
+  ⚠ **ET ON LA PREND DANS LE GUIDE PLUTÔT QU'AU HASARD.** Deux raisons, la seconde étant
+  celle qui a coûté : le guide porte les 44 rôles **par construction**, là où une marche au
+  hasard n'en rencontre que 42 — les plus rares demandent un **contrefort**, une forme
+  voulue ; et surtout le guide est posé **sur la plaine**, exactement comme la planche. Huit
+  spécimens suffisent.
+
+- **⚠ UN `const` TYPÉ `Array[PackedStringArray]` NE SE RÉSOUT PAS, ET TOUT CE QUI LE
+  PRÉCHARGE TOMBE AVEC LUI.** GDScript n'en fait pas une constante : le membre cesse
+  d'exister, `ProofScene` ne se charge plus, et le programme **tourne sans fin sans une
+  erreur claire**. Les données générées s'écrivent donc en tableaux simples, enveloppées à
+  la lecture.
+
+- **⚠ UN TEST QUADRATIQUE NE BLOQUE PAS, IL RAMPE — et on croit à un blocage.** La
+  vérification des rangs de surface comparait chaque rang à **tous les rangs inférieurs**,
+  un par un, en bâtissant une chaîne à chaque fois. Sur un guide où une tuile se voit deux
+  mille fois, c'est deux millions de chaînes pour une question qui se répond par une
+  soustraction : les rangs se suivent sans trou si, et seulement si, le plus grand vaut le
+  nombre moins un. La suite paraissait figée au même endroit à chaque exécution.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
-À **9.0.0** : **le vagabondage de l'arête**, et `muet` qui ne veut plus dire qu'une chose.
-Trois rangées de corps donnent trois profils de frontière indépendants au lieu d'un —
-l'arête se déplace enfin. Et le sommet d'un plateau voisin, qui rendait `muet` en déléguant
-l'arête à une tuile de surface incapable de la tracer, rend désormais `vide` : plus aucune
-tuile n'est sommée d'être deux choses. Vocabulaire à **27 + 38 = 65 tuiles**, liseré
-d'épaisseur à l'est et à l'ouest, manifeste v7 (v6 refusée), sauvegarde v3 (les robes v2 se
-traduisent) : majeure, tout l'existant est périmé.
+À **9.0.0** : **le vagabondage de l'arête**, `muet` qui ne veut plus dire qu'une chose, et
+**le bord dans l'identité de la tuile**. Trois rangées de corps donnent trois profils de
+frontière indépendants au lieu d'un — l'arête se déplace enfin. Le sommet d'un plateau
+voisin, qui rendait `muet` en déléguant l'arête à une tuile de surface incapable de la
+tracer, rend désormais `vide`. Un cardinal vide dit s'il borde du **nu** ou de la **roche**,
+parce qu'une seule image ne peut pas être juste dans les deux cas. Et les lèvres se comparent
+sur **tous** les étages, `vide` ne confondant plus « rien » avec « la face d'un autre
+étage ». Vocabulaire à **48 + 44 = 92 tuiles** (59 à cheval), liseré d'épaisseur à l'est et à
+l'ouest, manifeste v7 (v6 refusée), sauvegarde v3 (les robes v2 se traduisent) : majeure,
+tout l'existant est périmé.
+
+⚠ **Le guide, la planche de preuve et la démonstration de falaise sont désormais TROUVÉS par
+machine, puis revérifiés** — lèvres voisines des îlots (`core/brink_lips.gd`), spécimens de
+falaise découpés dans le guide (`core/wall_demos.gd`), réserve du guide bouclée jusqu'au
+point fixe. Le guide fait 104x141 et porte les 48 tuiles, mais **il n'est plus un paysage** :
+c'est une planche de spécimens, et le redessiner reste à faire. Décidé ainsi, et dans cet
+ordre : d'abord la justesse.
 
 À **8.0.1** : les raccords que la formule ne voyait pas — `Seams` déduisait ses classes
 de `row_for` (pas 1..drop, à pan constant) au lieu de les lire du monde, et ignorait donc

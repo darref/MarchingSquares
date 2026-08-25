@@ -7,9 +7,22 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const MaskIO := preload("res://core/mask_io.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Thickness := preload("res://core/thickness.gd")
+const Walls := preload("res://core/walls.gd")
 
 ## Index retourne pour une case vide : une case vide ne produit aucune tuile.
 const NO_INDEX: int = -1
+
+
+## Le bord d'une case, lu des robes VISIBLES. Une face cachee sous un plateau plus haut ne
+## montre aucune roche : ce qui compte est ce qu'on voit, comme partout ailleurs ici.
+static func brink_at(walled: Dictionary, at: Vector2i, index: int) -> int:
+	var edge: int = 0
+	for side: int in range(BlobIndex.BRINK_BITS.size()):
+		if (index & BlobIndex.BRINK_CARDINALS[side]) != 0:
+			continue
+		if walled.has(at + BlobIndex.BRINK_OFFSETS[side]):
+			edge |= BlobIndex.BRINK_BITS[side]
+	return edge
 
 
 static func raw_neighbourhood(mask: PackedStringArray, x: int, y: int) -> int:
@@ -80,17 +93,24 @@ static func analyse(mask: PackedStringArray) -> Dictionary:
 ## ⚠ LA PLAINE EN FAIT PARTIE. L'etage 0 est un plateau comme les autres : il a sa
 ## silhouette -- tout ce qui n'est pas le vide -- ses 47 index, et ses falaises au bord du
 ## monde. Seul le VIDE ne porte rien.
-static func visible_index_at(heights: PackedStringArray, x: int, y: int) -> int:
+static func visible_index_at(heights: PackedStringArray, x: int, y: int,
+		walled: Dictionary = {}) -> int:
 	var level: int = HeightMask.level_at(heights, x, y)
 	if level < 0:
 		return NO_INDEX
-	return index_at_level(heights, x, y, level)
+	return index_at_level(heights, x, y, level, walled)
 
 
 ## Index d'une case dans la silhouette d'un etage donne, sans se demander si cet etage est
 ## celui qu'on voit. C'est ce dont le rendu a besoin : il dessine etage par etage, du bas
 ## vers le haut, et chaque couche recouvre la precedente.
-static func index_at_level(heights: PackedStringArray, x: int, y: int, level: int) -> int:
+## ⚠ ET IL COMPOSE LE BORD, LUI AUSSI. Le rendu et le plugin posent une tuile par etage et
+## par case -- l'etage N-1 continue SOUS le plateau de l'etage N -- et une couche enterree qui
+## poserait une silhouette NUE poserait une tuile qui n'est pas dans la planche. Un trou, et
+## aucune erreur pour le dire. `walled` est la carte des robes visibles ; passee vide, le bord
+## vaut zero, ce qui reste une tuile du vocabulaire.
+static func index_at_level(heights: PackedStringArray, x: int, y: int, level: int,
+		walled: Dictionary = {}) -> int:
 	if HeightMask.level_at(heights, x, y) < level:
 		return NO_INDEX
 	var raw: int = 0
@@ -98,7 +118,8 @@ static func index_at_level(heights: PackedStringArray, x: int, y: int, level: in
 		var offset: Vector2i = BlobIndex.OFFSETS[bit_index]
 		if HeightMask.level_at(heights, x + offset.x, y + offset.y) >= level:
 			raw |= BlobIndex.BITS[bit_index]
-	return BlobIndex.canonicalize(raw)
+	var index: int = BlobIndex.canonicalize(raw)
+	return BlobIndex.compose(index, brink_at(walled, Vector2i(x, y), index))
 
 
 ## Rapport de couverture de surface d'un guide en relief.
@@ -107,18 +128,21 @@ static func analyse_relief(heights: PackedStringArray) -> Dictionary:
 	var occurrences: Dictionary = {}
 	var positions: Dictionary = {}
 	var surface_count: int = 0
-	for y: int in range(HeightMask.height(heights)):
-		for x: int in range(HeightMask.width(heights)):
-			var index: int = visible_index_at(heights, x, y)
-			if index == NO_INDEX:
-				continue
-			surface_count += 1
-			occurrences[index] = int(occurrences.get(index, 0)) + 1
-			if not positions.has(index):
-				var new_cells: Array[Vector3i] = []
-				positions[index] = new_cells
-			var cells: Array[Vector3i] = positions[index]
-			cells.append(Vector3i(x, y, HeightMask.level_at(heights, x, y)))
+	# ⚠ ON PASSE PAR `index_map`, ET C'EST TOUT L'INTERET D'UN SEUL CHEMIN. Ce rapport
+	# recomptait les index lui-meme avec `visible_index_at`, qui ne rend que la SILHOUETTE :
+	# il annoncait donc 27 tuiles couvertes sur 52 alors que la planche les portait toutes,
+	# et rien ne le signalait. Deux chemins pour une meme question finissent toujours par se
+	# contredire -- c'est la lecon du manifeste, en plus petit.
+	var tiles: Dictionary = index_map(heights)
+	for at: Vector2i in tiles:
+		var tile: int = int(tiles[at])
+		surface_count += 1
+		occurrences[tile] = int(occurrences.get(tile, 0)) + 1
+		if not positions.has(tile):
+			var new_cells: Array[Vector3i] = []
+			positions[tile] = new_cells
+		var cells: Array[Vector3i] = positions[tile]
+		cells.append(Vector3i(at.x, at.y, HeightMask.level_at(heights, at.x, at.y)))
 	var present: PackedInt32Array = PackedInt32Array()
 	var missing: PackedInt32Array = PackedInt32Array()
 	for index: int in Thickness.SURFACE_INDICES:
@@ -142,12 +166,16 @@ static func analyse_relief(heights: PackedStringArray) -> Dictionary:
 ## par image sur le guide minimal -- un tiers du budget d'affichage pour recompter ce qui
 ## n'a pas bouge. L'editeur la garde et repasse par delivery.resolve_indexed().
 static func index_map(heights: PackedStringArray) -> Dictionary:
+	# ⚠ LES ROBES VISIBLES SE CALCULENT UNE FOIS. C'est la carte la plus chere du noyau, et
+	# la relire par case ferait de ce parcours un carre.
+	var walled: Dictionary = Walls.visible_roles(heights)
 	var indices: Dictionary = {}
 	for y: int in range(HeightMask.height(heights)):
 		for x: int in range(HeightMask.width(heights)):
-			var index: int = visible_index_at(heights, x, y)
-			if index != NO_INDEX:
-				indices[Vector2i(x, y)] = index
+			var tile: int = visible_index_at(heights, x, y, walled)
+			if tile == NO_INDEX:
+				continue
+			indices[Vector2i(x, y)] = tile
 	return indices
 
 

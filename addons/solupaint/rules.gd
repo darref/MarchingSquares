@@ -30,6 +30,35 @@ const SE: int = 8
 const S: int = 16
 const SW: int = 32
 const W: int = 64
+
+## LE BORD — ce qu'il y a AU-DELA de chaque cardinal vide. Copie de la regle du noyau
+## (core/blob_index.gd), comme le reste : le plugin part seul chez l'acheteur.
+##
+## ⚠ UN BORD VIDE NE VEUT PAS TOUJOURS DIRE UNE CHUTE. Contre une face voisine, cette face
+## a son sommet au niveau de mon propre sol : la roche continue de plain-pied, il n'y a
+## aucune marche. Contre du nu, ca tombe. Une seule image ne peut pas etre juste dans les
+## deux cas -- d'ou un COUPLE (silhouette, bord) range dans un entier.
+##
+## ⚠ LE SUD N'EN EST PAS : une case au sud vide est une levre, sa propre face couvre la
+## case d'en dessous, TOUJOURS.
+const BRINK_SHIFT: int = 8
+const BRINK_N: int = 1
+const BRINK_E: int = 2
+const BRINK_W: int = 4
+const BRINK_BITS: Array[int] = [BRINK_N, BRINK_E, BRINK_W]
+const BRINK_CARDINALS: Array[int] = [N, E, W]
+const BRINK_OFFSETS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.LEFT]
+
+
+## Le bord d'une case, lu des robes qui la bordent.
+static func brink_at(walled: Dictionary, at: Vector2i, index: int) -> int:
+	var edge: int = 0
+	for side: int in range(BRINK_BITS.size()):
+		if (index & BRINK_CARDINALS[side]) != 0:
+			continue
+		if walled.has(at + BRINK_OFFSETS[side]):
+			edge |= BRINK_BITS[side]
+	return edge
 const NW: int = 128
 
 const CARDINALS: int = N | E | S | W
@@ -136,25 +165,28 @@ static func canonicalise(raw: int) -> int:
 
 ## L'index d'une case dans la silhouette d'un etage donne.
 ## La silhouette de l'etage L est l'ensemble des cases d'etage >= L : un masque BINAIRE.
-static func blob_index_at_level(heights: Dictionary, cell: Vector2i, level: int) -> int:
+static func blob_index_at_level(heights: Dictionary, cell: Vector2i, level: int,
+		walled: Dictionary = {}) -> int:
 	if level_at(heights, cell) < level:
 		return NO_INDEX
 	var raw: int = 0
 	for bit: int in range(BITS.size()):
 		if level_at(heights, cell + OFFSETS[bit]) >= level:
 			raw |= BITS[bit]
-	return canonicalise(raw)
+	var index: int = canonicalise(raw)
+	return index | (brink_at(walled, cell, index) << BRINK_SHIFT)
 
 
 ## L'index de la surface VISIBLE d'une case, ou NO_INDEX si elle est a la plaine.
 ##
 ## ⚠ ON NE VOIT QUE LE SOMMET. La tuile qu'une case porte est celle de SON etage, jamais de
 ## l'union des etages : vue de dessus, une case sous un plateau plus haut est masquee.
-static func surface_index_at(heights: Dictionary, cell: Vector2i) -> int:
+static func surface_index_at(heights: Dictionary, cell: Vector2i,
+		walled: Dictionary = {}) -> int:
 	var level: int = level_at(heights, cell)
 	if level < 0:
 		return NO_INDEX
-	return blob_index_at_level(heights, cell, level)
+	return blob_index_at_level(heights, cell, level, walled)
 
 
 ## L'index VISIBLE d'un croisement, ou NO_INDEX s'il ne dessine rien.
@@ -177,8 +209,9 @@ static func corner_index_at(heights: Dictionary, crossing: Vector2i) -> int:
 ## Toutes les surfaces visibles du relief : case -> index blob.
 static func surfaces(heights: Dictionary) -> Dictionary:
 	var found: Dictionary = {}
+	var walled: Dictionary = walls(heights)
 	for cell: Vector2i in heights.keys():
-		var index: int = surface_index_at(heights, cell)
+		var index: int = surface_index_at(heights, cell, walled)
 		if index != NO_INDEX:
 			found[cell] = index
 	return found
@@ -195,14 +228,15 @@ static func surfaces(heights: Dictionary) -> Dictionary:
 ## C'est deja ce que dit la regle de pose : « on dessine du bas vers le haut, chaque couche
 ## recouvrant la precedente ». L'illustration le faisait, le plugin non : l'epaule bouchait
 ## le trou au sud, et au nord il n'y avait rien pour le boucher.
-static func surfaces_at_level(heights: Dictionary, level: int, region: Rect2i) -> Dictionary:
+static func surfaces_at_level(heights: Dictionary, level: int, region: Rect2i,
+		walled: Dictionary = {}) -> Dictionary:
 	var found: Dictionary = {}
 	for y: int in range(region.position.y, region.end.y):
 		for x: int in range(region.position.x, region.end.x):
 			var cell: Vector2i = Vector2i(x, y)
 			if not heights.has(cell) or level_at(heights, cell) < level:
 				continue
-			var index: int = blob_index_at_level(heights, cell, level)
+			var index: int = blob_index_at_level(heights, cell, level, walled)
 			if index != NO_INDEX:
 				found[cell] = index
 	return found
@@ -293,8 +327,19 @@ static func _trim(heights: Dictionary, level: int, cell: Vector2i, drop: int,
 ## aretes se dessineraient au meme endroit et rien ne dirait laquelle est proche.
 static func _side(heights: Dictionary, lip_of: Dictionary, at: Vector2i, level: int,
 		step: int, my_lip: int) -> int:
+	# ⚠ LA COMPARAISON DES LEVRES EST GLOBALE, PAS PAR ETAGE. `lip_of` etait construit
+	# etage par etage : une face d'un AUTRE etage a cote de moi n'y figurait pas, et je
+	# tombais dans le `vide` -- « ma roche s'arrete, il n'y a rien a cote » -- alors qu'il y
+	# a de la ROCHE. Mesure : 19 roles sur 38 voyaient les deux especes derriere un meme
+	# `vide`, et l'un d'eux 519 fois. C'est la meme faute que le sommet de plateau lu `muet`,
+	# sur l'autre branche du meme `if`.
+	#
+	# Ce qui compte n'est pas l'etage de la face voisine mais SA LEVRE : plus au nord, elle
+	# est en retrait et je porte l'angle ; plus au sud ou a la meme rangee, c'est elle qui
+	# est devant ou nous sommes coplanaires, et je me tais. La regle etait deja la, il lui
+	# manquait de voir les autres etages.
 	if lip_of.has(at):
-		return SIDE_FRONT if int(lip_of[at]) < my_lip else SIDE_MUTE
+		return SIDE_FRONT if int((lip_of[at] as Vector2i).y) < my_lip else SIDE_MUTE
 	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
 	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
 	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
@@ -339,22 +384,33 @@ static func assemble_walls(heights: Dictionary) -> Dictionary:
 	var underfoot: Dictionary = {}
 	# ⚠ ON PART DE L'ETAGE 0, PAS DE 1. La plaine est un plateau comme les autres : la ou
 	# elle borde le vide, elle a une levre et donc une falaise. C'est le bord du monde.
+	# PREMIERE PASSE, SUR TOUS LES ETAGES A LA FOIS -- la geometrie avant la pose. Le pan
+	# d'une rangee depend de ce que les robes VOISINES couvrent a cette hauteur-la.
+	#
+	# ⚠ ET TOUS LES ETAGES ENSEMBLE, PAS UN PAR UN. La passe etait dans la boucle des
+	# etages, donc une face voisine d'un AUTRE etage etait invisible au choix du pan : elle
+	# se lisait `vide` -- « rien a cote » -- alors qu'il y a de la roche. La case garde la
+	# levre de la robe la PLUS HAUTE, parce que c'est celle qu'on voit.
+	var drops_by_level: Array = []
+	var lip_of: Dictionary = {}
 	for level: int in range(0, top_level(heights) + 1):
-		# PREMIERE PASSE -- la geometrie seule. Le pan d'une rangee depend de ce que les
-		# robes VOISINES couvrent a cette hauteur-la : en posant au fil de l'eau, on ne
-		# connaitrait que la moitie gauche.
-		var drops: Dictionary = {}
-		var lip_of: Dictionary = {}
+		var found: Dictionary = {}
 		for cell: Vector2i in heights.keys():
 			if int(heights[cell]) < level:
 				continue
 			if level_at(heights, Vector2i(cell.x, cell.y + 1)) >= level:
 				continue  # ce bord-la est interieur : rien a montrer
 			var fall: Vector2i = fall_at(heights, level, cell)
-			drops[cell] = fall
+			found[cell] = fall
 			for step: int in range(1, fall.x + 1):
-				lip_of[Vector2i(cell.x, cell.y + step)] = cell.y
-		# SECONDE PASSE -- la pose.
+				var covered: Vector2i = Vector2i(cell.x, cell.y + step)
+				if not lip_of.has(covered) 						or int((lip_of[covered] as Vector2i).x) < level:
+					lip_of[covered] = Vector2i(level, cell.y)
+		drops_by_level.append(found)
+
+	# SECONDE PASSE -- la pose, etage par etage, du bas vers le haut.
+	for level: int in range(0, top_level(heights) + 1):
+		var drops: Dictionary = drops_by_level[level]
 		for cell: Vector2i in drops.keys():
 			var fall: Vector2i = drops[cell]
 			var drop: int = fall.x
@@ -443,12 +499,13 @@ static func surfaces_in(heights: Dictionary, region: Rect2i) -> Dictionary:
 	# pas, et 256x192 coutait encore dix-sept millisecondes la ou trente-deux sur vingt-quatre
 	# en coutaient une et demie. Une borne qu'on franchit a la lecture n'est pas une borne.
 	var visible: Dictionary = {}
+	var walled: Dictionary = walls_in(heights, region.grow(1))["roles"]
 	for y: int in range(region.position.y, region.end.y):
 		for x: int in range(region.position.x, region.end.x):
 			var cell: Vector2i = Vector2i(x, y)
 			if not heights.has(cell):
 				continue
-			var index: int = surface_index_at(heights, cell)
+			var index: int = surface_index_at(heights, cell, walled)
 			if index != NO_INDEX:
 				visible[cell] = index
 	return visible

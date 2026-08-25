@@ -83,3 +83,71 @@ static func describe(index: int) -> String:
 		if (index & BITS[bit]) != 0:
 			parts.append(BIT_NAMES[bit])
 	return "aucun voisin" if parts.is_empty() else "+".join(parts)
+
+
+## LE BORD — ce qu'il y a AU-DELA de chaque cardinal vide, et pourquoi ca vit dans la tuile.
+##
+## ⚠ UN BORD VIDE NE VEUT PAS TOUJOURS DIRE UNE CHUTE. Quand la case d'a cote est couverte
+## par une FACE, cette face a son sommet au niveau de mon propre sol : la roche continue de
+## plain-pied, il n'y a aucune marche. Quand elle est nue, il y a bien une chute d'un etage
+## au moins. Deux choses opposees derriere le meme bord -- et les huit bits de voisinage,
+## qui ne disent que l'endroit ou est la terre, ne savent pas les distinguer. Une seule
+## image ne peut pas etre juste dans les deux cas : c'est la meme impossibilite que celle
+## des trois pans, portee cette fois par les tuiles de SURFACE.
+##
+## Mesure sur le guide et 500 reliefs epais : NEUF silhouettes sur vingt-sept voient les
+## deux especes, et la 241 borde de la roche 191 fois pour 3206 fois du nu.
+##
+## ⚠ LE SUD N'EN EST PAS, ET C'EST UN THEOREME. Une case dont le sud est vide est une
+## levre : sa propre face couvre la case d'en dessous, TOUJOURS. Le sud ne porte donc aucune
+## information -- et c'est exactement ce qui rend l'EPAULE peignable dans la tuile de
+## surface, la ou aucun autre bord ne le serait. Restent le nord, l'est et l'ouest.
+##
+## ⚠ UNE TUILE DE SURFACE EST DONC UN COUPLE (silhouette, bord), RANGE DANS UN ENTIER :
+## la silhouette dans les huit bits bas, le bord au-dessus. Tout ce qui ne fait que
+## transporter une tuile -- les jumelles, le carnet, la planche, l'export -- continue de
+## manipuler un entier sans rien savoir de la coupure.
+const BRINK_SHIFT: int = 8
+const BRINK_N: int = 1
+const BRINK_E: int = 2
+const BRINK_W: int = 4
+const BRINK_BITS: Array[int] = [BRINK_N, BRINK_E, BRINK_W]
+const BRINK_CARDINALS: Array[int] = [N, E, W]
+const BRINK_OFFSETS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.LEFT]
+const BRINK_NAMES: Array[String] = ["N", "E", "O"]
+
+
+## La silhouette seule : les huit bits de voisinage, sans le bord.
+static func silhouette(tile: int) -> int:
+	return tile & ((1 << BRINK_SHIFT) - 1)
+
+
+## Le bord seul : quels cardinaux vides ont de la ROCHE au-dela.
+static func brink(tile: int) -> int:
+	return tile >> BRINK_SHIFT
+
+
+static func compose(index: int, edge: int) -> int:
+	return index | (edge << BRINK_SHIFT)
+
+
+## Les bords qu'une silhouette peut decliner : ses cardinaux vides, sud exclu.
+static func free_brinks(index: int) -> Array[int]:
+	var out: Array[int] = []
+	for side: int in range(BRINK_BITS.size()):
+		if (index & BRINK_CARDINALS[side]) == 0:
+			out.append(BRINK_BITS[side])
+	return out
+
+
+## Le nom d'un bord, pour les rapports.
+static func brink_name(tile: int) -> String:
+	var index: int = silhouette(tile)
+	var edge: int = brink(tile)
+	var parts: Array[String] = []
+	for side: int in range(BRINK_BITS.size()):
+		if (index & BRINK_CARDINALS[side]) != 0:
+			continue
+		parts.append("%s=%s" % [BRINK_NAMES[side],
+				"roche" if (edge & BRINK_BITS[side]) != 0 else "nu"])
+	return "" if parts.is_empty() else " ".join(parts)

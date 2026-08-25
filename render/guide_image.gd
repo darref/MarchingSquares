@@ -181,7 +181,21 @@ static func _finish(buffer: PackedByteArray, side: int, tile_size: int) -> Image
 ## grossie, le trait large, les bandes de flanc elargies n'existent pas pour etre beaux, ils
 ## existent pour rendre la specification lisible d'un coup d'oeil. Exactement comme les
 ## tirets. Les masquer tous ensemble redonne le dessin nu, tel que le tileset le montrera.
-static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bool) -> Image:
+## ⚠ IL PREND UNE TUILE, PAS UN INDEX : le couple (silhouette, bord). La silhouette dit
+## ou est la terre -- c'est elle qui decoupe la forme, et elle seule. Le bord dit ce qu'il
+## y a AU-DELA de chaque cardinal vide : de la roche, ou du nu.
+##
+## ⚠ ET CE QUI EN DEPEND N'EST PAS LA FORME, C'EST L'ECLAIRAGE. Contre du nu, mon bord
+## est une levre : il attrape le jour ou il recule, et il porte l'epaisseur du plateau.
+## Contre de la roche, il n'y a AUCUNE marche -- la face voisine a son sommet au niveau de
+## mon sol -- donc ni levre, ni epaisseur : la matiere s'arrete contre de la matiere.
+## Peindre les deux pareil, c'etait dessiner une chute la ou il n'y en a pas.
+static func make_top(tile: int, level: int, tile_size: int, ink: Ink, marks: bool) -> Image:
+	var index: int = BlobIndex.silhouette(tile)
+	var edge: int = BlobIndex.brink(tile)
+	var rock_north: bool = (edge & BlobIndex.BRINK_N) != 0
+	var rock_east: bool = (edge & BlobIndex.BRINK_E) != 0
+	var rock_west: bool = (edge & BlobIndex.BRINK_W) != 0
 	var side: int = tile_size * SUPERSAMPLE
 	var wire: bool = ink == Ink.WIREFRAME
 	var base: Color = WIRE_LEVELS[mini(level, WIRE_LEVELS.size() - 1)] if wire \
@@ -217,7 +231,9 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 				continue
 			var color: Color = base
 			if wire:
-				var on_line: bool = _on_edge(px, py, last, outer, stroke, north, east, south, west)
+				var on_line: bool = _on_edge(px, py, last, outer, stroke,
+						north or rock_north, east or rock_east, south,
+						west or rock_west)
 				# Le coude d'un coin rentrant : c'est ce qui rend le trait continu.
 				if not on_line:
 					on_line = _on_inner_elbow(px, py, last, stroke, index, north, east, south, west)
@@ -229,7 +245,8 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 						color = WIRE_FACE
 			else:
 				var shade: float = _rim_shade(px, py, last, outer, lip, index,
-						north, east, south, west)
+						north or rock_north, east or rock_east, south,
+						west or rock_west)
 				if shade > 0.0:
 					color = base.lightened(0.34 * shade)
 				elif shade < 0.0:
@@ -248,10 +265,14 @@ static func make_top(index: int, level: int, tile_size: int, ink: Ink, marks: bo
 			# ⚠ ET LE LISERE NE DIT PAS DE COMBIEN CA TOMBE. La chute peut faire un etage ou
 			# quatre : il dit « ca tombe », et c'est tout ce qu'il a le droit de dire. Une
 			# epaisseur qui pretendrait mesurer la hauteur mentirait une fois sur deux.
+			# ⚠ ET LE LISERE NE SE POSE QUE CONTRE DU NU. Contre de la roche il n'y a pas de
+			# chute a suggerer : la face voisine a son sommet au niveau de mon sol, la
+			# matiere continue de plain-pied. C'est LA difference entre les deux especes
+			# d'une meme silhouette, et c'est tout ce qui les separe.
 			var brink: float = STROKE * float(side) * 2.6
-			if not east and px > last - brink:
+			if not east and not rock_east and px > last - brink:
 				color = WIRE_WALL if wire else STONE_BODY.darkened(0.20)
-			elif not west and px < brink:
+			elif not west and not rock_west and px < brink:
 				color = WIRE_WALL if wire else STONE_BODY.lightened(0.08)
 			if marks and _on_inner_tick(px, py, last, stroke, index,
 					north, east, south, west):

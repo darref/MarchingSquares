@@ -35,6 +35,7 @@ extends SceneTree
 
 const BlobIndex := preload("res://core/blob_index.gd")
 const Walls := preload("res://core/walls.gd")
+const HeightMask := preload("res://core/height_mask.gd")
 const Thickness := preload("res://core/thickness.gd")
 
 const TRIALS: int = 4000
@@ -307,6 +308,39 @@ func _initialize() -> void:
 	# --- LES ROBES, par battue et par construction.
 	var reached: Dictionary = {}
 	var reliefs: Array[PackedStringArray] = _escarpments()
+	# --- SONDE : lequel des reliefs construits porte les roles rares ?
+	var V := Walls.SIDE_VOID
+	var F := Walls.SIDE_FRONT
+	var rare: Array[Vector2i] = [
+		Vector2i(Walls.pan_of(V, V), 1), Vector2i(Walls.pan_of(V, V), 2),
+		Vector2i(Walls.pan_of(V, F), Walls.ROW_FOOT), Vector2i(Walls.pan_of(F, V), Walls.ROW_FOOT),
+		Vector2i(Walls.pan_of(F, F), 0), Vector2i(Walls.pan_of(F, F), 1),
+		Vector2i(Walls.pan_of(F, F), 2), Vector2i(Walls.pan_of(F, F), 3)]
+	for _trial: int in range(TRIALS):
+		var extra: PackedStringArray = _random_relief(RandomNumberGenerator.new())
+		if not extra.is_empty():
+			reliefs.append(extra)
+	var dumped: Dictionary = {}
+	for k: int in range(reliefs.size()):
+		var probe: Dictionary = Walls.visible(reliefs[k])["roles"]
+		var pw: int = HeightMask.width(reliefs[k])
+		var ph: int = HeightMask.height(reliefs[k])
+		var hits: Array[String] = []
+		for cell: Vector2i in probe.keys():
+			if cell.x < 0 or cell.y < 0 or cell.x >= pw or cell.y >= ph:
+				continue
+			if rare.has(probe[cell]):
+				hits.append("%s@(%d,%d)" % [Walls.role_name(probe[cell]), cell.x, cell.y])
+		for cell: Vector2i in probe.keys():
+			if cell.x < 0 or cell.y < 0 or cell.x >= pw or cell.y >= ph:
+				continue
+			var role: Vector2i = probe[cell]
+			if not rare.has(role) or dumped.has(role):
+				continue
+			dumped[role] = true
+			print("TEMOIN %s a (%d,%d)" % [Walls.role_name(role), cell.x, cell.y])
+			for line: String in reliefs[k]:
+				print("    " + line)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x50111
 	for _trial: int in range(TRIALS):
@@ -314,8 +348,19 @@ func _initialize() -> void:
 		if not relief.is_empty():
 			reliefs.append(relief)
 	for relief: PackedStringArray in reliefs:
+		# ⚠ ET ON NE COMPTE PAS LES CASES HORS DE LA GRILLE. `assemble` pose les rangees d'une
+		# robe meme au-dela du cadre -- il les signale dans `outside`, et le guide les refuse
+		# comme impeignables. Les compter ici gonflait le vocabulaire de HUIT roles qui
+		# n'existent dans AUCUN monde : ni dans le guide, ni chez l'acheteur, dont le monde
+		# est non borne mais dont chaque case existe. Un vocabulaire qui promet des tuiles
+		# introuvables est pire qu'un vocabulaire trop petit : on ne peut ni les peindre, ni
+		# les montrer, ni fermer l'export.
+		var width: int = HeightMask.width(relief)
+		var height: int = HeightMask.height(relief)
 		var roles: Dictionary = Walls.visible(relief)["roles"]
 		for cell: Vector2i in roles.keys():
+			if cell.x < 0 or cell.y < 0 or cell.x >= width or cell.y >= height:
+				continue
 			reached[roles[cell]] = true
 	var pans_alive: Dictionary = {}
 	var role_count: int = 0

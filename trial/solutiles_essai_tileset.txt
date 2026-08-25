@@ -147,37 +147,58 @@ lip_backing first_fall_row under_lip_cell
 sheet fixed_size one_drawing_per_tile no_variants
 # ================================================================
 
-surface solutiles_essai_surface.png 8 4
+surface solutiles_essai_surface.png 8 6
 famille cell
-# les 27 index de la famille, en ordre croissant, huit par rangee ; les
+# les 48 index de la famille, en ordre croissant, huit par rangee ; les
 # cases qui restent en fin de planche sont vides.
-index 5 slot 0,0  # N+E
-index 7 slot 1,0  # N+NE+E
-index 20 slot 2,0  # E+S
-index 23 slot 3,0  # N+NE+E+S
-index 28 slot 4,0  # E+SE+S
-index 29 slot 5,0  # N+E+SE+S
-index 31 slot 6,0  # N+NE+E+SE+S
-index 65 slot 7,0  # N+W
-index 71 slot 0,1  # N+NE+E+W
-index 80 slot 1,1  # S+W
-index 92 slot 2,1  # E+SE+S+W
-index 112 slot 3,1  # S+SW+W
-index 113 slot 4,1  # N+S+SW+W
-index 116 slot 5,1  # E+S+SW+W
-index 119 slot 6,1  # N+NE+E+S+SW+W
-index 124 slot 7,1  # E+SE+S+SW+W
-index 127 slot 0,2  # N+NE+E+SE+S+SW+W
-index 193 slot 1,2  # N+W+NW
-index 197 slot 2,2  # N+E+W+NW
-index 199 slot 3,2  # N+NE+E+W+NW
-index 209 slot 4,2  # N+S+W+NW
-index 221 slot 5,2  # N+E+SE+S+W+NW
-index 223 slot 6,2  # N+NE+E+SE+S+W+NW
-index 241 slot 7,2  # N+S+SW+W+NW
-index 247 slot 0,3  # N+NE+E+S+SW+W+NW
-index 253 slot 1,3  # N+E+SE+S+SW+W+NW
-index 255 slot 2,3  # N+NE+E+SE+S+SW+W+NW
+index 7 slot 0,0  # N+NE+E  [O=nu]
+index 20 slot 1,0  # E+S  [N=nu O=nu]
+index 23 slot 2,0  # N+NE+E+S  [O=nu]
+index 28 slot 3,0  # E+SE+S  [N=nu O=nu]
+index 31 slot 4,0  # N+NE+E+SE+S  [O=nu]
+index 71 slot 5,0  # N+NE+E+W
+index 80 slot 6,0  # S+W  [N=nu E=nu]
+index 92 slot 7,0  # E+SE+S+W  [N=nu]
+index 112 slot 0,1  # S+SW+W  [N=nu E=nu]
+index 116 slot 1,1  # E+S+SW+W  [N=nu]
+index 119 slot 2,1  # N+NE+E+S+SW+W
+index 124 slot 3,1  # E+SE+S+SW+W  [N=nu]
+index 127 slot 4,1  # N+NE+E+SE+S+SW+W
+index 193 slot 5,1  # N+W+NW  [E=nu]
+index 197 slot 6,1  # N+E+W+NW
+index 199 slot 7,1  # N+NE+E+W+NW
+index 209 slot 0,2  # N+S+W+NW  [E=nu]
+index 221 slot 1,2  # N+E+SE+S+W+NW
+index 223 slot 2,2  # N+NE+E+SE+S+W+NW
+index 241 slot 3,2  # N+S+SW+W+NW  [E=nu]
+index 247 slot 4,2  # N+NE+E+S+SW+W+NW
+index 253 slot 5,2  # N+E+SE+S+SW+W+NW
+index 255 slot 6,2  # N+NE+E+SE+S+SW+W+NW
+index 276 slot 7,2  # E+S  [N=roche O=nu]
+index 284 slot 0,3  # E+SE+S  [N=roche O=nu]
+index 336 slot 1,3  # S+W  [N=roche E=nu]
+index 348 slot 2,3  # E+SE+S+W  [N=roche]
+index 368 slot 3,3  # S+SW+W  [N=roche E=nu]
+index 372 slot 4,3  # E+S+SW+W  [N=roche]
+index 380 slot 5,3  # E+SE+S+SW+W  [N=roche]
+index 577 slot 6,3  # N+W  [E=roche]
+index 592 slot 7,3  # S+W  [N=nu E=roche]
+index 624 slot 0,4  # S+SW+W  [N=nu E=roche]
+index 625 slot 1,4  # N+S+SW+W  [E=roche]
+index 705 slot 2,4  # N+W+NW  [E=roche]
+index 721 slot 3,4  # N+S+W+NW  [E=roche]
+index 753 slot 4,4  # N+S+SW+W+NW  [E=roche]
+index 848 slot 5,4  # S+W  [N=roche E=roche]
+index 880 slot 6,4  # S+SW+W  [N=roche E=roche]
+index 1029 slot 7,4  # N+E  [O=roche]
+index 1031 slot 0,5  # N+NE+E  [O=roche]
+index 1044 slot 1,5  # E+S  [N=nu O=roche]
+index 1047 slot 2,5  # N+NE+E+S  [O=roche]
+index 1052 slot 3,5  # E+SE+S  [N=nu O=roche]
+index 1053 slot 4,5  # N+E+SE+S  [O=roche]
+index 1055 slot 5,5  # N+NE+E+SE+S  [O=roche]
+index 1300 slot 6,5  # E+S  [N=roche O=roche]
+index 1308 slot 7,5  # E+SE+S  [N=roche O=roche]
 
 proof solutiles_essai_preuve.png
 # chaque index sur son propre ilot, dans l'ordre de la planche de surface :
@@ -199,6 +220,7 @@ role 2,0 slot 2,0  # vide|devant / chapiteau
 role 2,1 slot 2,1  # vide|devant / corps 0
 role 2,2 slot 2,2  # vide|devant / corps 1
 role 2,3 slot 2,3  # vide|devant / corps 2
+role 2,4 slot 2,4  # vide|devant / pied
 role 3,0 slot 3,0  # muet|vide / chapiteau
 role 3,1 slot 3,1  # muet|vide / corps 0
 role 3,2 slot 3,2  # muet|vide / corps 1
@@ -218,8 +240,13 @@ role 6,0 slot 6,0  # devant|vide / chapiteau
 role 6,1 slot 6,1  # devant|vide / corps 0
 role 6,2 slot 6,2  # devant|vide / corps 1
 role 6,3 slot 6,3  # devant|vide / corps 2
+role 6,4 slot 6,4  # devant|vide / pied
 role 7,0 slot 7,0  # devant|muet / chapiteau
 role 7,1 slot 7,1  # devant|muet / corps 0
 role 7,2 slot 7,2  # devant|muet / corps 1
 role 7,3 slot 7,3  # devant|muet / corps 2
 role 7,4 slot 7,4  # devant|muet / pied
+role 8,0 slot 8,0  # devant|devant / chapiteau
+role 8,1 slot 8,1  # devant|devant / corps 0
+role 8,2 slot 8,2  # devant|devant / corps 1
+role 8,3 slot 8,3  # devant|devant / corps 2

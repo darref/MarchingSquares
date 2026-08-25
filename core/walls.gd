@@ -225,8 +225,19 @@ static func pan_at(heights: PackedStringArray, level: int, lip_of: Dictionary, a
 ## au-dessus : le tester rendrait « haut » partout et tous les flancs seraient muets.
 static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, level: int,
 		step: int, my_lip: int) -> int:
+	# ⚠ LA COMPARAISON DES LEVRES EST GLOBALE, PAS PAR ETAGE. `lip_of` etait construit
+	# etage par etage : une face d'un AUTRE etage a cote de moi n'y figurait pas, et je
+	# tombais dans le `vide` -- « ma roche s'arrete, il n'y a rien a cote » -- alors qu'il y
+	# a de la ROCHE. Mesure : 19 roles sur 38 voyaient les deux especes derriere un meme
+	# `vide`, et l'un d'eux 519 fois. C'est la meme faute que le sommet de plateau lu `muet`,
+	# sur l'autre branche du meme `if`.
+	#
+	# Ce qui compte n'est pas l'etage de la face voisine mais SA LEVRE : plus au nord, elle
+	# est en retrait et je porte l'angle ; plus au sud ou a la meme rangee, c'est elle qui
+	# est devant ou nous sommes coplanaires, et je me tais. La regle etait deja la, il lui
+	# manquait de voir les autres etages.
 	if lip_of.has(at):
-		return SIDE_FRONT if int(lip_of[at]) < my_lip else SIDE_MUTE
+		return SIDE_FRONT if int((lip_of[at] as Vector2i).y) < my_lip else SIDE_MUTE
 	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
 	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
 	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
@@ -268,14 +279,24 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 	var grid_height: int = HeightMask.height(heights)
 	# ⚠ ON PART DE L'ETAGE 0, PAS DE 1. La plaine est un plateau comme les autres : la ou
 	# elle borde le vide, elle a une levre et donc une falaise. C'est le bord du monde.
+	# PREMIERE PASSE, SUR TOUS LES ETAGES A LA FOIS -- la geometrie avant la pose. On
+	# calcule toutes les chutes avant de poser quoi que ce soit, parce que le pan d'une
+	# rangee depend de ce que les robes VOISINES couvrent a cette hauteur-la : en posant, on
+	# ne connaitrait que la moitie gauche.
+	#
+	# ⚠ ET TOUS LES ETAGES ENSEMBLE, PAS UN PAR UN. La passe etait dans la boucle des
+	# etages, donc une face voisine d'un AUTRE etage etait invisible au choix du pan : elle
+	# se lisait `vide` -- « rien a cote » -- alors qu'il y a de la roche. Mesure : 19 roles
+	# sur 38 voyaient les deux especes derriere un meme `vide`.
+	#
+	# ⚠ ET LA CASE GARDE LA LEVRE DE LA ROBE LA PLUS HAUTE, parce que c'est celle qu'on
+	# VOIT : deux robes d'etages differents peuvent se superposer, la plus haute masquant
+	# l'autre. C'est la meme regle que partout ailleurs ici -- on ne voit que le sommet.
+	var drops_by_level: Array = []
+	# case couverte -> Vector2i(etage de la robe la plus haute, rangee de sa levre).
+	var lip_of: Dictionary = {}
 	for level: int in range(0, HeightMask.top_level(heights) + 1):
-		# PREMIERE PASSE -- la geometrie seule. On calcule toutes les chutes avant de poser
-		# quoi que ce soit, parce que le pan d'une rangee depend de ce que les robes
-		# VOISINES couvrent a cette hauteur-la : en posant, on ne connaitrait que la
-		# moitie gauche.
-		var drops: Dictionary = {}
-		# case couverte -> rangee de la levre qui l'a lancee.
-		var lip_of: Dictionary = {}
+		var found: Dictionary = {}
 		for y: int in range(grid_height):
 			for x: int in range(grid_width):
 				if HeightMask.level_at(heights, x, y) < level:
@@ -284,10 +305,17 @@ static func assemble(heights: PackedStringArray) -> Dictionary:
 					continue  # ce bord-la est interieur : rien a montrer
 				var cell: Vector2i = Vector2i(x, y)
 				var fall: Vector2i = fall_at(heights, level, cell)
-				drops[cell] = fall
+				found[cell] = fall
 				for step: int in range(1, fall.x + 1):
-					lip_of[cell + Vector2i(0, step)] = y
-		# SECONDE PASSE -- la pose.
+					var covered: Vector2i = cell + Vector2i(0, step)
+					if not lip_of.has(covered) \
+							or int((lip_of[covered] as Vector2i).x) < level:
+						lip_of[covered] = Vector2i(level, y)
+		drops_by_level.append(found)
+
+	# SECONDE PASSE -- la pose, etage par etage, du bas vers le haut.
+	for level: int in range(0, HeightMask.top_level(heights) + 1):
+		var drops: Dictionary = drops_by_level[level]
 		for cell: Vector2i in drops:
 			var fall: Vector2i = drops[cell]
 			var drop: int = fall.x

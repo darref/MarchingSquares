@@ -21,9 +21,17 @@ const Families := preload("res://core/families.gd")
 const Walls := preload("res://core/walls.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
 const Thickness := preload("res://core/thickness.gd")
+const ProofScene := preload("res://core/proof_scene.gd")
+const BrinkLips := preload("res://core/brink_lips.gd")
+const BlobIndex := preload("res://core/blob_index.gd")
+const Coverage := preload("res://core/coverage.gd")
 
 const WIDTH: int = 104
-const HEIGHT: int = 44
+## ⚠ LE GUIDE S'ALLONGE POUR SA RESERVE, et c'est un prix a l'ecran qu'il faut assumer :
+## la case retrecit. Le paysage occupe le nord, les temoins puis la reserve le sud.
+## Un outil parfait ne peut pas ne pas montrer une tuile : le game dev qui construit
+## precisement ce cas-la ne doit pas se retrouver bloque. Voir `_witnesses` et `_reserve`.
+const HEIGHT: int = 141
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
@@ -69,7 +77,7 @@ func _compose() -> void:
 		_levels.append(line)
 
 	# LA PLAINE : le socle, avec sa cote qui ondule par ajouts -- jamais par retraits.
-	_fill(2, 4, 101, 37, 0)
+	_fill(2, 4, 101, HEIGHT - 7, 0)
 	_fill(12, 2, 17, 3, 0)
 	_fill(52, 2, 57, 3, 0)
 	_fill(8, 38, 23, 39, 0)
@@ -172,6 +180,235 @@ func _compose() -> void:
 	_fill(83, 32, 85, 35, 1)
 
 
+## LES TEMOINS — les agencements que le paysage ne produit jamais de lui-meme.
+##
+## ⚠ CES HUIT ROLES-LA EXISTENT, ET UN OUTIL PARFAIT NE PEUT PAS NE PAS LES AVOIR. Le
+## game dev qui construit precisement ce cas-la ne doit pas se retrouver bloque. Ils
+## demandent tous la meme chose : la face d'un etage SUPERIEUR qui passe a cote de la
+## mienne. `(devant,devant)` en est l'exemple pur -- ma voisine est couverte a la fois
+## par la robe de mon etage et par celle d'un etage plus haut, et c'est la PLUS HAUTE
+## qu'on voit, dont la levre est plus au nord : elle est en retrait, je suis devant.
+##
+## ⚠ ILS NE SONT PAS DESSINES A LA MAIN, ILS SONT TROUVES. La battue du recensement les
+## rencontre ; on lui a demande d'en dumper un exemplaire, et ce sont ces reliefs-la,
+## recopies tels quels. Dessiner ces croisements a la main, c'est se tromper d'une case
+## et d'un etage a chaque essai -- la lecon est deja au dossier.
+func _witnesses() -> Array:
+	var out: Array = []
+	# vide|vide / corps 0, vide|vide / corps 1
+	out.append(PackedStringArray([
+			"0000000000",
+			"0222200000",
+			"0222200000",
+			"0222200000",
+			"0222200000",
+			"0222200000",
+			"0022220000",
+			"0022220000",
+			"0022220000",
+			"0000000000",
+			"0000000000",
+			"0000000000",
+			"0000000000",
+	]))
+	# vide|devant / pied
+	out.append(PackedStringArray([
+			"0000000000000000000000",
+			"0000000033300000000000",
+			"0000000233322200000000",
+			"0000000233322200000000",
+			"0000000233322200000000",
+			"0000000233322200000000",
+			"0000000233322200000000",
+			"0000000222222200000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000222200000000",
+			"0000000000222233300000",
+			"0000000000222233300000",
+			"0000000000222233300000",
+			"0000000000222233300000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+	]))
+	# devant|vide / pied
+	out.append(PackedStringArray([
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0111111100000000000000",
+			"0133331100000000000000",
+			"0133331100000000000000",
+			"0333333100000000000000",
+			"0333333100000000000000",
+			"0333333100000000~~~000",
+			"0111111100000000~~~000",
+			"0000000000000000~~~000",
+			"0000000000000000~~~000",
+			"0000000000000000000000",
+			"0000000000000000003333",
+			"0000000000000000003333",
+			"0000000000000000003333",
+			"0000000000000000003333",
+			"0000000000000000003333",
+			"0000000000000000000000",
+	]))
+	# devant|devant / chapiteau, devant|devant / corps 0
+	out.append(PackedStringArray([
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000002222000000000000",
+			"0000002222000000000000",
+			"0011112222000000000000",
+			"0011112222000000000000",
+			"0011112222000000000000",
+			"0011112222000000000000",
+			"0011112222000000000000",
+			"0011111111000000000000",
+			"0011111111000000000000",
+			"0000011111000000000000",
+			"0000000000000000000000",
+			"0000000000000000000~~~",
+			"0000000000000000000~~~",
+			"0000000000000000000~~~",
+			"0000000000000000000~~~",
+			"0000000000000000000~~~",
+	]))
+	# devant|devant / corps 1, devant|devant / corps 2
+	out.append(PackedStringArray([
+			"0000000022222200000000",
+			"0003333333222200000000",
+			"0003333333222200000000",
+			"0003333333222200000000",
+			"0003333333222200000000",
+			"0003333333200000000000",
+			"0000000022200000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000111000000000000",
+			"0000000111000000000000",
+			"0000000111000000000000",
+			"0000000000000000000000",
+			"0000000000011111100000",
+			"0000000000011111100000",
+			"0000000000011111100000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+			"0000000000000000000000",
+	]))
+	return out
+
+
+## Un temoin pose dans la reserve, avec de la plaine sous lui pour que ses chutes
+## atterrissent : une robe hors du cadre est une tuile impeignable.
+func _stamp_witness(x0: int, y0: int, rows: PackedStringArray) -> void:
+	for y: int in range(rows.size()):
+		var line: String = rows[y]
+		for x: int in range(line.length()):
+			var glyph: String = line[x]
+			var level: int = -1 if glyph == "~" else int(glyph)
+			_fill(x0 + x, y0 + y, x0 + x, y0 + y, level)
+
+## LA RESERVE — les tuiles que le paysage ne produit pas de lui-meme.
+##
+## ⚠ UN GUIDE DOIT EXHIBER TOUT LE VOCABULAIRE, sinon la tuile qu'il ne montre pas n'est
+## peignable nulle part et l'export se ferme pour toujours. Or certaines tuiles ne naissent
+## que d'agencements que le paysage n'a aucune raison de contenir -- les silhouettes de COIN
+## avec une falaise voisine, par exemple, que des accidents de terrain ne produisent pas.
+##
+## ⚠ ON NE LES DESSINE PAS A LA MAIN : on reutilise l'ilot de la PLANCHE DE PREUVE, qui
+## sait fabriquer le voisinage exact d'une tuile depuis sa seule identite. Un accident de
+## terrain dessine a la main se trompe d'une case et d'un etage a chaque essai -- la lecon
+## est deja au dossier ; ici la geometrie est CALCULEE, comme la planche.
+##
+## ⚠ ET LA RESERVE N'EST PAS UN PAYSAGE, ELLE NE PRETEND PAS L'ETRE. Elle est au sud du
+## guide, apres la terre. Le paysage sert a juger le rendu ; la reserve sert a ce qu'aucune
+## tuile ne manque. Confondre les deux, c'etait demander a un seul dessin d'etre a la fois
+## beau et exhaustif -- la double injonction qui deforme le guide depuis le debut.
+func _reserve(top: int) -> int:
+	# ⚠ ON COMPTE COMME LE CONTROLE COMPTE, sinon on ne repond pas a sa question. Le
+	# controle exige la tuile HORS DE LA PLAINE et hors des cases de robe -- l'etage 0 est du
+	# decor, il ne prend pas le crayon, et une case sous une face porte la face. Compter sur
+	# la carte brute faisait croire deux tuiles deja la : elles n'etaient portees que par une
+	# case de plaine, donc par personne.
+	var heights: PackedStringArray = _mask()
+	var have: Dictionary = {}
+	var surface: Dictionary = Families.surface_map(Families.BY_CELL, heights)
+	for at: Vector2i in surface.keys():
+		if HeightMask.level_at(heights, at.x, at.y) >= 1:
+			have[int(surface[at])] = true
+	var missing: Array[int] = []
+	for tile: int in Thickness.SURFACE_INDICES:
+		if not have.has(tile):
+			missing.append(tile)
+	# Les temoins d'abord : ils portent les roles de robe que le paysage n'a pas. Une seule
+	# fois -- ils ne dependent pas de ce qui manque.
+	if not _witnessed:
+		_witnessed = true
+		var band: int = top
+		var wx: int = 4
+		for rows: PackedStringArray in _witnesses():
+			var w: int = rows[0].length()
+			if wx + w > WIDTH - 4:
+				wx = 4
+				band += 26
+			_stamp_witness(wx, band, rows)
+			wx += w + 4
+		top = band + 26
+
+	# ⚠ ET LA RESERVE SE RELIT, PARCE QU'ELLE SE MODIFIE ELLE-MEME. Le compte des manquantes
+	# se prend AVANT de poser quoi que ce soit -- or poser un ilot change les cases de plaine
+	# autour de lui, et une tuile qu'une case de plaine portait toute seule peut disparaitre
+	# en cours de route. Deux tuiles sortaient ainsi manquantes alors que chaque ilot pose
+	# etait juste : elles n'avaient jamais ete posees, on les croyait deja la. On boucle donc
+	# jusqu'au point fixe, ce qui est toujours atteint -- chaque tour ne fait qu'ajouter.
+	if missing.is_empty():
+		return top
+	# ⚠ LE MEME ILOT QUE LA PLANCHE DE PREUVE, LEVRE COMPRISE. Le guide doit EXHIBER toute
+	# tuile qu'il pretend livrer : celle qu'il ne montre pas n'est peignable nulle part, et
+	# l'export se ferme pour toujours. On reutilise donc l'ilot -- calcule depuis l'index,
+	# plus la falaise voisine que `core/brink_lips.gd` a cherchee et fait verifier.
+	var pitch_x: int = ProofScene.PITCH_X
+	var pitch_y: int = ProofScene.PITCH_Y
+	var columns: int = maxi(1, (WIDTH - 8) / pitch_x)
+	var rows: int = (missing.size() + columns - 1) / columns
+	for order: int in range(missing.size()):
+		var cx: int = 4 + (order % columns) * pitch_x + ProofScene.ISLAND_CENTRE.x
+		var cy: int = top + (order / columns) * pitch_y + ProofScene.ISLAND_CENTRE.y
+		for offset: Vector2i in ProofScene.island_cells(
+				BlobIndex.silhouette(missing[order])):
+			_fill(cx + offset.x, cy + offset.y, cx + offset.x, cy + offset.y, 1)
+		for offset: Variant in (BrinkLips.LIPS.get(missing[order], []) as Array):
+			var at: Vector2i = offset as Vector2i
+			_fill(cx + at.x, cy + at.y, cx + at.x, cy + at.y, 2)
+		_placed.append(Vector3i(cx, cy, missing[order]))
+	return top + rows * pitch_y
+
+
+var _placed: Array[Vector3i] = []
+var _witnessed: bool = false
+
+
+## ⚠ ON REVERIFIE CHAQUE ILOT LA OU IL EST POSE, pas seulement la ou il a ete cherche. Un
+## temoin est juste dans SON contexte ; le guide en est un autre.
+func _audit() -> void:
+	var heights: PackedStringArray = _mask()
+	var walled: Dictionary = Walls.visible_roles(heights)
+	for entry: Vector3i in _placed:
+		var got: int = Coverage.visible_index_at(heights, entry.x, entry.y, walled)
+		if got != entry.z:
+			print("  ilot %d pose en %d,%d rend %d (%s au lieu de %s)" % [entry.z,
+					entry.x, entry.y, got, BlobIndex.brink_name(got),
+					BlobIndex.brink_name(entry.z)])
+
+
 func _mask() -> PackedStringArray:
 	var out: PackedStringArray = PackedStringArray()
 	for y: int in range(HEIGHT):
@@ -190,6 +427,13 @@ func _mask() -> PackedStringArray:
 
 func _initialize() -> void:
 	_compose()
+	var band: int = 42
+	for pass_number: int in range(4):
+		var after: int = _reserve(band)
+		if after == band:
+			break
+		band = after
+	_audit()
 	var heights: PackedStringArray = _mask()
 	var failures: int = 0
 

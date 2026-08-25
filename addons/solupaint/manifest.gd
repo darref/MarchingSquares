@@ -197,8 +197,8 @@ static func read(path: String) -> Dictionary:
 ## compris -- vide-devant au corps 1, dans les deux sens). Le plugin est
 ## SEUL dans le projet de l acheteur, il porte donc sa copie des comptes -- et la suite
 ## la compare au vocabulaire calcule du noyau, comme le reste de la regle de pose.
-const SURFACE_TILES: int = 27
-const WALL_TILES: int = 38
+const SURFACE_TILES: int = 48
+const WALL_TILES: int = 44
 
 
 static func expected_surface_tiles(family: StringName) -> int:
