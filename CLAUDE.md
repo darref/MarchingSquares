@@ -24,6 +24,17 @@ Ces règles arbitrent toutes les décisions techniques.
    couvertes.
 6. **Le résultat est visible pendant le travail, pas après.**
 
+## Le plan de reconstruction
+
+⚠ **`PLAN.md` gouverne l'ordre du travail.** Le vocabulaire a été bâti par correctifs
+successifs, chacun juste, aucun conçu avec les autres ; on reprend par le bas, du plus simple
+au plus complexe, en vérifiant à chaque cran que rien ne régresse. Deux échelles — **L**, la
+complexité du monde, et **F**, la liberté du dessin — et cinq invariants mesurés sur l'image
+assemblée. Le fil unique : *qui trace cette frontière ?*
+
+Le dépôt actuel ne se jette pas : il reste le **catalogue des catégories théoriques** qu'il
+faudra traiter, et rien n'en est retiré avant que le niveau correspondant ne soit vert.
+
 ## Structure du dépôt
 
 ```
