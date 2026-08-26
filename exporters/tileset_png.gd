@@ -46,6 +46,17 @@ const MAGIC: String = "solutiles-tileset"
 ## c'est nous qui ecrirons le lecteur, deux fois, et deux lecteurs qui se fient a leur
 ## memoire finissent toujours par diverger. La regle vit ici, une seule fois.
 ##
+## ⚠ VERSION 8 : LA DECOMPOSITION EN COUCHES. Une tuile ne repond QUE D'ELLE-MEME : elle
+## remplit sa case, et ce qui est a cote appartient a la couche du voisin, qui le dessine.
+## Trois distinctions tombent avec ca, toutes nees du besoin qu'une tuile SUGGERE son
+## voisinage -- le BORD d'une surface (nu ou roche a ce cardinal), et les etats de flanc VIDE
+## et DEVANT, qui disaient qui etait en avant. C'est desormais l'ORDRE DE DESSIN qui tranche.
+## Le vocabulaire passe de 48 + 44 = 92 tuiles a 27 + 20 = 47.
+##
+## ⚠ ET LE SENS DE LA V7 A CHANGE SANS QUE SES TUILES CHANGENT DE NOM : un `role 2,1` de la v7
+## n'est pas celui de la v8, et une planche v7 posee par un moteur v8 sortirait un monde faux
+## SANS UNE SEULE ERREUR. La v7 est donc refusee nommement.
+##
 ## ⚠ VERSION 6 : LE MODE EPAIS EST LE PRODUIT, A MIN TROIS. Rien ne fait une bande
 ## fine -- une case, pleine OU vide, dont la COURSE (la suite de cases du meme etat
 ## qui la contient le long d'un axe) fait moins de trois est FINE, dans chaque
@@ -78,7 +89,7 @@ const MAGIC: String = "solutiles-tileset"
 ## avec « Peindre les jumelles » coche, il valait toujours 1. La planche a desormais une
 ## taille FIXE, ce qui rend le lecteur trivial. Un systeme de variantes digne de ce nom
 ## viendra plus tard, et il sera concu pour lui-meme.
-const VERSION: int = 7
+const VERSION: int = 8
 
 ## Largeur de la planche de surface, en tuiles. 47 n'a pas de forme naturelle -- huit
 ## colonnes donnent six rangees, et la derniere case reste vide. Elle est dite au manifeste.
@@ -359,11 +370,6 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("# n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire")
 	lines.append("# entier qui survit a cet interdit.")
 	lines.append("thin_forbidden run_shorter_than_three all_storeys both_states")
-	lines.append("# ET C'EST L'EPAISSEUR QUI TUE LE SEUL PAN MORT. `(devant, devant)`")
-	lines.append("# demanderait un eperon d'UNE colonne -- une course d'une case, donc")
-	lines.append("# fine. Ce n'est pas une regle de plus : c'est une consequence de la")
-	lines.append("# precedente. Les huit autres pans vivent, a toutes les rangees.")
-	lines.append("pan_dead front_front_needs_a_one_column_spur")
 	lines.append("# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle")
 	lines.append("# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,")
 	lines.append("# elle bute contre un voisin de son niveau.")
@@ -376,26 +382,22 @@ static func _spec(lines: PackedStringArray, family: StringName = Families.BY_CEL
 	lines.append("row_for crown_first foot_last body_cycle")
 	lines.append("# LE PAN. C'est le couple des deux flancs : pan = ouest * %d + est."
 			% Walls.SIDE_COUNT)
-	lines.append("#     %d VIDE    aucune roche a ce flanc" % Walls.SIDE_VOID)
-	lines.append("#     %d MUET    de la ROCHE a ce flanc : la meme face, ou celle d'un"
-			% Walls.SIDE_MUTE)
-	lines.append("#               voisin DEVANT moi")
-	lines.append("# ⚠ MUET VEUT DIRE DE LA ROCHE, ET RIEN D'AUTRE. Il a voulu dire aussi")
-	lines.append("# \"le sommet d'un plateau est a cote, donc il est devant moi, c'est A LUI")
-	lines.append("# de tracer\" -- et \"lui\" est une tuile de SURFACE, la meme a des dizaines")
-	lines.append("# d'endroits dont la plupart n'ont aucune falaise a cote. Elle ne peut pas")
-	lines.append("# tracer, et l'arete de cette jonction n'appartenait a personne. Le sommet")
-	lines.append("# d'un plateau est de la TERRE : il rend `vide`, et c'est la tuile de robe")
-	lines.append("# qui trace le bord de sa propre roche -- la seule qui le sache.")
-	lines.append("#     %d DEVANT  le voisin est en retrait : je porte l'angle"
-			% Walls.SIDE_FRONT)
-	lines.append("# ⚠ « EN RETRAIT » SE MESURE A LA LEVRE : la levre du voisin est plus au NORD")
-	lines.append("# que la mienne. Deux faces mitoyennes issues de levres decalees ne sont PAS la")
-	lines.append("# meme face, et l'arete appartient a celle qui AVANCE -- c'est ce qui rend")
-	lines.append("# lisible laquelle des deux est la plus proche.")
+	lines.append("#     %d ARRET     ma roche s'arrete a ce flanc" % Walls.SIDE_STOP)
+	lines.append("#     %d CONTINUE  de la ROCHE a ce flanc : la meme face se poursuit"
+			% Walls.SIDE_CONTINUE)
+	lines.append("# ⚠ DEUX ETATS, PAS TROIS, ET C'EST LA REGLE DES COUCHES QUI LE PERMET. Un")
+	lines.append("# troisieme etat, DEVANT, disait « mon voisin est en retrait, je porte")
+	lines.append("# l'angle » -- c'est-a-dire une affirmation sur le VOISIN. Or « qui est")
+	lines.append("# devant » ne se demande plus a la tuile : la face la plus proche se pose")
+	lines.append("# par-dessus l'autre, et l'ORDRE DE DESSIN tranche. La dissymetrie que les")
+	lines.append("# neuf pans achetaient au prix de vingt-sept roles, l'empilement la donne")
+	lines.append("# pour rien. Les %d pans vivent tous, a toutes les rangees." % Walls.PAN_COUNT)
+	lines.append("# ⚠ ET `ARRET` NE BORDE JAMAIS DE LA ROCHE : c'est un theoreme -- il veut dire")
+	lines.append("# qu'aucune face ne couvre la case d'a cote -- verifie sur 5 216 flancs, dont")
+	lines.append("# 35,5 %% de terre et 64,5 %% de vide, et zero de roche.")
 	lines.append("# ⚠ ET LE PAN SE CHOISIT PAR RANGEE, JAMAIS PAR COLONNE : sous le pied d'une")
-	lines.append("# voisine plus courte, un flanc redevient vide.")
-	lines.append("pan west_times_three_plus_east lip_row_comparison per_row")
+	lines.append("# voisine plus courte, un flanc redevient `arret`.")
+	lines.append("pan west_times_two_plus_east lip_row_comparison per_row")
 
 	lines.append("")
 	lines.append("# --- LA POSE DERRIERE : le sous-pied, et le corps derriere une case qui ecrete ---")

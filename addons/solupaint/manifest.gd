@@ -38,8 +38,8 @@ const MAGIC: String = "solutiles-tileset"
 ## qui ecrete -- n'y est pas ecrite, et ce plugin la pose. Un second lecteur, fidele a un
 ## fichier v4, poserait un autre monde que lui : deux lecteurs, deux mondes, exactement
 ## ce que le contrat existe pour interdire.
-const READS_FROM: int = 7
-const READS_UP_TO: int = 7
+const READS_FROM: int = 8
+const READS_UP_TO: int = 8
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
@@ -197,8 +197,8 @@ static func read(path: String) -> Dictionary:
 ## compris -- vide-devant au corps 1, dans les deux sens). Le plugin est
 ## SEUL dans le projet de l acheteur, il porte donc sa copie des comptes -- et la suite
 ## la compare au vocabulaire calcule du noyau, comme le reste de la regle de pose.
-const SURFACE_TILES: int = 48
-const WALL_TILES: int = 44
+const SURFACE_TILES: int = 27
+const WALL_TILES: int = 20
 
 
 static func expected_surface_tiles(family: StringName) -> int:

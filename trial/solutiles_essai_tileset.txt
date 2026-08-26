@@ -1,4 +1,4 @@
-solutiles-tileset 7
+solutiles-tileset 8
 mode epais
 tile_size 32
 
@@ -72,11 +72,6 @@ fall_into_void one_storey_more no_foot
 # n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire
 # entier qui survit a cet interdit.
 thin_forbidden run_shorter_than_three all_storeys both_states
-# ET C'EST L'EPAISSEUR QUI TUE LE SEUL PAN MORT. `(devant, devant)`
-# demanderait un eperon d'UNE colonne -- une course d'une case, donc
-# fine. Ce n'est pas une regle de plus : c'est une consequence de la
-# precedente. Les huit autres pans vivent, a toutes les rangees.
-pan_dead front_front_needs_a_one_column_spur
 # RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle
 # s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,
 # elle bute contre un voisin de son niveau.
@@ -87,25 +82,22 @@ trim stop_on_same_level no_foot
 #     step == drop et posee   -> 4  pied
 #     sinon                   -> 1 + (step - 2) modulo body_rows
 row_for crown_first foot_last body_cycle
-# LE PAN. C'est le couple des deux flancs : pan = ouest * 3 + est.
-#     0 VIDE    aucune roche a ce flanc
-#     1 MUET    de la ROCHE a ce flanc : la meme face, ou celle d'un
-#               voisin DEVANT moi
-# ⚠ MUET VEUT DIRE DE LA ROCHE, ET RIEN D'AUTRE. Il a voulu dire aussi
-# "le sommet d'un plateau est a cote, donc il est devant moi, c'est A LUI
-# de tracer" -- et "lui" est une tuile de SURFACE, la meme a des dizaines
-# d'endroits dont la plupart n'ont aucune falaise a cote. Elle ne peut pas
-# tracer, et l'arete de cette jonction n'appartenait a personne. Le sommet
-# d'un plateau est de la TERRE : il rend `vide`, et c'est la tuile de robe
-# qui trace le bord de sa propre roche -- la seule qui le sache.
-#     2 DEVANT  le voisin est en retrait : je porte l'angle
-# ⚠ « EN RETRAIT » SE MESURE A LA LEVRE : la levre du voisin est plus au NORD
-# que la mienne. Deux faces mitoyennes issues de levres decalees ne sont PAS la
-# meme face, et l'arete appartient a celle qui AVANCE -- c'est ce qui rend
-# lisible laquelle des deux est la plus proche.
+# LE PAN. C'est le couple des deux flancs : pan = ouest * 2 + est.
+#     0 ARRET     ma roche s'arrete a ce flanc
+#     1 CONTINUE  de la ROCHE a ce flanc : la meme face se poursuit
+# ⚠ DEUX ETATS, PAS TROIS, ET C'EST LA REGLE DES COUCHES QUI LE PERMET. Un
+# troisieme etat, DEVANT, disait « mon voisin est en retrait, je porte
+# l'angle » -- c'est-a-dire une affirmation sur le VOISIN. Or « qui est
+# devant » ne se demande plus a la tuile : la face la plus proche se pose
+# par-dessus l'autre, et l'ORDRE DE DESSIN tranche. La dissymetrie que les
+# neuf pans achetaient au prix de vingt-sept roles, l'empilement la donne
+# pour rien. Les 4 pans vivent tous, a toutes les rangees.
+# ⚠ ET `ARRET` NE BORDE JAMAIS DE LA ROCHE : c'est un theoreme -- il veut dire
+# qu'aucune face ne couvre la case d'a cote -- verifie sur 5 216 flancs, dont
+# 35,5 %% de terre et 64,5 %% de vide, et zero de roche.
 # ⚠ ET LE PAN SE CHOISIT PAR RANGEE, JAMAIS PAR COLONNE : sous le pied d'une
-# voisine plus courte, un flanc redevient vide.
-pan west_times_three_plus_east lip_row_comparison per_row
+# voisine plus courte, un flanc redevient `arret`.
+pan west_times_two_plus_east lip_row_comparison per_row
 
 # --- LA POSE DERRIERE : le sous-pied, et le corps derriere une case qui ecrete ---
 # Une robe qui atterrit repose son PIED une case plus bas, SOUS la surface
@@ -147,106 +139,61 @@ lip_backing first_fall_row under_lip_cell
 sheet fixed_size one_drawing_per_tile no_variants
 # ================================================================
 
-surface solutiles_essai_surface.png 8 6
+surface solutiles_essai_surface.png 8 4
 famille cell
-# les 48 index de la famille, en ordre croissant, huit par rangee ; les
+# les 27 index de la famille, en ordre croissant, huit par rangee ; les
 # cases qui restent en fin de planche sont vides.
-index 7 slot 0,0  # N+NE+E  [O=nu]
-index 20 slot 1,0  # E+S  [N=nu O=nu]
-index 23 slot 2,0  # N+NE+E+S  [O=nu]
-index 28 slot 3,0  # E+SE+S  [N=nu O=nu]
-index 31 slot 4,0  # N+NE+E+SE+S  [O=nu]
-index 71 slot 5,0  # N+NE+E+W
-index 80 slot 6,0  # S+W  [N=nu E=nu]
-index 92 slot 7,0  # E+SE+S+W  [N=nu]
-index 112 slot 0,1  # S+SW+W  [N=nu E=nu]
-index 116 slot 1,1  # E+S+SW+W  [N=nu]
-index 119 slot 2,1  # N+NE+E+S+SW+W
-index 124 slot 3,1  # E+SE+S+SW+W  [N=nu]
-index 127 slot 4,1  # N+NE+E+SE+S+SW+W
-index 193 slot 5,1  # N+W+NW  [E=nu]
-index 197 slot 6,1  # N+E+W+NW
-index 199 slot 7,1  # N+NE+E+W+NW
-index 209 slot 0,2  # N+S+W+NW  [E=nu]
-index 221 slot 1,2  # N+E+SE+S+W+NW
-index 223 slot 2,2  # N+NE+E+SE+S+W+NW
-index 241 slot 3,2  # N+S+SW+W+NW  [E=nu]
-index 247 slot 4,2  # N+NE+E+S+SW+W+NW
-index 253 slot 5,2  # N+E+SE+S+SW+W+NW
-index 255 slot 6,2  # N+NE+E+SE+S+SW+W+NW
-index 276 slot 7,2  # E+S  [N=roche O=nu]
-index 284 slot 0,3  # E+SE+S  [N=roche O=nu]
-index 336 slot 1,3  # S+W  [N=roche E=nu]
-index 348 slot 2,3  # E+SE+S+W  [N=roche]
-index 368 slot 3,3  # S+SW+W  [N=roche E=nu]
-index 372 slot 4,3  # E+S+SW+W  [N=roche]
-index 380 slot 5,3  # E+SE+S+SW+W  [N=roche]
-index 577 slot 6,3  # N+W  [E=roche]
-index 592 slot 7,3  # S+W  [N=nu E=roche]
-index 624 slot 0,4  # S+SW+W  [N=nu E=roche]
-index 625 slot 1,4  # N+S+SW+W  [E=roche]
-index 705 slot 2,4  # N+W+NW  [E=roche]
-index 721 slot 3,4  # N+S+W+NW  [E=roche]
-index 753 slot 4,4  # N+S+SW+W+NW  [E=roche]
-index 848 slot 5,4  # S+W  [N=roche E=roche]
-index 880 slot 6,4  # S+SW+W  [N=roche E=roche]
-index 1029 slot 7,4  # N+E  [O=roche]
-index 1031 slot 0,5  # N+NE+E  [O=roche]
-index 1044 slot 1,5  # E+S  [N=nu O=roche]
-index 1047 slot 2,5  # N+NE+E+S  [O=roche]
-index 1052 slot 3,5  # E+SE+S  [N=nu O=roche]
-index 1053 slot 4,5  # N+E+SE+S  [O=roche]
-index 1055 slot 5,5  # N+NE+E+SE+S  [O=roche]
-index 1300 slot 6,5  # E+S  [N=roche O=roche]
-index 1308 slot 7,5  # E+SE+S  [N=roche O=roche]
+index 5 slot 0,0  # N+E
+index 7 slot 1,0  # N+NE+E
+index 20 slot 2,0  # E+S
+index 23 slot 3,0  # N+NE+E+S
+index 28 slot 4,0  # E+SE+S
+index 29 slot 5,0  # N+E+SE+S
+index 31 slot 6,0  # N+NE+E+SE+S
+index 65 slot 7,0  # N+W
+index 71 slot 0,1  # N+NE+E+W
+index 80 slot 1,1  # S+W
+index 92 slot 2,1  # E+SE+S+W
+index 112 slot 3,1  # S+SW+W
+index 113 slot 4,1  # N+S+SW+W
+index 116 slot 5,1  # E+S+SW+W
+index 119 slot 6,1  # N+NE+E+S+SW+W
+index 124 slot 7,1  # E+SE+S+SW+W
+index 127 slot 0,2  # N+NE+E+SE+S+SW+W
+index 193 slot 1,2  # N+W+NW
+index 197 slot 2,2  # N+E+W+NW
+index 199 slot 3,2  # N+NE+E+W+NW
+index 209 slot 4,2  # N+S+W+NW
+index 221 slot 5,2  # N+E+SE+S+W+NW
+index 223 slot 6,2  # N+NE+E+SE+S+W+NW
+index 241 slot 7,2  # N+S+SW+W+NW
+index 247 slot 0,3  # N+NE+E+S+SW+W+NW
+index 253 slot 1,3  # N+E+SE+S+SW+W+NW
+index 255 slot 2,3  # N+NE+E+SE+S+SW+W+NW
 
 proof solutiles_essai_preuve.png
 # chaque index sur son propre ilot, dans l'ordre de la planche de surface :
 # la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.
 
-walls solutiles_essai_walls.png 9 5
-# 9 pans (le couple des deux flancs) x 5 rangees = 45 tuiles.
-role 0,0 slot 0,0  # vide|vide / chapiteau
-role 0,1 slot 0,1  # vide|vide / corps 0
-role 0,2 slot 0,2  # vide|vide / corps 1
-role 0,3 slot 0,3  # vide|vide / corps 2
-role 0,4 slot 0,4  # vide|vide / pied
-role 1,0 slot 1,0  # vide|muet / chapiteau
-role 1,1 slot 1,1  # vide|muet / corps 0
-role 1,2 slot 1,2  # vide|muet / corps 1
-role 1,3 slot 1,3  # vide|muet / corps 2
-role 1,4 slot 1,4  # vide|muet / pied
-role 2,0 slot 2,0  # vide|devant / chapiteau
-role 2,1 slot 2,1  # vide|devant / corps 0
-role 2,2 slot 2,2  # vide|devant / corps 1
-role 2,3 slot 2,3  # vide|devant / corps 2
-role 2,4 slot 2,4  # vide|devant / pied
-role 3,0 slot 3,0  # muet|vide / chapiteau
-role 3,1 slot 3,1  # muet|vide / corps 0
-role 3,2 slot 3,2  # muet|vide / corps 1
-role 3,3 slot 3,3  # muet|vide / corps 2
-role 3,4 slot 3,4  # muet|vide / pied
-role 4,0 slot 4,0  # muet|muet / chapiteau
-role 4,1 slot 4,1  # muet|muet / corps 0
-role 4,2 slot 4,2  # muet|muet / corps 1
-role 4,3 slot 4,3  # muet|muet / corps 2
-role 4,4 slot 4,4  # muet|muet / pied
-role 5,0 slot 5,0  # muet|devant / chapiteau
-role 5,1 slot 5,1  # muet|devant / corps 0
-role 5,2 slot 5,2  # muet|devant / corps 1
-role 5,3 slot 5,3  # muet|devant / corps 2
-role 5,4 slot 5,4  # muet|devant / pied
-role 6,0 slot 6,0  # devant|vide / chapiteau
-role 6,1 slot 6,1  # devant|vide / corps 0
-role 6,2 slot 6,2  # devant|vide / corps 1
-role 6,3 slot 6,3  # devant|vide / corps 2
-role 6,4 slot 6,4  # devant|vide / pied
-role 7,0 slot 7,0  # devant|muet / chapiteau
-role 7,1 slot 7,1  # devant|muet / corps 0
-role 7,2 slot 7,2  # devant|muet / corps 1
-role 7,3 slot 7,3  # devant|muet / corps 2
-role 7,4 slot 7,4  # devant|muet / pied
-role 8,0 slot 8,0  # devant|devant / chapiteau
-role 8,1 slot 8,1  # devant|devant / corps 0
-role 8,2 slot 8,2  # devant|devant / corps 1
-role 8,3 slot 8,3  # devant|devant / corps 2
+walls solutiles_essai_walls.png 4 5
+# 4 pans (le couple des deux flancs) x 5 rangees = 20 tuiles.
+role 0,0 slot 0,0  # arret|arret / chapiteau
+role 0,1 slot 0,1  # arret|arret / corps 0
+role 0,2 slot 0,2  # arret|arret / corps 1
+role 0,3 slot 0,3  # arret|arret / corps 2
+role 0,4 slot 0,4  # arret|arret / pied
+role 1,0 slot 1,0  # arret|continue / chapiteau
+role 1,1 slot 1,1  # arret|continue / corps 0
+role 1,2 slot 1,2  # arret|continue / corps 1
+role 1,3 slot 1,3  # arret|continue / corps 2
+role 1,4 slot 1,4  # arret|continue / pied
+role 2,0 slot 2,0  # continue|arret / chapiteau
+role 2,1 slot 2,1  # continue|arret / corps 0
+role 2,2 slot 2,2  # continue|arret / corps 1
+role 2,3 slot 2,3  # continue|arret / corps 2
+role 2,4 slot 2,4  # continue|arret / pied
+role 3,0 slot 3,0  # continue|continue / chapiteau
+role 3,1 slot 3,1  # continue|continue / corps 0
+role 3,2 slot 3,2  # continue|continue / corps 1
+role 3,3 slot 3,3  # continue|continue / corps 2
+role 3,4 slot 3,4  # continue|continue / pied

@@ -66,10 +66,36 @@ const HeightMask := preload("res://core/height_mask.gd")
 ## La coupure est donc : de la ROCHE a cote, ou pas de roche. Ce qui n'est pas de la roche --
 ## de la terre plus haute, le sol d'en bas, le vide -- se dit `vide`, et c'est MA tuile qui
 ## trace son bord, puisque c'est la seule qui le sache.
-const SIDE_VOID: int = 0   ## Ma roche s'arrete : ce qui est a cote n'est pas de la roche.
-const SIDE_MUTE: int = 1   ## De la roche a cote : la meme face, ou celle d'un voisin DEVANT.
-const SIDE_FRONT: int = 2  ## Voisin en retrait : je suis devant, je trace mon angle.
-const SIDE_COUNT: int = 3
+## ⚠ DEUX ETATS, PLUS TROIS -- ET C'EST LA DECOMPOSITION EN COUCHES QUI LE PERMET.
+##
+## Trois etats existaient parce qu'une tuile devait dire CE QU'IL Y A A COTE : de la roche
+## coplanaire (`muet`), de la roche en retrait (`devant`), ou pas de roche (`vide`). Et cette
+## responsabilite-la n'a pas de fond : chaque fois qu'on decouvrait une chose de plus « a
+## cote » qui compte, l'alphabet grossissait. Mesure de la nuit : `vide` cachait encore trois
+## especes -- 28 flancs sur 29 ambigus -- et les dedoubler coutait 44 roles -> 72.
+##
+## Sous la regle des couches -- **une tuile ne dessine que sa propre matiere, ce qui est a
+## cote appartient a la couche du voisin** -- il ne reste qu'une question, et elle est binaire :
+## MA ROCHE CONTINUE-T-ELLE, OU S'ARRETE-T-ELLE ICI ?
+##
+## `devant` et `vide` tombent alors dans le meme seau : dans les deux cas ma roche s'arrete,
+## et ce qu'il y a derriere n'est pas mon affaire.
+##
+## ⚠ ET CE N'EST PAS UNE APPROXIMATION, C'EST LA FIN DU CLIQUET. Quatre pans x cinq rangees
+## font vingt roles, et la battue les rencontre TOUS LES VINGT : la forme est close par
+## construction, il n'y a plus de role a decouvrir un soir en peignant. Ce que le modele
+## cesse de garantir -- « la tuile sait ce qu'il y a a cote » -- se remplace par une propriete
+## bornee et verifiable : les couches recouvrent tout.
+const SIDE_STOP: int = 0      ## Ma roche s'arrete ici.
+const SIDE_CONTINUE: int = 1  ## Ma roche continue : la meme face se poursuit.
+const SIDE_COUNT: int = 2
+
+## ⚠ LES ANCIENS NOMS SURVIVENT, REPLIES SUR LES DEUX. Ils sont lus par le plugin, les
+## exportateurs et une trentaine d'outils ; les retirer d'un coup ferait tomber tout ce qui
+## les nomme sans rien apprendre. `muet` est la continuation ; `devant` et `vide` sont l'arret.
+const SIDE_MUTE: int = SIDE_CONTINUE
+const SIDE_VOID: int = SIDE_STOP
+const SIDE_FRONT: int = SIDE_STOP
 
 ## Le pan est le couple (ouest, est).
 const PAN_COUNT: int = SIDE_COUNT * SIDE_COUNT
@@ -103,7 +129,7 @@ const BLOCK_ROWS: int = ROW_FOOT + 1
 ## De combien de cases de mur descend un etage.
 const STOREY_TILES: int = 3
 
-const SIDE_NAMES: Array[String] = ["vide", "muet", "devant"]
+const SIDE_NAMES: Array[String] = ["arret", "continue"]
 
 ## ⚠ CALCULE, JAMAIS ECRIT EN DUR. Une liste ecrite a la main est une donnee a maintenir
 ## et un endroit ou mentir : elle survivait au passage de deux corps a trois en annoncant
@@ -236,15 +262,19 @@ static func _side(heights: PackedStringArray, lip_of: Dictionary, at: Vector2i, 
 	# est en retrait et je porte l'angle ; plus au sud ou a la meme rangee, c'est elle qui
 	# est devant ou nous sommes coplanaires, et je me tais. La regle etait deja la, il lui
 	# manquait de voir les autres etages.
+	# ⚠ ET « QUI EST DEVANT » NE SE DEMANDE PLUS A LA TUILE : c'est l'ORDRE DE DESSIN qui
+	# tranche. La face la plus proche se pose par-dessus et occulte l'autre ; la dissymetrie
+	# que les neuf pans achetaient au prix de vingt-sept roles, l'empilement la donne pour
+	# rien. Une levre plus au nord ou plus au sud, ma roche continue dans les deux cas.
 	if lip_of.has(at):
-		return SIDE_FRONT if int((lip_of[at] as Vector2i).y) < my_lip else SIDE_MUTE
+		return SIDE_CONTINUE
 	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
 	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
 	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
 	# dont la plupart n'ont pas de falaise a cote. L'arete n'appartenait a personne.
 	# C'est donc MOI qui trace le bord de ma roche, et `vide` est ce qui le dit.
 	var _span: int = (maxi(1, step) - 1) / STOREY_TILES
-	return SIDE_VOID
+	return SIDE_STOP
 
 
 ## Deroule toutes les robes du relief.

@@ -92,6 +92,28 @@ const BOTTOM_LEFT: int = 3
 ## leurs bouts se rejoignent.
 static var CORNERS: Dictionary = {}
 
+## LE RETRAIT DES FLANCS NON MUETS -- ou la roche d'une tuile de falaise s'arrete.
+##
+## ⚠ CETTE CONSTANTE RENVERSE UNE DECISION DU DOSSIER, ET C'EST VOULU. Il y etait ecrit :
+## « UNE CASE DE FALAISE EST UNE CASE DE ROCHE -- le vide se dit par l'ombre du bord, jamais
+## en mangeant la roche. » Cette regle rendait la face RECTANGULAIRE : sa roche allait d'un
+## bord a l'autre, quel que soit le flanc. Elle est incompatible avec un contour de falaise
+## qui se trace -- un cadre vagabond -- puisqu'un tel contour s'arrete AVANT le bord des que
+## le flanc n'est pas muet.
+##
+## ⚠ ET LE DEFAUT QUE CETTE DECISION SOIGNAIT NE REVIENT PAS, parce que le retrait est
+## CONSTANT. Ce qui pulsait autrefois, c'etait deux largeurs differentes -- 0,10 pour le
+## lisere, 0,055 pour l'arete -- qui se relayaient en cours de colonne. Ici la roche s'arrete
+## au meme endroit pour `vide` et pour `devant` : seule la teinte les distingue, comme le
+## dossier l'a deja tranche. La face ne change pas d'epaisseur en descendant.
+##
+## ⚠ POURQUOI C'EST NECESSAIRE, mesure : les classes VERTICALES joignent le bord haut d'une
+## tuile a 35 autres bords, sur TOUTE sa largeur. Deux pans differents n'ont pas leur roche
+## au meme endroit lateralement ; le modele les egalait quand meme, et la propagation ecrivait
+## de la matiere dans le dehors du voisin. C'est le defaut des « tirets », signale case par
+## case : remplir (6,10) tachait le transparent de (5,10) et toute la chute.
+const FLANK_INSET: float = 0.16
+
 static var _parent: Dictionary = {}
 static var _corner_parent: Dictionary = {}
 
@@ -259,9 +281,13 @@ static func mirrors(role: Vector2i, x: int, y: int, resolution: int) -> Array[Ve
 		elif y == last:
 			corner = BOTTOM_LEFT
 		var here: Vector3i = Vector3i(role.x, role.y, corner)
-		if CORNERS.has(here):
+		# ⚠ LE COIN AUSSI. Un pixel de coin est sur un bord haut ou bas, donc soumis a la
+		# meme etendue de roche -- l'oublier laissait quatre ecritures dans le dehors du
+		# voisin, exactement la ou le defaut se voyait.
+		if CORNERS.has(here) and _corner_is_rock(role, corner, resolution):
 			for other: Vector3i in CORNERS[here]:
-				out.append(_corner_pixel(other, last))
+				if _corner_is_rock(Vector2i(other.x, other.y), other.z, resolution):
+					out.append(_corner_pixel(other, last))
 		return out
 	if y == 0:
 		_spread(out, role, TOP, x, last)
@@ -272,6 +298,19 @@ static func mirrors(role: Vector2i, x: int, y: int, resolution: int) -> Array[Ve
 	elif x == last:
 		_spread(out, role, RIGHT, y, last)
 	return out
+
+
+## Un coin porte-t-il de la roche ? Il est sur un bord haut ou bas : meme etendue.
+static func _corner_is_rock(role: Vector2i, corner: int, resolution: int) -> bool:
+	var last: int = resolution - 1
+	match corner:
+		TOP_LEFT:
+			return is_rock(role, TOP, 0, resolution)
+		TOP_RIGHT:
+			return is_rock(role, TOP, last, resolution)
+		BOTTOM_RIGHT:
+			return is_rock(role, BOTTOM, last, resolution)
+	return is_rock(role, BOTTOM, 0, resolution)
 
 
 static func _corner_pixel(corner: Vector3i, last: int) -> Vector4i:
@@ -288,12 +327,44 @@ static func _corner_pixel(corner: Vector3i, last: int) -> Vector4i:
 ## ⚠ LA POSITION NE SE RETOURNE PAS. Un bas colle a un haut garde ses colonnes ; une droite
 ## collee a une gauche garde ses rangees. Les deux tuiles sont posees dans le meme sens sur
 ## la carte -- il n'y a ni miroir ni rotation ici, et il ne doit pas y en avoir (regle 3).
+## OU CE BORD PORTE DE LA ROCHE : les positions [premiere, derniere], incluses.
+##
+## Un bord HAUT ou BAS court sur les colonnes : sa roche s'arrete au retrait de chaque flanc
+## non muet. Un bord GAUCHE ou DROIT court sur les rangees : rien ne l'entame -- une face va
+## du haut au bas de sa case, c'est la chute qui la borne, pas le dessin.
+static func rock_span(role: Vector2i, side: int, resolution: int) -> Vector2i:
+	var last: int = resolution - 1
+	if side == LEFT or side == RIGHT:
+		return Vector2i(0, last)
+	# ⚠ SEUL `vide` RETIRE LA ROCHE. Le dossier le dit en trois etats : `muet`, c'est la meme
+	# face ou un voisin en avant -- de la roche ; `devant`, c'est de la roche EN RETRAIT, et
+	# je porte l'angle -- de la roche encore ; `vide` seul veut dire qu'il n'y a rien. Mettre
+	# `devant` au retrait aurait ouvert un trou la ou deux parois se touchent.
+	var inset: int = int(round(FLANK_INSET * float(resolution)))
+	var first: int = inset if Walls.pan_west(role.x) == Walls.SIDE_VOID else 0
+	var stop: int = last - inset if Walls.pan_east(role.x) == Walls.SIDE_VOID else last
+	return Vector2i(first, stop)
+
+
+## Ce bord porte-t-il de la roche a cette position ?
+static func is_rock(role: Vector2i, side: int, position: int, resolution: int) -> bool:
+	var span: Vector2i = rock_span(role, side, resolution)
+	return position >= span.x and position <= span.y
+
+
 static func _spread(into: Array[Vector4i], role: Vector2i, side: int, position: int,
 		last: int) -> void:
 	var here: Vector3i = Vector3i(role.x, role.y, side)
 	if not GROUPS.has(here):
 		return
+	# ⚠ ON NE PROPAGE QUE LA OU LES DEUX TUILES ONT DE LA ROCHE. Une classe dit « ces deux
+	# bords sont la meme paroi » ; elle ne dit pas que la paroi occupe toute la largeur. La
+	# joindre bout a bout ecrivait de la matiere dans le dehors du voisin.
+	if not is_rock(role, side, position, last + 1):
+		return
 	for other: Vector3i in GROUPS[here]:
+		if not is_rock(Vector2i(other.x, other.y), other.z, position, last + 1):
+			continue
 		match other.z:
 			TOP:
 				into.append(Vector4i(other.x, other.y, position, 0))

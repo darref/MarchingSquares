@@ -52,67 +52,17 @@ static func _static_init() -> void:
 			alive[BlobIndex.canonicalize(raw)] = true
 	var sorted_indices: Array = alive.keys()
 	sorted_indices.sort()
-	# ⚠ ET CHAQUE SILHOUETTE SE DECLINE SELON SON BORD -- MAIS PAS TOUJOURS DES DEUX
-	# FACONS, ET C'EST UN THEOREME. Un cardinal vide borde soit de la ROCHE -- la face d'une
-	# falaise voisine, dont le sommet est au niveau de mon sol, donc aucune marche -- soit du
-	# NU, et ca tombe. Reste a savoir lesquelles des deux sont REALISABLES.
+	# ⚠ LE BORD DISPARAIT AVEC LA DECOMPOSITION EN COUCHES. Il a decline chaque silhouette
+	# selon ce qu'il y avait au-dela de ses cardinaux vides -- du NU ou de la ROCHE -- parce
+	# que le lisere d'epaisseur et l'eclairage de contour ne doivent pas se poser contre de la
+	# roche. Ce sont deux marques qui parlent du VOISIN, et sous la regle des couches une tuile
+	# ne dessine que sa propre matiere : elles n'ont plus lieu d'etre.
 	#
-	# ⚠ LE SUD N'EN EST PAS : une case au sud vide est une levre, sa propre face couvre la
-	# case d'en dessous, TOUJOURS. C'est ce qui rend l'epaule peignable la ou aucun autre bord
-	# ne le serait.
-	#
-	# ⚠ LE NORD EST LIBRE DES DEUX COTES. Pour couvrir ma voisine du nord il faut une levre
-	# quatre rangees plus haut -- trois rangees de creux, sinon c'est fin -- et ces rangees-la
-	# sont HORS de la fenetre 3x3 : l'exterieur est libre, on y met ce qu'on veut.
-	#
-	# ⚠ L'EST ET L'OUEST, NON. La levre qui couvre ma voisine de l'est est soit le coin NE
-	# -- dans la fenetre -- soit une levre plus haut, ce qui exige que la colonne soit vide
-	# sur trois rangees, donc que NE **et** SE soient vides. Et la realisabilite peut FORCER
-	# le coin : pour la silhouette 5 (nord et est pleins, sud et ouest vides), le coin NE est
-	# significatif et nul, donc la condition « une cardinale pleine a un coin adjacent plein »
-	# oblige NO a etre plein -- donc une levre a l'ouest, donc de la ROCHE, sans alternative.
-	# `5 [O=nu]` n'existe pas, et la planche ne pourrait jamais la montrer.
+	# La tuile redevient donc sa SILHOUETTE, et rien d'autre. Mesure : 48 -> 27, et ces 27
+	# sont le theoreme des 256 fenetres, pas une forme cherchee.
 	var tiles: Array = []
 	for index: int in sorted_indices:
-		var choices: Array = [[0]]
-		for side: int in range(BlobIndex.BRINK_BITS.size()):
-			var bit: int = BlobIndex.BRINK_BITS[side]
-			if (int(index) & BlobIndex.BRINK_CARDINALS[side]) != 0:
-				continue  # ce cardinal est plein : pas de bord
-			# ⚠ LA ROCHE EST TOUJOURS POSSIBLE, ET C'EST LE NU QUI SE REFUSE. Pour couvrir ma
-			# voisine, la levre est soit LE COIN lui-meme -- juste au-dessus d'elle -- soit une
-			# levre TROIS rangees plus haut, le creux entre les deux faisant exactement les
-			# trois cases qu'exige l'epaisseur. Ce second cas ne demande rien a la fenetre :
-			# les rangees en question sont dehors, et l'exterieur est libre.
-			#
-			# ⚠ LE NU, LUI, EXIGE QUE LE COIN PUISSE ETRE VIDE. S'il est plein, il fait levre,
-			# donc de la roche, sans alternative -- et la realisabilite peut le FORCER : pour
-			# la silhouette 5, le coin NE est significatif et nul, donc « une cardinale pleine
-			# a un coin adjacent plein » oblige NO a etre plein. `5 [ouest=nu]` n'existe pas.
-			var can_rock: bool = true
-			var can_bare: bool = bit == BlobIndex.BRINK_N
-			if not can_bare:
-				var corner: int = BlobIndex.NE if bit == BlobIndex.BRINK_E else BlobIndex.NW
-				for raw: int in range(256):
-					if BlobIndex.canonicalize(raw) != int(index):
-						continue
-					if not window_realizable(raw):
-						continue
-					if (raw & corner) == 0:
-						can_bare = true
-						break
-			var grown: Array = []
-			for edge: Variant in choices:
-				if can_bare:
-					grown.append(int((edge as Array)[0]))
-				if can_rock:
-					grown.append(int((edge as Array)[0]) | bit)
-			var wrapped: Array = []
-			for value: Variant in grown:
-				wrapped.append([int(value)])
-			choices = wrapped
-		for edge: Variant in choices:
-			tiles.append(BlobIndex.compose(int(index), int((edge as Array)[0])))
+		tiles.append(int(index))
 	tiles.sort()
 	SURFACE_INDICES = PackedInt32Array(tiles)
 
@@ -160,17 +110,17 @@ static func window_realizable(raw: int) -> bool:
 ## justification, et son prix avait triple : mesure, elle faisait passer les reliefs
 ## acceptables de 96 % a 68 %.
 static func role_survives(role: Vector2i) -> bool:
-	# ⚠ `(devant,devant)` EST RESSUSCITE PAR LES LEVRES GLOBALES, et l'argument qui le
-	# tuait ne valait que pour un eperon d'UNE colonne AU MEME ETAGE. Entre etages, deux
-	# faces dont les levres sont plus au nord de part et d'autre, c'est banal : je suis
-	# devant les deux, et je porte mes deux angles. Min trois n'y peut rien.
+	# ⚠ LES VINGT VIVENT, ET C'EST LA FIN DU CLIQUET. Avec trois etats de flanc, la forme
+	# etait CHERCHEE : on battait le monde en esperant qu'aucun 45e role n'apparaisse, et il
+	# en apparaissait -- le redan, puis les levres globales, puis les trois especes cachees
+	# derriere `vide`. Avec deux etats, quatre pans x cinq rangees font vingt roles et la
+	# battue les rencontre tous les vingt : il n'y a plus rien a chercher.
 	#
-	# Il ne meurt qu'au PIED, ou la battue ne le rencontre jamais -- partie CHERCHEE de la
-	# forme, gardee par la battue continue de la suite : si un 45e role apparait un jour,
-	# elle echoue et la forme se corrige.
-	return not (Walls.pan_west(role.x) == Walls.SIDE_FRONT
-			and Walls.pan_east(role.x) == Walls.SIDE_FRONT
-			and role.y == Walls.ROW_FOOT)
+	# Ce n'est pas que le modele en dit moins par prudence. C'est qu'une tuile ne repond plus
+	# que d'elle-meme : « ma roche continue ou s'arrete ». Il n'existe aucune situation du
+	# monde qui puisse la contredire, donc aucun role a decouvrir.
+	var _unused: Vector2i = role
+	return true
 
 
 ## Les cases de robe BORD DES DEUX COTES d'un relief : la regle ci-dessus, vue du monde.

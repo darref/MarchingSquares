@@ -15,7 +15,23 @@ const NO_INDEX: int = -1
 
 ## Le bord d'une case, lu des robes VISIBLES. Une face cachee sous un plateau plus haut ne
 ## montre aucune roche : ce qui compte est ce qu'on voit, comme partout ailleurs ici.
+## ⚠ LE BORD DISPARAIT AVEC LA DECOMPOSITION EN COUCHES, ET IL REND ZERO. Il a ete ajoute le
+## matin meme parce qu'un cardinal vide borde du NU ou de la ROCHE, et que le lisere
+## d'epaisseur et l'eclairage de contour ne doivent pas se poser contre de la roche. Or ce
+## sont deux marques qui parlent du VOISIN : sous la regle des couches -- une tuile ne dessine
+## que sa propre matiere -- elles n'ont plus lieu d'etre, et la tuile revient a sa silhouette.
+##
+## La fonction reste, et rend zero : tout ce qui compose un index passe par elle, et la garder
+## permet de retrouver le bord d'un geste si la decomposition devait etre reprise. Mesure de
+## ce qu'elle economise : 48 tuiles de surface -> 27.
 static func brink_at(walled: Dictionary, at: Vector2i, index: int) -> int:
+	var _unused_walled: Dictionary = walled
+	var _unused_at: Vector2i = at
+	var _unused_index: int = index
+	return 0
+
+
+static func _brink_at_layered(walled: Dictionary, at: Vector2i, index: int) -> int:
 	var edge: int = 0
 	for side: int in range(BlobIndex.BRINK_BITS.size()):
 		if (index & BlobIndex.BRINK_CARDINALS[side]) != 0:

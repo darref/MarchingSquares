@@ -2644,10 +2644,139 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   soustraction : les rangs se suivent sans trou si, et seulement si, le plus grand vaut le
   nombre moins un. La suite paraissait figée au même endroit à chaque exécution.
 
+- **QUAND DEUX ARÊTES LIBRES SE FONT FACE, UNE SEULE DOIT TRACER.** Défaut vu à l'écran par
+  l'utilisateur sur le peintre naïf : *« il y a des ovales composés de petits arcs de cercle
+  mirrorés dans la falaise »*. Ils étaient là, en **chaînes** — une lentille par rangée, tout
+  le long des flancs.
+
+  **La cause, et elle n'est pas où on la cherche.** À la frontière entre l'herbe d'un plateau
+  et la roche d'une falaise voisine, **les deux côtés creusaient** : la surface parce que son
+  cardinal est vide, la robe parce que son flanc dit `arrêt`. Chacune bombe vers son propre
+  intérieur, donc il reste un vide entre elles — et ce vide est **légitime**, il montre le sol
+  d'en dessous. Ce qui ne l'est pas, c'est qu'il se **referme à chaque frontière de rangées**,
+  ce qui le découpe en lentilles.
+
+  ⚠ **ET LIER LES DEUX PROFILS N'Y CHANGE RIEN.** C'était mon premier réflexe, et le
+  recensement (`tools/skin_census.gd`) a servi à le tuer plutôt qu'à le dimensionner : **66
+  couples d'arêtes, tous latéraux ou au pied**, 3 classes. Mais deux arêtes qui se font face
+  sont de part et d'autre de la **même** frontière : les rendre égales rend le vide
+  symétrique, pas nul. Une classe ne peut pas fermer ce qu'aucune forme ne ferme.
+
+  **Les deux réglages essayés, chacun échangeant un défaut contre l'autre :**
+
+  | le flanc traverse à | contours | tirets ouverts | l'œil |
+  |---|---|---|---|
+  | zéro (au bord) | 34 | 0 | chaînes d'ovales |
+  | profondeur commune | 138 | 114 | plus d'ovales, des segments |
+  | **il ne creuse pas** | **34** | **0** | **rien** |
+
+  **La loi : un flanc qui s'arrête ne se creuse pas, il se TRAIT.** La roche va jusqu'au bord
+  de sa case et l'artiste marque sa fin d'un trait. C'est la règle des couches à la lettre —
+  *une tuile remplit sa case, ce qui est à côté appartient au voisin* — et il n'y a plus de
+  vide, donc plus rien à accorder.
+
+  ⚠ **Le flanc garde donc son sens, et le vocabulaire ne bouge pas.** Le trait au bord **est**
+  ce qui distingue `arrêt` de `continue` : sans lui, la falaise se fondrait dans la plaine
+  voisine sans aucune limite. J'ai un moment cru que les quatre pans tombaient à un — c'était
+  faux, et c'est le trait qui les sauve.
+
+  ⚠ **Le nord existe aussi, et il est déjà réglé.** Huit couples : une surface d'atterrissage
+  dont le nord est vide, sous le pied d'une robe. Là, le creux du nord est comblé par le
+  **sous-pied**, qui existe précisément pour ça. Rien à faire — mais il fallait le vérifier
+  plutôt que le supposer.
+
+- **LE TRAIT DOUBLE LÀ OÙ DEUX TUILES DÉCRIVENT LE MÊME BORD DU MONDE**, et c'est le prix de la
+  décomposition en couches, pas un défaut de dessin. Critère posé par l'utilisateur, et
+  instrumenté tel quel : *« toutes les silhouettes faites d'un trait, en plusieurs segments
+  parfaitement reliés, et de la même épaisseur partout »*. Deux nombres le mesurent — le nombre
+  de **morceaux** du trait, et le nombre de **pavés 2x2 entièrement de trait** (un trait d'un
+  pixel ne peut pas en remplir un ; dès qu'il y en a, deux traits se sont collés).
+
+  ⚠ **ET LE SECOND EST CELUI QUI ATTRAPE LE DÉFAUT.** Le premier le laisse passer : deux traits
+  qui se touchent forment **un seul morceau**, donc le compte de morceaux est content pendant
+  que l'œil voit un renflement. Même famille que « pas d'extrémité » qui disait zéro pendant
+  qu'on voyait des segments : un compteur qui ne mesure pas ce qu'il prétend mesurer.
+
+  **L'espace des réglages, mesuré en entier** sur la planche de preuve peinte à l'aveugle :
+
+  | réglage | morceaux | tirets | pavés 2x2 |
+  |---|---|---|---|
+  | cerne sur 8 voisins, flanc au ras | 34 | 0 | 1583 |
+  | **cerne sur 4 voisins, flanc au ras** | **34** | **0** | **1145** |
+  | flanc reculé d'un pixel, droit | 84 | 48 | 322 |
+  | flanc sans trait du tout | 90 | 60 | 4 |
+  | plateau sans trait de bord | 767 | 739 | 813 |
+  | bord latéral droit, sans onduler | 34 | 0 | 1436 |
+
+  ⚠ **CERNER SUR QUATRE VOISINS PLUTÔT QUE HUIT EST GRATUIT** — 1583 → 1145 sans un morceau de
+  plus. Le cerne à huit voisins épaissit le trait dans toute pente, et n'apporte rien : le
+  pincement des coudes aux frontières de tuiles est déjà réglé par `_solid`, qui répond selon
+  que le cardinal est ouvert.
+
+  ⚠ **LE TRAIT DU FLANC EST LE CÔTÉ DE LA SILHOUETTE DE LA FALAISE**, et pas une décoration :
+  c'est lui qui joint la crête au pied. Le retirer coûte **exactement deux tirets par
+  falaise** — 60 pour trente. Mesuré aussi : un flanc qui s'arrête ne borde **jamais** de la
+  roche (théorème — `SIDE_STOP` veut dire « aucune face sur la case d'à côté » — et 0 sur
+  5 216 flancs), donc ce trait ne sépare jamais que roche/terre ou roche/vide. On ne le garde
+  pas pour la lisibilité, on le garde pour la **connexité**.
+
+  **La cause du doublement, classée** : sur les 1145 pavés, **1094 (95 %) sont sur une case qui
+  a un étage dessous** — 600 à l'étage 1, 154 à l'étage 2, 41 à l'étage 3, 299 sous une robe —
+  et **51 seulement sur la plaine**, qui n'a rien en dessous.
+
+  ⚠ **CHAQUE ÉTAGE DESSINE SON PROPRE BORD, ET LA TERRASSE DU DESSOUS SE VOIT À CÔTÉ DE CELLE
+  DU DESSUS.** Là où le monde a **un** bord mais **deux tuiles** pour le décrire — deux étages
+  d'une même case qui s'arrêtent ensemble, ou un plateau contre le flanc d'une falaise — les
+  deux le tracent, chacune à sa place, et rien ne peut les faire coïncider puisque aucune ne
+  connaît l'autre. C'est le même échange que celui qui a supprimé le bord et les trois états de
+  flanc : **une tuile ne répond que d'elle-même.**
+
+  ⚠ **ET LE CHIFFRE N'EST PAS UNE BORNE SUR CE QU'OBTIENDRA UN HUMAIN.** Le peintre naïf tire
+  une ondulation **au hasard, par tuile**, ce qui maximise le désaccord entre deux tuiles qui
+  décrivent le même bord. Une main qui peint les 27 surfaces d'un même style les fait presque
+  coïncider. Vérifié à moitié : forcer le même profil sur toutes les surfaces fait tomber le
+  compte de 1145 à 841 — et le reste tient à ce que les silhouettes n'ouvrent pas les mêmes
+  cardinaux, ce qu'aucun style ne rattrape.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
 le bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
+
+À **10.0.0** : **LA DÉCOMPOSITION EN COUCHES — une tuile ne répond que d'elle-même.** Elle
+remplit sa case ; ce qui est à côté appartient à la couche du voisin, qui le dessine lui-même,
+et **l'ordre de dessin** tranche qui est devant. Trois distinctions tombent d'un coup, toutes
+nées du besoin qu'une tuile *suggère* son voisinage : le **bord** d'une surface (nu ou roche à
+ce cardinal), et les états de flanc **vide** et **devant**. Le vocabulaire passe de
+**92 à 47 tuiles** — 27 surfaces + 20 rôles de robe — et **les deux moitiés sont closes par
+construction** : les 27 sont le théorème des 256 fenêtres, les 20 sont *tous* les pans × rangées
+possibles. Manifeste v8 (v7 refusée nommément), `pan = ouest × 2 + est` : majeure, tout
+l'existant est périmé.
+
+⚠ **C'EST LA FIN DU CLIQUET, ET C'ÉTAIT LA DEMANDE.** Avec trois états de flanc la forme était
+**cherchée** : on battait le monde en espérant qu'aucun rôle de plus n'apparaisse, et il en
+apparaissait — le redan, puis les lèvres globales, puis les espèces cachées derrière `vide`. En
+une journée le compte est monté 52 → 65 → 92. Avec deux états il n'y a plus rien à chercher :
+aucune situation du monde ne peut contredire « ma roche continue, ou elle s'arrête ».
+
+⚠ **ET CE QU'ON RETIRE D'UN CÔTÉ SE GARANTIT DE L'AUTRE.** L'ancienne garantie était une
+**liste** — « chaque tuile connaît assez son voisinage » — non bornée, qu'on chassait sans
+jamais la finir. La nouvelle est **une propriété, et elle est bornée** : *aucun pixel de l'image
+composée ne montre le fond là où le monde a de la matière*. `tools/coverage_proof.gd` rend
+l'illustration puis **regarde les pixels** — 0 trou sur le guide, les deux planches de preuve et
+40 reliefs tirés au sort. Et `tools/naive_painter.gd` peint les 47 tuiles **à l'aveugle**, chacune
+ne sachant que sa propre silhouette ou son rôle, puis assemble : **0 case percée sur 3 379 200
+pixels de terre, 34 contours, zéro tiret**.
+
+⚠ **Les 8 raccords sont prouvés** (`core/junctions.gd`) : les côtés `bas` d'une case sont
+toujours inclus dans ses côtés `haut` (théorème), min trois interdit deux côtés opposés en
+`haut` — d'où 4 coins × 2 côtés = **8**, calculés et non écrits.
+
+⚠ **La propagation des raccords n'écrit plus que dans la roche commune** (`Seams.rock_span`) :
+59 664 écritures de bord, **zéro hors du dehors du destinataire**.
+
+⚠ **Le guide reste une planche de spécimens, pas un paysage.** Il fait 104x141 et porte les 27
+tuiles, mais le redessiner reste à faire. Décidé ainsi, et dans cet ordre : d'abord la justesse.
 
 À **9.0.0** : **le vagabondage de l'arête**, `muet` qui ne veut plus dire qu'une chose, et
 **le bord dans l'identité de la tuile**. Trois rangées de corps donnent trois profils de

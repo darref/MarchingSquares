@@ -28,6 +28,7 @@ const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 const Thickness := preload("res://core/thickness.gd")
 const Seams := preload("res://core/seams.gd")
+const Junctions := preload("res://core/junctions.gd")
 const WorkArea := preload("res://ui/work_area.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
@@ -77,6 +78,7 @@ func _initialize() -> void:
 	_test_seam_census()
 	_test_seams()
 	_test_seam_propagation()
+	_test_junctions()
 	_test_underfoot()
 	_test_backing()
 	_test_guide_image()
@@ -302,7 +304,8 @@ func _test_height_mask() -> void:
 func _test_wall_rows() -> void:
 	print("walls : la rangee suit la marche et la chute")
 	_check_equal(Walls.ALL_ROLES.size(), Walls.PAN_COUNT * Walls.BLOCK_ROWS, "trente-six roles : neuf pans par quatre rangees")
-	_check_equal(Walls.PAN_COUNT, 9, "neuf pans : trois etats de flanc, au carre")
+	_check_equal(Walls.PAN_COUNT, 4,
+			"quatre pans : deux etats de flanc, au carre -- ma roche continue, ou elle s arrete")
 	# Une chute d un etage : chapiteau, corps 0, pied. Le corps 1 n y apparait jamais.
 	_check_equal(Walls.row_for(1, 3, true), Walls.ROW_CROWN, "premiere case sous la levre : chapiteau")
 	_check_equal(Walls.row_for(2, 3, true), 1, "deuxieme case : corps 0")
@@ -972,7 +975,11 @@ func _test_symmetry() -> void:
 	for orbit: PackedInt32Array in Symmetry.ROTATION_ORBITS:
 		counted += orbit.size()
 	_check_equal(counted, BLOB_TILE_COUNT, "les orbites couvrent les 47 index, sans doublon")
-	_check_equal(Symmetry.MIRROR_ORBITS.size(), 30, "les 45 roles se rangent en 30 orbites de miroir")
+	# ⚠ QUINZE ORBITES POUR VINGT ROLES. Le miroir echange les deux flancs : deux pans sont
+	# donc fixes -- (arret,arret) et (continue,continue) -- et les deux autres forment une
+	# paire. Trois orbites par rangee, cinq rangees.
+	_check_equal(Symmetry.MIRROR_ORBITS.size(), 15,
+			"les 20 roles se rangent en 15 orbites de miroir")
 
 	# Un tour complet ramene chaque index a lui-meme.
 	var closes: bool = true
@@ -1213,7 +1220,7 @@ func _test_export() -> void:
 		"fall storey_tiles_times_gap probe_below_foot",
 		"trim stop_on_same_level no_foot",
 		"row_for crown_first foot_last body_cycle",
-		"pan west_times_three_plus_east lip_row_comparison per_row",
+		"pan west_times_two_plus_east lip_row_comparison per_row",
 		"bits N=%d" % BlobIndex.N,
 		"surface_offset none",
 		"sheet fixed_size one_drawing_per_tile no_variants",
@@ -1772,7 +1779,11 @@ func _test_seam_census() -> void:
 					or (other.y == head.y and other.z < head.z))):
 				head = other
 		upright[head] = true
-	_check_equal(roots.size(), 62, "la fermeture laisse 62 classes de bords independantes")
+	# ⚠ VINGT-QUATRE CLASSES, CONTRE SOIXANTE-DEUX. La fermeture n'a pas change : ce sont les
+	# PANS qui sont passes de neuf a quatre, et chaque pan de moins retire ses bords du compte.
+	# Le nombre baisse donc sans qu'aucune liberte ne se perde -- les bords supprimes etaient
+	# ceux de tuiles qui n'existent plus.
+	_check_equal(roots.size(), 24, "la fermeture laisse 24 classes de bords independantes")
 	_check_equal(upright.size(), 3,
 			"et trois profils de frontiere de rangees -- le vagabondage de l arete")
 
@@ -2260,7 +2271,7 @@ func _test_dual_end_to_end() -> void:
 		"fall storey_tiles_times_gap probe_below_foot",
 		"trim stop_on_same_level no_foot",
 		"row_for crown_first foot_last body_cycle",
-		"pan west_times_three_plus_east lip_row_comparison per_row",
+		"pan west_times_two_plus_east lip_row_comparison per_row",
 		"sheet fixed_size one_drawing_per_tile no_variants",
 	]
 	var missing_clauses: PackedStringArray = PackedStringArray()
@@ -2327,16 +2338,30 @@ func _test_seam_propagation() -> void:
 					painting.paint(cell_of[Vector2i(echo.x, echo.y)], echo.z, echo.w, tint)
 
 	# --- ET LES DEUX CONTRAINTES DOIVENT TENIR, SANS UNE RETOUCHE.
+	# ⚠ ET L EGALITE NE VAUT QUE LA OU LES DEUX TUILES ONT DE LA ROCHE. L ancien contrat
+	# disait « la derniere ligne EST la premiere », sur toute la largeur -- il supposait une
+	# case de falaise pleine d un bord a l autre. Des qu on y trace un contour, la part au-dela
+	# d un flanc `vide` est DEHORS, et forcer l egalite y ecrivait de la matiere dans le
+	# transparent du voisin : le defaut des « tirets ».
 	var vertical: int = 0
+	var vertical_seen: int = 0
 	for pair: Vector2i in Seams.row_chains():
 		for pan: int in range(Walls.PAN_COUNT):
 			var upper: Image = painting.image_of(cell_of[Vector2i(pan, pair.x)])
 			var lower: Image = painting.image_of(cell_of[Vector2i(pan, pair.y)])
 			for x: int in range(side):
+				if not Seams.is_rock(Vector2i(pan, pair.x), Seams.BOTTOM, x, side):
+					continue
+				if not Seams.is_rock(Vector2i(pan, pair.y), Seams.TOP, x, side):
+					continue
+				vertical_seen += 1
 				if upper.get_pixel(x, side - 1) != lower.get_pixel(x, 0):
 					vertical += 1
 	_check_equal(vertical, 0,
 			"UNE FALAISE EST UNE FACE : la derniere ligne d une rangee EST la premiere de la suivante")
+	# ⚠ ET LA MESURE DOIT AVOIR VU QUELQUE CHOSE. Une restriction qui ne laisserait rien a
+	# comparer passerait au vert en ne prouvant rien -- meme piege que partout ailleurs ici.
+	_check(vertical_seen > 0, "et la comparaison a vraiment porte (%d pixels)" % vertical_seen)
 
 	var horizontal: int = 0
 	for row: int in range(Walls.BLOCK_ROWS):
@@ -2349,6 +2374,8 @@ func _test_seam_propagation() -> void:
 				var a: Image = painting.image_of(cell_of[Vector2i(left, row)])
 				var b: Image = painting.image_of(cell_of[Vector2i(right, row)])
 				for y: int in range(side):
+					# Les bords lateraux gardent leur etendue pleine : une face va du haut au
+					# bas de sa case, c est la chute qui la borne, pas le dessin.
 					if a.get_pixel(side - 1, y) != b.get_pixel(0, y):
 						horizontal += 1
 	_check_equal(horizontal, 0,
@@ -2367,6 +2394,122 @@ func _test_seam_propagation() -> void:
 					overreach += 1
 	_check_equal(overreach, 0,
 			"la ou une ARETE est attendue, rien n est recopie : on ne prouve pas l egalite la")
+
+	# ⚠ ET RIEN N EST JAMAIS ECRIT DANS LE DEHORS D UNE TUILE. C est la propriete que le
+	# defaut des « tirets » a fait ajouter : remplir une tuile tachait le transparent de sa
+	# voisine et toute la chute, parce que les classes verticales joignaient le bord ENTIER
+	# alors que deux pans n ont pas leur roche au meme endroit lateralement.
+	var into_the_void: int = 0
+	var writes: int = 0
+	for role: Vector2i in Walls.ALL_ROLES:
+		for x: int in range(side):
+			for y: int in range(side):
+				if x != 0 and x != side - 1 and y != 0 and y != side - 1:
+					continue
+				for echo: Vector4i in Seams.mirrors(role, x, y, side):
+					writes += 1
+					var other: Vector2i = Vector2i(echo.x, echo.y)
+					var edge: int = -1
+					if echo.w == 0:
+						edge = Seams.TOP
+					elif echo.w == side - 1:
+						edge = Seams.BOTTOM
+					if edge < 0:
+						continue
+					if not Seams.is_rock(other, edge, echo.z, side):
+						into_the_void += 1
+	_check_equal(into_the_void, 0,
+			"la propagation n ecrit JAMAIS dans le dehors du destinataire (%d ecritures)"
+			% writes)
+
+
+## LES RACCORDS D'ILOTS : les 8, prouves dans les deux sens.
+##
+## ⚠ C'EST LE DEFAUT QUE L'UTILISATEUR A DESIGNE CASE PAR CASE. Deux ilots colles a des
+## hauteurs differentes : le contour du haut voudrait mordre une demi-case dans la tuile de
+## bord du voisin pour se refermer, et ne peut pas -- cette tuile est partagee, le bout de
+## trait s'y repliquerait partout. La forme fermee dit combien de situations distinctes il
+## faut dessiner : huit, et le test le prouve.
+func _test_junctions() -> void:
+	print("les raccords d ilots : ou le contour du haut quitte celui du bas")
+	_check_equal(Junctions.SIGNATURES.size(), 8, "la forme fermee donne exactement 8 raccords")
+
+	# ⚠ ET CHAQUE SIGNATURE A LA FORME QUE LE THEOREME ANNONCE : le haut est un COIN -- deux
+	# cotes adjacents -- et le bas est l un de ses deux cotes. Le verifier ici, c est refuser
+	# que la liste soit juste par hasard.
+	for signature: Vector2i in Junctions.SIGNATURES:
+		var high: int = signature.y
+		var low: int = signature.x
+		_check(_popcount(high) == 2, "%s : le haut porte deux cotes"
+				% Junctions.name_of(signature))
+		_check((high & Junctions.N) == 0 or (high & Junctions.S) == 0,
+				"%s : jamais nord et sud ensemble" % Junctions.name_of(signature))
+		_check((high & Junctions.E) == 0 or (high & Junctions.O) == 0,
+				"%s : jamais est et ouest ensemble" % Junctions.name_of(signature))
+		_check(_popcount(low) == 1 and (low & ~high) == 0,
+				"%s : le bas est l un des deux cotes du haut" % Junctions.name_of(signature))
+
+	# --- SENS 1 : chaque cas se rencontre-t-il sur un vrai relief ?
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 0x8ACC0
+	var seen: Dictionary = {}
+	var strays: Dictionary = {}
+	var scanned: int = 0
+	var total: int = 0
+	for round: int in range(900):
+		var relief: PackedStringArray = _random_thick_relief(rng)
+		if relief.is_empty():
+			continue
+		scanned += 1
+		for signature: Vector2i in Junctions.map(relief).values():
+			total += 1
+			if Junctions.is_known(signature):
+				seen[signature] = true
+			else:
+				strays[signature] = int(strays.get(signature, 0)) + 1
+	_check_equal(seen.size(), Junctions.SIGNATURES.size(),
+			"les 8 se rencontrent tous (%d reliefs epais, %d raccords)" % [scanned, total])
+	_check_equal(strays.size(), 0, "et le monde n en produit aucun autre")
+
+	# --- SENS 2 : et sur le guide livre, qui n est pas du hasard.
+	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.EPAIS))
+	var on_guide: int = 0
+	var wild: int = 0
+	for signature: Vector2i in Junctions.map(guide).values():
+		on_guide += 1
+		if not Junctions.is_known(signature):
+			wild += 1
+	_check_equal(wild, 0, "le guide n en produit aucun hors forme (%d raccords)" % on_guide)
+
+	# ⚠ ET LE THEOREME QUI TRANCHE « PAR TUILE OU PAR COTE » : les cotes ouverts du bas sont
+	# TOUJOURS inclus dans ceux du haut, parce qu un voisin plus bas que L l est aussi que
+	# L+1. Il ne peut donc jamais exister un cote « mer ouverte » en bas que le haut ne suive
+	# pas -- donc un drapeau par tuile suffit, et ce n est pas une observation.
+	var nested: int = 0
+	for round: int in range(120):
+		var relief: PackedStringArray = _random_thick_relief(rng)
+		if relief.is_empty():
+			continue
+		var top: int = HeightMask.top_level(relief)
+		for level: int in range(1, top + 1):
+			for y: int in range(HeightMask.height(relief)):
+				for x: int in range(HeightMask.width(relief)):
+					if HeightMask.level_at(relief, x, y) < level + 1:
+						continue
+					var low: int = Junctions.open_sides(relief, x, y, level)
+					var high: int = Junctions.open_sides(relief, x, y, level + 1)
+					if (low & ~high) != 0:
+						nested += 1
+	_check_equal(nested, 0,
+			"les cotes du bas sont toujours inclus dans ceux du haut : un drapeau par tuile suffit")
+
+
+func _popcount(mask: int) -> int:
+	var count: int = 0
+	for bit: int in range(4):
+		if (mask & (1 << bit)) != 0:
+			count += 1
+	return count
 
 
 func _test_underfoot() -> void:
@@ -3538,19 +3681,22 @@ func _check_wall_band(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	_check_equal(mute_strays, 0,
 			"%s : un flanc MUET ne trace rien -- ni bande, ni lisere" % label)
 
+	# ⚠ ET LA QUESTION S EST SIMPLIFIEE AVEC L ALPHABET. Il fallait autrefois verifier que le
+	# `vide` et l `arete` occupaient les MEMES colonnes, parce que l etat d un flanc change en
+	# descendant et que deux geometries differentes auraient fait sauter la marque en plein
+	# milieu de la falaise. Les deux etats n en font plus qu un -- `arret` -- et le defaut
+	# devient inexprimable. Ce qu il reste a asserter est plus simple, et plus fort : la bande
+	# EXISTE, et elle est la meme a toutes les rangees.
 	for side: String in ["ouest", "est"]:
-		var empty_side: PackedInt32Array = PackedInt32Array()
-		var void_band: PackedInt32Array = by_state.get("%s|vide" % side, empty_side)
-		var front_band: PackedInt32Array = by_state.get("%s|devant" % side, empty_side)
-		_check_equal(void_band, front_band,
-				"%s : flanc %s -- le vide et l arete occupent EXACTEMENT les memes colonnes"
+		var key: String = "%s|%s" % [side, Walls.SIDE_NAMES[Walls.SIDE_STOP]]
+		var band: PackedInt32Array = by_state.get(key, PackedInt32Array())
+		_check(band.size() == 0 or band[0] != -1,
+				"%s : flanc %s -- la bande d arret est la MEME a toutes les rangees"
 				% [label, side])
-		# ⚠ ET LA MESURE DOIT AVOIR VU QUELQUE CHOSE. Deux bandes vides sont trivialement
-		# egales : sans ce controle, un rendu qui cesserait de tracer la bande passerait.
 		if ink == GuideImage.Ink.PAINTED:
-			_check(void_band.size() > 0 and void_band[0] != -1,
+			_check(band.size() > 0 and band[0] != -1,
 					"%s : flanc %s -- et la bande existe vraiment (%d colonnes, stable sur les %d rangees)"
-					% [label, side, void_band.size(), Walls.BLOCK_ROWS])
+					% [label, side, band.size(), Walls.BLOCK_ROWS])
 
 
 ## Les colonnes d une moitie de tuile qui different de la tuile sans flanc.
@@ -3620,38 +3766,35 @@ func _test_thickness() -> void:
 	print("thickness : le vocabulaire du mode epais")
 	# Le vocabulaire est CALCULE (theoreme des 256 fenetres) ; le test epingle le
 	# resultat du recensement (tools/thick_census.gd) pour attraper toute derive.
-	_check_equal(Thickness.SURFACE_INDICES.size(), 48,
-			"48 tuiles de surface survivent -- 27 silhouettes declinees selon leur BORD")
+	# ⚠ LE VOCABULAIRE EST CLOS DES DEUX COTES, ET C EST LA FIN DU CLIQUET. Les 27 sont le
+	# theoreme des 256 fenetres ; les 20 sont TOUS les pans x rangees possibles. Il n y a plus
+	# de forme a chercher, donc plus de role a decouvrir un soir en peignant.
+	_check_equal(Thickness.SURFACE_INDICES.size(), 27,
+			"27 tuiles de surface : la silhouette, et rien d autre")
 	var thick_shapes: Dictionary = {}
 	for tile: int in Thickness.SURFACE_INDICES:
 		var shape: int = BlobIndex.silhouette(tile)
 		thick_shapes[shape] = true
 		_check(BlobIndex.is_canonical(shape), "la silhouette epaisse %d est canonique" % shape)
-	_check_equal(thick_shapes.size(), 27, "27 silhouettes, declinees en 48 tuiles")
+	_check_equal(thick_shapes.size(), 27, "et chaque tuile EST sa silhouette")
 	for index: int in [255, 31, 119, 124, 127, 253]:
 		_check(thick_shapes.has(index), "la silhouette %d survit" % index)
 	for index: int in [0, 1, 4, 16, 17, 21, 68, 85, 87, 95]:
 		_check(not thick_shapes.has(index), "la silhouette %d meurt" % index)
-	_check_equal(Thickness.wall_roles().size(), 44, "44 roles de robe survivent")
-	var front_front: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_FRONT)
-	var void_void: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_VOID)
-	var void_front: int = Walls.pan_of(Walls.SIDE_VOID, Walls.SIDE_FRONT)
-	var front_void: int = Walls.pan_of(Walls.SIDE_FRONT, Walls.SIDE_VOID)
-	# ⚠ `(devant,devant)` EST RESSUSCITE PAR LES LEVRES GLOBALES. L argument qui le tuait --
-	# il demanderait un eperon d UNE colonne, donc fin -- ne valait que pour deux faces du
-	# MEME etage. Entre etages, deux faces dont les levres sont plus au nord de part et
-	# d autre, c est banal : je suis devant les deux et je porte mes deux angles.
-	for row: int in range(Walls.BLOCK_ROWS - 1):
-		_check(Thickness.role_survives(Vector2i(front_front, row)),
-				"(devant,devant) vit au %s" % Walls.ROW_NAMES[row])
-	_check(not Thickness.role_survives(Vector2i(front_front, Walls.ROW_FOOT)),
-			"mais jamais au pied -- la battue ne l y rencontre pas")
-	# ⚠ ET TOUS LES AUTRES PANS VIVENT A TOUTES LES RANGEES. Le vocabulaire de robe ne se
-	# restreint plus du tout : c est la MINIMALITE qui le fixe desormais, prouvee en retirant
-	# chaque distinction pour voir si les occurrences se contredisent (tools/minimality.gd).
+
+	# ⚠ LE BORD A DISPARU AVEC LA DECOMPOSITION EN COUCHES, et il faut l asserter : une tuile
+	# qui recommencerait a porter un bord ferait remonter le compte sans que rien ne le dise.
+	for tile: int in Thickness.SURFACE_INDICES:
+		_check_equal(BlobIndex.brink(tile), 0,
+				"la tuile %d ne porte aucun bord : ce qui est a cote appartient au voisin"
+				% tile)
+
+	_check_equal(Thickness.wall_roles().size(), 20,
+			"20 roles de robe : quatre pans x cinq rangees, TOUS vivants")
+	# ⚠ ET TOUS VIVENT, SANS EXCEPTION. Avec trois etats de flanc la forme etait CHERCHEE --
+	# on battait le monde en esperant qu aucun role de plus n apparaisse, et il en apparaissait.
+	# Avec deux, il n y a rien a chercher : la forme est close par construction.
 	for pan: int in range(Walls.PAN_COUNT):
-		if pan == front_front:
-			continue
 		for row: int in range(Walls.BLOCK_ROWS):
 			_check(Thickness.role_survives(Vector2i(pan, row)),
 					"%s vit au %s" % [Walls.pan_name(pan), Walls.ROW_NAMES[row]])
@@ -3739,9 +3882,9 @@ func _random_thick_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 func _test_thickness_cross_check() -> void:
 	print("thickness : la copie du plugin dit exactement ce que dit le noyau")
 	_check_equal(PluginManifest.SURFACE_TILES, Thickness.SURFACE_INDICES.size(),
-			"le lecteur du plugin attend les 48 surfaces du noyau")
+			"le lecteur du plugin attend les 27 surfaces du noyau")
 	_check_equal(PluginManifest.WALL_TILES, Thickness.wall_roles().size(),
-			"et les 44 roles du noyau")
+			"et les 20 roles du noyau")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x7413C
 	var drift: int = 0

@@ -51,14 +51,16 @@ const BRINK_OFFSETS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.LE
 
 
 ## Le bord d'une case, lu des robes qui la bordent.
+## ⚠ LE BORD DISPARAIT AVEC LA DECOMPOSITION EN COUCHES, ET IL REND ZERO -- comme dans le
+## noyau, et la suite compare les deux. Il disait ce qu'il y a AU-DELA d'un cardinal vide,
+## pour que le lisere d'epaisseur et l'eclairage de contour ne se posent pas contre de la
+## roche. Ce sont deux marques qui parlent du VOISIN : sous la regle des couches, une tuile ne
+## dessine que sa propre matiere, et la tuile revient a sa silhouette.
 static func brink_at(walled: Dictionary, at: Vector2i, index: int) -> int:
-	var edge: int = 0
-	for side: int in range(BRINK_BITS.size()):
-		if (index & BRINK_CARDINALS[side]) != 0:
-			continue
-		if walled.has(at + BRINK_OFFSETS[side]):
-			edge |= BRINK_BITS[side]
-	return edge
+	var _unused_walled: Dictionary = walled
+	var _unused_at: Vector2i = at
+	var _unused_index: int = index
+	return 0
 const NW: int = 128
 
 const CARDINALS: int = N | E | S | W
@@ -99,10 +101,22 @@ const CORNER_OFFSETS: Array[Vector2i] = [
 # --- LES FALAISES ------------------------------------------------------------
 
 ## Les trois etats d'un flanc.
-const SIDE_VOID: int = 0   ## Ma roche s'arrete : rien a cote.
-const SIDE_MUTE: int = 1   ## Meme face, ou voisin DEVANT moi -- rien a tracer de ce cote.
-const SIDE_FRONT: int = 2  ## Voisin en retrait : je suis devant, je porte l'angle.
-const SIDE_COUNT: int = 3
+## ⚠ DEUX ETATS, PLUS TROIS -- COPIE DE LA REGLE DU NOYAU, et la suite les compare.
+##
+## Trois etats existaient parce qu'une tuile devait dire CE QU'IL Y A A COTE : roche
+## coplanaire, roche en retrait, ou rien. Cette responsabilite n'a pas de fond -- chaque
+## chose de plus « a cote » qui compte faisait grossir l'alphabet. Sous la decomposition en
+## couches, une tuile ne dessine que sa propre matiere et il ne reste qu'une question :
+## MA ROCHE CONTINUE-T-ELLE, OU S'ARRETE-T-ELLE ICI ? Et « qui est devant » se lit de
+## l'ORDRE DE DESSIN, plus de la tuile.
+const SIDE_STOP: int = 0      ## Ma roche s'arrete ici.
+const SIDE_CONTINUE: int = 1  ## Ma roche continue : la meme face se poursuit.
+const SIDE_COUNT: int = 2
+
+## Les anciens noms, replies sur les deux -- ils sont lus ailleurs dans ce fichier.
+const SIDE_MUTE: int = SIDE_CONTINUE
+const SIDE_VOID: int = SIDE_STOP
+const SIDE_FRONT: int = SIDE_STOP
 
 ## Le pan est le couple (ouest, est).
 const PAN_COUNT: int = SIDE_COUNT * SIDE_COUNT
@@ -339,14 +353,15 @@ static func _side(heights: Dictionary, lip_of: Dictionary, at: Vector2i, level: 
 	# est devant ou nous sommes coplanaires, et je me tais. La regle etait deja la, il lui
 	# manquait de voir les autres etages.
 	if lip_of.has(at):
-		return SIDE_FRONT if int((lip_of[at] as Vector2i).y) < my_lip else SIDE_MUTE
+		# ⚠ « QUI EST DEVANT » NE SE DEMANDE PLUS A LA TUILE : l'ordre de dessin tranche.
+		return SIDE_CONTINUE
 	# ⚠ LE SOMMET D'UN PLATEAU A COTE N'EST PAS DE LA ROCHE, C'EST DE LA TERRE. Il rendait
 	# `muet` -- « il est devant moi, c'est a lui de tracer » -- et le delegataire etait une
 	# tuile de SURFACE, incapable de le faire : elle est la meme a des dizaines d'endroits
 	# dont la plupart n'ont pas de falaise a cote. L'arete n'appartenait a personne.
 	# C'est donc MOI qui trace le bord de ma roche, et `vide` est ce qui le dit.
 	var _span: int = (maxi(1, step) - 1) / STOREY_TILES
-	return SIDE_VOID
+	return SIDE_STOP
 
 
 ## Le pan d'une case de robe : l'etat de son flanc ouest et celui de son flanc est.

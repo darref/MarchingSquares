@@ -141,13 +141,14 @@ static func free_brinks(index: int) -> Array[int]:
 
 
 ## Le nom d'un bord, pour les rapports.
+## ⚠ ET IL NE DIT PLUS RIEN, PARCE QU'IL N'Y A PLUS RIEN A DIRE. Le bord annoncait, pour chaque
+## cardinal vide, si la case d'a cote montrait du NU ou de la ROCHE -- c'est-a-dire une
+## affirmation sur le VOISIN, ecrite dans le nom de la tuile et recopiee telle quelle au
+## manifeste. La decomposition en couches l'a supprimee : ce qui est a cote appartient a la
+## couche du voisin, qui le dessine elle-meme.
+##
+## La fonction reste et rend le vide : tout ce qui nomme une tuile passe par elle, et un nom qui
+## affirmerait le voisinage serait, au contrat, un endroit ou mentir.
 static func brink_name(tile: int) -> String:
-	var index: int = silhouette(tile)
-	var edge: int = brink(tile)
-	var parts: Array[String] = []
-	for side: int in range(BRINK_BITS.size()):
-		if (index & BRINK_CARDINALS[side]) != 0:
-			continue
-		parts.append("%s=%s" % [BRINK_NAMES[side],
-				"roche" if (edge & BRINK_BITS[side]) != 0 else "nu"])
-	return "" if parts.is_empty() else " ".join(parts)
+	var _unused: int = tile
+	return ""
