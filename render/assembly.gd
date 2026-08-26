@@ -64,6 +64,23 @@ static func from_painting(heights: PackedStringArray, painting: Painting,
 ## et le sommet inclus quand une robe la couvre, puisqu'elle passe devant. C'est la matiere
 ## premiere de l'empilement : une tuile par etage et par case, comme le jeu et
 ## l'illustration. Rend case -> Array[int] d'indexes, du bas vers le haut.
+## ⚠ ET NON, LES POSER PLEINS NE CHANGE RIEN -- MESURE, PAS SUPPOSE. Regle proposee par
+## l'utilisateur : « quand deux ilots sont colles, un des deux ne peut pas etre vagabond, et ce
+## generalise a N par alternance ». Formalisee (`tools/island_parity.gd`), l'alternance ne peut
+## PAS marcher telle quelle : les silhouettes sont emboitees, donc au-dessus d'une chute de
+## trois etages TROIS ilots partagent le meme bord -- un triangle, et un triangle ne se colorie
+## pas en deux. 98 % des reliefs epais tires au sort ne sont pas bipartis.
+##
+## Mais la pile est TOTALEMENT ORDONNEE par l'etage, et sur une chaine la bonne regle n'est pas
+## d'alterner : c'est que seul le SOMMET dessine, les etages enterres se posant pleins. Une case
+## appartient entierement a chaque silhouette qui la contient -- le monde n'y a pas de bord,
+## l'entaille est une decoration du bord VISIBLE -- donc les poser pleins serait exact.
+##
+## ⚠ ESSAYE : 2 478 tuiles enterrees reposees pleines, et l'image sort IDENTIQUE AU PIXEL.
+## Les etages enterres n'etaient donc pour rien dans le doublement du trait, et la
+## classification qui les accusait -- 95 % des paves sur une case ayant un etage dessous --
+## etait une correlation, pas une cause. Le changement a ete retire : on ne porte pas au contrat
+## et au plugin une regle de pose qui ne change aucun pixel.
 static func _buried_indices(heights: PackedStringArray, roles: Dictionary) -> Dictionary:
 	var columns: int = HeightMask.width(heights)
 	var rows: int = HeightMask.height(heights)
