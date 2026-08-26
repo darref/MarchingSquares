@@ -45,11 +45,26 @@ const MAGIC: String = "solutiles"
 ## droit) ; un pan v2 vaut 0..8 (le couple des deux flancs). Reposer une cle `W` de v1 sous
 ## v2 la mettrait de travers en silence -- exactement ce que ce fichier existe pour eviter.
 ## Les cles `S` de surface, elles, n'ont pas bouge et se relisent sans rien perdre.
+## ⚠ VERSION 4 : LE VOCABULAIRE DES FLANCS PASSE DE TROIS ETATS A DEUX. La decomposition en
+## couches a supprime `devant` -- « qui est devant » se decide par l'ORDRE DE DESSIN, plus par
+## la tuile -- donc un pan ne vaut plus 0..8 mais 0..3, et un `W5,2` de v3 ne designe plus
+## rien. La traduction se fait PAR LE SENS, pas par le numero : `vide` devient `arret`, et
+## `muet` comme `devant` deviennent `continue` -- tous deux voulaient dire « de la roche a ce
+## flanc ».
+##
+## ⚠ ET NEUF PANS NE RENTRENT PAS DANS QUATRE SANS QUE DEUX SE RENCONTRENT. Quand deux tuiles
+## de v3 tombent sur la meme de v4, la premiere est posee et les suivantes sont RENDUES dans
+## `unplaced` -- jamais ecrasees en silence. C'est la meme regle que partout ici : ce qui ne
+## retombe pas sur ses pieds est dit, pas jete.
+##
+## ⚠ LES SURFACES, ELLES, NE BOUGENT PAS. Le bord n'a jamais ete livre : une cle `S` d'un
+## fichier v3 est une silhouette nue, et elle vaut encore.
+##
 ## ⚠ VERSION 3 : LE NUMERO DE RANGEE A CHANGE DE SENS. A deux rangees de corps, le PIED
 ## portait le numero 3 ; a trois, c'est le corps 2 qui le porte et le pied passe a 4.
 ## Reposer un fichier v2 tel quel mettrait CHAQUE PIED SUR UN CORPS -- de travers, et en
 ## silence, ce que ce fichier existe pour empecher.
-const VERSION: int = 3
+const VERSION: int = 4
 
 ## Ce que valaient les rangees quand un fichier v2 a ete ecrit.
 const V2_BODY_ROWS: int = 2
@@ -262,6 +277,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 	var by_key: Dictionary = cells_by_key(heights, result["family"])
 	var painting: Painting = null
 	var unplaced: PackedStringArray = PackedStringArray()
+	var taken: Dictionary = {}
 	var placed: int = 0
 
 	for number: int in range(1, lines.size()):
@@ -307,9 +323,19 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 		# simplement neuve -- une tuile de plus a peindre, aucune de moins a garder.
 		if written_with < 3 and head.begins_with("W"):
 			head = _row_from_v2(head)
+		# ⚠ ET LE PAN D'UN v3 SE TRADUIT PAR LE SENS. `vide` devient `arret` ; `muet` et
+		# `devant` deviennent tous deux `continue`, puisque tous deux voulaient dire « de la
+		# roche a ce flanc ». Neuf pans tombent donc dans quatre, et deux tuiles peuvent se
+		# rencontrer : la premiere est posee, les suivantes sont rendues.
+		if written_with < 4 and head.begins_with("W"):
+			head = _pan_from_v3(head)
 		if not by_key.has(head):
 			unplaced.append(head)
 			continue
+		if taken.has(head):
+			unplaced.append(head)
+			continue
+		taken[head] = true
 		painting.set_image(by_key[head], image)
 		placed += 1
 
@@ -375,6 +401,25 @@ static func read(path: String, heights: PackedStringArray) -> Dictionary:
 ## ⚠ ON NE TRADUIT QUE CE QU'ON SAIT TRADUIRE. Un pan v2 vaut deja ce qu'il vaut en v3 --
 ## neuf pans des la version 2 -- donc seule la rangee bouge. Si la cle ne se lit pas, on la
 ## rend telle quelle : elle finira dans `unplaced`, dit et non jete.
+## La cle d'une robe v3, traduite en v4 : le pan passe de neuf a quatre, par le SENS.
+##
+## ⚠ ON TRADUIT L'ETAT, PAS LE NUMERO. Un pan v3 vaut `ouest * 3 + est` sur {0 vide, 1 muet,
+## 2 devant} ; un pan v4 vaut `ouest * 2 + est` sur {0 arret, 1 continue}. `vide` dit « aucune
+## roche a ce flanc », `muet` et `devant` disent tous deux « de la roche a ce flanc » -- l'un
+## la meme face, l'autre celle d'un voisin en retrait. La distinction que `devant` portait est
+## desormais rendue par l'ordre de dessin, et elle ne vit plus dans la tuile.
+static func _pan_from_v3(key: String) -> String:
+	var comma: int = key.find(",")
+	if comma < 1 or not key.begins_with("W"):
+		return key
+	var pan: int = int(key.substr(1, comma - 1))
+	if pan < 0 or pan >= 9:
+		return key
+	var west: int = 0 if pan / 3 == 0 else 1
+	var east: int = 0 if pan % 3 == 0 else 1
+	return "W%d%s" % [west * Walls.SIDE_COUNT + east, key.substr(comma)]
+
+
 static func _row_from_v2(key: String) -> String:
 	var comma: int = key.find(",")
 	var colon: int = key.find(":")
