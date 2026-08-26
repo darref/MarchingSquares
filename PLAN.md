@@ -119,6 +119,35 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 - **L6** — le contrat reste *nécessaire et suffisant*, et le contrôle croisé noyau/plugin
   compare **dans les deux sens**.
 
+## L'acquis
+
+| couple | état | mesuré |
+|---|---|---|
+| **L0/F0** | **✅ acquis** | monde 86×174, 1 347 cases, **27/27 silhouettes exercées** · I1 42 contours pour 42 massifs · I2 0 pavé 2×2 · I3 1 086 frontières, 0 double, 0 muette, 0 parasite · I4 0 trou · I5 1 profil, 1 promis |
+| L0/F1 | à faire | |
+| L0/F2 | à faire | |
+| L1/F0… | à faire | |
+
+```
+godot --headless --path . --script res://proof/ladder.gd            (tout l'acquis)
+godot --headless --path . --script res://proof/ladder.gd -- L0 F0   (un couple)
+```
+
+⚠ **Trois défauts trouvés en écrivant le banc, tous dans le banc.** C'est le prix d'un
+instrument neuf, et ils valent d'être notés :
+
+- **le pixel de coin ne décide de rien.** Il appartient à *deux* arêtes : le trait d'un flanc
+  ouest y pose son premier pixel, qui tombe aussi sur la ligne du bord nord. Sans l'exclure,
+  chaque case semblait revendiquer des côtés qu'elle ne trace pas — **516 faux parasites sur
+  un monde parfaitement juste** ;
+- **`index_map` prend un relief, `index_at` prend un masque.** Le premier calcule les robes
+  au passage — c'est L2, pas L0 — et lu sur un masque il rend une case par case du cadre,
+  vide comprise : 3 339 cases de « matière » sur un monde qui en compte 1 347 ;
+- **l'îlot « étiré » ne suffit pas à faire épais.** La colonne du milieu d'une fenêtre ne
+  s'étire pas : l'index 5 (N+E) devient une équerre d'un pixel de large, donc fine, et l'îlot
+  fabrique des silhouettes hors vocabulaire — 33 exercées pour 27 annoncées. La construction
+  du dépôt, elle, **cherche** une position et la juge.
+
 ## Le premier pas
 
 Un banc `proof/ladder.gd` qui prend **(L, F)** et rend les cinq invariants. Il commence avec
