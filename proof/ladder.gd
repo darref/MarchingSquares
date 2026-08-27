@@ -313,6 +313,7 @@ func _run(couple: String) -> bool:
 					edge |= 1
 				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
 					edge |= 2
+
 				# OPTION D : l'ergot de coin rentrant se tait quand ce qu'il devait rejoindre
 				# s'est tu. Deux ergots par coin, deux bits.
 				if _option == "D":
@@ -453,6 +454,10 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# y est une vraie frontiere libre, que personne d'autre ne tracera. L'appliquer partout
 		# a fait rougir les SIX couples acquis d'un coup -- c'est le rejeu qui l'a dit, pas moi.
 		# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
+		# ⚠ RIEN AU SUD, ET RENDRE LE SUD A ETE ESSAYE : 222 -> 669 extremites, 288
+		# doublements, 11 388 parasites. Le bord sud d'une case et le bord NORD de celle d'en
+		# dessous sont LA MEME frontiere -- l'une des deux doit se taire, et c'est le sud, dont
+		# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
 		if level >= 2:
 			open[2] = false
 		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink >> 2)
@@ -490,7 +495,8 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 				Walls.pan_east(role.x) == Walls.SIDE_STOP,
 				role.y == Walls.ROW_FOOT,
 				Walls.pan_west(role.x) == Walls.SIDE_STOP]
-		var tile: Image = _shape(open, freedom, ROCK, -1)
+		# ESSAI : les bords d'une robe AU RAS de sa case.
+		var tile: Image = _shape(open, 0, ROCK, -1)
 		# L'ERGOT DE ROBE : le long du bord HAUT, depuis le coin du cote concerne, jusqu'a la
 		# profondeur ou la case du dessus a laisse son trait.
 		if bits != 0 and freedom > 0:

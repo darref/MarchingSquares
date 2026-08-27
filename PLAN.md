@@ -130,7 +130,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
 | L2/F0 | **en cours** | **B adopté** — 37 + 20 = **57 tuiles** · I1 2 extrémités · I2 94 pavés · **I3 12 doubles** · I4 0 trou · I5 ok |
-| L2/F1 | **en cours** | I2 **propre** · I1 222 extrémités · I3 12 doubles · I5 ok |
+| L2/F1 | **en cours** | I2 **propre** · **I1 43 extrémités** (222 avant la règle de la cascade) · I3 12 doubles · I5 ok |
 | L2/F2 | **en cours** | idem, 7 profils dont 23 qui serpentent |
 | L3/F0… | à faire | |
 
@@ -212,6 +212,33 @@ le bord latéral au ras à son dernier pixel, pour qu'il touche au moins le coin
 la traversée ne se plie pas** : un bord latéral doit franchir la frontière horizontale à la
 profondeur **commune**, et le pincer d'un côté le brouille avec la case du dessus comme avec
 celle du dessous.
+
+### LA RÈGLE DE LA CASCADE, TROUVÉE : les bords d'une FACE sont les bords de sa case
+
+⚠ **UNE FACE OCCUPE SA CASE ENTIÈRE, ET LE PLATEAU AU-DESSUS AUSSI.** La frontière entre les
+deux — la **crête** — n'est donc pas une ligne libre dans la tuile : c'est **le bord de case
+lui-même**. Idem pour le pied (contre l'atterrissage) et pour les flancs (contre ce qu'il y a
+à côté). Une crête rentrée est une ligne qui ne peut retrouver **aucune** des perpendiculaires
+qui arrivent au bord — d'où la cascade, et d'où l'échec de tout ergot de longueur fixe.
+
+**Mesuré : 222 → 43 extrémités.** Les bords d'une robe sont désormais au ras de sa case.
+
+⚠ **Et ça ne coûte rien du tout : 57 tuiles, inchangé.** Ce n'est pas un bit de plus, c'est une
+liberté qu'on **n'avait pas le droit de prendre**. La robe garde ses 20 rôles ; ce qu'elle perd
+est une ondulation que la géométrie interdisait.
+
+⚠ **Ce que la surface, elle, conserve.** Un bord de surface contre le **vide** est une vraie
+frontière de matière, libre de serpenter — et c'est tout L0 et L1. Contre une **face**, non :
+les deux ont de la matière, la frontière est un pli, et un pli est au bord.
+
+**Restent 43**, dont **30 « surface, bord sud, en face : surface »** et **9 au nord** : plus une
+seule falaise dedans. C'est l'exception de la règle de la lèvre — dans 30 cas la case d'en
+dessous porte une surface, pas une robe, et personne ne trace.
+
+⚠ **ET RENDRE LE SUD NE MARCHE PAS : 222 → 669, 288 doublements, 11 388 parasites.** Le bord
+sud d'une case et le bord **nord** de celle d'en dessous sont **la même frontière** : l'une des
+deux doit se taire, et c'est le sud — la voisine du nord existe toujours, alors que la crête,
+elle, peut manquer.
 
 ### LA DISTRIBUTION DES 222 — et elle vaut mieux que quatre hypothèses
 
