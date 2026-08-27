@@ -199,6 +199,26 @@ faire taire le flanc ; on peut faire taire la surface.
 reste trois défauts à L2, tous chiffrés : 222 extrémités (F1/F2), 94 pavés (F0 seulement), et
 12 doublements.
 
+### Les 222 extrémités : ce que c'est, et ce qui ne marche pas
+
+Le bord latéral d'une **lèvre** meurt à son bas, faute de retrouver la **crête** du chapiteau
+qui la porte. Les deux sont dans des tuiles différentes : le bord latéral franchit la frontière
+horizontale à la profondeur `dW`, la crête franchit les frontières verticales à la profondeur
+`dN`. Aucune des deux ne passe par le **coin** que les deux cases partagent, donc elles se
+manquent. Au ras (F0) elles se touchaient, d'où les 2 extrémités seulement.
+
+⚠ **ET LE PINCEMENT AU SUD NE MARCHE PAS : 222 → 848, plus 61 pavés.** L'idée était de ramener
+le bord latéral au ras à son dernier pixel, pour qu'il touche au moins le coin. Mais **la loi de
+la traversée ne se plie pas** : un bord latéral doit franchir la frontière horizontale à la
+profondeur **commune**, et le pincer d'un côté le brouille avec la case du dessus comme avec
+celle du dessous.
+
+⚠ **Ce cas n'arrive que quand le flanc du chapiteau dit `continue`.** S'il dit `arrêt`, il trace
+son propre bord à `dW` et le bord de la lèvre le retrouve exactement. Il faudrait donc que le
+chapiteau sache que **la lèvre au-dessus a son côté ouvert** — une information qu'un rôle de
+robe (deux flancs, une rangée) ne porte pas. C'est le prochain bit à chiffrer, et il est de la
+même famille que le bord.
+
 ### Ce que F1 et F2 disent en plus
 
 ⚠ **À F1 ET F2, I2 EST PROPRE : zéro pavé.** Les deux traits sont chacun rentrés d'une traversée

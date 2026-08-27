@@ -369,6 +369,12 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 ## depassait, en ergot, a chaque coin saillant. Deduit, il epouse la matiere par construction.
 ## Tout ce qu'il faut savoir en plus est LOCAL : au-dela d'un cote ouvert il n'y a rien, au-dela
 ## d'un cote ferme la matiere continue chez la voisine.
+## ⚠ ET LE BORD LATERAL NE SE PINCE PAS AU SUD, ESSAYE ET MESURE. L'idee : a L2 le sud d'une
+## surface est toujours une LEVRE, et son bord lateral meurt a son bas faute de retrouver la
+## crete du chapiteau ; en le ramenant au ras a son dernier pixel il toucherait au moins le coin
+## de la case. Resultat : 222 extremites -> 848, et 61 paves. La loi de la traversee ne se plie
+## pas -- un bord lateral doit franchir la frontiere horizontale a la profondeur COMMUNE, et le
+## pincer d'un cote le brouille avec la case du dessus comme avec celle du dessous.
 func _shape(open: Array[bool], freedom: int, body: Color, index: int) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var solid: Array[PackedByteArray] = []
