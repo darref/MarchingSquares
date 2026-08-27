@@ -316,8 +316,22 @@ Donc l'une des deux doit toucher le bord **au point où l'autre le traverse** �
 C'est un pincement en deux points, pas un aplatissement.
 
 ⚠ **Ça vaut pour les trois bords d'une face** : la crête, le bas du pied, et les flancs. Chacun
-se pince aux traversées de la famille perpendiculaire, et serpente ailleurs. À mesurer : le
-compte d'extrémités doit rester celui du ras (43), et I5 doit remonter.
+se pince aux traversées de la famille perpendiculaire, et serpente ailleurs.
+
+**Implémenté et mesuré — la liberté est rendue à coût nul :**
+
+| | au ras | au pincement |
+|---|---|---|
+| profils de face distincts | 1 | **8** |
+| profils qui serpentent | 0 | **46** |
+| extrémités (F0 / F1 / F2) | 3 / 5 / 5 | **3 / 5 / 5** |
+| I2 · I3 | ✅ | **✅** |
+| tuiles | 75 | **75** |
+
+⚠ **Pas une extrémité de plus, pas une tuile de plus.** Le ras confisquait donc toute la liberté
+du dessin de falaise **pour rien** — et c'est exactement ce que la loi du moindre ras existe
+pour attraper. Sans I5 pour compter ce qui est confisqué, la perte serait passée inaperçue :
+tous les autres invariants étaient au vert.
 
 ## L2, REFAIT DEPUIS LES QUATRE JONCTIONS
 

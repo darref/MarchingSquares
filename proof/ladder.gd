@@ -410,6 +410,23 @@ func _run(couple: String) -> bool:
 		role_tiles = _wall_tiles(kinds2, freedom)
 		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
 				% [role_tiles.size(), tiles.size() + role_tiles.size()])
+		# ⚠ ET ON MESURE LA LIBERTE RENDUE AUX FACES, au lieu de la supposer. Le pincement aux
+		# deux traversees doit leur laisser un profil qui serpente ; s'il n'en laisse aucun,
+		# c'est qu'on a paye la complication sans rien gagner.
+		var shapes: Dictionary = {}
+		var wavy: int = 0
+		for key: Variant in role_tiles.keys():
+			for side: int in range(4):
+				var line: String = _profile(role_tiles[key] as Image, side)
+				if not line.contains("-1"):
+					shapes[line] = true
+					var cut: PackedStringArray = line.split(",")
+					for i: int in range(1, cut.size()):
+						if cut[i] != cut[0]:
+							wavy += 1
+							break
+		print("  liberte des faces : %d profil(s) distinct(s), %d qui serpentent"
+				% [shapes.size(), wavy])
 	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles)
@@ -543,7 +560,7 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 				role.y == Walls.ROW_FOOT,
 				Walls.pan_west(role.x) == Walls.SIDE_STOP]
 		# ESSAI : les bords d'une robe AU RAS de sa case.
-		var tile: Image = _shape(open, 0, ROCK, -1)
+		var tile: Image = _shape(open, freedom, ROCK, -1, 0, false, true)
 		# L'ERGOT DE ROBE : le long du bord HAUT, depuis le coin du cote concerne, jusqu'a la
 		# profondeur ou la case du dessus a laisse son trait.
 		if bits != 0 and freedom > 0:
@@ -588,8 +605,40 @@ func _side_depth(side: int, along: int, freedom: int, quiet: int) -> int:
 	return _depth(side, along, freedom)
 
 
+## LE PINCEMENT AUX DEUX TRAVERSEES : la loi du moindre ras.
+##
+## ⚠ ON NE MET AU RAS QUE CE QU'ON NE PEUT PAS LAISSER LIBRE. Le theoreme n'oblige pas une face
+## a etre plate : deux lignes perpendiculaires qui vivent dans des tuiles DIFFERENTES ne peuvent
+## se rejoindre qu'a leur frontiere commune, donc l'une doit toucher le bord AU POINT ou l'autre
+## le traverse -- et rien de plus.
+##
+## Un bord de face touche donc le bord de sa case aux DEUX traversees canoniques de la famille
+## perpendiculaire, et serpente entre les deux. Les traversees sont globales, donc connues de
+## toutes les tuiles sans rien savoir du voisinage.
+##
+## Premiere formulation, trop forte : « les bords d'une face sont les bords de sa case ». Elle
+## fermait bien (222 -> 43) mais confisquait toute la liberte du dessin de falaise.
+func _wall_depth(side: int, along: int, freedom: int) -> int:
+	if freedom == 0:
+		return 0
+	var first: int = 0
+	var last: int = 0
+	if side == 0 or side == 2:
+		first = _depth(3, 0, freedom)
+		last = RES - 1 - _depth(1, 0, freedom)
+	else:
+		first = _depth(0, 0, freedom)
+		last = RES - 1 - _depth(2, 0, freedom)
+	if along <= first or along >= last or last <= first:
+		return 0
+	var seed: int = absi((side + 1) * 19349663)
+	var reach: float = float(1 + seed % 3)
+	var t: float = float(along - first) / float(last - first)
+	return int(round(reach * sin(PI * t)))
+
+
 func _shape(open: Array[bool], freedom: int, body: Color, index: int,
-		quiet: int = 0, flat_north: bool = false) -> Image:
+		quiet: int = 0, flat_north: bool = false, wall: bool = false) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var solid: Array[PackedByteArray] = []
 	for y: int in range(RES):
@@ -597,13 +646,13 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 		line.resize(RES)
 		for x: int in range(RES):
 			var inside: bool = true
-			if open[0] and y < (0 if flat_north else _depth(0, x, freedom)):
+			if open[0] and y < (_wall_depth(0, x, freedom) if wall else (0 if flat_north else _depth(0, x, freedom))):
 				inside = false
-			if open[1] and x > RES - 1 - _side_depth(1, y, freedom, quiet):
+			if open[1] and x > RES - 1 - (_wall_depth(1, y, freedom) if wall else _side_depth(1, y, freedom, quiet)):
 				inside = false
-			if open[2] and y > RES - 1 - _depth(2, x, freedom):
+			if open[2] and y > RES - 1 - (_wall_depth(2, x, freedom) if wall else _depth(2, x, freedom)):
 				inside = false
-			if open[3] and x < _side_depth(3, y, freedom, quiet):
+			if open[3] and x < (_wall_depth(3, y, freedom) if wall else _side_depth(3, y, freedom, quiet)):
 				inside = false
 			line[x] = 1 if inside else 0
 		solid.append(line)
