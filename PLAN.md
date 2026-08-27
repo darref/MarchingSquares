@@ -130,7 +130,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
 | L2/F0 | **en cours** | **20/20 rôles de robe** exercés, 1 404 cases de falaise · I1 2 extrémités · I2 1 526 pavés · **I3 196 doubles** · I4 0 trou |
-| L2/F1… | à faire | |
+| L2/F1 | **en cours** | **I2 propre (0 pavé)** · I1 213 extrémités · I3 196 doubles |
+| L2/F2 | **en cours** | idem, 7 profils dont 21 qui serpentent |
+| L3/F0… | à faire | |
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
 
@@ -156,6 +158,36 @@ contour de la falaise à sa base** ; sans lui les deux flancs s'arrêtent dans l
 
 Reste **196 doublements** : le flanc d'une falaise contre le bord latéral de la surface voisine
 — exactement le défaut vu à l'œil ce matin, que le banc nomme maintenant avant qu'on le voie.
+
+**Et il n'y a pas de théorème pour trancher, cette fois.** Mesuré ce matin : un flanc qui
+s'arrête ne borde **jamais** de la roche (0 sur 5 216) — mais il borde de la **terre** 35,5 % du
+temps et du **vide** 64,5 %. Quand c'est de la terre *plus haute*, cette terre trace son propre
+bord latéral, et les deux traits se rencontrent. Quand c'est du vide, personne d'autre ne trace.
+La tuile de robe ne peut pas distinguer les deux, et la surface non plus.
+
+⚠ **C'EST LE PREMIER ENDROIT OÙ LE VOCABULAIRE DOIT GRANDIR**, et les deux prix sont déjà
+mesurés :
+
+| ce qu'on ajoute | coût |
+|---|---|
+| un troisième état de flanc (`arrêt contre du nu` / `arrêt contre du sol`) | 4 → **9 pans**, 20 → **45 rôles** (+25) |
+| le **bord** sur la surface, à l'est et à l'ouest | 27 → **48 silhouettes** (+21) |
+
+C'est le même arbitrage que celui de la 9.0.0, revenu par l'autre bout — et cette fois il est
+posé **avant** d'être payé.
+
+### Ce que F1 et F2 disent en plus
+
+⚠ **À F1 ET F2, I2 EST PROPRE : zéro pavé.** Les deux traits sont chacun rentrés d'une traversée
+dans leur propre case, donc écartés de deux — ils ne se collent plus. Le défaut **visuel** de ce
+matin disparaît donc de lui-même dès que le trait rentre ; ce qui reste est structurel, et c'est
+I3 qui le dit.
+
+⚠ **Mais I1 ouvre 213 extrémités** : le bord latéral d'une **lèvre** et le flanc de la falaise
+qui la porte ne se retrouvent plus. Au ras ils se touchaient ; rentrés, ils se manquent quand le
+flanc du chapiteau dit `continue` — la roche y va jusqu'au bord sans trait, et le bord de la
+lèvre meurt dessus. Il faudrait un **ergot de coin rentrant sur la robe**, et une robe ne porte
+pas la diagonale qui le déclenche.
 
 ### La forme d'un bord ne dépend que de ce bord-là
 
