@@ -306,10 +306,22 @@ qui reste, et il a une contrainte ferme — **toute réduction doit garder I3 à
   au prix des ovales à chaque jonction surface/falaise ;
 - **76 tuiles**, un trait unique partout, au prix d'une forme fermée à 248 non prouvée minimale.
 
-⚠ **Et il reste une quatrième piste, non explorée** : garder les deux traits mais **empêcher la
-bande de se refermer**, en décalant les traversées des deux familles. Le sliver deviendrait une
-bande continue au lieu d'une chaîne de lentilles — même contenu, autre lecture. Coût : zéro bit.
-C'est la première chose à mesurer avant de payer quoi que ce soit.
+⚠ **LA QUATRIÈME PISTE EST MESURÉE, ET ELLE EST MORTE.** Elle était écrite ainsi : garder les
+deux traits mais **empêcher la bande de se refermer**, en décalant les traversées des deux
+familles — même contenu, autre lecture, zéro bit. Implémentée derrière `LADDER_SHIFT` (le
+pincement de la face se fait aux traversées de la surface : il suffit de les décaler), mesurée à
+L2/F1 sans aucun bit :
+
+```
+SHIFT = 2   47 tuiles   I3 : 196 doublements
+SHIFT = 4   47 tuiles   I3 : 196 doublements   (et les 80 trous de I1 tombent a 0)
+```
+
+⚠ **Pas un doublement de moins, et c'était démontrable sans mesurer : I3 compte les
+REVENDIQUANTS, pas la forme du sliver.** Décaler les traversées change *où* les deux traits
+touchent le bord de case, jamais le fait qu'ils sont **deux**. La piste ne pouvait donc jouer que
+sur la lecture à l'œil, pas sur la règle qui a tranché J2 — *traits continus simples, jamais
+doublés*. Le code est retiré ; la mesure reste ici pour ne pas la refaire.
 
 ### L'ancienne comparaison à deux conceptions
 

@@ -184,7 +184,7 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2", "L2/F0"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
