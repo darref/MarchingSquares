@@ -124,9 +124,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | couple | état | mesuré |
 |---|---|---|
 | **L0/F0** | **✅ acquis** | 27/27 silhouettes · 42 contours pour 42 massifs, **0 extrémité** · 0 pavé 2×2 · 1 086 frontières, 0 double, 0 muette, 0 parasite · 0 trou · 1 profil |
-| **L0/F1** | **✅ acquis** | idem, **8 profils de bord distincts** — la liberté latérale est réelle. Prix : **44 tuiles pour 27 silhouettes** |
-| **L0/F2** | **✅ acquis** | idem, **26 profils distincts dont 33 qui serpentent** — le trait est libre à l'intérieur |
-| **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **45 tuiles** |
+| **L0/F1** | **✅ acquis** | idem, **3 profils de bord distincts** — la liberté latérale est réelle. Prix : **aucune tuile**, 27 |
+| **L0/F2** | **✅ acquis** | idem, **17 profils distincts dont 16 qui serpentent** — le trait est libre à l'intérieur. Prix : **aucune tuile** |
+| **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | L1/F1 | à faire | |
 | L1/F2 | à faire | |
 | L2/F0… | à faire | |
@@ -138,20 +138,27 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 coïncident au pixel près. Le témoin dit donc que le **modèle** est sain à L1 ; tout ce qui
 cassera à L1/F1 sera de la main, pas du modèle. C'est exactement ce que F0 existe pour dire.
 
-⚠ **Et le vocabulaire ne bouge presque pas : 44 → 45 tuiles.** L1 n'ajoute qu'un voisinage
-brut que L0 ne rencontrait pas. Les silhouettes, elles, restent 27.
+⚠ **Et le vocabulaire ne bouge pas : 27 tuiles, comme L0.**
 
-### Ce que L0/F1 a coûté, et pourquoi
+### Ce que L0/F1 a coûté : RIEN — et je me suis trompé une fois là-dessus
 
-⚠ **LA LIBERTÉ LATÉRALE SE PAIE EN VOISINAGES BRUTS : 27 silhouettes, 44 tuiles.** Quand le
-trait rentre, deux cases voisines dont les bords ne rentrent pas pareil laissent une **marche**
-à leur frontière. La marche est du côté de celle **qui a de la matière** — l'autre n'a que du
-fond à cet endroit, et on ne trace pas dans le vide. Cette case-là se reconnaît à une signature
-et une seule : ses **deux cardinaux du coin sont pleins et sa diagonale est vide**.
+⚠ **LA LIBERTÉ LATÉRALE NE COÛTE AUCUNE TUILE.** Quand le trait rentre, deux cases voisines
+dont les bords ne rentrent pas pareil laissent une **marche** à leur frontière. La marche est du
+côté de celle **qui a de la matière** — l'autre n'a que du fond à cet endroit, et on ne trace
+pas dans le vide. Cette case-là se reconnaît à une signature et une seule : ses **deux cardinaux
+du coin sont pleins et sa diagonale est vide**.
 
-C'est exactement le bit que la canonicalisation jette — *« un coin diagonal isolé ne change pas
-la silhouette de la tuile »*. Vrai du **remplissage**, faux du **trait** : c'est là, et seulement
-là, que le bord fait une marche.
+⚠ **ET L'INDEX CANONIQUE PORTE DÉJÀ CETTE SIGNATURE, C'EST UN THÉORÈME.** J'ai d'abord conclu
+l'inverse — « la canonicalisation jette une diagonale, donc elle jette le coin rentrant » — et
+payé 44 tuiles pour rien. C'est le contraire : elle **conserve** un bit de coin exactement quand
+ses deux cardinaux sont pleins, et un bit de diagonale ne sert au dessin dans **aucun** autre
+cas. Le voisinage brut n'ajoute donc rien.
+
+Mesuré (`tools/raw_census.gd`) : **51 voisinages bruts** réalisables en épais pour **27
+silhouettes** — et les cinq invariants restent verts **à l'identique** avec 27 tuiles au lieu
+de 45.
+
+⚠ **Conséquence directe : le guide n'est pas à refaire.** Il porte les 27, et 27 suffisent.
 
 ⚠ **Et une seule des deux cases trace.** La voisine d'en face a son cardinal ouvert et n'a pas
 de matière à cet endroit ; si elle traçait aussi, les deux traits seraient collés de part et

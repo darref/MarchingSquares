@@ -142,11 +142,17 @@ func _run(couple: String) -> bool:
 			for x: int in range(HeightMask.width(mask)):
 				if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
 					continue
-				# Le voisinage BRUT, pas l'index canonique -- et c'est le prix de F1. La
-				# canonicalisation JETTE une diagonale des que ses deux cardinaux sont pleins :
-				# vrai du remplissage, faux du TRAIT, car c'est exactement la que le bord fait
-				# une marche, et la case qui la porte est la seule a pouvoir la tracer.
-				map[Vector2i(x, y)] = Coverage.raw_neighbourhood(mask, x, y)
+				# L'INDEX CANONIQUE SUFFIT, ET C'EST UN THEOREME. J'ai cru un moment qu'il
+				# fallait le voisinage BRUT : la canonicalisation « jette une diagonale »,
+				# donc elle jetterait le coin rentrant. Faux, et c'est l'inverse -- elle
+				# CONSERVE un bit de coin exactement quand ses deux cardinaux sont pleins, et
+				# c'est precisement la condition du coin rentrant. Un bit de diagonale ne sert
+				# au dessin dans aucun autre cas. Le brut n'ajoute donc rien.
+				#
+				# Mesure : 51 voisinages bruts realisables en epais, 27 silhouettes -- et les
+				# cinq invariants restent verts a l'identique avec 27 tuiles au lieu de 45.
+				# La liberte laterale ne coute AUCUNE tuile.
+				map[Vector2i(x, y)] = Coverage.index_at(mask, x, y)
 		storeys.append(map)
 
 	# La carte VISIBLE : chaque case porte la tuile de SON etage, celle qu'on voit de dessus.
