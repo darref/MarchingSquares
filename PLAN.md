@@ -17,6 +17,27 @@ arrière, les classes de raccord, l'épaisseur, le contrat. On sait ce qu'il fau
 on ne sait pas encore dans quel ordre chaque chose devient exprimable. C'est ça qu'on
 construit.
 
+## L'ORDRE DES PRIORITÉS — il tranche tout le reste
+
+Posé par l'utilisateur, et **lexicographique** : on ne descend au critère suivant qu'une fois le
+précédent satisfait.
+
+1. **JAMAIS TROUÉ.** La fermeture n'est pas négociable. I1 à zéro, ou ce n'est pas livrable.
+2. **LA LIBERTÉ NE SE SACRIFIE QUE SI C'EST DÉMONTRÉ IMPOSSIBLE.** Pas « si c'est plus simple »,
+   pas « si ça coûte moins » — *impossible*, et prouvé. C'est la loi du moindre ras, généralisée.
+3. **LE NOMBRE DE TUILES DOIT ÊTRE MINIMAL, PAS FORCÉMENT PETIT.** Ce qui est exigé est une
+   **preuve de minimalité**, pas un petit chiffre. 248 démontré minimal vaut mieux que 81 dont
+   personne ne sait s'il l'est.
+
+⚠ **ET ÇA DISQUALIFIE LES DEUX CONCEPTIONS DE J2 EN L'ÉTAT.** Le bit sur la face laisse 34
+extrémités, le bit sur la surface en laisse 5 : **les deux sont troués**, donc aucune n'est
+acceptable. Le travail n'est pas de choisir entre elles, c'est de **fermer d'abord** — et de ne
+comparer les coûts qu'ensuite.
+
+⚠ **Et l'ordre interdit un raccourci qui tentait :** fermer en figeant. Un dessin sans liberté
+ferme toujours (F0 le prouve à chaque niveau) ; c'est le critère 2 qui l'interdit, et I5 qui le
+mesure.
+
 ## Le fil unique : QUI TRACE ?
 
 Une frontière du monde est un endroit où la matière s'arrête. Le seul défaut qu'on n'a
