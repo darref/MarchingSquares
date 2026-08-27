@@ -179,8 +179,74 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
+| **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 50 bords → **35 classes** à L2/L3, les six verts, et I5 passe de **7 à 20 profils distincts** |
+
 ⚠ **L'ÉCHELLE EST DONC VERTE DE L0/F0 À L3/F2, DOUZE COUPLES, À 77 TUILES** — 57 surfaces et 20
-rôles de robe. Le prochain cran est **L4**, les raccords.
+rôles de robe — **raccords compris**.
+
+### L4 : LES RACCORDS SE RECENSENT, ET ILS RENDENT DE LA LIBERTÉ AU LIEU D'EN PRENDRE
+
+Le banc ne décrit plus le dessin, il le **contraint** : chaque classe de raccord reçoit sa graine,
+et deux bords qui doivent être le même dessin le sont **par construction**. Ce qui rend la mesure
+falsifiable : si la clôture manque un lien, un invariant rougit.
+
+| couple | bords tracés | **classes indépendantes** | liens de superposition | I5 à F2 |
+|---|---|---|---|---|
+| L0 | 28 | **28** | **0** — un seul étage, rien ne s'empile | 19 profils |
+| L1 | 28 | **22** | 365 | 18 profils |
+| L2 · L3 | 50 | **35** | 252 | **20 profils, 27 qui serpentent** |
+
+⚠ **UNE SEULE DES DEUX RELATIONS EST REQUISE, ET C'EST L'EXPÉRIENCE QUI L'A DIT.**
+- **La superposition l'est** : deux tuiles empilées dans une même case tracent le même bord, et
+  si elles ne le tracent pas pareil le trait se dédouble. C'est exactement le défaut mesuré à
+  L1/F2 — *« deux silhouettes d'étages différents peuvent s'arrêter au MÊME endroit, jusqu'à
+  trois sur la planche »*, six pavés. Il est maintenant **nommé et interdit**, au lieu d'être
+  évité par un dessin uniforme. À L1 elle soude 28 bords en 22 ; à L0, où rien ne s'empile, elle
+  ne soude **rien du tout**.
+- **La continuation ne l'est pas.** Deux bords colinéaires dans deux cases voisines se
+  rencontrent à leur frontière commune parce que **la traversée les y ramène tous les deux**,
+  quelle que soit leur classe. La joindre coûterait **trois fois la liberté** — 35 classes → 11 —
+  pour rien.
+
+⚠ **ET J'AI COMMENCÉ PAR LA JOINDRE, EN CROYANT LA MESURER.** Le premier recensement donnait 11
+classes et mettait `S ouest` et `W ouest` dans la **même** classe — alors que les deux familles
+ont des lois de traversée différentes et que I1 était vert. Le lien croisé existait bien (161
+occurrences, toutes verticales : le bord ouest d'une lèvre au-dessus du flanc ouest de sa propre
+face) mais il ne prouvait pas une égalité : les deux traits se rejoignent **par le chapiteau**,
+pas en étant la même ligne. Une relation observée n'est pas une contrainte.
+
+⚠ **ET SUR-JOINDRE EST SÛR, SOUS-JOINDRE EST SILENCIEUX.** C'est pourquoi la seule preuve
+acceptable est de **peindre par classe et de mesurer** : une clôture trop large ne rend jamais un
+tileset faux, seulement plus contraint ; une clôture trop étroite laisse le dessin se casser sans
+que rien ne le dise. Les six invariants restent verts aux douze couples.
+
+⚠ **DEUX FAUTES DE COMPTEUR, MÊME ESPÈCE.** Le recensement n'incrémentait que quand l'union
+**changeait** quelque chose : le compte dépendait donc de l'ordre des cases, et la superposition
+annonçait **zéro lien** sur un monde à quatre étages qui en est plein. On compte les relations
+observées, pas les fusions effectuées.
+
+### ⚠ LA PLANCHE NE SUFFIT PAS : LE GUIDE EST ROUGE, ET IL L'ÉTAIT DÉJÀ
+
+`LADDER_WORLD=guide` fait tourner le même banc sur le **guide** au lieu de la planche de preuve.
+Résultat à L3/F2 : monde 104×141, **61 + 20 = 81 tuiles**, 52 bords → 34 classes… et **I1 rouge,
+13 extrémités**.
+
+⚠ **Elles n'ont rien à voir avec L4** : la liste est **identique au pixel près** avant et après le
+recensement — vérifié en rejouant la version d'avant sur le même monde. C'est un défaut du dessin
+que la planche n'exerce pas.
+
+**Ce qu'elles sont, lu au pixel** : toutes en `(15,3)`, `(0,3)`, `(15,4)`, `(0,4)` — le bout d'un
+bord nord contre le bord latéral de la case d'à côté, là où le frontière **tourne**. C'est la
+famille de l'**ergot de coin rentrant**, et plus précisément de la règle qui le fait taire :
+*« l'ergot se tait quand ce qu'il devait rejoindre s'est tu »*. Sur la planche cette conjonction
+n'arrive jamais ; sur le guide, treize fois.
+
+⚠ **ET C'EST LE RÉSULTAT LE PLUS UTILE DE LA JOURNÉE**, parce qu'il porte sur la méthode : **un
+banc qui ne connaît qu'un monde ne prouve que ce monde**. La planche de preuve est bâtie pour
+exercer le *vocabulaire* — elle porte les 27 silhouettes — mais pas les *rencontres*. Le guide en
+porte d'autres, et un relief tiré au sort en porterait d'autres encore. **Le prochain travail est
+là**, et il est double : fermer les treize, et faire tourner les six invariants sur plus d'un
+monde.
 
 ### L3 : LE TÉMOIN EST AVEUGLE, ET C'EST UN RÉSULTAT
 

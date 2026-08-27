@@ -563,7 +563,24 @@ func _run(couple: String) -> bool:
 		kinds[roles[cell]] = true
 	print("  robes : %d roles distincts, %d cases de falaise"
 			% [kinds.size(), roles.size()])
-	var tiles: Dictionary = _paint(vocabulary, freedom, level)
+	# L4 : LE RECENSEMENT DES RACCORDS, ET IL SE FAIT AVANT DE PEINDRE. Il ne decrit pas le
+	# dessin, il le CONTRAINT : chaque classe recoit sa graine, et deux bords qui doivent etre
+	# le meme dessin le sont par construction.
+	#
+	# ⚠ DEUX CLOTURES, ET UNE SEULE EST REQUISE. La SUPERPOSITION l'est -- deux tuiles empilees
+	# dans une meme case tracent le meme bord, et si elles ne le tracent pas pareil le trait se
+	# dedouble (c'est le defaut mesure a L1/F2, six paves). La CONTINUATION, elle, ne l'est
+	# PAS : deux bords colineaires dans deux cases voisines se rencontrent a leur frontiere
+	# commune parce que la TRAVERSEE les y ramene tous les deux, quelle que soit leur classe.
+	# On mesure les deux et on ne joint que la premiere -- et c'est l'experience qui tranche,
+	# pas le raisonnement : si les six invariants restent verts, la liberte mesuree est reelle.
+	var seams: Dictionary = _seam_classes(storeys, roles, level, false)
+	var welded: Dictionary = _seam_classes(storeys, roles, level, true)
+	var said2: String = "  raccords : %d bords traces -> %d classes independantes" 			% [int(seams["bords"]), int(seams["classes"])]
+	print(said2 + "   (%d liens de superposition ; la continuation en joindrait %d de plus,"
+			% [int(seams["superposition"]), int(welded["continuation"])]
+			+ " et n'en laisserait que %d)" % [int(welded["classes"])])
+	var tiles: Dictionary = _paint(vocabulary, freedom, level, seams["graine"])
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
 	if _open_edges > 0:
 		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
@@ -580,7 +597,7 @@ func _run(couple: String) -> bool:
 			kinds2[_wall_key(under[cell])] = true
 		if _backing == "full":
 			kinds2[_wall_key(Vector2i(_solid_pan(), Walls.ROW_CROWN + 1))] = true
-		role_tiles = _wall_tiles(kinds2, freedom)
+		role_tiles = _wall_tiles(kinds2, freedom, seams["graine"])
 		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
 				% [role_tiles.size(), tiles.size() + role_tiles.size()])
 		# ⚠ ET ON MESURE LA LIBERTE RENDUE AUX FACES, au lieu de la supposer. Le pincement aux
@@ -705,42 +722,59 @@ func _world(level: int) -> PackedStringArray:
 ## la tuile remplit sa case et pose son trait sur la colonne ou la rangee du bord, la ou son
 ## cardinal est vide. Si un invariant rougit ici, le defaut est dans le MODELE -- pas dans la
 ## main. C'est le seul instrument qui separe les deux, et il nous a manque toute la semaine.
-func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
+func _paint(vocabulary: Dictionary, freedom: int, level: int,
+		seed_of: Dictionary) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in vocabulary.keys():
 		var index: int = int(key) & 0xff
 		var brink: int = int(key) >> 8
-		var open: Array[bool] = [false, false, false, false]
+		var open: Array[bool] = _surface_open(int(key), level)
+		var seams: Array[int] = []
 		for side: int in range(4):
-			open[side] = (index & CARDINALS[side]) == 0
-		# Contre de la ROCHE, la surface se tait : c'est le flanc de la falaise qui trace.
-		if (brink & 1) != 0:
-			open[1] = false
-		if (brink & 2) != 0:
-			open[3] = false
-		# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
-		# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
-		# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
-		# MEME frontiere, et c'est le chapiteau qui la porte -- lui seul sait de quelle face il
-		# s'agit. Mesure : 780 doublements sans cette regle, 196 avec.
-		#
-		# ⚠ ET IL NE VAUT PAS A L0 NI A L1, dont les mondes n'ont pas de falaise : un sud vide
-		# y est une vraie frontiere libre, que personne d'autre ne tracera. L'appliquer partout
-		# a fait rougir les SIX couples acquis d'un coup -- c'est le rejeu qui l'a dit, pas moi.
-		# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
-		# ⚠ RIEN AU SUD, ET RENDRE LE SUD A ETE ESSAYE : 222 -> 669 extremites, 288
-		# doublements, 11 388 parasites. Le bord sud d'une case et le bord NORD de celle d'en
-		# dessous sont LA MEME frontiere -- l'une des deux doit se taire, et c'est le sud, dont
-		# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
-		if level >= 2:
-			open[2] = false
-		# ⚠ ET SOUS UNE FACE, LA SURFACE SE TAIT AU NORD -- symetrique exact du bord lateral.
-		# Le bas du PIED et mon bord nord sont la meme frontiere ; le pied la porte, parce que
-		# son bas referme le contour de la falaise et que rien d'autre ne le peut.
-		if (brink & NORTH_QUIET) != 0:
-			open[0] = false
-		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink)
+			seams.append(int(seed_of.get(_node("S", int(key), side), 0)))
+		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink, false, false, seams)
 	return tiles
+
+
+## LES COTES OUVERTS D'UNE SURFACE -- tout ce que la tuile decide de son trait.
+##
+## ⚠ ET C'EST LE RECENSEMENT DES RACCORDS QUI L'A FAIT SORTIR DE `_paint`. Deux endroits
+## devaient repondre a la meme question -- qui trace de quel cote -- et deux copies d'une meme
+## regle finissent toujours par se contredire. C'est la lecon de `core/families.gd`, payee une
+## fois de plus.
+func _surface_open(key: int, level: int) -> Array[bool]:
+	var index: int = key & 0xff
+	var brink: int = key >> 8
+	var open: Array[bool] = [false, false, false, false]
+	for side: int in range(4):
+		open[side] = (index & CARDINALS[side]) == 0
+	# Contre de la ROCHE, la surface se tait : c'est le flanc de la falaise qui trace.
+	if (brink & 1) != 0:
+		open[1] = false
+	if (brink & 2) != 0:
+		open[3] = false
+	# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
+	# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
+	# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
+	# MEME frontiere, et c'est le chapiteau qui la porte -- lui seul sait de quelle face il
+	# s'agit. Mesure : 780 doublements sans cette regle, 196 avec.
+	#
+	# ⚠ ET IL NE VAUT PAS A L0 NI A L1, dont les mondes n'ont pas de falaise : un sud vide
+	# y est une vraie frontiere libre, que personne d'autre ne tracera. L'appliquer partout
+	# a fait rougir les SIX couples acquis d'un coup -- c'est le rejeu qui l'a dit, pas moi.
+	# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
+	# ⚠ RIEN AU SUD, ET RENDRE LE SUD A ETE ESSAYE : 222 -> 669 extremites, 288
+	# doublements, 11 388 parasites. Le bord sud d'une case et le bord NORD de celle d'en
+	# dessous sont LA MEME frontiere -- l'une des deux doit se taire, et c'est le sud, dont
+	# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
+	if level >= 2:
+		open[2] = false
+	# ⚠ ET SOUS UNE FACE, LA SURFACE SE TAIT AU NORD -- symetrique exact du bord lateral.
+	# Le bas du PIED et mon bord nord sont la meme frontiere ; le pied la porte, parce que
+	# son bas referme le contour de la falaise et que rien d'autre ne le peut.
+	if (brink & NORTH_QUIET) != 0:
+		open[0] = false
+	return open
 
 
 ## LES ROBES : meme fabrique, autres bords ouverts.
@@ -781,33 +815,39 @@ func _muted(tile: Image) -> Image:
 	return out
 
 
-func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
+func _wall_tiles(roles: Dictionary, freedom: int, seed_of: Dictionary) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
-		var give: int = 0
-		var role: Vector2i = Vector2i.ZERO
-		if _j2_on_face:
-			var wide: Vector3i = key as Vector3i
-			role = Vector2i(wide.x, wide.y)
-			give = wide.z
-		else:
-			role = key as Vector2i
-		# ⚠ ET LE BAS DU PIED RESTE, APRES L'AVOIR RETIRE ET MESURE. Le raisonnement etait
-		# symetrique de celui de la levre : un pied ATTERRIT toujours, la case d'atterrissage a
-		# forcement son nord vide, donc le bas du pied et ce bord nord sont la meme frontiere
-		# et la surface pourrait la porter seule. Essaye : 12 doublements de moins, mais 128
-		# EXTREMITES DE PLUS -- le bas du pied est ce qui referme le contour de la falaise a sa
-		# base, et sans lui les deux flancs s'arretent dans le vide.
-		var open: Array[bool] = [role.y == Walls.ROW_CROWN,
-				Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
-				role.y == Walls.ROW_FOOT and (give & 4) == 0,
-				Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0]
-		# ESSAI : les bords d'une robe AU RAS de sa case.
-		var tile: Image = _shape(open, freedom, ROCK, -1, 0, false, true)
-		# L'ERGOT DE ROBE : le long du bord HAUT, depuis le coin du cote concerne, jusqu'a la
-		# profondeur ou la case du dessus a laisse son trait.
-		tiles[key] = tile
+		var open: Array[bool] = _wall_open(key)
+		var seams: Array[int] = []
+		for side: int in range(4):
+			seams.append(int(seed_of.get(_node("W", key, side), 0)))
+		tiles[key] = _shape(open, freedom, ROCK, -1, 0, false, true, seams)
 	return tiles
+
+
+## LES COTES OUVERTS D'UNE ROBE : la CRETE en haut du chapiteau, le PIED en bas de la derniere
+## rangee, et les flancs qui S'ARRETENT. Partout ailleurs la roche continue chez la voisine.
+##
+## ⚠ ET LE BAS DU PIED RESTE, APRES L'AVOIR RETIRE ET MESURE. Le raisonnement etait symetrique
+## de celui de la levre : un pied ATTERRIT toujours, la case d'atterrissage a forcement son nord
+## vide, donc le bas du pied et ce bord nord sont la meme frontiere et la surface pourrait la
+## porter seule. Essaye : 12 doublements de moins, mais 128 EXTREMITES DE PLUS -- le bas du pied
+## est ce qui referme le contour de la falaise a sa base, et sans lui les deux flancs s'arretent
+## dans le vide.
+func _wall_open(key: Variant) -> Array[bool]:
+	var role: Vector2i = Vector2i.ZERO
+	var give: int = 0
+	if _j2_on_face:
+		var wide: Vector3i = key as Vector3i
+		role = Vector2i(wide.x, wide.y)
+		give = wide.z
+	else:
+		role = key as Vector2i
+	return [role.y == Walls.ROW_CROWN,
+			Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
+			role.y == Walls.ROW_FOOT and (give & 4) == 0,
+			Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0]
 
 
 ## LA FABRIQUE : la matiere que les quatre profils laissent, puis son bord.
@@ -834,13 +874,13 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 ## La profondeur d'un bord LATERAL, qui tombe a zero a son premier pixel quand la case du
 ## dessus s'est tue de ce cote : la frontiere y est portee par le flanc d'une robe, une case
 ## plus haut et une colonne plus loin, et il faut aller le toucher au coin.
-func _side_depth(side: int, along: int, freedom: int, quiet: int) -> int:
+func _side_depth(side: int, along: int, freedom: int, quiet: int, seam: int = 0) -> int:
 	if along == 0:
 		if side == 1 and (quiet & ABOVE_QUIET_EAST) != 0:
 			return 0
 		if side == 3 and (quiet & ABOVE_QUIET_WEST) != 0:
 			return 0
-	return _depth(side, along, freedom)
+	return _depth(side, along, freedom, seam)
 
 
 ## LE PINCEMENT AUX DEUX TRAVERSEES : la loi du moindre ras.
@@ -856,7 +896,7 @@ func _side_depth(side: int, along: int, freedom: int, quiet: int) -> int:
 ##
 ## Premiere formulation, trop forte : « les bords d'une face sont les bords de sa case ». Elle
 ## fermait bien (222 -> 43) mais confisquait toute la liberte du dessin de falaise.
-func _wall_depth(side: int, along: int, freedom: int) -> int:
+func _wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 	if freedom == 0:
 		return 0
 	var first: int = 0
@@ -874,14 +914,17 @@ func _wall_depth(side: int, along: int, freedom: int) -> int:
 	# rencontre qui doit se regler, pas l'une des deux qui doit ceder.
 	if along <= first or along >= last or last <= first:
 		return 0
-	var seed: int = absi((side + 1) * 19349663)
+	var seed: int = absi((side + 1 + 7 * seam) * 19349663)
 	var reach: float = float(1 + seed % 3)
 	var t: float = float(along - first) / float(last - first)
 	return int(round(reach * sin(PI * t)))
 
 
 func _shape(open: Array[bool], freedom: int, body: Color, index: int,
-		quiet: int = 0, flat_north: bool = false, wall: bool = false) -> Image:
+		quiet: int = 0, flat_north: bool = false, wall: bool = false,
+		seams: Array[int] = []) -> Image:
+	while seams.size() < 4:
+		seams.append(0)
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var solid: Array[PackedByteArray] = []
 	for y: int in range(RES):
@@ -889,13 +932,17 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 		line.resize(RES)
 		for x: int in range(RES):
 			var inside: bool = true
-			if open[0] and y < (_wall_depth(0, x, freedom) if wall else (0 if flat_north else _depth(0, x, freedom))):
+			if open[0] and y < (_wall_depth(0, x, freedom, seams[0]) if wall
+					else (0 if flat_north else _depth(0, x, freedom, seams[0]))):
 				inside = false
-			if open[1] and x > RES - 1 - (_wall_depth(1, y, freedom) if wall else _side_depth(1, y, freedom, quiet)):
+			if open[1] and x > RES - 1 - (_wall_depth(1, y, freedom, seams[1]) if wall
+					else _side_depth(1, y, freedom, quiet, seams[1])):
 				inside = false
-			if open[2] and y > RES - 1 - (_wall_depth(2, x, freedom) if wall else _depth(2, x, freedom)):
+			if open[2] and y > RES - 1 - (_wall_depth(2, x, freedom, seams[2]) if wall
+					else _depth(2, x, freedom, seams[2])):
 				inside = false
-			if open[3] and x < (_wall_depth(3, y, freedom) if wall else _side_depth(3, y, freedom, quiet)):
+			if open[3] and x < (_wall_depth(3, y, freedom, seams[3]) if wall
+					else _side_depth(3, y, freedom, quiet, seams[3])):
 				inside = false
 			line[x] = 1 if inside else 0
 		solid.append(line)
@@ -1000,7 +1047,11 @@ func _stub(tile: Image, along: int, from: int, length: int) -> void:
 ## tuiles qui se suivent le long d'un bord se retrouvent a leur frontiere ; si elles n'y
 ## arrivent pas a la meme profondeur, le trait se rompt. Entre ces deux points la ligne fait
 ## ce qu'elle veut -- c'est ca, la liberte de F2, et elle est entiere.
-func _depth(side: int, along: int, freedom: int) -> int:
+## ⚠ LA GRAINE CHANGE LE VENTRE, JAMAIS LA TRAVERSEE. Les deux bouts d'un bord valent la
+## traversee canonique de sa famille, et c'est ce qui le fait rencontrer son voisin colineaire
+## a la frontiere commune, quelle que soit sa classe. Ce qui reste libre est ce qu'il y a entre
+## les deux -- et c'est ca que la classe fait varier.
+func _depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 	if freedom == 0:
 		return 0
 	# ⚠ ET LA TRAVERSEE VAUT AU MOINS DEUX. L'ergot de coin rentrant se pose au RAS du bord --
@@ -1027,7 +1078,7 @@ func _depth(side: int, along: int, freedom: int) -> int:
 	#
 	# ⚠ Et tiree, pas au hasard : deux executions doivent donner la meme image, sans quoi le
 	# banc ne dit plus si un correctif a servi.
-	var seed: int = absi((side + 1) * 19349663)
+	var seed: int = absi((side + 1 + 7 * seam) * 19349663)
 	var reach: float = float(1 + seed % 3)
 	var skew: float = 0.7 + 0.6 * float(seed % 101) / 100.0
 	var t: float = float(along) / float(RES - 1)
@@ -1073,6 +1124,166 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		var rock: Image = role_tiles[roles[cell]] as Image
 		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 	return canvas
+
+
+# ------------------------------------------------------------------ L4 : LES RACCORDS
+
+## LE NOM D'UN BORD : une famille, une tuile, un cote. C'est l'unite dont on cherche les
+## classes -- ce qui doit etre le MEME dessin d'une tuile a l'autre.
+func _node(kind: String, key: Variant, side: int) -> String:
+	if kind == "S":
+		return "S%d/%d" % [int(key), side]
+	var role: Vector2i = Vector2i(key) if not _j2_on_face else Vector2i((key as Vector3i).x,
+			(key as Vector3i).y)
+	return "W%d.%d/%d" % [role.x, role.y, side]
+
+
+func _root(parent: Dictionary, node: String) -> String:
+	var at: String = node
+	while String(parent[at]) != at:
+		at = String(parent[at])
+	var walk: String = node
+	while String(parent[walk]) != at:
+		var next: String = String(parent[walk])
+		parent[walk] = at
+		walk = next
+	return at
+
+
+func _join(parent: Dictionary, a: String, b: String) -> void:
+	if not parent.has(a):
+		parent[a] = a
+	if not parent.has(b):
+		parent[b] = b
+	var ra: String = _root(parent, a)
+	var rb: String = _root(parent, b)
+	if ra != rb:
+		parent[ra] = rb
+
+
+## LE RECENSEMENT DES RACCORDS -- DEPUIS LE MONDE, JAMAIS DEPUIS UNE FORMULE.
+##
+## ⚠ C'EST LA LECON LA PLUS CHERE DU DEPOT, ET ELLE EST ECRITE AU DOSSIER : `Seams` deduisait
+## ses classes de `row_for` au lieu de les lire du monde, et ignorait 60 jonctions sur 109 --
+## l'illustration cassait aux 60, pendant que la suite etait verte.
+##
+## DEUX RELATIONS, ET ELLES SE MESURENT TOUTES LES DEUX :
+##
+##   SUPERPOSITION -- dans une meme case, plusieurs tuiles empilees tracent le meme bord. Si
+##   elles ne le tracent pas pareil, le trait se dedouble. C'est le defaut deja mesure a
+##   L1/F2 : « deux silhouettes d'etages differents peuvent s'arreter au MEME endroit -- la
+##   pile, jusqu'a trois sur la planche -- et chacune y trace son bord », 6 paves.
+##
+##   CONTINUATION -- deux cases cote a cote tracent le meme bord, qui se prolonge de l'une a
+##   l'autre. Leurs deux traits doivent se rejoindre a la frontiere commune.
+##
+## ⚠ ET LA CONTINUATION N'IMPOSE QUE LES DEUX BOUTS, PAS TOUT LE BORD. Deux segments
+## colineaires dans deux cases differentes n'ont a se rejoindre qu'AU POINT ou ils se
+## touchent. C'est la traversee, et c'est ce qui laisse le milieu libre.
+func _seam_classes(storeys: Array[Dictionary], roles: Dictionary, level: int,
+		join_continuation: bool) -> Dictionary:
+	var parent: Dictionary = {}
+	var cells: Dictionary = {}
+	for storey: int in range(storeys.size()):
+		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
+			cells[cell] = true
+	for cell: Vector2i in roles.keys():
+		cells[cell] = true
+
+	# La pile de chaque case, dans l'ordre du dessin, et les cotes que chacune trace.
+	var stacks: Dictionary = {}
+	for cell: Vector2i in cells.keys():
+		var stack: Array = []
+		for storey: int in range(storeys.size()):
+			var map: Dictionary = storeys[storey]
+			if map.has(cell):
+				stack.append(["S", map[cell], _surface_open(int(map[cell]), level)])
+		if roles.has(cell):
+			stack.append(["W", roles[cell], _wall_open(roles[cell])])
+		stacks[cell] = stack
+		for entry: Array in stack:
+			var open: Array[bool] = entry[2]
+			for side: int in range(4):
+				if not open[side]:
+					continue
+				var node: String = _node(String(entry[0]), entry[1], side)
+				if not parent.has(node):
+					parent[node] = node
+
+	# ⚠ ON COMPTE LES RELATIONS OBSERVEES, PAS LES FUSIONS EFFECTUEES. Premiere version : on
+	# n'incrementait que quand l'union changeait quelque chose -- donc le compte dependait de
+	# l'ORDRE des cases, et la superposition annoncait ZERO lien sur un monde a quatre etages
+	# qui en est plein. Un compteur qui ne mesure pas ce qu'il pretend mesurer.
+	var superposed: int = 0
+	var continued: int = 0
+	var crossed: int = 0
+	var witness: Array[String] = []
+	for cell: Vector2i in cells.keys():
+		var stack: Array = stacks[cell]
+		# SUPERPOSITION : tout ce qui trace le meme cote dans la meme case.
+		for side: int in range(4):
+			var first: String = ""
+			for entry: Array in stack:
+				if not (entry[2] as Array[bool])[side]:
+					continue
+				var node: String = _node(String(entry[0]), entry[1], side)
+				if first.is_empty():
+					first = node
+				else:
+					superposed += 1
+					_join(parent, first, node)
+		# CONTINUATION : la meme frontiere qui se prolonge chez la voisine. On ne regarde que
+		# l'est et le sud -- l'autre sens est le meme raccord, vu de l'autre cote.
+		for step: int in range(2 if join_continuation else 0):
+			var toward: Vector2i = Vector2i.RIGHT if step == 0 else Vector2i.DOWN
+			var near: Vector2i = cell + toward
+			if not stacks.has(near):
+				continue
+			var sides: Array[int] = []
+			sides.assign([0, 2] if step == 0 else [1, 3])
+			for side: int in sides:
+				for here: Array in stack:
+					if not (here[2] as Array[bool])[side]:
+						continue
+					for there: Array in (stacks[near] as Array):
+						if not (there[2] as Array[bool])[side]:
+							continue
+						continued += 1
+						# ⚠ ET ON GARDE LES LIENS QUI TRAVERSENT LES FAMILLES. Ce sont eux
+						# qui decident si une surface et une robe doivent se ressembler ; le
+						# reste de la cloture les emporte sans qu'on sache d'ou ils viennent.
+						if String(here[0]) != String(there[0]):
+							crossed += 1
+							if witness.size() < 6:
+								witness.append("%s en %d,%d contre %s en %d,%d, bord %s"
+										% [String(here[0]), cell.x, cell.y,
+										String(there[0]), near.x, near.y, SIDE_NAMES[side]])
+						_join(parent, _node(String(here[0]), here[1], side),
+								_node(String(there[0]), there[1], side))
+
+	var classes: Dictionary = {}
+	for node: String in parent.keys():
+		var root: String = _root(parent, node)
+		if not classes.has(root):
+			classes[root] = PackedStringArray()
+		var members: PackedStringArray = classes[root]
+		members.append(node)
+		classes[root] = members
+	# LA GRAINE D'UNE CLASSE : un entier stable, pour que le trait en depende. C'est ce qui
+	# transforme le recensement en experience -- si le dessin varie par classe et que les six
+	# invariants restent verts, alors la liberte mesuree est REELLE.
+	var seed_of: Dictionary = {}
+	var rank: int = 0
+	var roots: Array[String] = []
+	roots.assign(classes.keys())
+	roots.sort()
+	for root: String in roots:
+		for node: String in (classes[root] as PackedStringArray):
+			seed_of[node] = rank
+		rank += 1
+	return {"parent": parent, "bords": parent.size(), "classes": classes.size(),
+			"membres": classes, "superposition": superposed, "continuation": continued,
+			"croises": crossed, "temoins": witness, "graine": seed_of}
 
 
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
