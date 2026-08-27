@@ -24,6 +24,10 @@ const Coverage := preload("res://core/coverage.gd")
 const Thickness := preload("res://core/thickness.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const Families := preload("res://core/families.gd")
+const MaskIO := preload("res://core/mask_io.gd")
+
+## La planche relue une fois, gardee pour le fond de contexte des images.
+static var _board: PackedStringArray = PackedStringArray()
 
 const RES: int = 16
 ## ⚠ LES COULEURS SONT CELLES D'UNE PREUVE, PAS D'UN PAYSAGE. Le premier jeu prenait la
@@ -40,7 +44,7 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -116,8 +120,8 @@ func _run(couple: String) -> bool:
 	var freedom: int = int(parts[1].substr(1))
 	print("=== %s ===" % couple)
 
-	var mask: PackedStringArray = _world(level)
-	if mask.is_empty():
+	var world: PackedStringArray = _world(level)
+	if world.is_empty():
 		push_error("ladder: niveau L%d pas encore batissable." % level)
 		return false
 	# ⚠ `index_at` PREND UN MASQUE BINAIRE, `index_map` PREND UN RELIEF. Le second calcule les
@@ -125,26 +129,42 @@ func _run(couple: String) -> bool:
 	# case du cadre, vide comprise : premier essai, 3 339 cases de « matiere » sur un monde qui
 	# en compte 1 323, et 9 silhouettes exercees sur 27. Un banc qui se trompe de fonction
 	# mesure un autre monde que celui qu'il annonce.
+	# Une silhouette par etage, du bas vers le haut. C'est tout ce que le dessin connait.
+	var top: int = 0
+	for y: int in range(HeightMask.height(world)):
+		for x: int in range(HeightMask.width(world)):
+			top = maxi(top, HeightMask.level_at(world, x, y))
+	var storeys: Array[Dictionary] = []
+	for storey: int in range(top + 1):
+		var mask: PackedStringArray = HeightMask.silhouette(world, storey)
+		var map: Dictionary = {}
+		for y: int in range(HeightMask.height(mask)):
+			for x: int in range(HeightMask.width(mask)):
+				if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
+					continue
+				# Le voisinage BRUT, pas l'index canonique -- et c'est le prix de F1. La
+				# canonicalisation JETTE une diagonale des que ses deux cardinaux sont pleins :
+				# vrai du remplissage, faux du TRAIT, car c'est exactement la que le bord fait
+				# une marche, et la case qui la porte est la seule a pouvoir la tracer.
+				map[Vector2i(x, y)] = Coverage.raw_neighbourhood(mask, x, y)
+		storeys.append(map)
+
+	# La carte VISIBLE : chaque case porte la tuile de SON etage, celle qu'on voit de dessus.
 	var indices: Dictionary = {}
-	for y: int in range(HeightMask.height(mask)):
-		for x: int in range(HeightMask.width(mask)):
-			if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
+	for y: int in range(HeightMask.height(world)):
+		for x: int in range(HeightMask.width(world)):
+			var here: int = HeightMask.level_at(world, x, y)
+			if here < 0:
 				continue
-			# ⚠ LE VOISINAGE BRUT, PAS L'INDEX CANONIQUE -- et c'est le prix de F1, mesure
-			# plus bas. La canonicalisation JETTE une diagonale des que ses deux cardinaux
-			# sont pleins : « un coin diagonal isole ne change pas la silhouette ». C'est vrai
-			# du remplissage, et faux du TRAIT -- c'est exactement la ou le bord fait une
-			# marche, et la case qui la porte est la seule a pouvoir la tracer.
-			indices[Vector2i(x, y)] = Coverage.raw_neighbourhood(mask, x, y)
+			indices[Vector2i(x, y)] = int((storeys[here] as Dictionary)[Vector2i(x, y)])
 	var vocabulary: Dictionary = {}
-	for cell: Vector2i in indices.keys():
-		vocabulary[int(indices[cell])] = true
-	print("  monde : %d x %d, %d cases de matiere, %d silhouettes distinctes"
-			% [HeightMask.width(mask), HeightMask.height(mask), indices.size(),
+	for storey: int in range(storeys.size()):
+		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
+			vocabulary[int((storeys[storey] as Dictionary)[cell])] = true
+
+	print("  monde : %d x %d, %d etage(s), %d cases visibles, %d tuiles a peindre"
+			% [HeightMask.width(world), HeightMask.height(world), top + 1, indices.size(),
 			vocabulary.size()])
-	# ⚠ ON DIT CE QUE LE MONDE COUVRE, ET ON L'EXIGE. Un banc qui tournerait sur un monde
-	# n'exercant que trois silhouettes serait vert sans rien prouver -- exactement la faute
-	# deja payee : « une battue qui ne rencontre aucun des douze roles ne prouve rien ».
 	var canonical: Dictionary = {}
 	for cell: Vector2i in indices.keys():
 		canonical[BlobIndex.canonicalize(int(indices[cell]))] = true
@@ -155,9 +175,9 @@ func _run(couple: String) -> bool:
 			vocabulary.size()])
 
 	var tiles: Dictionary = _paint(vocabulary, freedom)
-	var image: Image = _assemble(mask, indices, tiles)
+	var image: Image = _assemble(world, storeys, tiles)
 	_write(image, couple)
-	var report: Dictionary = _measure(image, mask, indices, tiles, freedom)
+	var report: Dictionary = _measure(image, world, indices, tiles, freedom)
 	var ok: bool = complete
 	for key: String in ["I1", "I2", "I3", "I4", "I5"]:
 		var line: Dictionary = report[key]
@@ -170,31 +190,38 @@ func _run(couple: String) -> bool:
 
 # ------------------------------------------------------------------ LE MONDE
 
-## L0 : UN SEUL MASQUE BINAIRE. Pas d'etage empile, pas de falaise, pas de pose arriere.
-## Chaque frontiere n'a qu'UN revendiquant : la seule tuile qui la touche.
+## LE MONDE DE CHAQUE NIVEAU, toujours rendu comme un RELIEF -- une hauteur par case, le vide
+## a -1. L0 n'en a qu'un etage, L1 en a plusieurs ; le reste du banc ne voit que des
+## silhouettes d'etage, et ne change pas.
 ##
-## Le monde est la SILHOUETTE D'ETAGE de la planche de preuve : un ilot par silhouette, batis
-## pour ca. Lue a l'etage 1, la planche rend donc un masque binaire qui exerce les 27, et rien
-## d'autre. Mesure : 1 347 cases, 42 massifs, 27 / 27.
+## L0 : UN SEUL MASQUE BINAIRE. Pas d'etage empile, pas de falaise, pas de pose arriere --
+## chaque frontiere n'a qu'UN revendiquant. Le masque est la silhouette d'etage 1 de la planche
+## de preuve : un ilot par silhouette, batis pour ca, donc 27 / 27 exercees.
 ##
-## ⚠ ET J'AI ESSAYE DE LES BATIR ICI, C'ETAIT FAUX. L'ilot « etire » -- chaque case prend
-## l'etat de la case de fenetre la plus proche vers le centre -- ne suffit PAS : la colonne du
-## milieu d'une fenetre ne s'etire pas, elle reste large d'une case. L'index 5 (N+E) y devient
-## une equerre d'un pixel de large, donc FINE, et l'ilot fabrique alors des silhouettes hors
-## vocabulaire. Mesure : 33 silhouettes exercees pour 27 annoncees.
+## Et j'ai essaye de les batir ici, c'etait faux. L'ilot « etire » -- chaque case prend l'etat
+## de la case de fenetre la plus proche vers le centre -- ne suffit PAS : la colonne du milieu
+## d'une fenetre ne s'etire pas, elle reste large d'une case. L'index 5 (N+E) y devient une
+## equerre d'un pixel de large, donc FINE, et l'ilot fabrique alors des silhouettes hors
+## vocabulaire : 33 exercees pour 27 annoncees. La construction du depot, elle, CHERCHE une
+## position et la juge.
 ##
-## La construction du depot, elle, CHERCHE une position et la juge -- epaisse ? le centre
-## porte-t-il la tuile annoncee ? reste-t-elle peignable ? C'est la lecon deja ecrite au
-## dossier : « le relief se decrit accident par accident, jamais en ASCII ». Elle valait aussi
-## pour moi.
-static var _board: PackedStringArray = PackedStringArray()
-
-
+## L1 : LA PLANCHE ENTIERE, avec ses etages. Une case appartient a toutes les silhouettes sous
+## son sommet, et chacune y pose sa tuile. C'est la que plusieurs tuiles peuvent revendiquer
+## une meme frontiere -- ce que L0 ne pouvait pas produire.
 func _world(level: int) -> PackedStringArray:
+	_board = ProofScene.relief(Families.BY_CELL)
+	if level == 1:
+		return _board
 	if level != 0:
 		return PackedStringArray()
-	_board = ProofScene.relief(Families.BY_CELL)
-	return HeightMask.silhouette(_board, 1)
+	var flat: PackedStringArray = HeightMask.silhouette(_board, 1)
+	var out: PackedStringArray = PackedStringArray()
+	for y: int in range(flat.size()):
+		var line: String = ""
+		for x: int in range(flat[y].length()):
+			line += "0" if flat[y][x] == MaskIO.FILLED_CHAR else "~"
+		out.append(line)
+	return out
 
 
 # ------------------------------------------------------------------ LE DESSIN
@@ -354,22 +381,27 @@ func _depth(index: int, side: int, along: int, freedom: int) -> int:
 	return crossing + int(round(reach * sin(PI * pow(t, skew))))
 
 
-## L0 : une tuile par case, et rien d'autre. L'empilement, les falaises et les poses arriere
-## sont les niveaux suivants ; les poser ici serait mesurer autre chose que L0.
-func _assemble(mask: PackedStringArray, indices: Dictionary, tiles: Dictionary) -> Image:
-	var width: int = HeightMask.width(mask)
-	var height: int = HeightMask.height(mask)
-	var canvas: Image = Image.create_empty(width * RES, height * RES, false,
-			Image.FORMAT_RGBA8)
-	for cell: Vector2i in indices.keys():
-		var tile: Image = tiles[int(indices[cell])]
-		canvas.blit_rect(tile, Rect2i(0, 0, RES, RES), cell * RES)
+## L'EMPILEMENT : une tuile par etage et par case, du bas vers le haut.
+##
+## Et c'est la regle du depot, pas une invention du banc : « on dessine du bas vers le haut,
+## chaque couche recouvrant la precedente ». A L0 il n'y a qu'un etage, donc une tuile par
+## case ; a L1 la case en porte autant que d'etages sous son sommet, et ce qui depasse par
+## l'entaille du dessus est ce que l'etage d'en dessous a peint.
+static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
+		tiles: Dictionary) -> Image:
+	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
+			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
+	for storey: int in range(storeys.size()):
+		var map: Dictionary = storeys[storey]
+		for cell: Vector2i in map.keys():
+			var tile: Image = tiles[int(map[cell])]
+			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES)
 	return canvas
 
 
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
 
-func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles: Dictionary,
+func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
 		freedom: int) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
@@ -379,10 +411,16 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 	var strokes: int = _components(image, true)
 	var massifs: int = _components(image, false)
 	var holes: int = _holes(image, width, height)
-	# ⚠ ET LE COMPTE DE MORCEAUX NE SUFFIT PAS : un contour ferme AVEC UN ERGOT reste d'un
-	# seul morceau. Mesure : 42 morceaux pour 42 massifs, et 332 extremites quand meme. Un
-	# trait d'un pixel qui se referme n'en a AUCUNE -- c'est ca, « sans interruption ».
-	var i1: bool = strokes == massifs + holes
+	# ⚠ LE CRITERE EST ZERO EXTREMITE, ET LE COMPTE DE MORCEAUX N'EST QU'UN RENSEIGNEMENT.
+	# Deux raisons, apprises l'une apres l'autre :
+	#   - un contour ferme AVEC UN ERGOT reste d'un seul morceau. 42 morceaux pour 42 massifs,
+	#     et 332 extremites quand meme ;
+	#   - et des L1 le monde est d'un SEUL tenant avec des plateaux dedans : chaque bord de
+	#     plateau est un contour ferme de plus, a l'interieur. 38 morceaux pour 1 massif, et
+	#     c'est juste. Compter les morceaux reviendrait a compter les marches du relief.
+	# Ce qui reste vrai a tous les niveaux, et c'est le mot demande : SANS INTERRUPTION. Un
+	# trait d'un pixel qui se referme n'a aucune extremite.
+	var i1: bool = true
 	# ⚠ ET ON DIT OU LE TRAIT S'ARRETE. Un compte de morceaux dit qu'il y a une rupture, pas
 	# ou -- et sans le « ou » on corrige au juge. Un trait d'un pixel qui se ferme n'a aucune
 	# extremite : chaque pixel y a deux voisins. Une extremite est donc exactement un pixel
@@ -425,7 +463,7 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 				thick_where.append("%d,%d" % [x / RES, y / RES])
 
 	# I3 UNICITE. Chaque frontiere du monde est tracee par EXACTEMENT une tuile.
-	var claims: Dictionary = _claims(image, mask, indices)
+	var claims: Dictionary = _claims(image, world, indices)
 	var i3: bool = int(claims["doubles"]) == 0 and int(claims["muettes"]) == 0 \
 			and int(claims["parasites"]) == 0
 
@@ -486,14 +524,14 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 			i5 = wavy > 0
 
 	return {
-		"I1": {"nom": "fermeture", "ok": i1 and end_count == 0,
-				"dit": "%d morceaux pour %d massifs + %d trous, %d extremites %s"
-				% [strokes, massifs, holes, end_count, str(ends)]},
+		"I1": {"nom": "fermeture", "ok": end_count == 0,
+				"dit": "%d extremites %s   (%d morceaux, %d massifs, %d trous)"
+				% [end_count, str(ends), strokes, massifs, holes]},
 		"I2": {"nom": "epaisseur", "ok": thick == 0,
 				"dit": "%d pave(s) 2x2 de trait %s" % [thick, str(thick_where)]},
 		"I3": {"nom": "unicite", "ok": i3,
-				"dit": "%d frontieres, %d doubles, %d muettes, %d parasites  %s"
-				% [int(claims["frontieres"]), int(claims["doubles"]),
+				"dit": "%d frontieres (pile max %d), %d doubles, %d muettes, %d parasites  %s"
+				% [int(claims["frontieres"]), int(claims["pile"]), int(claims["doubles"]),
 				int(claims["muettes"]), int(claims["parasites"]), str(claims["ou"])]},
 		"I4": {"nom": "matiere", "ok": pierced == 0,
 				"dit": "%d pixel(s) de fond dans une case sans bord" % pierced},
@@ -505,6 +543,18 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 
 ## QUI TRACE CHAQUE FRONTIERE ? Le coeur du banc, et le fil de tout le plan.
 ##
+## ⚠ UNE FRONTIERE EST UNE MARCHE ENTRE DEUX ETAGES, pas « de la matiere contre rien ». A L0
+## il n'y a qu'un etage, donc les deux definitions coincident et la premiere suffisait. Des
+## L1, deux cases voisines de niveaux differents sont TOUTES DEUX de la matiere vue de dessus,
+## et pourtant la silhouette du haut s'arrete la : c'est une vraie frontiere, et le bord du
+## plateau doit s'y tracer. La premiere definition en faisait 1 105 « parasites » sur un monde
+## parfaitement juste.
+##
+## La marche appartient a la case du HAUT -- c'est sa silhouette qui s'arrete -- donc on ne la
+## compte qu'une fois, depuis elle. Et `pile` dit de combien d'etages elle tombe : c'est le
+## nombre de silhouettes qui s'arretent au meme endroit, donc le nombre de tuiles qui
+## POURRAIENT vouloir la tracer.
+##
 ## Une frontiere est une arete entre deux cases dont l'une porte de la matiere et l'autre non.
 ## On compte, de chaque cote, si la tuile pose du trait sur la ligne qui borde cette arete :
 ##   deux -> le trait est DOUBLE (les lentilles, les demi-ovales, les ovales) ;
@@ -515,31 +565,40 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 ## ⚠ LA DEFINITION S'ELARGIRA A F1. Au ras du bord, « tracer » se lit sur la ligne du bord ;
 ## des que le trait a le droit de rentrer, il faudra le chercher plus loin dans la tuile. La
 ## regle, elle, ne bouge pas : exactement un revendiquant par frontiere.
-func _claims(image: Image, mask: PackedStringArray, indices: Dictionary) -> Dictionary:
-	var width: int = HeightMask.width(mask)
-	var height: int = HeightMask.height(mask)
+func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dictionary:
+	var width: int = HeightMask.width(world)
+	var height: int = HeightMask.height(world)
 	var frontiers: int = 0
 	var doubles: int = 0
 	var mutes: int = 0
 	var parasites: int = 0
+	var deepest: int = 0
 	var witness: Array[String] = []
 	for cell: Vector2i in indices.keys():
+		var here: int = HeightMask.level_at(world, cell.x, cell.y)
 		for side: int in range(4):
 			var probe: Vector2i = cell + STEPS[side]
-			var inside: bool = probe.x >= 0 and probe.y >= 0 					and probe.x < width and probe.y < height
+			var beyond: int = -1
+			if probe.x >= 0 and probe.y >= 0 and probe.x < width and probe.y < height:
+				beyond = HeightMask.level_at(world, probe.x, probe.y)
 			var mine: bool = _draws(image, cell, side)
-			var theirs: bool = inside and _draws(image, probe, (side + 2) % 4)
-			if indices.has(probe):
-				# Une arete INTERIEURE ne se voit qu'une fois : on la regarde depuis l'est et
-				# le sud, jamais depuis les quatre cotes.
+			var theirs: bool = false
+			if beyond >= 0:
+				theirs = _draws(image, probe, (side + 2) % 4)
+			if here == beyond:
+				# Une arete INTERIEURE ne se voit qu'une fois : depuis l'est et le sud.
 				if side != 1 and side != 2:
 					continue
 				if mine or theirs:
 					parasites += 1
 					if witness.size() < 3:
-						witness.append("%d,%d" % [cell.x, cell.y])
+						witness.append("%d,%d parasite" % [cell.x, cell.y])
+				continue
+			if here < beyond:
+				# La marche appartient a la case du HAUT : on la comptera depuis elle.
 				continue
 			frontiers += 1
+			deepest = maxi(deepest, here - beyond)
 			var claimants: int = (1 if mine else 0) + (1 if theirs else 0)
 			if claimants == 0:
 				mutes += 1
@@ -550,10 +609,9 @@ func _claims(image: Image, mask: PackedStringArray, indices: Dictionary) -> Dict
 				if witness.size() < 3:
 					witness.append("%d,%d double" % [cell.x, cell.y])
 	return {"frontieres": frontiers, "doubles": doubles, "muettes": mutes,
-			"parasites": parasites, "ou": witness}
+			"parasites": parasites, "pile": deepest, "ou": witness}
 
 
-## Cette case pose-t-elle du trait sur la ligne qui borde ce cote ?
 ## ⚠ ON SONDE PERPENDICULAIREMENT, AU MILIEU DU COTE -- et pas la ligne du bord.
 ##
 ## A F0 le trait est au ras, donc le lire sur la ligne du bord suffisait. Des que le trait a

@@ -126,7 +126,20 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L0/F0** | **✅ acquis** | 27/27 silhouettes · 42 contours pour 42 massifs, **0 extrémité** · 0 pavé 2×2 · 1 086 frontières, 0 double, 0 muette, 0 parasite · 0 trou · 1 profil |
 | **L0/F1** | **✅ acquis** | idem, **8 profils de bord distincts** — la liberté latérale est réelle. Prix : **44 tuiles pour 27 silhouettes** |
 | **L0/F2** | **✅ acquis** | idem, **26 profils distincts dont 33 qui serpentent** — le trait est libre à l'intérieur |
-| L1/F0… | à faire | |
+| **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **45 tuiles** |
+| L1/F1 | à faire | |
+| L1/F2 | à faire | |
+| L2/F0… | à faire | |
+
+### Ce que L1/F0 dit, et c'est un résultat en soi
+
+⚠ **À F0, L'EMPILEMENT EST INVISIBLE.** Jusqu'à **trois** silhouettes s'arrêtent au même bord
+— c'est la « pile » — et pourtant **un seul trait** s'y voit : au ras du bord, les trois
+coïncident au pixel près. Le témoin dit donc que le **modèle** est sain à L1 ; tout ce qui
+cassera à L1/F1 sera de la main, pas du modèle. C'est exactement ce que F0 existe pour dire.
+
+⚠ **Et le vocabulaire ne bouge presque pas : 44 → 45 tuiles.** L1 n'ajoute qu'un voisinage
+brut que L0 ne rencontrait pas. Les silhouettes, elles, restent 27.
 
 ### Ce que L0/F1 a coûté, et pourquoi
 
@@ -169,6 +182,21 @@ découper à la main partout où deux côtés se rencontrent — et c'est exacte
 dépassait, en ergot, à chaque coin saillant. Déduit, il épouse la matière par construction.
 Tout ce qu'il faut savoir en plus est **local** : au-delà d'un cardinal plein il y a de la
 matière, au-delà d'un cardinal vide il n'y a rien.
+
+### Deux définitions du banc que L1 a périmées
+
+⚠ **UNE FRONTIÈRE EST UNE MARCHE ENTRE DEUX ÉTAGES**, pas « de la matière contre rien ». À L0
+il n'y a qu'un étage, donc les deux définitions coïncident et la première suffisait. Dès L1,
+deux cases voisines de niveaux différents sont **toutes deux** de la matière vue de dessus, et
+pourtant la silhouette du haut s'arrête là : c'est une vraie frontière, et le bord du plateau
+doit s'y tracer. L'ancienne définition en faisait **1 105 « parasites »** sur un monde
+parfaitement juste.
+
+⚠ **ET LE COMPTE DE CONTOURS N'EST PLUS UN CRITÈRE**, seulement un renseignement. Dès L1 le
+monde est d'un **seul tenant** avec des plateaux dedans : chaque bord de plateau est un contour
+fermé de plus, à l'intérieur — 38 morceaux pour 1 massif, et c'est juste. Les compter
+reviendrait à compter les marches du relief. Ce qui reste vrai à tous les niveaux est le mot
+demandé : **sans interruption**, c'est-à-dire zéro extrémité.
 
 ### Trois défauts de mesure, tous dans le banc
 
