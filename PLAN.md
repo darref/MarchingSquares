@@ -293,6 +293,33 @@ passe au ras d'un plateau plus haut. C'est un vrai défaut, et il reste à le no
 tiers bas de la planche, ce qui rendait la conclusion tentante ; trois d'entre elles sont en
 plein milieu.
 
+### ⚠ LE VOCABULAIRE N'A PLUS DE FORME FERMÉE, ET C'EST LE VRAI PRIX DE L2
+
+Avant, **27 était un théorème** : les 256 fenêtres 3×3, filtrées par l'épaisseur, point. Depuis
+que la tuile est *silhouette + bits sur le voisinage*, personne n'a calculé la forme fermée —
+et les comptes qu'on manipule sont des **rencontres**, pas des bornes :
+
+```
+la planche de preuve :  55 tuiles de surface + 20 rôles = 75
+le guide épais       :  61 tuiles de surface + 20 rôles = 81
+```
+
+⚠ **LE GUIDE EN EXERCE SIX DE PLUS QUE LA PLANCHE.** Ce n'est donc pas le guide qui est périmé :
+c'est **la planche de preuve**, qui existe précisément pour porter *tout* le vocabulaire et ne
+le fait plus. Et rien ne dit que 61 soit le maximum — un autre relief pourrait en produire un
+62ᵉ.
+
+**Ce qu'il faut faire avant de monter à L3**, et dans cet ordre :
+
+1. **calculer la forme fermée** des nouveaux bits — comme `window_realizable` le fait pour les
+   27 — sinon on ne sait plus ce qu'on vend ;
+2. **regénérer la planche de preuve** pour qu'elle les porte tous ;
+3. **puis seulement** juger le prix : 47 → 81 est peut-être le vrai chiffre, et il est lourd.
+
+⚠ **C'est exactement la faute que la fiche du *sweet spot* décrit** : le vocabulaire est calculé
+comme *tout ce que le modèle peut produire*, et personne ne demande *ce qu'on accepte de
+construire*. Sauf qu'ici, cette fois, on ne sait même plus ce que le modèle peut produire.
+
 ### Ce que L2 a coûté en tuiles
 
 ⚠ **47 → 75.** C'est le prix de la première rencontre entre deux familles, et il est lourd. Il

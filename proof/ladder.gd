@@ -118,6 +118,7 @@ static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
 ## rangee, rien d'autre.
 static var _option: String = ""
 const MaskIO := preload("res://core/mask_io.gd")
+const Modes := preload("res://core/modes.gd")
 
 ## La planche relue une fois, gardee pour le fond de contexte des images.
 static var _board: PackedStringArray = PackedStringArray()
@@ -443,6 +444,12 @@ func _run(couple: String) -> bool:
 ## son sommet, et chacune y pose sa tuile. C'est la que plusieurs tuiles peuvent revendiquer
 ## une meme frontiere -- ce que L0 ne pouvait pas produire.
 func _world(level: int) -> PackedStringArray:
+	# ⚠ ET LE MONDE PEUT ETRE LE GUIDE, pour savoir s'il porte encore tout le vocabulaire.
+	# La planche de preuve est batie POUR l'exercer ; le guide, lui, est ce que l'acheteur
+	# peindra -- s'il ne porte pas une tuile, cette tuile est impeignable.
+	if OS.get_environment("LADDER_WORLD") == "guide":
+		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
+		return _board
 	_board = ProofScene.relief(Families.BY_CELL)
 	if level == 1 or level == 2:
 		return _board
