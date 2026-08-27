@@ -130,6 +130,14 @@ static var _option: String = ""
 ## d'etre paye. `LADDER_J2=face` fait ceder la FACE ; sans lui, c'est la surface qui se tait.
 static var _j2_on_face: bool = false
 
+## ⚠ ET UNE TROISIEME CONCEPTION, LA MOINS CHERE DE TOUTES : AUCUN BIT. Les deux tracent, et on
+## regarde si c'est vraiment un doublement. A F0 tout est au ras, donc les deux traits sont
+## voisins d'un pixel et I3 crie ; des que le trait rentre, ils sont ecartes de DEUX traversees
+## et bornent deux choses differentes -- la roche de la face d'un cote, le sol de la surface de
+## l'autre, avec de la transparence entre les deux. Si F1 et F2 sont propres sans bit, J2 coute
+## ZERO et le vocabulaire reste a 47.
+static var _j2_none: bool = false
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -181,6 +189,9 @@ const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 
 func _initialize() -> void:
 	_j2_on_face = OS.get_environment("LADDER_J2") == "face"
+	_j2_none = OS.get_environment("LADDER_J2") == "none"
+	if _j2_none:
+		_j2_on_face = true
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -418,6 +429,9 @@ func _run(couple: String) -> bool:
 				var role: Vector2i = roles[cell]
 				var ground: int = HeightMask.level_at(world, cell.x, cell.y)
 				var give: int = 0
+				if _j2_none:
+					yielded[cell] = Vector3i(role.x, role.y, 0)
+					continue
 				# La face CEDE le trait a la surface qui le tracera de toute facon, et le GARDE
 				# la ou rien ne la borde. Une surface trace son bord vers moi si elle est PLUS
 				# HAUTE que le sol que je couvre : c'est ce qui rend son cardinal ouvert.

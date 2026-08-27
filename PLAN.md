@@ -269,7 +269,38 @@ il est **faux** ici. La différence : sous une crête il y a une **face**, qui o
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
 
-### J2, ÉTAT DE LA MINIMALITÉ : deux conceptions, aucune qui gagne sur les deux axes
+### J2 : TROIS CONCEPTIONS, ET LE VRAI CHOIX EST UN CHOIX DE DESSIN
+
+| | **aucun bit** | bit sur la **face** | bit sur la **surface** |
+|---|---|---|---|
+| tuiles rencontrées | **47** | 60 | 76 |
+| **forme fermée** | **47** | 81 | 248 |
+| extrémités (F1/F2) | **2** (L3) | 32 | **2** (L3) |
+| pavés (F1/F2) | **0** | **0** | **0** |
+| I3 doublements | 196 | 0 | **0** |
+| à l'œil | **les ovales** | — | un seul trait |
+
+⚠ **ET LA TROISIÈME COLONNE N'ÉTAIT PAS PRÉVUE : SANS AUCUN BIT, ÇA FERME.** I1 à 2 extrémités
+(celles de L3), I2 à zéro pavé — la fermeture et l'épaisseur sont **aussi bonnes qu'à 76
+tuiles**, pour **47**. Ce que J2 payait n'était donc jamais la fermeture.
+
+⚠ **CE QUE J2 PAIE, C'EST LES OVALES.** Sans bit, la face et la surface tracent chacune son
+bord, séparés par une bande de sol qui se **referme aux traversées** — la chaîne de lentilles
+signalée le 27 août au matin. C'est exactement ce que I3 compte, et c'est pour ça qu'il existe :
+**I1 et I2 sont verts pendant que l'œil voit le défaut.**
+
+**Donc le choix est net, et il est à l'utilisateur :**
+
+- **47 tuiles**, un vocabulaire minimal *démontré* (aucun bit, donc la forme fermée EST le compte),
+  au prix des ovales à chaque jonction surface/falaise ;
+- **76 tuiles**, un trait unique partout, au prix d'une forme fermée à 248 non prouvée minimale.
+
+⚠ **Et il reste une quatrième piste, non explorée** : garder les deux traits mais **empêcher la
+bande de se refermer**, en décalant les traversées des deux familles. Le sliver deviendrait une
+bande continue au lieu d'une chaîne de lentilles — même contenu, autre lecture. Coût : zéro bit.
+C'est la première chose à mesurer avant de payer quoi que ce soit.
+
+### L'ancienne comparaison à deux conceptions
 
 | | bit sur la **surface** | bit sur la **face** |
 |---|---|---|
