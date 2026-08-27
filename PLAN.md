@@ -123,10 +123,51 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 
 | couple | état | mesuré |
 |---|---|---|
-| **L0/F0** | **✅ acquis** | monde 86×174, 1 347 cases, **27/27 silhouettes exercées** · I1 42 contours pour 42 massifs · I2 0 pavé 2×2 · I3 1 086 frontières, 0 double, 0 muette, 0 parasite · I4 0 trou · I5 1 profil, 1 promis |
-| L0/F1 | à faire | |
+| **L0/F0** | **✅ acquis** | 27/27 silhouettes · 42 contours pour 42 massifs, **0 extrémité** · 0 pavé 2×2 · 1 086 frontières, 0 double, 0 muette, 0 parasite · 0 trou · 1 profil |
+| **L0/F1** | **✅ acquis** | idem, **8 profils de bord distincts** — la liberté latérale est réelle. Prix : **44 tuiles pour 27 silhouettes** |
 | L0/F2 | à faire | |
 | L1/F0… | à faire | |
+
+### Ce que L0/F1 a coûté, et pourquoi
+
+⚠ **LA LIBERTÉ LATÉRALE SE PAIE EN VOISINAGES BRUTS : 27 silhouettes, 44 tuiles.** Quand le
+trait rentre, deux cases voisines dont les bords ne rentrent pas pareil laissent une **marche**
+à leur frontière. La marche est du côté de celle **qui a de la matière** — l'autre n'a que du
+fond à cet endroit, et on ne trace pas dans le vide. Cette case-là se reconnaît à une signature
+et une seule : ses **deux cardinaux du coin sont pleins et sa diagonale est vide**.
+
+C'est exactement le bit que la canonicalisation jette — *« un coin diagonal isolé ne change pas
+la silhouette de la tuile »*. Vrai du **remplissage**, faux du **trait** : c'est là, et seulement
+là, que le bord fait une marche.
+
+⚠ **Et une seule des deux cases trace.** La voisine d'en face a son cardinal ouvert et n'a pas
+de matière à cet endroit ; si elle traçait aussi, les deux traits seraient collés de part et
+d'autre de la frontière — un pavé 2×2, I2 rouge. Ils se rejoignent **en diagonale**, ce qui
+suffit à fermer.
+
+⚠ **La profondeur est commune au CÔTÉ, pas à la tuile.** Tirée par tuile, le trait saute à
+chaque changement d'index le long d'un même bord : **168 morceaux pour 42 massifs**, exactement
+quatre par massif. Commune au côté : 73. Avec les coins rentrants : 42.
+
+### Trois défauts de mesure, tous dans le banc
+
+⚠ **I1 « le bon nombre de morceaux » NE SUFFIT PAS** — un contour fermé **avec un ergot** reste
+d'un seul morceau. Mesuré : 42 morceaux pour 42 massifs, et **332 extrémités** quand même. Un
+trait d'un pixel qui se referme n'en a aucune. I1 exige donc les deux, et c'est le compte
+d'extrémités qui a trouvé le vrai défaut : `_edge` traçait sur toute la hauteur de la tuile, y
+compris dans la bande que l'autre côté venait de creuser.
+
+⚠ **I4 a été faux deux fois, et aurait condamné F1 à tort.** « Aucun pixel de fond dans une case
+de matière » : faux dès que le trait rentre, l'entaille étant de la transparence **voulue** —
+28 290 faux trous. Puis « la ligne de bord d'un cardinal plein est opaque » : faux au **coin**,
+une case dont l'ouest rentre ayant forcément sa ligne nord entamée, exactement comme sa voisine
+du nord — 3 046 de plus. Ce qui reste vrai à toute liberté : **une case sans aucun bord est
+entièrement opaque**.
+
+⚠ **I3 se sonde perpendiculairement, au milieu du côté.** Au ras, la ligne du bord suffisait ;
+dès que le trait rentre, elle ne trouve plus rien et toutes les frontières se disent muettes.
+Et au **milieu**, pas partout : balayer toute la bande ferait prendre le trait du nord — qui
+traverse la tuile — pour une revendication de l'ouest.
 
 ```
 godot --headless --path . --script res://proof/ladder.gd            (tout l'acquis)

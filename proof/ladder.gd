@@ -30,9 +30,11 @@ const GRASS: Color = Color("#6f8a4a")
 const OUTLINE: Color = Color("#1d2414")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
+## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
+const DIAGONALS: Array[int] = [BlobIndex.NW, BlobIndex.NE, BlobIndex.SE, BlobIndex.SW]
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 
 
@@ -76,9 +78,14 @@ func _run(couple: String) -> bool:
 	var indices: Dictionary = {}
 	for y: int in range(HeightMask.height(mask)):
 		for x: int in range(HeightMask.width(mask)):
-			var tile: int = Coverage.index_at(mask, x, y)
-			if tile != Coverage.NO_INDEX:
-				indices[Vector2i(x, y)] = tile
+			if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
+				continue
+			# ⚠ LE VOISINAGE BRUT, PAS L'INDEX CANONIQUE -- et c'est le prix de F1, mesure
+			# plus bas. La canonicalisation JETTE une diagonale des que ses deux cardinaux
+			# sont pleins : « un coin diagonal isole ne change pas la silhouette ». C'est vrai
+			# du remplissage, et faux du TRAIT -- c'est exactement la ou le bord fait une
+			# marche, et la case qui la porte est la seule a pouvoir la tracer.
+			indices[Vector2i(x, y)] = Coverage.raw_neighbourhood(mask, x, y)
 	var vocabulary: Dictionary = {}
 	for cell: Vector2i in indices.keys():
 		vocabulary[int(indices[cell])] = true
@@ -88,10 +95,14 @@ func _run(couple: String) -> bool:
 	# ⚠ ON DIT CE QUE LE MONDE COUVRE, ET ON L'EXIGE. Un banc qui tournerait sur un monde
 	# n'exercant que trois silhouettes serait vert sans rien prouver -- exactement la faute
 	# deja payee : « une battue qui ne rencontre aucun des douze roles ne prouve rien ».
+	var canonical: Dictionary = {}
+	for cell: Vector2i in indices.keys():
+		canonical[BlobIndex.canonicalize(int(indices[cell]))] = true
 	var expected: int = Thickness.SURFACE_INDICES.size()
-	var complete: bool = vocabulary.size() == expected
-	print("  vocabulaire exerce : %d / %d %s" % [vocabulary.size(), expected,
-			"" if complete else "  ⚠ INCOMPLET"])
+	var complete: bool = canonical.size() == expected
+	print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
+			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
+			vocabulary.size()])
 
 	var tiles: Dictionary = _paint(vocabulary, freedom)
 	var image: Image = _assemble(mask, indices, tiles)
@@ -144,19 +155,87 @@ func _paint(vocabulary: Dictionary, freedom: int) -> Dictionary:
 	for key: Variant in vocabulary.keys():
 		var index: int = int(key)
 		var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
-		tile.fill(GRASS)
-		if freedom == 0:
-			for side: int in range(4):
-				if (index & CARDINALS[side]) != 0:
-					continue
-				_edge(tile, side, 0)
+		# La matiere est un rectangle, rentre du cote des cardinaux VIDES. A F0 elle remplit
+		# la case ; a F1 chaque tuile choisit librement de combien elle rentre.
+		var inset: Array[int] = [0, 0, 0, 0]
+		for side: int in range(4):
+			if (index & CARDINALS[side]) == 0:
+				inset[side] = _depth(index, side, freedom)
+		for y: int in range(inset[0], RES - inset[2]):
+			for x: int in range(inset[3], RES - inset[1]):
+				tile.set_pixel(x, y, GRASS)
+		for side: int in range(4):
+			if (index & CARDINALS[side]) != 0:
+				continue
+			# ⚠ LE TRAIT S'ARRETE AU BORD DE SA PROPRE MATIERE. Trace sur toute la hauteur de
+			# la tuile, il depasse dans la bande que l'autre cote vient de creuser -- un ergot
+			# a chaque coin saillant, invisible au compte de morceaux et flagrant au compte
+			# d'extremites : 332 pour 42 contours par ailleurs justes.
+			var from: int = inset[0] if side == 1 or side == 3 else inset[3]
+			var to: int = RES - 1 - (inset[2] if side == 1 or side == 3 else inset[1])
+			_edge(tile, side, inset[side], from, to)
+		if freedom > 0:
+			_reentrant(tile, index, freedom)
 		tiles[index] = tile
 	return tiles
 
 
+## LES COINS RENTRANTS : la marche que personne d'autre ne peut tracer.
+##
+## ⚠ ET C'EST LA SEULE CHOSE QUE F1 AJOUTE AU DESSIN. Quand le trait rentre, deux cases
+## voisines dont les bords ne rentrent pas pareil laissent une MARCHE a leur frontiere. La
+## marche est du cote de celle qui a de la matiere -- l'autre n'a que du fond a cet endroit,
+## et on ne trace pas dans le vide. Cette case-la se reconnait a une signature, et une seule :
+## ses DEUX cardinaux du coin sont pleins et sa DIAGONALE est vide.
+##
+## ⚠ C'EST EXACTEMENT LE BIT QUE LA CANONICALISATION JETTE. « Un coin diagonal isole ne change
+## pas la silhouette de la tuile » -- vrai du remplissage, faux du trait : c'est la, et
+## seulement la, que le bord fait une marche. F1 se paie donc en voisinages bruts.
+##
+## ⚠ ET UNE SEULE DES DEUX CASES TRACE. La voisine d'en face, elle, a son cardinal ouvert et
+## n'a pas de matiere a cet endroit : si elle tracait aussi, les deux traits seraient colles
+## de part et d'autre de la frontiere -- un pave 2x2, I2 rouge. Ils se rejoignent en diagonale,
+## ce qui suffit a fermer.
+func _reentrant(tile: Image, index: int, freedom: int) -> void:
+	for corner: int in range(4):
+		var a: int = corner                 # N, E, S, O
+		var b: int = (corner + 3) % 4       # le cote precedent : NO, NE, SE, SO
+		if (index & CARDINALS[a]) == 0 or (index & CARDINALS[b]) == 0:
+			continue
+		if (index & DIAGONALS[corner]) != 0:
+			continue
+		_stub(tile, a, b, _depth(index, b, freedom))
+		_stub(tile, b, a, _depth(index, a, freedom))
+
+
+## Un bout de trait le long du bord `along`, depuis le coin qu'il partage avec `from`.
+func _stub(tile: Image, along: int, from: int, length: int) -> void:
+	for i: int in range(length):
+		var far: bool = from == 1 or from == 2
+		var offset: int = RES - 1 - i if far else i
+		match along:
+			0: tile.set_pixel(offset, 0, OUTLINE)
+			1: tile.set_pixel(RES - 1, offset, OUTLINE)
+			2: tile.set_pixel(offset, RES - 1, OUTLINE)
+			_: tile.set_pixel(0, offset, OUTLINE)
+
+
+## LA PROFONDEUR DU TRAIT, par tuile et par cote.## LA PROFONDEUR DU TRAIT, par tuile et par cote. C'est TOUTE la liberte de F1 : le trait
+## reste droit, mais chaque tuile le pose ou elle veut lateralement.
+##
+## ⚠ ET ELLE EST TIREE DE L'INDEX, PAS DU HASARD. Deux executions doivent donner la meme
+## image : un banc qui bouge d'une fois sur l'autre ne dit plus si un correctif a servi.
+func _depth(index: int, side: int, freedom: int) -> int:
+	if freedom == 0:
+		return 0
+	var _unused: int = index
+	var seed: int = absi((side + 1) * 19349663)
+	return 1 + seed % 3
+
+
 ## Pose le trait sur la ligne de bord d'un cote, a `depth` pixels du ras.
-func _edge(tile: Image, side: int, depth: int) -> void:
-	for i: int in range(RES):
+func _edge(tile: Image, side: int, depth: int, from: int = 0, to: int = RES - 1) -> void:
+	for i: int in range(from, to + 1):
 		match side:
 			0: tile.set_pixel(i, depth, OUTLINE)
 			1: tile.set_pixel(RES - 1 - depth, i, OUTLINE)
@@ -189,7 +268,34 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 	var strokes: int = _components(image, true)
 	var massifs: int = _components(image, false)
 	var holes: int = _holes(image, width, height)
+	# ⚠ ET LE COMPTE DE MORCEAUX NE SUFFIT PAS : un contour ferme AVEC UN ERGOT reste d'un
+	# seul morceau. Mesure : 42 morceaux pour 42 massifs, et 332 extremites quand meme. Un
+	# trait d'un pixel qui se referme n'en a AUCUNE -- c'est ca, « sans interruption ».
 	var i1: bool = strokes == massifs + holes
+	# ⚠ ET ON DIT OU LE TRAIT S'ARRETE. Un compte de morceaux dit qu'il y a une rupture, pas
+	# ou -- et sans le « ou » on corrige au juge. Un trait d'un pixel qui se ferme n'a aucune
+	# extremite : chaque pixel y a deux voisins. Une extremite est donc exactement un pixel
+	# de trait qui n'en a qu'UN.
+	var ends: Array[String] = []
+	var end_count: int = 0
+	for y: int in range(height):
+		for x: int in range(width):
+			if not _is_stroke(image, x, y):
+				continue
+			var around: int = 0
+			for dy: int in range(-1, 2):
+				for dx: int in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					if x + dx < 0 or y + dy < 0 or x + dx >= width or y + dy >= height:
+						continue
+					if _is_stroke(image, x + dx, y + dy):
+						around += 1
+			if around > 1:
+				continue
+			end_count += 1
+			if ends.size() < 6:
+				ends.append("%d,%d dans %d,%d" % [x % RES, y % RES, x / RES, y / RES])
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
@@ -211,9 +317,24 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 	var i3: bool = int(claims["doubles"]) == 0 and int(claims["muettes"]) == 0 \
 			and int(claims["parasites"]) == 0
 
-	# I4 MATIERE. Aucun pixel de fond la ou le monde a de la matiere.
+	# I4 MATIERE. Une case SANS AUCUN BORD est entierement opaque.
+	#
+	# ⚠ DEUX DEFINITIONS FAUSSES AVANT CELLE-CI, ET TOUTES DEUX AURAIENT CONDAMNE F1 A TORT.
+	# « Aucun pixel de fond dans une case de matiere » : faux des que le trait rentre, car
+	# l'entaille est de la transparence VOULUE -- le dossier l'ecrit, « le fond decouvert se
+	# laisse en transparence, le jeu montre le vrai sol d'en dessous ». 28 290 faux trous.
+	# Puis « la ligne de bord d'un cardinal plein est opaque » : faux au COIN -- une case dont
+	# l'ouest rentre a forcement sa ligne nord entamee sur ses premiers pixels, et sa voisine
+	# du nord l'entame exactement pareil, donc il n'y a aucun trou entre elles. 3 046 de plus.
+	#
+	# Ce qui reste vrai a toute liberte : une case dont les QUATRE cardinaux sont pleins n'a
+	# aucun bord, donc aucune raison d'etre trouee nulle part. Les trous que le monde n'a pas,
+	# eux, sont deja comptes par I1 -- un trou de trop est un contour de trop.
 	var pierced: int = 0
 	for cell: Vector2i in indices.keys():
+		var index: int = int(indices[cell])
+		if (index & BlobIndex.CARDINALS) != BlobIndex.CARDINALS:
+			continue
 		for y: int in range(RES):
 			for x: int in range(RES):
 				if image.get_pixel(cell.x * RES + x, cell.y * RES + y).a < 0.5:
@@ -236,9 +357,9 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 	var i5: bool = profiles.size() == 1 if freedom == 0 else profiles.size() >= promised
 
 	return {
-		"I1": {"nom": "fermeture", "ok": i1,
-				"dit": "%d morceaux de trait pour %d massifs + %d trous"
-				% [strokes, massifs, holes]},
+		"I1": {"nom": "fermeture", "ok": i1 and end_count == 0,
+				"dit": "%d morceaux pour %d massifs + %d trous, %d extremites %s"
+				% [strokes, massifs, holes, end_count, str(ends)]},
 		"I2": {"nom": "epaisseur", "ok": thick == 0,
 				"dit": "%d pave(s) 2x2 de trait %s" % [thick, str(thick_where)]},
 		"I3": {"nom": "unicite", "ok": i3,
@@ -246,7 +367,7 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 				% [int(claims["frontieres"]), int(claims["doubles"]),
 				int(claims["muettes"]), int(claims["parasites"]), str(claims["ou"])]},
 		"I4": {"nom": "matiere", "ok": pierced == 0,
-				"dit": "%d pixel(s) de fond sur de la matiere" % pierced},
+				"dit": "%d pixel(s) de fond dans une case sans bord" % pierced},
 		"I5": {"nom": "liberte", "ok": i5,
 				"dit": "%d profil(s) de bord distinct(s), %d promis" % [profiles.size(),
 				promised]},
@@ -304,18 +425,26 @@ func _claims(image: Image, mask: PackedStringArray, indices: Dictionary) -> Dict
 
 
 ## Cette case pose-t-elle du trait sur la ligne qui borde ce cote ?
-## ⚠ ET LE PIXEL DE COIN NE DECIDE DE RIEN. Il appartient a DEUX aretes a la fois : le trait
-## d'un flanc ouest y pose son premier pixel, qui tombe aussi sur la ligne du bord nord. Sans
-## l'exclure, chaque case semblait revendiquer des cotes qu'elle ne trace pas -- 516 faux
-## parasites au premier essai, sur un monde parfaitement juste.
+## ⚠ ON SONDE PERPENDICULAIREMENT, AU MILIEU DU COTE -- et pas la ligne du bord.
+##
+## A F0 le trait est au ras, donc le lire sur la ligne du bord suffisait. Des que le trait a
+## le droit de RENTRER, cette lecture ne trouve plus rien et toutes les frontieres se disent
+## muettes. On part donc du bord et on avance vers le centre : la case revendique ce cote si
+## elle pose du trait AVANT le milieu.
+##
+## ⚠ ET AU MILIEU, PAS PARTOUT. Balayer toute la bande ferait prendre le trait du NORD -- qui
+## traverse la tuile de part en part -- pour une revendication de l'OUEST. La sonde au milieu
+## ne rencontre que ce qui borde vraiment ce cote-la. Meme raison qui exclut le pixel de coin :
+## ce qui appartient a deux aretes ne decide d'aucune.
 func _draws(image: Image, cell: Vector2i, side: int) -> bool:
-	for i: int in range(1, RES - 1):
+	var middle: int = RES / 2
+	for d: int in range(middle):
 		var at: Vector2i = Vector2i.ZERO
 		match side:
-			0: at = Vector2i(cell.x * RES + i, cell.y * RES)
-			1: at = Vector2i(cell.x * RES + RES - 1, cell.y * RES + i)
-			2: at = Vector2i(cell.x * RES + i, cell.y * RES + RES - 1)
-			_: at = Vector2i(cell.x * RES, cell.y * RES + i)
+			0: at = Vector2i(cell.x * RES + middle, cell.y * RES + d)
+			1: at = Vector2i(cell.x * RES + RES - 1 - d, cell.y * RES + middle)
+			2: at = Vector2i(cell.x * RES + middle, cell.y * RES + RES - 1 - d)
+			_: at = Vector2i(cell.x * RES + d, cell.y * RES + middle)
 		if _is_stroke(image, at.x, at.y):
 			return true
 	return false
