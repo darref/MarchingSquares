@@ -172,6 +172,9 @@ static var _backing: String = "mute"
 ## Le monde a batir : vide pour la planche de preuve, « guide » pour le guide livre.
 static var _world_name: String = ""
 
+## Dire, pour chaque extremite, ce que la case et ses quatre voisines tracent (`LADDER_WHY=1`).
+static var _why: bool = false
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -242,6 +245,7 @@ func _initialize() -> void:
 	# conception que la mesure a choisie.
 	if not OS.get_environment("LADDER_BACKING").is_empty():
 		_backing = OS.get_environment("LADDER_BACKING")
+	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	if _j2_none:
 		_j2_on_face = true
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -455,8 +459,32 @@ func _run(couple: String) -> bool:
 				vocabulary[tile2 | (edge << 8)] = true
 				# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
 				# l'assemblage lit, pas la carte visible.
-				var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
-				mine2[cell2] = tile2 | (edge << 8)
+				#
+				# ⚠ ET DANS TOUS LES ETAGES DE LA CASE, PAS SEULEMENT LE SIEN. Un bit de bord
+				# repond a une question de CASE -- « qu'y a-t-il a cote de moi » -- pas d'etage :
+				# la face qui couvre ma voisine la couvre pour tous mes etages a la fois. Ecrit
+				# sur le seul etage visible, l'etage ENTERRE gardait son bord ouvert et le
+				# tracait -- et on le voit, parce que la tuile du dessus est transparente a son
+				# encoche. Mesure sur une battue : le trait fautif etait le bord EST d'un etage
+				# enterre, a x=12, sous l'encoche nord de la tuile visible.
+				# ⚠ ET CHAQUE ETAGE REPOND DEPUIS SA PROPRE SILHOUETTE. Un bit pose depuis
+				# la silhouette VISIBLE fabrique des tuiles qui ne different par rien : sur un
+				# etage ou le cardinal est deja plein, le bit est inerte, mais il change la cle.
+				# Mesure : +5 tuiles a le poser en gros, +1 a le poser au bon endroit.
+				for storey2: int in range(HeightMask.level_at(world, x, y) + 1):
+					var mine2: Dictionary = storeys[storey2]
+					if not mine2.has(cell2):
+						continue
+					var buried: int = int(mine2[cell2]) & 0xff
+					var deep: int = 0
+					if (buried & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
+						deep |= 1
+					if (buried & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
+						deep |= 2
+					if (buried & BlobIndex.N) == 0 and _foot_above(cell2 + Vector2i.UP, roles):
+						deep |= NORTH_QUIET
+					mine2[cell2] = buried | (((int(mine2[cell2]) >> 8) | deep) << 8)
+					vocabulary[int(mine2[cell2])] = true
 		# ⚠ ET LES BITS DE L'ERGOT SE POSENT EN SECONDE PASSE. Ils demandent si la VOISINE
 		# trace son bord -- ce qui depend du bord qu'on vient de lui poser. Calcules dans la
 		# meme boucle, ils interrogent une case pas encore traitee et repondent au hasard : la
@@ -1491,6 +1519,14 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 					kind = "surface"
 				label = "%s, bord %s, en face : %s" % [mine_kind, SIDE_NAMES[side], kind]
 			spread[label] = int(spread.get(label, 0)) + 1
+			# ⚠ ET ON DIT CE QUE LA TUILE TRACE, PAS SEULEMENT OU ELLE EST. Un compte par bord
+			# range les defauts ; il ne dit pas POURQUOI le trait s'arrete. La reponse est
+			# toujours dans ce que la case et sa vis-a-vis ont decide de tracer -- et c'est
+			# `_surface_open` qui repond, la seule source.
+			if _why and end_count <= 24:
+				print("     %d,%d de %d,%d : %s | voisines %s"
+						% [at_x, at_y, cell.x, cell.y, _tells(cell, indices, roles, freedom),
+						_around(cell, indices, roles, freedom)])
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
@@ -1837,6 +1873,37 @@ func _draws(image: Image, cell: Vector2i, side: int) -> int:
 ## tout -- l'autre cote l'a creusee -- et la sonde y rencontre le trait PERPENDICULAIRE, a une
 ## profondeur qui n'a rien a voir. Elle annoncait alors 24 profils « qui serpentent » sur un
 ## F1 parfaitement droit. On lit donc le quart central, la ou le cote est seul.
+## CE QU'UNE CASE TRACE, EN CLAIR -- pour lire une extremite au lieu de la deviner.
+func _tells(cell: Vector2i, indices: Dictionary, roles: Dictionary, freedom: int) -> String:
+	if roles.has(cell):
+		var role: Vector2i = roles[cell]
+		var open: Array[bool] = _wall_open(roles[cell])
+		var sides: PackedStringArray = PackedStringArray()
+		for side: int in range(4):
+			if open[side]:
+				sides.append(SIDE_NAMES[side])
+		return "ROBE pan %d rangee %d, trace [%s]" % [role.x, role.y, ", ".join(sides)]
+	if not indices.has(cell):
+		return "RIEN"
+	var key: int = int(indices[cell])
+	var level: int = 2 if freedom >= 0 else 2
+	var open2: Array[bool] = _surface_open(key, level)
+	var sides2: PackedStringArray = PackedStringArray()
+	for side: int in range(4):
+		if open2[side]:
+			sides2.append(SIDE_NAMES[side])
+	return "surface %d (silhouette %d, bord %d), trace [%s]" % [key, key & 0xff, key >> 8,
+			", ".join(sides2)]
+
+
+func _around(cell: Vector2i, indices: Dictionary, roles: Dictionary, freedom: int) -> String:
+	var said: PackedStringArray = PackedStringArray()
+	for side: int in range(4):
+		said.append("%s: %s" % [SIDE_NAMES[side],
+				_tells(cell + STEPS[side], indices, roles, freedom)])
+	return " ; ".join(said)
+
+
 func _profile(tile: Image, side: int) -> String:
 	var out: PackedStringArray = PackedStringArray()
 	for i: int in range(RES / 4, 3 * RES / 4):
