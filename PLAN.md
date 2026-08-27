@@ -289,7 +289,18 @@ bord, séparés par une bande de sol qui se **referme aux traversées** — la c
 signalée le 27 août au matin. C'est exactement ce que I3 compte, et c'est pour ça qu'il existe :
 **I1 et I2 sont verts pendant que l'œil voit le défaut.**
 
-**Donc le choix est net, et il est à l'utilisateur :**
+**LE CHOIX EST FAIT : c'est la surface qui se tait, 76 tuiles.**
+
+⚠ **La règle qui tranche est celle du projet depuis le début : traits continus SIMPLES, jamais
+doublés.** C'est elle qui garantit la **liberté maximale** et l'**exhaustivité** de ce qu'on
+pourra dessiner — un trait doublé n'est pas seulement laid, il retire à l'artiste la moitié de
+ce qu'il pouvait exprimer à cette frontière. Elle élimine la conception sans bit (196
+doublements) ; l'ordre des priorités élimine celle sur la face (trouée). Reste la troisième.
+
+⚠ **Et sa minimalité n'est pas prouvée : 248 est une BORNE, pas une preuve.** C'est le travail
+qui reste, et il a une contrainte ferme — **toute réduction doit garder I3 à zéro et I1 à zéro.**
+
+*Ce qui suit est la comparaison qui a mené là.*
 
 - **47 tuiles**, un vocabulaire minimal *démontré* (aucun bit, donc la forme fermée EST le compte),
   au prix des ovales à chaque jonction surface/falaise ;

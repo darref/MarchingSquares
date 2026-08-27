@@ -126,8 +126,23 @@ static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
 ## rangee, rien d'autre.
 static var _option: String = ""
 
-## ⚠ J2, ET DE QUEL COTE ON POSE LE BIT -- derriere un interrupteur pour etre MESURE avant
-## d'etre paye. `LADDER_J2=face` fait ceder la FACE ; sans lui, c'est la surface qui se tait.
+## ⚠ J2 : LE CHOIX EST ARRETE -- C'EST LA SURFACE QUI SE TAIT. Trois conceptions mesurees sur
+## le meme monde, a L2/F1 :
+##
+##     aucun bit            47 tuiles,  47 en borne,  2 extremites, 196 DOUBLEMENTS
+##     bit sur la face      60 tuiles,  81 en borne, 32 EXTREMITES,   0 doublement
+##     bit sur la surface   76 tuiles, 248 en borne,  2 extremites,   0 doublement
+##
+## La regle du projet est « traits continus SIMPLES, jamais doubles » -- c'est elle qui garantit
+## la liberte maximale et l'exhaustivite de ce qu'on pourra dessiner. Elle elimine la premiere,
+## dont les 196 doublements sont la chaine de lentilles vue a l'ecran. L'ordre des priorites
+## elimine la deuxieme : trouee. Reste la troisieme.
+##
+## ⚠ ET SA MINIMALITE N'EST PAS PROUVEE : 248 est une BORNE, pas une preuve. C'est le travail qui
+## reste, et il a une contrainte -- toute reduction doit garder I3 A ZERO et I1 A ZERO.
+##
+## Les deux autres restent joignables par `LADDER_J2=face` et `LADDER_J2=none`, comme trace des
+## mesures : un chiffre qu'on ne peut plus reproduire n'est plus un chiffre.
 static var _j2_on_face: bool = false
 
 ## ⚠ ET UNE TROISIEME CONCEPTION, LA MOINS CHERE DE TOUTES : AUCUN BIT. Les deux tracent, et on
