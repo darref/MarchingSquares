@@ -150,9 +150,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0 | **presque** | **55 + 20 = 75 tuiles** · I1 **1 extrémité** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F1 | **presque** | I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F2 | **presque** | idem, 7 profils dont 32 qui serpentent |
+| **L2/F0** | **✅ acquis** | **56 + 20 = 76 tuiles** · I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F1 | **2 pixels** | I1 **2 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F2 | **2 pixels** | idem, 7 profils dont 33 qui serpentent |
 | L3/F0… | à faire | |
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
@@ -268,6 +268,35 @@ mon sol occupe ma case entière, le sol plus bas occupe la sienne, la frontière
 il est **faux** ici. La différence : sous une crête il y a une **face**, qui occupe sa case et
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
+
+### L2/F0 EST ACQUIS — le témoin est clos
+
+⚠ **Zéro extrémité, zéro pavé, zéro doublement, zéro trou, la liberté promise tenue.** Le modèle
+de L2 est donc **sain** : tout ce qui reste à F1 et F2 est de la main, pas de la règle. C'est
+exactement ce que F0 existe pour dire, et c'est la première fois qu'il le dit à L2.
+
+### LE NORD NE SE TAIT QUE SOUS UN VRAI PIED
+
+⚠ La surface se taisait au nord dès qu'une **robe** la couvrait — en supposant que cette robe
+tracerait son bas. **Faux pour une chute écrêtée** : elle s'arrête sur une rangée de **corps**,
+qui n'a pas de bord bas. La frontière restait alors sans personne, et la roche butait sur
+l'herbe **sans un trait**. Vu au pixel.
+
+La condition se resserre à *« et seulement si c'est un PIED »*. **3 → 2 extrémités, +1 tuile**,
+et surtout **F0 passe à zéro**.
+
+### CHAQUE FAMILLE GARDE SA TRAVERSÉE — deux tentatives, deux refus
+
+Les deux dernières extrémités sont un désaccord de profondeur : la **face** pince à zéro, la
+**surface** traverse à `d`. Les deux façons de les mettre d'accord ont été mesurées, et refusées :
+
+| tentative | résultat |
+|---|---|
+| la face pince à la profondeur canonique | **2 → 186 extrémités** — elle perd le contact avec les perpendiculaires **de sa propre famille**, qui se rejoignent au coin |
+| la surface traverse au ras | 2 → 6 extrémités et **57 pavés** — elle perd ses propres ergots, posés au bord |
+
+⚠ **Chaque famille a sa traversée, et c'est LEUR RENCONTRE qu'il faut régler** — pas l'une des
+deux qui doit céder. C'est le dernier point ouvert de L2, et il vaut deux pixels.
 
 ### UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MÊME SE FERMER
 

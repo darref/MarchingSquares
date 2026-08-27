@@ -72,6 +72,14 @@ const Walls := preload("res://core/walls.gd")
 ## chacune fait pendre l'ergot qui comptait dessus : elle porte une ROBE, qui la recouvre ; son
 ## cardinal est PLEIN, donc elle n'a pas de bord la ; le BORD (option B) l'a fait TAIRE ; ou
 ## c'est son SUD, qui ne se trace plus du tout des L2.
+## La robe au-dessus trace-t-elle son bas ? Seul un PIED le fait -- une rangee de corps s'arrete
+## sans bord, qu'elle soit ecretee ou non.
+static func _foot_above(cell: Vector2i, roles: Dictionary) -> bool:
+	if not roles.has(cell):
+		return false
+	return (roles[cell] as Vector2i).y == Walls.ROW_FOOT
+
+
 static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
 		roles: Dictionary) -> bool:
 	if side == 2:
@@ -326,7 +334,11 @@ func _run(couple: String) -> bool:
 				# ⚠ CE N'EST PAS « TOUT NORD AU RAS », ESSAYE ET REFUTE : 43 -> 65 extremites,
 				# 94 paves. Contre un simple sol plus bas, le bord du voisin est libre, et
 				# mettre le mien au ras l'empeche de le retrouver.
-				if not _j2_on_face and (tile2 & BlobIndex.N) == 0 and roles.has(cell2 + Vector2i.UP):
+				# ⚠ ET SEULEMENT SI LA ROBE AU-DESSUS TRACE VRAIMENT SON BAS, c'est-a-dire si
+				# c'est un PIED. Une chute ECRETEE s'arrete sur une rangee de corps, qui n'a pas
+				# de bord bas : la faire taire quand meme laisse la frontiere sans personne, et
+				# la roche bute sur l'herbe sans un trait. Vu au pixel, trois fois.
+				if not _j2_on_face and (tile2 & BlobIndex.N) == 0 					and _foot_above(cell2 + Vector2i.UP, roles):
 					edge |= NORTH_QUIET
 
 				indices[cell2] = tile2 | (edge << 8)
@@ -666,6 +678,11 @@ func _wall_depth(side: int, along: int, freedom: int) -> int:
 	else:
 		first = _depth(0, 0, freedom)
 		last = RES - 1 - _depth(2, 0, freedom)
+	# ⚠ ET LE PINCEMENT SE FAIT A ZERO, ESSAYE AUTREMENT ET MESURE. Pincer a la profondeur
+	# canonique -- pour que la face retrouve la surface -- fait sauter le contour a 186
+	# extremites : la face y perd le contact avec les perpendiculaires DE SA PROPRE FAMILLE,
+	# qui se rejoignent au coin de la case. Chaque famille a sa traversee ; c'est LEUR
+	# rencontre qui doit se regler, pas l'une des deux qui doit ceder.
 	if along <= first or along >= last or last <= first:
 		return 0
 	var seed: int = absi((side + 1) * 19349663)
@@ -803,6 +820,9 @@ func _depth(side: int, along: int, freedom: int) -> int:
 	# forment un pave : deux terrasses collees, l'une par son ergot, l'autre par son bord.
 	# Invisible a L0, ou les deux ne se rencontrent jamais dans la meme case ; flagrant des que
 	# les etages s'empilent -- 5 paves a L1/F1, 12 a L1/F2.
+	# ⚠ ET LA TRAVERSEE VAUT AU MOINS DEUX, essaye a zero et mesure. Au ras, la surface
+	# retrouverait la face -- qui pince a zero -- mais elle perd ses propres ergots, poses au
+	# bord : 57 paves a L2/F1. Chaque famille garde donc sa traversee.
 	var crossing: int = 2 + absi((side + 1) * 19349663) % 3
 	if freedom == 1:
 		return crossing
