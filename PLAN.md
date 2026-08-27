@@ -150,8 +150,8 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0 | **presque** | **55 + 20 = 75 tuiles** · I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F1 | **presque** | I1 **5 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F0 | **presque** | **55 + 20 = 75 tuiles** · I1 **1 extrémité** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F1 | **presque** | I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
 | L2/F2 | **presque** | idem, 7 profils dont 32 qui serpentent |
 | L3/F0… | à faire | |
 
@@ -268,6 +268,22 @@ mon sol occupe ma case entière, le sol plus bas occupe la sienne, la frontière
 il est **faux** ici. La différence : sous une crête il y a une **face**, qui occupe sa case et
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
+
+### UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MÊME SE FERMER
+
+⚠ Le modèle dit *« une robe qui tombe dans le vide ne pose pas son pied — on ne touche pas le
+fond d'un gouffre »*, et c'est juste **tant qu'on parle du sous-pied**. Mais la dernière rangée,
+elle, s'arrête contre le vide : **sa roche a une fin, et personne ne la traçait.** Vu à l'écran :
+le fond de la falaise du bord du monde entièrement nu, la roche butant sur le vide sans un trait.
+
+**On y pose le pied**, qui est exactement la tuile « bas de falaise ». **Coût : zéro tuile.** Ce
+qui change est le **sens** du pied — il ne prouve plus un atterrissage, il **ferme une chute**.
+
+**Mesuré : 5 → 3 extrémités.**
+
+⚠ **Et mon premier diagnostic était faux** : j'avais conclu « manque de marge », et donné six
+rangées de vide de plus au monde. Aucun effet — la chute n'était pas coupée, elle était
+**finie**. La marge reste (elle ne coûte rien et le modèle l'exige), mais ce n'était pas la cause.
 
 ### L2 : cinq règles, et il ne reste que cinq pixels
 

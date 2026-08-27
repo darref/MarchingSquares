@@ -128,6 +128,8 @@ const Modes := preload("res://core/modes.gd")
 static var _board: PackedStringArray = PackedStringArray()
 
 const RES: int = 16
+## Ce qu'il faut ajouter sous la planche pour qu'une chute dans le vide y tienne entiere.
+const MARGIN: int = 6
 ## La tuile pleine : huit voisins, aucun bord. C'est elle qu'on pose sous un sommet.
 const SOLID: int = 255
 ## ⚠ LES COULEURS SONT CELLES D'UNE PREUVE, PAS D'UN PAYSAGE. Le premier jeu prenait la
@@ -401,6 +403,22 @@ func _run(couple: String) -> bool:
 					give |= 4
 			yielded[cell] = Vector3i(role.x, role.y, give)
 		roles = yielded
+	# ⚠ UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MEME SE FERMER. Le modele dit « une robe qui
+	# tombe dans le vide ne pose pas son pied -- on ne touche pas le fond d'un gouffre », et
+	# c'est juste tant qu'on parle du SOUS-PIED. Mais la derniere rangee, elle, s'arrete contre
+	# le vide : sa roche a une fin, et personne ne la trace. Mesure : deux extremites, aux deux
+	# coins bas du monde, et le fond de la falaise du bord du monde entierement nu.
+	#
+	# On y pose donc le PIED, qui est exactement la tuile « bas de falaise ». Cout : ZERO tuile.
+	# Ce qui change est le SENS du pied -- il ne prouve plus un atterrissage, il ferme une chute.
+	var closed: Dictionary = {}
+	for cell: Vector2i in roles.keys():
+		var role: Vector2i = roles[cell]
+		var under: Vector2i = cell + Vector2i.DOWN
+		if not roles.has(under) and HeightMask.level_at(world, under.x, under.y) < 0:
+			role = Vector2i(role.x, Walls.ROW_FOOT)
+		closed[cell] = role
+	roles = closed
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
@@ -465,6 +483,25 @@ func _run(couple: String) -> bool:
 ## L1 : LA PLANCHE ENTIERE, avec ses etages. Une case appartient a toutes les silhouettes sous
 ## son sommet, et chacune y pose sa tuile. C'est la que plusieurs tuiles peuvent revendiquer
 ## une meme frontiere -- ce que L0 ne pouvait pas produire.
+## ⚠ LA MARGE VAUT UNE CHUTE ENTIERE, ET LA PLANCHE N'EN A PAS ASSEZ. Une chute dans le VIDE
+## descend de `STOREY_TILES x (etage + 1)` -- neuf rangees depuis l'etage 2 -- et la planche n'a
+## que six rangees de vide sous elle. Sa falaise du bord du monde est donc COUPEE PAR LE CADRE,
+## et son contour reste ouvert : deux extremites, aux deux coins bas.
+##
+## Ce n'est pas un defaut de regle, c'est un relief qui manque de place -- le dossier l'ecrit
+## deja : « une robe hors grille est une tuile impeignable ». On rend donc la place ici, et on
+## note que la planche du PRODUIT a le meme manque, a corriger de son cote.
+func _with_margin(relief: PackedStringArray) -> PackedStringArray:
+	var width: int = HeightMask.width(relief)
+	var out: PackedStringArray = relief.duplicate()
+	var empty: String = ""
+	for x: int in range(width):
+		empty += "~"
+	for row: int in range(MARGIN):
+		out.append(empty)
+	return out
+
+
 func _world(level: int) -> PackedStringArray:
 	# ⚠ ET LE MONDE PEUT ETRE LE GUIDE, pour savoir s'il porte encore tout le vocabulaire.
 	# La planche de preuve est batie POUR l'exercer ; le guide, lui, est ce que l'acheteur
@@ -472,7 +509,7 @@ func _world(level: int) -> PackedStringArray:
 	if OS.get_environment("LADDER_WORLD") == "guide":
 		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
 		return _board
-	_board = ProofScene.relief(Families.BY_CELL)
+	_board = _with_margin(ProofScene.relief(Families.BY_CELL))
 	if level == 1 or level == 2:
 		return _board
 	if level != 0:
