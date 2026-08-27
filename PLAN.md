@@ -293,7 +293,48 @@ passe au ras d'un plateau plus haut. C'est un vrai défaut, et il reste à le no
 tiers bas de la planche, ce qui rendait la conclusion tentante ; trois d'entre elles sont en
 plein milieu.
 
-### ⚠ LE VOCABULAIRE N'A PLUS DE FORME FERMÉE, ET C'EST LE VRAI PRIX DE L2
+### ⚠ LA FORME FERMÉE DE L2 EST 228, PAS 81 — ET C'EST LE VERDICT
+
+Le critère posé est le bon : *peu importe la quantité si elle est mathématiquement minimale.*
+Calculée (`tools/closed_form.gd`), elle ne l'est pas, et de loin.
+
+Chaque bit a une **précondition lisible dans la silhouette seule**, et sa valeur dépend de cases
+**hors** de la fenêtre 3×3 — donc, l'extérieur étant libre sur un plan non borné, les deux
+valeurs sont réalisables dès que la précondition tient :
+
+```
+      2 silhouettes à 0 bit libre   ->   1 tuile chacune
+      1 silhouette  à 1 bit         ->   2
+     12 silhouettes à 2 bits        ->   4
+      2 silhouettes à 3 bits        ->   8
+     10 silhouettes à 4 bits        ->  16
+                                    -------
+                          TOTAL :   228 tuiles de surface  (+ 20 rôles = 248)
+```
+
+**55 sur la planche, 61 sur le guide, 228 en borne.** Les deux premiers sont des *rencontres* :
+ce que deux reliefs produisent. Un troisième relief en produirait d'autres.
+
+⚠ **DONC LE DESSIN DE L2 N'EST PAS MINIMAL, ET IL N'EN EST PAS PRÈS.** Chacune des six règles a
+été adoptée pour fermer un défaut précis, sans jamais demander si le **même** défaut se fermait
+avec moins de bits. C'est exactement le cliquet que ce plan existe pour empêcher, et il s'est
+reformé sous une autre forme : plus dans le nombre de rôles, mais dans le nombre de **bits par
+tuile**.
+
+⚠ **ET LE VRAI COUPABLE EST IDENTIFIABLE : les bits parlent tous du VOISIN.** Le bord, le nord
+sous une face, la voisine silenciée, les ergots — six informations sur ce qu'il y a à côté,
+c'est-à-dire exactement ce que la décomposition en couches avait supprimé en tombant de 92 à 47.
+On l'a remis, morceau par morceau, sans le voir.
+
+**Ce qu'il faut faire avant tout le reste**, et l'ordre compte :
+
+1. **reprendre L2 depuis la question, pas depuis les correctifs.** Il n'y a que quatre jonctions
+   visibles à 3/4 (sommet/sommet, sommet/face, face/face, sommet au-dessus de sa face) : la
+   question est *qui trace chacune*, une fois, et non *comment rattraper chaque cas* ;
+2. n'accepter un bit que s'il **ferme une jonction entière**, jamais un cas particulier ;
+3. et recalculer la forme fermée **à chaque bit**, pas à la fin.
+
+### Ce que L2 a coûté en tuiles
 
 Avant, **27 était un théorème** : les 256 fenêtres 3×3, filtrées par l'épaisseur, point. Depuis
 que la tuile est *silhouette + bits sur le voisinage*, personne n'a calculé la forme fermée —
