@@ -293,7 +293,44 @@ passe au ras d'un plateau plus haut. C'est un vrai défaut, et il reste à le no
 tiers bas de la planche, ce qui rendait la conclusion tentante ; trois d'entre elles sont en
 plein milieu.
 
-### ⚠ LA FORME FERMÉE DE L2 EST 228, PAS 81 — ET C'EST LE VERDICT
+## L2, REFAIT DEPUIS LES QUATRE JONCTIONS
+
+À 3/4 depuis le haut il n'existe que **quatre jonctions visibles**. La question n'est pas
+« comment rattraper ce défaut-ci » mais **qui trace chacune des quatre, une fois** — et ce que
+ça coûte, calculé avant d'être payé.
+
+| | la jonction | qui trace | coût |
+|---|---|---|---|
+| **J1** | sommet contre sommet, même étage | **personne** — la matière continue | **0** |
+| **J2** | sommet contre **face** | *un des deux doit se taire* | **voir ci-dessous** |
+| **J3** | face contre face | le **pan**, déjà là | **0** |
+| **J4** | sommet **au-dessus de** sa face | la **crête**, et la lèvre se tait au sud | **0** |
+
+**Trois des quatre sont gratuites.** J1 est portée par la silhouette, J3 par le pan qui existe
+déjà, J4 par une règle inconditionnelle. **Tout le prix de L2 est dans J2** — et c'est là que la
+première tentative a dérapé, en la rattrapant cas par cas au lieu de la trancher une fois.
+
+### J2 : le même bit, et il coûte trois fois moins cher de l'autre côté
+
+Un des deux doit se taire, donc il faut un **bit**. Mais il ne coûte pas le même prix selon la
+famille qui le porte, parce qu'il **multiplie** le vocabulaire de cette famille :
+
+| où l'on pose le bit | surfaces | faces | **total** |
+|---|---|---|---|
+| sur la **surface** (l'actuel) — 3 bits : est, ouest, nord | **228** | 20 | **248** |
+| sur la **face** — 3 états de flanc, et le pied à 2 variantes | 27 | **54** | **81** |
+
+⚠ **27 × 8 contre 20 × 2,7. C'est tout le calcul, et il aurait dû être fait le premier jour.**
+Chaque bit posé sur la surface double 27 silhouettes ; posé sur la face il ne touche que les
+rôles, qui sont moins nombreux et déjà structurés en pans × rangées.
+
+⚠ **ET IL RESTE UNE CHOSE À VÉRIFIER AVANT DE PAYER LES 81**, honnêtement : quand la face
+**cède** le trait à la surface, la face est au ras (règle de la cascade) et le bord de la
+surface, lui, est rentré. Ils doivent quand même se retrouver. Si ça demande que la surface
+soit au ras de ce côté-là, c'est un bit **sur la surface**, et le compte de 81 s'effondre.
+C'est la première mesure du L2 refait — pas la dernière.
+
+### ⚠ LA FORME FERMÉE DE L'ANCIEN L2 ÉTAIT 228, PAS 81
 
 Le critère posé est le bon : *peu importe la quantité si elle est mathématiquement minimale.*
 Calculée (`tools/closed_form.gd`), elle ne l'est pas, et de loin.

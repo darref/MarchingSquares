@@ -53,6 +53,23 @@ func _initialize() -> void:
 	print("")
 	print("  pour memoire : la planche en exerce 55, le guide 61.")
 	print("  ⚠ Un compte rencontre n'est pas une borne : voila la borne.")
+	print("")
+	# ⚠ ET LE MEME BIT COUTE TROIS FOIS MOINS CHER SUR L'AUTRE FAMILLE. La jonction
+	# « sommet contre face » demande qu'un des deux se taise, donc un bit -- mais le poser sur
+	# la SURFACE multiplie 27, alors que le poser sur la FACE multiplie 20. Le compte se calcule
+	# des deux cotes avant de choisir.
+	var flanks: int = 3          # continue, s'arrete seule, s'arrete et cede
+	var pans: int = flanks * flanks
+	var rows: int = 5
+	var foot_variants: int = 2   # le pied trace son bas, ou le cede a l'atterrissage
+	var faces: int = pans * (rows - 1) + pans * foot_variants
+	print("=== LE MEME BIT, POSE SUR LA FACE ===")
+	print("  %d etats de flanc -> %d pans ; %d rangees dont le pied a %d variantes"
+			% [flanks, pans, rows, foot_variants])
+	print("  faces : %d roles" % faces)
+	print("  TOTAL : 27 + %d = %d tuiles" % [faces, 27 + faces])
+	print("")
+	print("  contre %d + 20 = %d de l'autre cote." % [total, total + 20])
 	quit()
 
 
