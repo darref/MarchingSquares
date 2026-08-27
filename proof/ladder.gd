@@ -25,6 +25,19 @@ const Thickness := preload("res://core/thickness.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const Families := preload("res://core/families.gd")
 const Walls := preload("res://core/walls.gd")
+
+## L'ARBITRAGE DE L2, mis derriere un interrupteur pour etre MESURE avant d'etre paye.
+##   ""  aucune des deux : les deux cotes tracent, 196 frontieres a deux traits.
+##   "A" un TROISIEME ETAT DE FLANC sur la robe -- « arret contre du nu » / « arret contre du
+##       sol ». Le flanc ne trace que contre du nu ; contre du sol, c'est le sol qui trace.
+##       4 -> 9 pans, 20 -> 45 roles.
+##   "B" le BORD sur la surface, a l'est et a l'ouest -- « nu » / « roche ». La surface ne
+##       trace son bord lateral que contre du nu ; contre de la roche, c'est le flanc qui
+##       trace. 27 -> 48 silhouettes (compte mesure en 9.0.0).
+##
+## ⚠ Les deux disent LA MEME CHOSE, chacun de son cote de la frontiere. Ce qui les separe
+## n'est donc pas la justesse mais le prix -- et laquelle ferme AUSSI les 213 extremites.
+static var _option: String = ""
 const MaskIO := preload("res://core/mask_io.gd")
 
 ## La planche relue une fois, gardee pour le fond de contexte des images.
@@ -59,6 +72,7 @@ const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vect
 
 
 func _initialize() -> void:
+	_option = OS.get_environment("LADDER_OPT")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -179,26 +193,70 @@ func _run(couple: String) -> bool:
 			vocabulary.size()])
 	var canonical: Dictionary = {}
 	for cell: Vector2i in indices.keys():
-		canonical[BlobIndex.canonicalize(int(indices[cell]))] = true
+		canonical[BlobIndex.canonicalize(int(indices[cell]) & 0xff)] = true
 	var expected: int = Thickness.SURFACE_INDICES.size()
 	var complete: bool = canonical.size() == expected
 	print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
 			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
 			vocabulary.size()])
 
-	var tiles: Dictionary = _paint(vocabulary, freedom, level)
-	# L2 : les falaises. Elles se posent PAR-DESSUS les surfaces -- une face sort du plan, elle
-	# masque le sol qu'elle couvre.
+	# ⚠ LES FALAISES D'ABORD, LES TUILES ENSUITE. Le calcul des bords change le VOCABULAIRE ;
+	# peindre avant, c'est peindre une liste a laquelle il manque des cles -- et l'assemblage
+	# tombe alors sur une tuile nulle, sans rien dire de plus utile que « get_width sur null ».
 	var roles: Dictionary = {}
 	var role_tiles: Dictionary = {}
 	if level >= 2:
 		roles = Walls.visible(world)["roles"]
+		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE. C'est justement ce qu'une tuile ne peut
+		# pas savoir : ce qu'il y a de l'autre cote. Le banc, lui, a le monde sous les yeux --
+		# c'est ce qui permet de MESURER le prix avant de decider si on le paie.
+		if _option == "A":
+			var widened: Dictionary = {}
+			for cell: Vector2i in roles.keys():
+				var role: Vector2i = roles[cell]
+				var ground: int = HeightMask.level_at(world, cell.x, cell.y)
+				var states: Array[int] = [0, 0]
+				var sides: Array[int] = [Walls.pan_west(role.x), Walls.pan_east(role.x)]
+				for i: int in range(2):
+					if sides[i] == Walls.SIDE_CONTINUE:
+						continue
+					var probe: Vector2i = cell + (Vector2i.LEFT if i == 0 else Vector2i.RIGHT)
+					var there: int = HeightMask.level_at(world, probe.x, probe.y)
+					states[i] = 2 if there > ground else 1
+				widened[cell] = Vector2i(states[0] * 3 + states[1], role.y)
+			roles = widened
+		if _option == "B":
+			for y: int in range(HeightMask.height(world)):
+				for x: int in range(HeightMask.width(world)):
+					var cell2: Vector2i = Vector2i(x, y)
+					if not indices.has(cell2):
+						continue
+					var tile2: int = int(indices[cell2])
+					var edge: int = 0
+					if (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
+						edge |= 1
+					if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
+						edge |= 2
+					indices[cell2] = tile2 | (edge << 8)
+					vocabulary[tile2 | (edge << 8)] = true
+					# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
+					# l'assemblage lit, pas la carte visible.
+					var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
+					mine2[cell2] = tile2 | (edge << 8)
 		var kinds: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			kinds[roles[cell]] = true
-		role_tiles = _wall_tiles(kinds, freedom)
-		print("  robes : %d / %d roles, %d cases de falaise"
-				% [kinds.size(), Walls.PAN_COUNT * Walls.BLOCK_ROWS, roles.size()])
+		print("  robes : %d roles distincts, %d cases de falaise"
+				% [kinds.size(), roles.size()])
+	var tiles: Dictionary = _paint(vocabulary, freedom, level)
+	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
+	if level >= 2:
+		var kinds2: Dictionary = {}
+		for cell: Vector2i in roles.keys():
+			kinds2[roles[cell]] = true
+		role_tiles = _wall_tiles(kinds2, freedom)
+		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
+				% [role_tiles.size(), tiles.size() + role_tiles.size()])
 	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles)
@@ -259,10 +317,18 @@ func _world(level: int) -> PackedStringArray:
 func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in vocabulary.keys():
-		var index: int = int(key)
+		var index: int = int(key) & 0xff
+		var brink: int = int(key) >> 8
 		var open: Array[bool] = [false, false, false, false]
 		for side: int in range(4):
 			open[side] = (index & CARDINALS[side]) == 0
+		# OPTION B : contre de la ROCHE, la surface se tait -- c'est le flanc de la falaise
+		# qui trace. Le bit vaut 1 pour l'est, 2 pour l'ouest.
+		if _option == "B":
+			if (brink & 1) != 0:
+				open[1] = false
+			if (brink & 2) != 0:
+				open[3] = false
 		# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
 		# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
 		# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
@@ -275,7 +341,7 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
 		if level >= 2:
 			open[2] = false
-		tiles[index] = _shape(open, freedom, GRASS, index)
+		tiles[int(key)] = _shape(open, freedom, GRASS, index)
 	return tiles
 
 

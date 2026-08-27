@@ -168,13 +168,32 @@ La tuile de robe ne peut pas distinguer les deux, et la surface non plus.
 ⚠ **C'EST LE PREMIER ENDROIT OÙ LE VOCABULAIRE DOIT GRANDIR**, et les deux prix sont déjà
 mesurés :
 
-| ce qu'on ajoute | coût |
-|---|---|
-| un troisième état de flanc (`arrêt contre du nu` / `arrêt contre du sol`) | 4 → **9 pans**, 20 → **45 rôles** (+25) |
-| le **bord** sur la surface, à l'est et à l'ouest | 27 → **48 silhouettes** (+21) |
-
 C'est le même arbitrage que celui de la 9.0.0, revenu par l'autre bout — et cette fois il est
-posé **avant** d'être payé.
+mesuré **avant** d'être payé. Voir le tableau ci-dessous.
+
+### Les deux options, MESURÉES sur le même monde (L2/F1)
+
+| option | tuiles | extrémités (I1) | doublements (I3) |
+|---|---|---|---|
+| aucune | 27 + 20 = **47** | 213 | 196 |
+| **A** — un troisième état de flanc sur la robe | 27 + 32 = **59** | **720** | **1450** |
+| **B** — le bord (`nu`/`roche`) sur la surface | 37 + 20 = **57** | 222 | **12** |
+
+⚠ **NI L'UNE NI L'AUTRE NE FERME LES 213 EXTRÉMITÉS** — c'est la réponse à la question posée, et
+elle est nette. Le défaut des extrémités est **d'une autre espèce** que le doublement : il vient
+de ce que le bord latéral d'une lèvre et le flanc de la falaise ne se retrouvent pas quand ce
+flanc dit `continue`. Aucun des deux bits ne parle de ce cas-là.
+
+⚠ **B FERME LE DOUBLEMENT, ET PRESQUE ENTIÈREMENT : 196 → 12.** Le bord de la surface est donc
+le bon endroit où mettre l'information — celui des deux qui peut se taire sans rien casser.
+
+⚠ **A EST UNE CATASTROPHE, ET LA RAISON ÉTAIT DÉJÀ MESURÉE CE MATIN.** Faire taire le flanc
+contre du sol lui retire ce qui **porte la connexité du contour de la falaise** — 720 extrémités,
+et les doublements **explosent à 1 450** parce que le contour se fragmente. C'est exactement la
+mesure de ce matin : retirer le trait de flanc coûte deux tirets par falaise. On ne peut pas
+faire taire le flanc ; on peut faire taire la surface.
+
+⚠ **Et B est moins cher que A** : 57 tuiles contre 59, pour un résultat sans commune mesure.
 
 ### Ce que F1 et F2 disent en plus
 
