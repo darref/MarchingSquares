@@ -26,8 +26,18 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const Families := preload("res://core/families.gd")
 
 const RES: int = 16
-const GRASS: Color = Color("#6f8a4a")
-const OUTLINE: Color = Color("#1d2414")
+## ⚠ LES COULEURS SONT CELLES D'UNE PREUVE, PAS D'UN PAYSAGE. Le premier jeu prenait la
+## teinte du logiciel -- vert moyen, trait vert tres sombre -- et a l'ecran le trait se
+## confondait avec la matiere : on ne voyait plus la silhouette, c'est-a-dire la seule chose
+## que ce banc existe pour montrer. Matiere claire, trait noir, fond franchement autre.
+const GRASS: Color = Color("#c3d98f")
+const OUTLINE: Color = Color("#0d0f12")
+
+## Uniquement pour REGARDER : le fond hors monde, et l'etage 0 de la planche, pose derriere
+## en sourdine pour qu'on voie sur quoi les specimens reposent. Rien de tout cela n'entre dans
+## la mesure -- celle-ci se fait sur l'image a fond transparent, avant compositation.
+const BACKDROP: Color = Color("#23262b")
+const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
 const ACQUIS: Array[String] = ["L0/F0", "L0/F1"]
@@ -69,13 +79,26 @@ func _write(image: Image, couple: String) -> void:
 	if args.size() < 3:
 		return
 	var out: String = args[2]
-	var shown: Image = image
+	# ⚠ ON COMPOSITE POUR REGARDER, JAMAIS POUR MESURER. Le banc mesure sur l'image a fond
+	# transparent ; ce qui suit ne sert qu'a l'oeil -- un fond franc, et l'etage 0 de la
+	# planche pose EN SOURDINE derriere, parce qu'un specimen qui deborde sur la plaine ne se
+	# juge pas sans voir la plaine.
+	var shown: Image = Image.create_empty(image.get_width(), image.get_height(), false,
+			Image.FORMAT_RGBA8)
+	shown.fill(BACKDROP)
+	if not _board.is_empty():
+		for y: int in range(HeightMask.height(_board)):
+			for x: int in range(HeightMask.width(_board)):
+				if HeightMask.level_at(_board, x, y) < 0:
+					continue
+				shown.fill_rect(Rect2i(x * RES, y * RES, RES, RES), CONTEXT)
+	shown.blend_rect(image, Rect2i(0, 0, image.get_width(), image.get_height()), Vector2i.ZERO)
 	if args.size() >= 7:
 		var cw: int = int(args[5])
 		var ch: int = int(args[6])
 		var tile: int = int(args[7]) if args.size() > 7 else 20
-		var crop: Image = Image.create_empty(cw * RES, ch * RES, false, image.get_format())
-		crop.blit_rect(image, Rect2i(int(args[3]) * RES, int(args[4]) * RES, cw * RES,
+		var crop: Image = Image.create_empty(cw * RES, ch * RES, false, shown.get_format())
+		crop.blit_rect(shown, Rect2i(int(args[3]) * RES, int(args[4]) * RES, cw * RES,
 				ch * RES), Vector2i.ZERO)
 		crop.resize(cw * tile, ch * tile, Image.INTERPOLATE_NEAREST)
 		shown = crop
@@ -164,10 +187,14 @@ func _run(couple: String) -> bool:
 ## porte-t-il la tuile annoncee ? reste-t-elle peignable ? C'est la lecon deja ecrite au
 ## dossier : « le relief se decrit accident par accident, jamais en ASCII ». Elle valait aussi
 ## pour moi.
+static var _board: PackedStringArray = PackedStringArray()
+
+
 func _world(level: int) -> PackedStringArray:
 	if level != 0:
 		return PackedStringArray()
-	return HeightMask.silhouette(ProofScene.relief(Families.BY_CELL), 1)
+	_board = ProofScene.relief(Families.BY_CELL)
+	return HeightMask.silhouette(_board, 1)
 
 
 # ------------------------------------------------------------------ LE DESSIN
