@@ -216,8 +216,10 @@ celle du dessous.
 ### LA RÈGLE DE LA CASCADE, TROUVÉE : les bords d'une FACE sont les bords de sa case
 
 ⚠ **UNE FACE OCCUPE SA CASE ENTIÈRE, ET LE PLATEAU AU-DESSUS AUSSI.** La frontière entre les
-deux — la **crête** — n'est donc pas une ligne libre dans la tuile : c'est **le bord de case
-lui-même**. Idem pour le pied (contre l'atterrissage) et pour les flancs (contre ce qu'il y a
+deux — la **crête** — ne peut donc pas flotter librement : elle doit **toucher le bord** là où
+les perpendiculaires la rejoignent. *(Première formulation : « c'est le bord de case lui-même ».
+Trop fort — voir la loi du moindre ras : le pincement aux deux traversées suffit, et rend la
+liberté du milieu.)* Idem pour le pied (contre l'atterrissage) et pour les flancs (contre ce qu'il y a
 à côté). Une crête rentrée est une ligne qui ne peut retrouver **aucune** des perpendiculaires
 qui arrivent au bord — d'où la cascade, et d'où l'échec de tout ergot de longueur fixe.
 
@@ -292,6 +294,30 @@ passe au ras d'un plateau plus haut. C'est un vrai défaut, et il reste à le no
 ⚠ **Et « ça sent le bord du monde » n'était pas une mesure.** Les cinq tombaient toutes dans le
 tiers bas de la planche, ce qui rendait la conclusion tentante ; trois d'entre elles sont en
 plein milieu.
+
+## LA LOI DU MOINDRE RAS
+
+⚠ **ON NE MET AU RAS QUE CE QU'ON NE PEUT PAS LAISSER LIBRE.** Le ras n'est pas une simplicité,
+c'est une **liberté confisquée** — et I5 est là pour compter ce qu'on confisque. Chaque fois
+qu'une règle demande « au ras », il faut d'abord démontrer qu'aucun **pincement ponctuel** ne
+suffirait.
+
+**Et la règle de la cascade était posée trop fort.** Ce que la géométrie oblige, ce n'est pas
+que la crête soit au ras **partout** : c'est qu'elle **touche le bord aux deux colonnes où un
+bord latéral peut la rejoindre** — les deux traversées canoniques, `d` et `RES-1-d`, qui sont
+globales donc connues de toutes les tuiles. **Entre ces deux points, elle reste libre.**
+
+Le théorème sous-jacent, lui, ne bouge pas :
+
+> **Deux lignes perpendiculaires qui vivent dans des tuiles différentes ne peuvent se rejoindre
+> qu'à leur frontière commune.**
+
+Donc l'une des deux doit toucher le bord **au point où l'autre le traverse** — et rien de plus.
+C'est un pincement en deux points, pas un aplatissement.
+
+⚠ **Ça vaut pour les trois bords d'une face** : la crête, le bas du pied, et les flancs. Chacun
+se pince aux traversées de la famille perpendiculaire, et serpente ailleurs. À mesurer : le
+compte d'extrémités doit rester celui du ras (43), et I5 doit remonter.
 
 ## L2, REFAIT DEPUIS LES QUATRE JONCTIONS
 
