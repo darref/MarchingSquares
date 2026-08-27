@@ -30,6 +30,8 @@ const MaskIO := preload("res://core/mask_io.gd")
 static var _board: PackedStringArray = PackedStringArray()
 
 const RES: int = 16
+## La tuile pleine : huit voisins, aucun bord. C'est elle qu'on pose sous un sommet.
+const SOLID: int = 255
 ## ⚠ LES COULEURS SONT CELLES D'UNE PREUVE, PAS D'UN PAYSAGE. Le premier jeu prenait la
 ## teinte du logiciel -- vert moyen, trait vert tres sombre -- et a l'ecran le trait se
 ## confondait avec la matiere : on ne voyait plus la silhouette, c'est-a-dire la seule chose
@@ -44,7 +46,7 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -180,6 +182,7 @@ func _run(couple: String) -> bool:
 			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
 			vocabulary.size()])
 
+	vocabulary[SOLID] = true
 	var tiles: Dictionary = _paint(vocabulary, freedom)
 	var image: Image = _assemble(world, storeys, tiles)
 	_write(image, couple)
@@ -375,7 +378,13 @@ func _stub(tile: Image, along: int, from: int, length: int) -> void:
 func _depth(index: int, side: int, along: int, freedom: int) -> int:
 	if freedom == 0:
 		return 0
-	var crossing: int = 1 + absi((side + 1) * 19349663) % 3
+	# ⚠ ET LA TRAVERSEE VAUT AU MOINS DEUX. L'ergot de coin rentrant se pose au RAS du bord --
+	# il marque une marche sur un cote dont le cardinal est plein, il n'a nulle part ailleurs ou
+	# aller. Si un bord traverse a la profondeur UN, les deux traits sont voisins d'un pixel et
+	# forment un pave : deux terrasses collees, l'une par son ergot, l'autre par son bord.
+	# Invisible a L0, ou les deux ne se rencontrent jamais dans la meme case ; flagrant des que
+	# les etages s'empilent -- 5 paves a L1/F1, 12 a L1/F2.
+	var crossing: int = 2 + absi((side + 1) * 19349663) % 3
 	if freedom == 1:
 		return crossing
 	# ⚠ TIREE DE L'INDEX, PAS DU HASARD : deux executions doivent donner la meme image, sans
@@ -389,10 +398,22 @@ func _depth(index: int, side: int, along: int, freedom: int) -> int:
 
 ## L'EMPILEMENT : une tuile par etage et par case, du bas vers le haut.
 ##
-## Et c'est la regle du depot, pas une invention du banc : « on dessine du bas vers le haut,
-## chaque couche recouvrant la precedente ». A L0 il n'y a qu'un etage, donc une tuile par
-## case ; a L1 la case en porte autant que d'etages sous son sommet, et ce qui depasse par
-## l'entaille du dessus est ce que l'etage d'en dessous a peint.
+## C'est la regle du depot, pas une invention du banc : « on dessine du bas vers le haut,
+## chaque couche recouvrant la precedente ».
+##
+## ⚠ ET « LE SOMMET TRACE, LES ENTERRES SE POSENT PLEINS » A ETE ESSAYE PUIS REFUTE. C'etait
+## la reponse que le plan pronait pour L1, et elle se defend : une case appartient ENTIEREMENT
+## a chaque silhouette qui la contient, donc le monde n'y a pas de bord et l'entaille n'est
+## qu'une decoration du bord visible. Poser la tuile pleine sous le sommet efface bien les
+## paves -- 6 a L1/F2, zero apres.
+##
+## Mais elle en ouvre 26 ailleurs : le bord d'un etage qui passe SOUS un plateau voisin cesse
+## d'etre trace, et le contour de la terrasse s'arrete net au pied du plateau au lieu d'y
+## rejoindre le sien. Ce que l'etage enterre dessine n'est donc pas une decoration : c'est ce
+## qui RACCORDE deux terrasses de niveaux differents. Mesure : 26 extremites contre 6 paves.
+##
+## On garde donc l'empilement complet, et le defaut restant -- six pixels a une jonction en T
+## entre les bords de deux etages -- attend son propre diagnostic.
 static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		tiles: Dictionary) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
@@ -587,15 +608,15 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dic
 			var beyond: int = -1
 			if probe.x >= 0 and probe.y >= 0 and probe.x < width and probe.y < height:
 				beyond = HeightMask.level_at(world, probe.x, probe.y)
-			var mine: bool = _draws(image, cell, side)
-			var theirs: bool = false
+			var mine: int = _draws(image, cell, side)
+			var theirs: int = 0
 			if beyond >= 0:
 				theirs = _draws(image, probe, (side + 2) % 4)
 			if here == beyond:
 				# Une arete INTERIEURE ne se voit qu'une fois : depuis l'est et le sud.
 				if side != 1 and side != 2:
 					continue
-				if mine or theirs:
+				if mine + theirs > 0:
 					parasites += 1
 					if witness.size() < 3:
 						witness.append("%d,%d parasite" % [cell.x, cell.y])
@@ -605,7 +626,7 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dic
 				continue
 			frontiers += 1
 			deepest = maxi(deepest, here - beyond)
-			var claimants: int = (1 if mine else 0) + (1 if theirs else 0)
+			var claimants: int = mine + theirs
 			if claimants == 0:
 				mutes += 1
 				if witness.size() < 3:
@@ -618,6 +639,14 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dic
 			"parasites": parasites, "pile": deepest, "ou": witness}
 
 
+## COMBIEN DE TRAITS CE COTE PORTE-T-IL ? On compte, on ne se contente pas de constater.
+##
+## ⚠ ET C'EST LA DIFFERENCE QUI FAIT TOUT. Premiere version : « y a-t-il du trait ? ». Elle
+## repond OUI aussi bien pour un trait que pour deux, donc elle laisse passer exactement ce que
+## I3 existe pour attraper -- deux tuiles qui tracent la meme frontiere. A L1/F2 elle annoncait
+## zero double pendant que I2 comptait six paves. On compte donc les PASSAGES de fond a trait,
+## en partant du bord vers le milieu.
+##
 ## ⚠ ON SONDE PERPENDICULAIREMENT, AU MILIEU DU COTE -- et pas la ligne du bord.
 ##
 ## A F0 le trait est au ras, donc le lire sur la ligne du bord suffisait. Des que le trait a
@@ -629,8 +658,10 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dic
 ## traverse la tuile de part en part -- pour une revendication de l'OUEST. La sonde au milieu
 ## ne rencontre que ce qui borde vraiment ce cote-la. Meme raison qui exclut le pixel de coin :
 ## ce qui appartient a deux aretes ne decide d'aucune.
-func _draws(image: Image, cell: Vector2i, side: int) -> bool:
+func _draws(image: Image, cell: Vector2i, side: int) -> int:
 	var middle: int = RES / 2
+	var runs: int = 0
+	var inside: bool = false
 	for d: int in range(middle):
 		var at: Vector2i = Vector2i.ZERO
 		match side:
@@ -638,9 +669,11 @@ func _draws(image: Image, cell: Vector2i, side: int) -> bool:
 			1: at = Vector2i(cell.x * RES + RES - 1 - d, cell.y * RES + middle)
 			2: at = Vector2i(cell.x * RES + middle, cell.y * RES + RES - 1 - d)
 			_: at = Vector2i(cell.x * RES + d, cell.y * RES + middle)
-		if _is_stroke(image, at.x, at.y):
-			return true
-	return false
+		var here: bool = _is_stroke(image, at.x, at.y)
+		if here and not inside:
+			runs += 1
+		inside = here
+	return runs
 
 
 ## Le profil d'un bord : la profondeur du trait, colonne par colonne. C'est la mesure de la

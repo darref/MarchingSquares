@@ -127,9 +127,40 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L0/F1** | **✅ acquis** | idem, **3 profils de bord distincts** — la liberté latérale est réelle. Prix : **aucune tuile**, 27 |
 | **L0/F2** | **✅ acquis** | idem, **17 profils distincts dont 16 qui serpentent** — le trait est libre à l'intérieur. Prix : **aucune tuile** |
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
-| L1/F1 | à faire | |
-| L1/F2 | à faire | |
+| **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
+| L1/F2 | **6 pixels** | tout vert sauf I2 : **6 pavés 2×2**, tous dans la case (20,157) — une jonction en T entre les bords de deux étages |
 | L2/F0… | à faire | |
+
+### « Le sommet trace, les enterrés se posent pleins » : essayé, RÉFUTÉ
+
+⚠ C'était la réponse que ce plan prônait pour L1, et elle se défend : une case appartient
+**entièrement** à chaque silhouette qui la contient, donc le monde n'y a pas de bord et
+l'entaille n'est qu'une décoration du bord visible. Poser la tuile pleine sous le sommet efface
+bien les pavés — **6 à L1/F2, zéro après**.
+
+**Mais elle en ouvre 26 ailleurs.** Le bord d'un étage qui passe **sous** un plateau voisin
+cesse d'être tracé, et le contour de la terrasse s'arrête net au pied du plateau au lieu d'y
+rejoindre le sien. Ce que l'étage enterré dessine n'est donc **pas** une décoration : c'est ce
+qui **raccorde deux terrasses de niveaux différents**. 26 extrémités contre 6 pavés — on garde
+l'empilement complet.
+
+⚠ **Et c'est le premier pari du plan que la mesure refuse.** Il était écrit avant d'être
+vérifié ; il est corrigé après l'avoir été. C'est exactement pour ça que chaque cran se mesure.
+
+### La traversée vaut au moins DEUX
+
+⚠ L'ergot de coin rentrant se pose **au ras du bord** — il marque une marche sur un côté dont
+le cardinal est plein, il n'a nulle part ailleurs où aller. Si un bord traverse à la profondeur
+**un**, les deux traits sont voisins d'un pixel et forment un pavé : deux terrasses collées,
+l'une par son ergot, l'autre par son bord. Invisible à L0, où les deux ne se rencontrent jamais
+dans la même case ; flagrant dès que les étages s'empilent — **5 pavés à L1/F1, 12 à L1/F2**,
+zéro une fois la traversée portée à deux.
+
+### I3 compte les traits, il ne les constate plus
+
+⚠ Première version : *« y a-t-il du trait ? »*. Elle répond **oui** aussi bien pour un trait que
+pour deux, donc elle laisse passer exactement ce que I3 existe pour attraper. On compte
+désormais les passages de fond à trait, en partant du bord vers le milieu.
 
 ### Ce que L1/F0 dit, et c'est un résultat en soi
 
