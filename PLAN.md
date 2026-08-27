@@ -246,7 +246,27 @@ il est **faux** ici. La différence : sous une crête il y a une **face**, qui o
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
 
-⚠ **TROIS FOIS LE MÊME PIÈGE M'A COÛTÉ UNE MESURE** : un remplacement dont l'ancrage rate **en
+### Ce que les 43 étaient vraiment, vu au pixel
+
+Tous au **bord sud d'une case**, à `x = 3` ou `x = 13` — c'est-à-dire au bout d'un **ergot de
+coin rentrant**, pas au bout d'un bord. L'ergot part du coin, court le long du bord sud, et son
+extrémité libre devait rejoindre le bord latéral de la case d'en dessous. Ce bord-là est
+**silencié par B** quand il longe de la roche : l'ergot tombe dans le vide.
+
+C'était donc bien l'option D — mais elle mesurait faux pour **trois** raisons successives, et
+chacune donnait un chiffre crédible :
+
+1. **la paire était inversée.** L'ergot posé le long de `a` rejoint la voisine *à travers `a`*,
+   sur son côté `b` ; j'interrogeais la voisine d'à travers `b`, donc une autre case et une
+   autre arête ;
+2. **un garde parasite** d'une édition antérieure supprimait les *deux* ergots au lieu du bon —
+   d'où les « 11 fermées » que j'avais annoncées ;
+3. **l'ordre de calcul.** Les bits de l'ergot demandent si la voisine trace son bord, ce qui
+   dépend du bord qu'on vient de lui poser. Calculés dans la même boucle, ils interrogent une
+   case pas encore traitée : la voisine du **sud**, en ordre de lecture, n'a jamais encore le
+   sien. Deux passes, et le chiffre devient **43 → 13**.
+
+⚠ **CINQ FOIS LE MÊME PIÈGE M'A COÛTÉ UNE MESURE** : un remplacement dont l'ancrage rate **en
 silence**, et je lis un chiffre qui ne mesure pas ce que je crois. Le bit posé sur la carte
 visible mais pas sur la silhouette ; le bloc D jamais inséré ; puis un garde parasite laissé par
 une édition antérieure, qui supprimait les *deux* ergots au lieu du bon — et faisait croire que
@@ -287,7 +307,7 @@ longueur fixe ne peut pas la suivre.
 |---|---|---|
 | **pincer le bord latéral au sud** | rien — **222 → 848**, +61 pavés | 0 tuile |
 | **C** — un bit sur la robe : « la case au-dessus trace de ce côté » | **rien**, le bit ne se déclenche qu'**une fois** | +1 tuile |
-| **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **rien** — 43 → 43 | +10 tuiles |
+| **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **43 → 13** | **+10 tuiles** (57 → 67) |
 | **C** refaite — l'ergot se pose quand la case du dessus trace | **rien** — 222 → 222 | +8 tuiles |
 | **le nord d'une surface au ras** | **43 → 65**, +94 pavés | 0 tuile |
 

@@ -68,6 +68,39 @@ const Walls := preload("res://core/walls.gd")
 ## fois : le bit pose sur la carte visible mais pas sur la silhouette ; le bloc D jamais insere ;
 ## le garde parasite ci-dessus. Un `assert` a chaque ancrage coute une ligne.
 
+## Cette case-la trace-t-elle son bord de ce cote ? Quatre facons de ne pas le tracer, et
+## chacune fait pendre l'ergot qui comptait dessus : elle porte une ROBE, qui la recouvre ; son
+## cardinal est PLEIN, donc elle n'a pas de bord la ; le BORD (option B) l'a fait TAIRE ; ou
+## c'est son SUD, qui ne se trace plus du tout des L2.
+static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
+		roles: Dictionary) -> bool:
+	if side == 2:
+		return false
+	if roles.has(cell) or not indices.has(cell):
+		return false
+	var tile: int = int(indices[cell])
+	if (tile & CARDINALS[side]) != 0:
+		return false
+	var quiet: int = tile >> 8
+	if side == 1 and (quiet & 1) != 0:
+		return false
+	if side == 3 and (quiet & 2) != 0:
+		return false
+	return true
+
+
+## La case du dessus laisse-t-elle un trait de ce cote-la ? Une ROBE le laisse si son flanc
+## s'ARRETE ; une SURFACE le laisse si son cardinal est ouvert et que le bord ne l'a pas fait
+## taire.
+static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
+		roles: Dictionary) -> bool:
+	if roles.has(cell):
+		var role: Vector2i = roles[cell]
+		var flank: int = Walls.pan_east(role.x) if side == 1 else Walls.pan_west(role.x)
+		return flank == Walls.SIDE_STOP
+	return _draws_side(cell, side, indices, roles)
+
+
 ## L'OPTION C, chiffree et SANS EFFET : un bit sur la robe, « la case au-dessus trace de ce
 ## cote ». L'hypothese etait que les 222 venaient du flanc `continue` d'un chapiteau, qui laisse
 ## tomber le bord lateral de sa levre. Mesure : 222 inchangees, et le bit ne se declenche
@@ -269,26 +302,43 @@ func _run(couple: String) -> bool:
 				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
 					edge |= 2
 
-				# OPTION D : l'ergot de coin rentrant se tait quand ce qu'il devait rejoindre
-				# s'est tu. Deux ergots par coin, deux bits.
-				if _option == "D":
-					for corner: int in range(4):
-						var a: int = corner
-						var b: int = (corner + 3) % 4
-						if (tile2 & CARDINALS[a]) == 0 or (tile2 & CARDINALS[b]) == 0:
-							continue
-						if (tile2 & DIAGONALS[corner]) != 0:
-							continue
-						if not _draws_side(cell2 + STEPS[b], a, indices, roles):
-							edge |= 4 << corner
-						if not _draws_side(cell2 + STEPS[a], b, indices, roles):
-							edge |= 64 << corner
 				indices[cell2] = tile2 | (edge << 8)
 				vocabulary[tile2 | (edge << 8)] = true
 				# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
 				# l'assemblage lit, pas la carte visible.
 				var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
 				mine2[cell2] = tile2 | (edge << 8)
+		# ⚠ ET LES BITS DE L'ERGOT SE POSENT EN SECONDE PASSE. Ils demandent si la VOISINE
+		# trace son bord -- ce qui depend du bord qu'on vient de lui poser. Calcules dans la
+		# meme boucle, ils interrogent une case pas encore traitee et repondent au hasard : la
+		# voisine du sud, en ordre de lecture, n'a jamais encore le sien. Cinquieme fois qu'un
+		# ordre de calcul me coute une mesure.
+		if _option == "D":
+			for y2: int in range(HeightMask.height(world)):
+				for x2: int in range(HeightMask.width(world)):
+					var here2: Vector2i = Vector2i(x2, y2)
+					if not indices.has(here2):
+						continue
+					var full: int = int(indices[here2])
+					var shape: int = full & 0xff
+					var more: int = full >> 8
+					for corner: int in range(4):
+						var a: int = corner
+						var b: int = (corner + 3) % 4
+						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
+							continue
+						if (shape & DIAGONALS[corner]) != 0:
+							continue
+						if not _draws_side(here2 + STEPS[a], b, indices, roles):
+							more |= 4 << corner
+						if not _draws_side(here2 + STEPS[b], a, indices, roles):
+							more |= 64 << corner
+					if more == full >> 8:
+						continue
+					indices[here2] = shape | (more << 8)
+					vocabulary[shape | (more << 8)] = true
+					var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
+					mine3[here2] = shape | (more << 8)
 		if _option == "C":
 			var widened: Dictionary = {}
 			for cell: Vector2i in roles.keys():
@@ -715,7 +765,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			end_count += 1
 			var cell: Vector2i = Vector2i(x / RES, y / RES)
 			var owner: int = int(indices.get(cell, -1))
-			if ends.size() < 4:
+			if ends.size() < 14:
 				ends.append("%d,%d de la case %d,%d (tuile %d)"
 						% [x % RES, y % RES, cell.x, cell.y, owner])
 			# LA DISTRIBUTION. Trois hypotheses raisonnees sur ces extremites, trois fois
