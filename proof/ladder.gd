@@ -58,60 +58,15 @@ const Walls := preload("res://core/walls.gd")
 ## Le bit : pour chaque coin ou l'ergot se declenche, la case DIAGONALE porte-t-elle une robe ?
 ## Si oui, la voisine s'est tue et l'ergot n'a plus personne a rejoindre : on ne le trace pas.
 ##
-## ⚠ MESURE : 222 -> 211 EXTREMITES, POUR 57 -> 67 TUILES. Dix tuiles pour onze extremites : le
-## marche est mauvais, et surtout il DIT LA CAUSE -- les ergots qui pendent ne font que onze des
-## 222. Le reste est ailleurs, et il faudra le regarder plutot que le deviner. L'option reste au
-## depot, derriere `LADDER_OPT=D`, comme trace de la mesure.
+## ⚠ MESURE, UNE FOIS LE CABLAGE D'APLOMB : ELLE NE FERME RIEN. 43 -> 43 extremites, pour
+## 57 -> 67 tuiles. Les « 11 fermees » d'une premiere mesure venaient d'un GARDE PARASITE laisse
+## par une edition anterieure -- `if (quiet & (1 << corner)): continue` -- qui supprimait les
+## DEUX ergots au lieu du bon. L'option reste au depot derriere `LADDER_OPT=D`, comme trace.
 ##
-## ⚠ ET ELLE M'A ECHAPPE DEUX FOIS AVANT DE MESURER QUOI QUE CE SOIT. Premiere version : le bit
-## interrogeait la case DIAGONALE, alors que l'ergot traverse la frontiere `b` et va rejoindre
-## le bord de la case d'a cote -- c'est elle qu'il faut interroger. Deuxieme version : le
-## remplacement du bloc a echoue EN SILENCE, faute d'un ancrage juste, et j'ai lu « aucun effet »
-## pendant que le code n'etait pas la. Un `assert` a l'ancrage aurait coute une ligne.
-
-## Cette case-la trace-t-elle son bord de ce cote ? Quatre facons de ne pas le tracer, et
-## chacune fait pendre l'ergot qui comptait dessus : elle porte une ROBE, qui la recouvre ; son
-## cardinal est PLEIN, donc elle n'a pas de bord la ; le BORD (option B) l'a fait TAIRE ; ou
-## c'est son SUD, qui ne se trace plus du tout des L2.
-static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
-		roles: Dictionary) -> bool:
-	if side == 2:
-		return false
-	if roles.has(cell) or not indices.has(cell):
-		return false
-	var tile: int = int(indices[cell])
-	if (tile & CARDINALS[side]) != 0:
-		return false
-	var quiet: int = tile >> 8
-	if side == 1 and (quiet & 1) != 0:
-		return false
-	if side == 3 and (quiet & 2) != 0:
-		return false
-	return true
-
-
-## La case du dessus laisse-t-elle un trait de ce cote-la ? Une ROBE le laisse si son flanc
-## s'ARRETE ; une SURFACE le laisse si son cardinal est ouvert et que le bord ne l'a pas fait
-## taire. Dans les deux cas il est a la meme profondeur -- la forme d'un bord ne depend que de
-## ce bord-la -- donc l'ergot sait ou aller sans rien savoir de plus.
-static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
-		roles: Dictionary) -> bool:
-	if roles.has(cell):
-		var role: Vector2i = roles[cell]
-		var flank: int = Walls.pan_east(role.x) if side == 1 else Walls.pan_west(role.x)
-		return flank == Walls.SIDE_STOP
-	if not indices.has(cell):
-		return false
-	var tile: int = int(indices[cell])
-	if (tile & CARDINALS[side]) != 0:
-		return false
-	var quiet: int = tile >> 8
-	if side == 1 and (quiet & 1) != 0:
-		return false
-	if side == 3 and (quiet & 2) != 0:
-		return false
-	return true
-
+## ⚠ ET C'EST LA TROISIEME FOIS QUE LE MEME PIEGE ME COUTE UNE MESURE : un remplacement dont
+## l'ancrage rate en SILENCE, et je lis un chiffre qui ne mesure pas ce que je crois. Trois
+## fois : le bit pose sur la carte visible mais pas sur la silhouette ; le bloc D jamais insere ;
+## le garde parasite ci-dessus. Un `assert` a chaque ancrage coute une ligne.
 
 ## L'OPTION C, chiffree et SANS EFFET : un bit sur la robe, « la case au-dessus trace de ce
 ## cote ». L'hypothese etait que les 222 venaient du flanc `continue` d'un chapiteau, qui laisse
@@ -460,7 +415,7 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
 		if level >= 2:
 			open[2] = false
-		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink >> 2)
+		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink)
 	return tiles
 
 
@@ -521,8 +476,16 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 ## de la case. Resultat : 222 extremites -> 848, et 61 paves. La loi de la traversee ne se plie
 ## pas -- un bord lateral doit franchir la frontiere horizontale a la profondeur COMMUNE, et le
 ## pincer d'un cote le brouille avec la case du dessus comme avec celle du dessous.
+## ⚠ ET LE NORD D'UNE SURFACE NE SE MET PAS AU RAS, ESSAYE ET MESURE : 43 -> 65 extremites, et
+## 94 paves la ou il n'y en avait aucun. Le raisonnement etait celui de la crete -- mon sol
+## occupe ma case entiere, le sol plus bas occupe la sienne, la frontiere est le bord -- et il
+## est FAUX ici. La difference : sous une crete il y a une FACE, qui occupe sa case et dont le
+## haut EST le bord ; au nord il n'y a qu'un sol plus bas, dont le bord a lui est libre, et
+## mettre le mien au ras l'empeche de le retrouver.
+##
+## Le parametre reste, inutilise, comme trace de la mesure.
 func _shape(open: Array[bool], freedom: int, body: Color, index: int,
-		quiet: int = 0) -> Image:
+		quiet: int = 0, flat_north: bool = false) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var solid: Array[PackedByteArray] = []
 	for y: int in range(RES):
@@ -530,7 +493,7 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 		line.resize(RES)
 		for x: int in range(RES):
 			var inside: bool = true
-			if open[0] and y < _depth(0, x, freedom):
+			if open[0] and y < (0 if flat_north else _depth(0, x, freedom)):
 				inside = false
 			if open[1] and x > RES - 1 - _depth(1, y, freedom):
 				inside = false
@@ -605,8 +568,6 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 ## ce qui suffit a fermer.
 func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0) -> void:
 	for corner: int in range(4):
-		if (quiet & (1 << corner)) != 0:
-			continue
 		var a: int = corner                 # N, E, S, O
 		var b: int = (corner + 3) % 4       # le cote precedent : NO, NE, SE, SO
 		if (index & CARDINALS[a]) == 0 or (index & CARDINALS[b]) == 0:

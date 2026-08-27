@@ -240,6 +240,18 @@ sud d'une case et le bord **nord** de celle d'en dessous sont **la même fronti�
 deux doit se taire, et c'est le sud — la voisine du nord existe toujours, alors que la crête,
 elle, peut manquer.
 
+⚠ **ET LE NORD D'UNE SURFACE NE SE MET PAS AU RAS.** Le raisonnement était celui de la crête —
+mon sol occupe ma case entière, le sol plus bas occupe la sienne, la frontière est le bord — et
+il est **faux** ici. La différence : sous une crête il y a une **face**, qui occupe sa case et
+dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
+et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
+
+⚠ **TROIS FOIS LE MÊME PIÈGE M'A COÛTÉ UNE MESURE** : un remplacement dont l'ancrage rate **en
+silence**, et je lis un chiffre qui ne mesure pas ce que je crois. Le bit posé sur la carte
+visible mais pas sur la silhouette ; le bloc D jamais inséré ; puis un garde parasite laissé par
+une édition antérieure, qui supprimait les *deux* ergots au lieu du bon — et faisait croire que
+D fermait onze extrémités. Un `assert` à chaque ancrage coûte une ligne.
+
 ### LA DISTRIBUTION DES 222 — et elle vaut mieux que quatre hypothèses
 
 ```
@@ -275,8 +287,9 @@ longueur fixe ne peut pas la suivre.
 |---|---|---|
 | **pincer le bord latéral au sud** | rien — **222 → 848**, +61 pavés | 0 tuile |
 | **C** — un bit sur la robe : « la case au-dessus trace de ce côté » | **rien**, le bit ne se déclenche qu'**une fois** | +1 tuile |
-| **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **222 → 211** | **57 → 67 tuiles** |
-| **C** refaite — l'ergot se pose quand la case du dessus trace | **222 → 222** | 57 → 65 tuiles |
+| **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **rien** — 43 → 43 | +10 tuiles |
+| **C** refaite — l'ergot se pose quand la case du dessus trace | **rien** — 222 → 222 | +8 tuiles |
+| **le nord d'une surface au ras** | **43 → 65**, +94 pavés | 0 tuile |
 
 ⚠ **ET C'EST D QUI DIT LA CAUSE, EN ÉCHOUANT.** Les ergots qui pendent ne font que **onze** des
 222. Le reste est ailleurs. Trois hypothèses raisonnées, trois fois faux : il faut **regarder**
