@@ -129,6 +129,10 @@ static var _option: String = ""
 ## ⚠ J2, ET DE QUEL COTE ON POSE LE BIT -- derriere un interrupteur pour etre MESURE avant
 ## d'etre paye. `LADDER_J2=face` fait ceder la FACE ; sans lui, c'est la surface qui se tait.
 static var _j2_on_face: bool = false
+
+## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
+static var _open_edges: int = 0
+static var _bare_edges: int = 0
 const MaskIO := preload("res://core/mask_io.gd")
 const Modes := preload("res://core/modes.gd")
 
@@ -321,6 +325,16 @@ func _run(couple: String) -> bool:
 					continue
 				var tile2: int = int(indices[cell2])
 				var edge: int = 0
+				# ⚠ ET ON COMPTE CE QU'IL Y A DERRIERE CHAQUE BORD OUVERT. Si TOUT bord lateral
+				# ou nord d'une surface donne sur une case couverte par une FACE, alors la
+				# surface n'a jamais besoin de le tracer -- la face le fait -- et J2 coute ZERO
+				# bit des deux cotes. C'est le seul chemin vers 47 tuiles, et il se mesure.
+				for side: int in range(4):
+					if side == 2 or (tile2 & CARDINALS[side]) != 0:
+						continue
+					_open_edges += 1
+					if not roles.has(cell2 + STEPS[side]):
+						_bare_edges += 1
 				if not _j2_on_face and (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
 					edge |= 1
 				if not _j2_on_face and (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
@@ -352,69 +366,74 @@ func _run(couple: String) -> bool:
 		# meme boucle, ils interrogent une case pas encore traitee et repondent au hasard : la
 		# voisine du sud, en ordre de lecture, n'a jamais encore le sien. Cinquieme fois qu'un
 		# ordre de calcul me coute une mesure.
-		for y2: int in range(HeightMask.height(world)):
-			for x2: int in range(HeightMask.width(world)):
-				var here2: Vector2i = Vector2i(x2, y2)
-				if not indices.has(here2):
-					continue
-				var full: int = int(indices[here2])
-				var shape: int = full & 0xff
-				var more: int = full >> 8
-				for corner: int in range(4):
-					var a: int = corner
-					var b: int = (corner + 3) % 4
-					if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
+		# ⚠ ET RIEN DE TOUT CA QUAND LA FACE PORTE LE BIT. L'ergot et la traversee au ras
+		# sont des RUSTINES DU SILENCE DE LA SURFACE : ils existent pour rattraper un bord
+		# que la surface a cesse de tracer. Si c'est la face qui cede, la surface ne se tait
+		# jamais et il n'y a rien a rattraper -- les garder ferait payer 10 tuiles pour rien.
+		if not _j2_on_face:
+			for y2: int in range(HeightMask.height(world)):
+				for x2: int in range(HeightMask.width(world)):
+					var here2: Vector2i = Vector2i(x2, y2)
+					if not indices.has(here2):
 						continue
-					if (shape & DIAGONALS[corner]) != 0:
+					var full: int = int(indices[here2])
+					var shape: int = full & 0xff
+					var more: int = full >> 8
+					for corner: int in range(4):
+						var a: int = corner
+						var b: int = (corner + 3) % 4
+						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
+							continue
+						if (shape & DIAGONALS[corner]) != 0:
+							continue
+						if not _draws_side(here2 + STEPS[a], b, indices, roles):
+							more |= 4 << corner
+						if not _draws_side(here2 + STEPS[b], a, indices, roles):
+							more |= 64 << corner
+					# ⚠ ET LE BORD LATERAL MEURT A SON NORD QUAND LA CASE DU DESSUS S'EST TUE DE
+					# CE COTE-LA. Elle s'est tue parce qu'une ROBE la longe : c'est donc le flanc
+					# de cette robe qui porte la frontiere, une case plus haut et une colonne plus
+					# loin. Mon bord doit alors traverser ma frontiere nord AU RAS, pour aller le
+					# toucher au coin au lieu de s'arreter a sa profondeur.
+					var over: Vector2i = here2 + Vector2i.UP
+					if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
+						var up: int = int(indices[over]) >> 8
+						if (shape & BlobIndex.E) == 0 and (up & 1) != 0:
+							more |= ABOVE_QUIET_EAST
+						if (shape & BlobIndex.W) == 0 and (up & 2) != 0:
+							more |= ABOVE_QUIET_WEST
+					if more == full >> 8:
 						continue
-					if not _draws_side(here2 + STEPS[a], b, indices, roles):
-						more |= 4 << corner
-					if not _draws_side(here2 + STEPS[b], a, indices, roles):
-						more |= 64 << corner
-				# ⚠ ET LE BORD LATERAL MEURT A SON NORD QUAND LA CASE DU DESSUS S'EST TUE DE
-				# CE COTE-LA. Elle s'est tue parce qu'une ROBE la longe : c'est donc le flanc
-				# de cette robe qui porte la frontiere, une case plus haut et une colonne plus
-				# loin. Mon bord doit alors traverser ma frontiere nord AU RAS, pour aller le
-				# toucher au coin au lieu de s'arreter a sa profondeur.
-				var over: Vector2i = here2 + Vector2i.UP
-				if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
-					var up: int = int(indices[over]) >> 8
-					if (shape & BlobIndex.E) == 0 and (up & 1) != 0:
-						more |= ABOVE_QUIET_EAST
-					if (shape & BlobIndex.W) == 0 and (up & 2) != 0:
-						more |= ABOVE_QUIET_WEST
-				if more == full >> 8:
-					continue
-				indices[here2] = shape | (more << 8)
-				vocabulary[shape | (more << 8)] = true
-				var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
-				mine3[here2] = shape | (more << 8)
-	# ⚠ J2 « SOMMET CONTRE FACE » : DE QUEL COTE ON POSE LE BIT. Un des deux doit se taire, donc
-	# il faut un bit -- mais il MULTIPLIE la famille qui le porte. Sur la surface il double 27
-	# silhouettes (jusqu'a 228 en forme fermee) ; sur la face il ne touche que 20 roles
-	# (jusqu'a 54). Le compte se calcule avant de choisir, et se MESURE avant d'etre paye.
-	if _j2_on_face:
-		var yielded: Dictionary = {}
-		for cell: Vector2i in roles.keys():
-			var role: Vector2i = roles[cell]
-			var ground: int = HeightMask.level_at(world, cell.x, cell.y)
-			var give: int = 0
-			# La face CEDE le trait a la surface qui le tracera de toute facon, et le GARDE
-			# la ou rien ne la borde. Une surface trace son bord vers moi si elle est PLUS
-			# HAUTE que le sol que je couvre : c'est ce qui rend son cardinal ouvert.
-			var sides: Array[int] = [Walls.pan_west(role.x), Walls.pan_east(role.x)]
-			for i: int in range(2):
-				if sides[i] != Walls.SIDE_STOP:
-					continue
-				var probe: Vector2i = cell + (Vector2i.LEFT if i == 0 else Vector2i.RIGHT)
-				if HeightMask.level_at(world, probe.x, probe.y) > ground:
-					give |= 1 << i
-			if role.y == Walls.ROW_FOOT:
-				var under: Vector2i = cell + Vector2i.DOWN
-				if HeightMask.level_at(world, under.x, under.y) > ground:
-					give |= 4
-			yielded[cell] = Vector3i(role.x, role.y, give)
-		roles = yielded
+					indices[here2] = shape | (more << 8)
+					vocabulary[shape | (more << 8)] = true
+					var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
+					mine3[here2] = shape | (more << 8)
+		# ⚠ J2 « SOMMET CONTRE FACE » : DE QUEL COTE ON POSE LE BIT. Un des deux doit se taire, donc
+		# il faut un bit -- mais il MULTIPLIE la famille qui le porte. Sur la surface il double 27
+		# silhouettes (jusqu'a 228 en forme fermee) ; sur la face il ne touche que 20 roles
+		# (jusqu'a 54). Le compte se calcule avant de choisir, et se MESURE avant d'etre paye.
+		if _j2_on_face:
+			var yielded: Dictionary = {}
+			for cell: Vector2i in roles.keys():
+				var role: Vector2i = roles[cell]
+				var ground: int = HeightMask.level_at(world, cell.x, cell.y)
+				var give: int = 0
+				# La face CEDE le trait a la surface qui le tracera de toute facon, et le GARDE
+				# la ou rien ne la borde. Une surface trace son bord vers moi si elle est PLUS
+				# HAUTE que le sol que je couvre : c'est ce qui rend son cardinal ouvert.
+				var sides: Array[int] = [Walls.pan_west(role.x), Walls.pan_east(role.x)]
+				for i: int in range(2):
+					if sides[i] != Walls.SIDE_STOP:
+						continue
+					var probe: Vector2i = cell + (Vector2i.LEFT if i == 0 else Vector2i.RIGHT)
+					if HeightMask.level_at(world, probe.x, probe.y) > ground:
+						give |= 1 << i
+				if role.y == Walls.ROW_FOOT:
+					var under: Vector2i = cell + Vector2i.DOWN
+					if HeightMask.level_at(world, under.x, under.y) > ground:
+						give |= 4
+				yielded[cell] = Vector3i(role.x, role.y, give)
+			roles = yielded
 	# ⚠ UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MEME SE FERMER. Le modele dit « une robe qui
 	# tombe dans le vide ne pose pas son pied -- on ne touche pas le fond d'un gouffre », et
 	# c'est juste tant qu'on parle du SOUS-PIED. Mais la derniere rangee, elle, s'arrete contre
@@ -425,11 +444,16 @@ func _run(couple: String) -> bool:
 	# Ce qui change est le SENS du pied -- il ne prouve plus un atterrissage, il ferme une chute.
 	var closed: Dictionary = {}
 	for cell: Vector2i in roles.keys():
-		var role: Vector2i = roles[cell]
 		var under: Vector2i = cell + Vector2i.DOWN
-		if not roles.has(under) and HeightMask.level_at(world, under.x, under.y) < 0:
-			role = Vector2i(role.x, Walls.ROW_FOOT)
-		closed[cell] = role
+		var falls: bool = not roles.has(under) 				and HeightMask.level_at(world, under.x, under.y) < 0
+		# ⚠ LA CLE A DEUX FORMES SELON L'ENDROIT OU LE BIT DE J2 EST POSE : (pan, rangee) sur
+		# la surface, (pan, rangee, cession) sur la face. On ferme la chute dans les deux.
+		if _j2_on_face:
+			var wide: Vector3i = roles[cell]
+			closed[cell] = Vector3i(wide.x, Walls.ROW_FOOT, wide.z) if falls else wide
+		else:
+			var role: Vector2i = roles[cell]
+			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if falls else role
 	roles = closed
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
@@ -438,6 +462,9 @@ func _run(couple: String) -> bool:
 			% [kinds.size(), roles.size()])
 	var tiles: Dictionary = _paint(vocabulary, freedom, level)
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
+	if _open_edges > 0:
+		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
+				% [_open_edges, _bare_edges, 100.0 * float(_bare_edges) / float(_open_edges)])
 	if level >= 2:
 		var kinds2: Dictionary = {}
 		for cell: Vector2i in roles.keys():

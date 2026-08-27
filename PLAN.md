@@ -269,6 +269,29 @@ il est **faux** ici. La différence : sous une crête il y a une **face**, qui o
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
 
+### J2, ÉTAT DE LA MINIMALITÉ : deux conceptions, aucune qui gagne sur les deux axes
+
+| | bit sur la **surface** | bit sur la **face** |
+|---|---|---|
+| tuiles rencontrées | 76 | **60** |
+| **forme fermée** | 228 + 20 = **248** | 27 + 54 = **81** |
+| **extrémités** | **2** (et elles relèvent de L3) | 32 |
+| I2 · I3 · I4 · I5 | ✅ | ✅ |
+
+⚠ **ET LES 32 SONT TOUTES AUX COINS D'UNE ROBE.** Quand la face **cède** un flanc, sa crête et
+son pied finissent au coin de la case et ne trouvent personne : le bord de la surface d'à côté
+est rentré de `d`. C'est le théorème de la traversée, qui exige que **l'un des deux touche le
+bord au point où l'autre le traverse** — et ici aucun des deux ne le fait.
+
+⚠ **MESURE QUI TUE LA SORTIE FACILE : 1 212 bords ouverts d'une surface, dont 1 095 (90,3 %)
+n'ont AUCUNE face en face.** L'idée « la face trace tout, la surface se tait toujours » est donc
+morte : dans neuf cas sur dix il n'y a pas de face, la surface doit tracer, et le monde perdrait
+90 % de ses bords. **La face est l'exception, pas la règle.**
+
+**Donc, selon l'ordre des priorités** : le bit sur la **surface** est la seule conception qui
+satisfait le critère 1 (jamais troué). Le bit sur la face reste **trois fois moins cher en
+borne** et c'est lui qu'il faut faire fermer — mais tant qu'il ne ferme pas, il ne compte pas.
+
 ### L2/F0 EST ACQUIS — le témoin est clos
 
 ⚠ **Zéro extrémité, zéro pavé, zéro doublement, zéro trou, la liberté promise tenue.** Le modèle
