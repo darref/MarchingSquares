@@ -24,6 +24,7 @@ const Coverage := preload("res://core/coverage.gd")
 const Thickness := preload("res://core/thickness.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const Families := preload("res://core/families.gd")
+const Walls := preload("res://core/walls.gd")
 const MaskIO := preload("res://core/mask_io.gd")
 
 ## La planche relue une fois, gardee pour le fond de contexte des images.
@@ -42,6 +43,9 @@ const OUTLINE: Color = Color("#0d0f12")
 ## Uniquement pour REGARDER : le fond hors monde, et l'etage 0 de la planche, pose derriere
 ## en sourdine pour qu'on voie sur quoi les specimens reposent. Rien de tout cela n'entre dans
 ## la mesure -- celle-ci se fait sur l'image a fond transparent, avant compositation.
+## La roche des falaises : claire elle aussi, pour que le trait noir s'y lise.
+const ROCK: Color = Color("#d6bb95")
+
 const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
@@ -182,11 +186,22 @@ func _run(couple: String) -> bool:
 			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
 			vocabulary.size()])
 
-	vocabulary[SOLID] = true
-	var tiles: Dictionary = _paint(vocabulary, freedom)
-	var image: Image = _assemble(world, storeys, tiles)
+	var tiles: Dictionary = _paint(vocabulary, freedom, level)
+	# L2 : les falaises. Elles se posent PAR-DESSUS les surfaces -- une face sort du plan, elle
+	# masque le sol qu'elle couvre.
+	var roles: Dictionary = {}
+	var role_tiles: Dictionary = {}
+	if level >= 2:
+		roles = Walls.visible(world)["roles"]
+		var kinds: Dictionary = {}
+		for cell: Vector2i in roles.keys():
+			kinds[roles[cell]] = true
+		role_tiles = _wall_tiles(kinds, freedom)
+		print("  robes : %d / %d roles, %d cases de falaise"
+				% [kinds.size(), Walls.PAN_COUNT * Walls.BLOCK_ROWS, roles.size()])
+	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles)
 	_write(image, couple)
-	var report: Dictionary = _measure(image, world, indices, tiles, freedom)
+	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles)
 	var ok: bool = complete
 	for key: String in ["I1", "I2", "I3", "I4", "I5"]:
 		var line: Dictionary = report[key]
@@ -219,7 +234,7 @@ func _run(couple: String) -> bool:
 ## une meme frontiere -- ce que L0 ne pouvait pas produire.
 func _world(level: int) -> PackedStringArray:
 	_board = ProofScene.relief(Families.BY_CELL)
-	if level == 1:
+	if level == 1 or level == 2:
 		return _board
 	if level != 0:
 		return PackedStringArray()
@@ -241,86 +256,127 @@ func _world(level: int) -> PackedStringArray:
 ## la tuile remplit sa case et pose son trait sur la colonne ou la rangee du bord, la ou son
 ## cardinal est vide. Si un invariant rougit ici, le defaut est dans le MODELE -- pas dans la
 ## main. C'est le seul instrument qui separe les deux, et il nous a manque toute la semaine.
-func _paint(vocabulary: Dictionary, freedom: int) -> Dictionary:
+func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in vocabulary.keys():
 		var index: int = int(key)
-		var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
-		# La matiere est ce que les quatre profils laissent. A F0 ils valent zero et elle
-		# remplit la case ; a F1 ils sont constants ; a F2 ils serpentent.
-		var solid: Array[PackedByteArray] = []
-		for y: int in range(RES):
-			var line: PackedByteArray = PackedByteArray()
-			line.resize(RES)
-			for x: int in range(RES):
-				var inside: bool = true
-				if (index & CARDINALS[0]) == 0 and y < _depth(index, 0, x, freedom):
-					inside = false
-				if (index & CARDINALS[1]) == 0 and x > RES - 1 - _depth(index, 1, y, freedom):
-					inside = false
-				if (index & CARDINALS[2]) == 0 and y > RES - 1 - _depth(index, 2, x, freedom):
-					inside = false
-				if (index & CARDINALS[3]) == 0 and x < _depth(index, 3, y, freedom):
-					inside = false
-				line[x] = 1 if inside else 0
-			solid.append(line)
-		# ⚠ ET LA MATIERE N'A PAS D'AIGUILLE. La ou deux courbes libres se rencontrent -- un
-		# coin saillant dont les deux cotes serpentent -- il reste parfois une pointe d'un
-		# seul pixel, accrochee par un coin. Son trait n'a alors qu'UN voisin : c'est une
-		# extremite, donc une interruption. Mesure : deux, sur toute la planche, dans la
-		# tuile 120.
+		var open: Array[bool] = [false, false, false, false]
+		for side: int in range(4):
+			open[side] = (index & CARDINALS[side]) == 0
+		# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
+		# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
+		# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
+		# MEME frontiere, et c'est le chapiteau qui la porte -- lui seul sait de quelle face il
+		# s'agit. Mesure : 780 doublements sans cette regle, 196 avec.
 		#
-		# C'est la regle d'epaisseur d'un cran plus bas, et pour la meme raison : une aiguille
-		# d'un pixel n'est pas une silhouette. On la retire, et on recommence jusqu'a ce qu'il
-		# n'en reste plus -- retirer une pointe peut en decouvrir une autre. Rien la-dedans ne
-		# demande de connaitre la voisine : la tuile se relit elle-meme.
-		var needled: bool = true
-		while needled:
-			needled = false
-			for y: int in range(RES):
-				for x: int in range(RES):
-					if solid[y][x] == 0:
-						continue
-					var kin: int = 0
-					for step: Vector2i in STEPS:
-						var near: Vector2i = Vector2i(x, y) + step
-						if near.x < 0 or near.y < 0 or near.x >= RES or near.y >= RES:
-							# Au-dela d'un cardinal plein la matiere continue chez la voisine.
-							if (index & CARDINALS[STEPS.find(step)]) != 0:
-								kin += 1
-							continue
-						if solid[near.y][near.x] != 0:
-							kin += 1
-					if kin >= 2:
-						continue
-					var line3: PackedByteArray = solid[y]
-					line3[x] = 0
-					solid[y] = line3
-					needled = true
+		# ⚠ ET IL NE VAUT PAS A L0 NI A L1, dont les mondes n'ont pas de falaise : un sud vide
+		# y est une vraie frontiere libre, que personne d'autre ne tracera. L'appliquer partout
+		# a fait rougir les SIX couples acquis d'un coup -- c'est le rejeu qui l'a dit, pas moi.
+		# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
+		if level >= 2:
+			open[2] = false
+		tiles[index] = _shape(open, freedom, GRASS, index)
+	return tiles
 
-		# ⚠ LE TRAIT SE DEDUIT DE LA MATIERE, IL NE SE TRACE PAS A PART. Trace a part, il faut
-		# le decouper a la main partout ou deux cotes se rencontrent -- et c'est exactement la
-		# qu'il depassait, en ergot, a chaque coin saillant. Deduit, il epouse la matiere par
-		# construction. Tout ce qu'il faut savoir en plus est LOCAL : au-dela d'un cardinal
-		# plein il y a de la matiere, au-dela d'un cardinal vide il n'y a rien.
+
+## LES ROBES : meme fabrique, autres bords ouverts.
+##
+## ⚠ ET C'EST TOUT CE QUE L2 AJOUTE AU DESSIN. Une tuile de robe a exactement les memes
+## frontieres qu'une surface, seulement designees autrement : la CRETE en haut du chapiteau,
+## le PIED en bas de la derniere rangee, et les flancs qui S'ARRETENT. Partout ailleurs la
+## roche continue chez la voisine, comme la matiere d'une surface continue chez la sienne.
+##
+## ⚠ ET PAS D'ERGOT DE COIN RENTRANT. Il demande de savoir si la DIAGONALE est vide alors que
+## les deux cardinaux sont pleins ; un role de robe -- deux flancs, une rangee -- ne porte pas
+## cette information. On note ce que le banc en dira plutot que de l'inventer.
+func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
+	var tiles: Dictionary = {}
+	for key: Variant in roles.keys():
+		var role: Vector2i = key as Vector2i
+		# ⚠ ET LE BAS DU PIED RESTE, APRES L'AVOIR RETIRE ET MESURE. Le raisonnement etait
+		# symetrique de celui de la levre : un pied ATTERRIT toujours, la case d'atterrissage a
+		# forcement son nord vide, donc le bas du pied et ce bord nord sont la meme frontiere
+		# et la surface pourrait la porter seule. Essaye : 12 doublements de moins, mais 128
+		# EXTREMITES DE PLUS -- le bas du pied est ce qui referme le contour de la falaise a sa
+		# base, et sans lui les deux flancs s'arretent dans le vide.
+		var open: Array[bool] = [role.y == Walls.ROW_CROWN,
+				Walls.pan_east(role.x) == Walls.SIDE_STOP,
+				role.y == Walls.ROW_FOOT,
+				Walls.pan_west(role.x) == Walls.SIDE_STOP]
+		tiles[role] = _shape(open, freedom, ROCK, -1)
+	return tiles
+
+
+## LA FABRIQUE : la matiere que les quatre profils laissent, puis son bord.
+##
+## ⚠ LE TRAIT SE DEDUIT DE LA MATIERE, IL NE SE TRACE PAS A PART. Trace a part, il faut le
+## decouper a la main partout ou deux cotes se rencontrent -- et c'est exactement la qu'il
+## depassait, en ergot, a chaque coin saillant. Deduit, il epouse la matiere par construction.
+## Tout ce qu'il faut savoir en plus est LOCAL : au-dela d'un cote ouvert il n'y a rien, au-dela
+## d'un cote ferme la matiere continue chez la voisine.
+func _shape(open: Array[bool], freedom: int, body: Color, index: int) -> Image:
+	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	var solid: Array[PackedByteArray] = []
+	for y: int in range(RES):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(RES)
+		for x: int in range(RES):
+			var inside: bool = true
+			if open[0] and y < _depth(0, x, freedom):
+				inside = false
+			if open[1] and x > RES - 1 - _depth(1, y, freedom):
+				inside = false
+			if open[2] and y > RES - 1 - _depth(2, x, freedom):
+				inside = false
+			if open[3] and x < _depth(3, y, freedom):
+				inside = false
+			line[x] = 1 if inside else 0
+		solid.append(line)
+
+	# ⚠ ET LA MATIERE N'A PAS D'AIGUILLE. La ou deux courbes libres se rencontrent -- un coin
+	# saillant dont les deux cotes serpentent -- il reste parfois une pointe d'un seul pixel,
+	# accrochee par un coin ; son trait n'a alors qu'UN voisin, donc c'est une extremite. C'est
+	# la regle d'epaisseur d'un cran plus bas. La tuile se relit elle-meme et la retire.
+	var needled: bool = true
+	while needled:
+		needled = false
 		for y: int in range(RES):
 			for x: int in range(RES):
 				if solid[y][x] == 0:
 					continue
-				var edge: bool = false
+				var kin: int = 0
 				for side: int in range(4):
-					var probe: Vector2i = Vector2i(x, y) + STEPS[side]
-					if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
-						if (index & CARDINALS[side]) == 0:
-							edge = true
+					var near: Vector2i = Vector2i(x, y) + STEPS[side]
+					if near.x < 0 or near.y < 0 or near.x >= RES or near.y >= RES:
+						if not open[side]:
+							kin += 1
 						continue
-					if solid[probe.y][probe.x] == 0:
+					if solid[near.y][near.x] != 0:
+						kin += 1
+				if kin >= 2:
+					continue
+				var line2: PackedByteArray = solid[y]
+				line2[x] = 0
+				solid[y] = line2
+				needled = true
+
+	for y: int in range(RES):
+		for x: int in range(RES):
+			if solid[y][x] == 0:
+				continue
+			var edge: bool = false
+			for side: int in range(4):
+				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
+				if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
+					if open[side]:
 						edge = true
-				tile.set_pixel(x, y, OUTLINE if edge else GRASS)
-		if freedom > 0:
-			_reentrant(tile, index, freedom)
-		tiles[index] = tile
-	return tiles
+					continue
+				if solid[probe.y][probe.x] == 0:
+					edge = true
+			tile.set_pixel(x, y, OUTLINE if edge else body)
+	if freedom > 0 and index >= 0:
+		_reentrant(tile, index, freedom)
+	return tile
 
 
 ## LES COINS RENTRANTS : la marche que personne d'autre ne peut tracer.
@@ -347,8 +403,8 @@ func _reentrant(tile: Image, index: int, freedom: int) -> void:
 			continue
 		if (index & DIAGONALS[corner]) != 0:
 			continue
-		_stub(tile, a, b, _depth(index, b, 0, freedom))
-		_stub(tile, b, a, _depth(index, a, 0, freedom))
+		_stub(tile, a, b, _depth(b, 0, freedom))
+		_stub(tile, b, a, _depth(a, 0, freedom))
 
 
 ## Un bout de trait le long du bord `along`, depuis le coin qu'il partage avec `from`.
@@ -375,7 +431,7 @@ func _stub(tile: Image, along: int, from: int, length: int) -> void:
 ## tuiles qui se suivent le long d'un bord se retrouvent a leur frontiere ; si elles n'y
 ## arrivent pas a la meme profondeur, le trait se rompt. Entre ces deux points la ligne fait
 ## ce qu'elle veut -- c'est ca, la liberte de F2, et elle est entiere.
-func _depth(index: int, side: int, along: int, freedom: int) -> int:
+func _depth(side: int, along: int, freedom: int) -> int:
 	if freedom == 0:
 		return 0
 	# ⚠ ET LA TRAVERSEE VAUT AU MOINS DEUX. L'ergot de coin rentrant se pose au RAS du bord --
@@ -399,7 +455,6 @@ func _depth(index: int, side: int, along: int, freedom: int) -> int:
 	#
 	# ⚠ Et tiree, pas au hasard : deux executions doivent donner la meme image, sans quoi le
 	# banc ne dit plus si un correctif a servi.
-	var _unused: int = index
 	var seed: int = absi((side + 1) * 19349663)
 	var reach: float = float(1 + seed % 3)
 	var skew: float = 0.7 + 0.6 * float(seed % 101) / 100.0
@@ -426,7 +481,7 @@ func _depth(index: int, side: int, along: int, freedom: int) -> int:
 ## On garde donc l'empilement complet, et le defaut restant -- six pixels a une jonction en T
 ## entre les bords de deux etages -- attend son propre diagnostic.
 static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
-		tiles: Dictionary) -> Image:
+		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	for storey: int in range(storeys.size()):
@@ -434,13 +489,16 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
 			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES)
+	for cell: Vector2i in roles.keys():
+		var rock: Image = role_tiles[roles[cell]] as Image
+		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 	return canvas
 
 
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
 
 func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
-		freedom: int) -> Dictionary:
+		freedom: int, roles: Dictionary) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 
@@ -501,7 +559,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				thick_where.append("%d,%d" % [x / RES, y / RES])
 
 	# I3 UNICITE. Chaque frontiere du monde est tracee par EXACTEMENT une tuile.
-	var claims: Dictionary = _claims(image, world, indices)
+	var claims: Dictionary = _claims(image, world, indices, roles)
 	var i3: bool = int(claims["doubles"]) == 0 and int(claims["muettes"]) == 0 \
 			and int(claims["parasites"]) == 0
 
@@ -539,7 +597,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	var wavy: int = 0
 	for key: Variant in tiles.keys():
 		for side: int in range(4):
-			if (int(key) & CARDINALS[side]) != 0:
+			if side == 2 or (int(key) & CARDINALS[side]) != 0:
 				continue
 			var shape: String = _profile(tiles[key] as Image, side)
 			profiles[shape] = true
@@ -603,7 +661,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 ## ⚠ LA DEFINITION S'ELARGIRA A F1. Au ras du bord, « tracer » se lit sur la ligne du bord ;
 ## des que le trait a le droit de rentrer, il faudra le chercher plus loin dans la tuile. La
 ## regle, elle, ne bouge pas : exactement un revendiquant par frontiere.
-func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dictionary:
+func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
+		roles: Dictionary) -> Dictionary:
 	var width: int = HeightMask.width(world)
 	var height: int = HeightMask.height(world)
 	var frontiers: int = 0
@@ -623,6 +682,17 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary) -> Dic
 			var theirs: int = 0
 			if beyond >= 0:
 				theirs = _draws(image, probe, (side + 2) % 4)
+			# ⚠ UNE CASE DE FALAISE NE SE JUGE PAS PAR SON ETAGE. Sur la carte, une case de
+			# robe est une case du SOL D'EN BAS : lui demander son niveau ne dit rien de la
+			# face qui la couvre. Tant que le banc ne sait pas nommer les frontieres d'une
+			# face, on n'y juge que le DOUBLEMENT -- deux traits pour un meme bord -- qui, lui,
+			# se lit sur l'image sans rien savoir du modele.
+			if roles.has(cell) or roles.has(probe):
+				if mine + theirs > 1:
+					doubles += 1
+					if witness.size() < 3:
+						witness.append("%d,%d double (falaise)" % [cell.x, cell.y])
+				continue
 			if here == beyond:
 				# Une arete INTERIEURE ne se voit qu'une fois : depuis l'est et le sud.
 				if side != 1 and side != 2:

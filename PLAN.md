@@ -129,7 +129,33 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0… | à faire | |
+| L2/F0 | **en cours** | **20/20 rôles de robe** exercés, 1 404 cases de falaise · I1 2 extrémités · I2 1 526 pavés · **I3 196 doubles** · I4 0 trou |
+| L2/F1… | à faire | |
+
+### L2 : le témoin accuse le MODÈLE, et c'est la première fois
+
+⚠ **L2/F0 est rouge, et F0 est le témoin** — donc le défaut n'est pas dans la main. La question
+que L2 pose est celle que le plan annonçait : *qui trace la frontière entre une surface et une
+falaise ?* Sans réponse, **780 frontières portent deux traits**.
+
+**Première réponse, et c'est un théorème déjà écrit au dossier : rien au sud d'une surface.**
+Une case dont le sud est vide est une **lèvre** — sa propre falaise commence juste dessous,
+toujours. Le bord sud d'une surface et la **crête** du chapiteau sont donc la même frontière, et
+c'est le chapiteau qui la porte : lui seul sait de quelle face il s'agit. **780 → 196.**
+
+⚠ **MAIS ELLE NE VAUT PAS À L0 NI À L1**, dont les mondes n'ont pas de falaise : un sud vide y
+est une vraie frontière libre, que personne d'autre ne tracera. L'appliquer partout a fait
+rougir **les six couples acquis d'un coup** — c'est le rejeu qui l'a dit, pas moi. *Une règle
+juste à un niveau peut être fausse au niveau d'en dessous.*
+
+**Deuxième réponse, essayée et REFUSÉE : rien sous le pied.** Le raisonnement était symétrique —
+un pied **atterrit** toujours (une chute dans le vide n'en pose pas), la case d'atterrissage a
+forcément son nord vide, donc le bas du pied et ce bord nord sont la même frontière. Essayé :
+**12 doublements de moins, mais 128 extrémités de plus.** Le bas du pied est ce qui **referme le
+contour de la falaise à sa base** ; sans lui les deux flancs s'arrêtent dans le vide.
+
+Reste **196 doublements** : le flanc d'une falaise contre le bord latéral de la surface voisine
+— exactement le défaut vu à l'œil ce matin, que le banc nomme maintenant avant qu'on le voie.
 
 ### La forme d'un bord ne dépend que de ce bord-là
 
