@@ -213,13 +213,43 @@ la traversée ne se plie pas** : un bord latéral doit franchir la frontière ho
 profondeur **commune**, et le pincer d'un côté le brouille avec la case du dessus comme avec
 celle du dessous.
 
-### Trois hypothèses sur les 222, toutes mesurées, toutes insuffisantes
+### LA DISTRIBUTION DES 222 — et elle vaut mieux que quatre hypothèses
+
+```
+  87  surface, bord sud, en face : robe
+  30  surface, bord sud, en face : surface
+  25  robe, bord nord, en face : robe
+  23  robe, bord ouest, en face : robe
+  21  robe, bord est, en face : robe
+  20  robe, bord sud, en face : robe
+   9  surface, bord nord, en face : surface
+   6  le reste
+```
+
+⚠ **DEUX FAMILLES, ET ELLES PÈSENT PRESQUE AUTANT L'UNE QUE L'AUTRE** : **117** sur le bord
+d'une surface (87 + 30), **89** sur un bord de robe face à une autre robe. Toutes ont la même
+forme — *un trait meurt là où la case suivante ne trace pas de son côté*.
+
+⚠ **ET LES 30 CONDAMNENT LA RÈGLE DE LA LÈVRE TELLE QU'ELLE EST ÉCRITE.** « Une case dont le sud
+est vide est une lèvre, sa falaise commence juste dessous » — mais dans 30 cas la case d'en
+dessous porte une **surface**, pas une robe. Le théorème a une exception que je n'ai pas
+cherchée, et le bord sud n'y est alors tracé par personne.
+
+⚠ **C refaite sur la bonne condition : 20 → 28 rôles, et 222 → 222.** Le bit se déclenche
+enfin, l'ergot se pose — et le compte ne bouge **pas d'une unité** : 20 extrémités fermées au
+bord sud d'une robe, 20 rouvertes à son bord nord. **L'ergot déplace le bout, il ne le ferme
+pas** : son extrémité de coin pend à son tour, parce que la frontière continue chez la voisine
+dont le flanc dit lui aussi `continue`. C'est une **cascade**, pas un cas local — et un ergot de
+longueur fixe ne peut pas la suivre.
+
+### Les hypothèses mesurées, toutes insuffisantes
 
 | hypothèse | ce qu'elle ferme | ce qu'elle coûte |
 |---|---|---|
 | **pincer le bord latéral au sud** | rien — **222 → 848**, +61 pavés | 0 tuile |
 | **C** — un bit sur la robe : « la case au-dessus trace de ce côté » | **rien**, le bit ne se déclenche qu'**une fois** | +1 tuile |
 | **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **222 → 211** | **57 → 67 tuiles** |
+| **C** refaite — l'ergot se pose quand la case du dessus trace | **222 → 222** | 57 → 65 tuiles |
 
 ⚠ **ET C'EST D QUI DIT LA CAUSE, EN ÉCHOUANT.** Les ergots qui pendent ne font que **onze** des
 222. Le reste est ailleurs. Trois hypothèses raisonnées, trois fois faux : il faut **regarder**

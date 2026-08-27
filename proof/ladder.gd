@@ -90,6 +90,29 @@ static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
 	return true
 
 
+## La case du dessus laisse-t-elle un trait de ce cote-la ? Une ROBE le laisse si son flanc
+## s'ARRETE ; une SURFACE le laisse si son cardinal est ouvert et que le bord ne l'a pas fait
+## taire. Dans les deux cas il est a la meme profondeur -- la forme d'un bord ne depend que de
+## ce bord-la -- donc l'ergot sait ou aller sans rien savoir de plus.
+static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
+		roles: Dictionary) -> bool:
+	if roles.has(cell):
+		var role: Vector2i = roles[cell]
+		var flank: int = Walls.pan_east(role.x) if side == 1 else Walls.pan_west(role.x)
+		return flank == Walls.SIDE_STOP
+	if not indices.has(cell):
+		return false
+	var tile: int = int(indices[cell])
+	if (tile & CARDINALS[side]) != 0:
+		return false
+	var quiet: int = tile >> 8
+	if side == 1 and (quiet & 1) != 0:
+		return false
+	if side == 3 and (quiet & 2) != 0:
+		return false
+	return true
+
+
 ## L'OPTION C, chiffree et SANS EFFET : un bit sur la robe, « la case au-dessus trace de ce
 ## cote ». L'hypothese etait que les 222 venaient du flanc `continue` d'un chapiteau, qui laisse
 ## tomber le bord lateral de sa levre. Mesure : 222 inchangees, et le bit ne se declenche
@@ -137,6 +160,7 @@ const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
 const DIAGONALS: Array[int] = [BlobIndex.NW, BlobIndex.NE, BlobIndex.SE, BlobIndex.SW]
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+const SIDE_NAMES: Array[String] = ["nord", "est", "sud", "ouest"]
 
 
 func _initialize() -> void:
@@ -315,19 +339,24 @@ func _run(couple: String) -> bool:
 				var role: Vector2i = roles[cell]
 				var above: Vector2i = cell + Vector2i.UP
 				var bits: int = 0
-				# ⚠ ON REGARDE CE QUE LA CASE DU DESSUS TRACE, PAS CE QU'ELLE EST. Une robe
-				# au-dessus qui s'arrete trace deja son flanc a la meme profondeur, et les deux
-				# se retrouvent sans rien ajouter ; c'est une SURFACE qui trace un bord lateral
-				# que le flanc `continue` laisse tomber dans le vide.
-				if not roles.has(above) and indices.has(above):
-					var t: int = int(indices[above])
-					var edge: int = t >> 8
-					if Walls.pan_east(role.x) == Walls.SIDE_CONTINUE \
-							and (t & BlobIndex.E) == 0 and (edge & 1) == 0:
-						bits |= 1
-					if Walls.pan_west(role.x) == Walls.SIDE_CONTINUE \
-							and (t & BlobIndex.W) == 0 and (edge & 2) == 0:
-						bits |= 2
+				# ⚠ LA DISTRIBUTION A DIT OU CHERCHER, ET C'EST TOUJOURS LA MEME FORME : un
+				# trait meurt la ou la case suivante ne trace pas de son cote. Sur les 222 :
+				# 87 « surface, bord sud, en face une robe », 89 « robe contre robe », 30
+				# « surface contre surface ». Le geste qui les ferme est le meme -- un ERGOT
+				# le long du bord haut de la robe, jusqu'a la profondeur ou la case du dessus
+				# a laisse son trait.
+				#
+				# Il ne se pose que si MOI je ne trace pas de ce cote (flanc `continue`) et si
+				# ELLE trace. Peu importe ce qu'elle est : une robe qui s'arrete, ou une
+				# surface dont le cardinal est ouvert et que le bord n'a pas fait taire.
+				for i: int in range(2):
+					var side: int = 1 if i == 0 else 3
+					var mine: int = Walls.pan_east(role.x) if i == 0 else Walls.pan_west(role.x)
+					if mine != Walls.SIDE_CONTINUE:
+						continue
+					if not _above_draws(above, side, indices, roles):
+						continue
+					bits |= 1 << i
 				widened[cell] = Vector3i(role.x, role.y, bits)
 			roles = widened
 		var kinds: Dictionary = {}
@@ -699,6 +728,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	# extremite : chaque pixel y a deux voisins. Une extremite est donc exactement un pixel
 	# de trait qui n'en a qu'UN.
 	var ends: Array[String] = []
+	var spread: Dictionary = {}
 	var end_count: int = 0
 	for y: int in range(height):
 		for x: int in range(width):
@@ -716,10 +746,39 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			if around > 1:
 				continue
 			end_count += 1
-			if ends.size() < 6:
-				var owner: int = int(indices.get(Vector2i(x / RES, y / RES), -1))
+			var cell: Vector2i = Vector2i(x / RES, y / RES)
+			var owner: int = int(indices.get(cell, -1))
+			if ends.size() < 4:
 				ends.append("%d,%d de la case %d,%d (tuile %d)"
-						% [x % RES, y % RES, x / RES, y / RES, owner])
+						% [x % RES, y % RES, cell.x, cell.y, owner])
+			# LA DISTRIBUTION. Trois hypotheses raisonnees sur ces extremites, trois fois
+			# faux : on arrete de deviner et on compte. Chaque extremite se range par le
+			# BORD ou elle se trouve, par ce que porte SA case, et par ce que porte la case
+			# de l'autre cote de ce bord.
+			var at_x: int = x % RES
+			var at_y: int = y % RES
+			var side: int = -1
+			if at_y == 0:
+				side = 0
+			elif at_x == RES - 1:
+				side = 1
+			elif at_y == RES - 1:
+				side = 2
+			elif at_x == 0:
+				side = 3
+			var mine_kind: String = "robe" if roles.has(cell) else "surface"
+			var label: String = ""
+			if side < 0:
+				label = "%s, en plein milieu" % mine_kind
+			else:
+				var probe: Vector2i = cell + STEPS[side]
+				var kind: String = "vide"
+				if roles.has(probe):
+					kind = "robe"
+				elif indices.has(probe):
+					kind = "surface"
+				label = "%s, bord %s, en face : %s" % [mine_kind, SIDE_NAMES[side], kind]
+			spread[label] = int(spread.get(label, 0)) + 1
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
@@ -801,6 +860,15 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			promised = "des profils qui serpentent"
 			i5 = wavy > 0
 
+	if end_count > 0:
+		var labels: Array[String] = []
+		for key: Variant in spread.keys():
+			labels.append(str(key))
+		labels.sort_custom(func(a: String, b: String) -> bool:
+				return int(spread[a]) > int(spread[b]))
+		print("  -- ou sont les %d extremites --" % end_count)
+		for label: String in labels:
+			print("     %4d  %s" % [int(spread[label]), label])
 	return {
 		"I1": {"nom": "fermeture", "ok": end_count == 0,
 				"dit": "%d extremites %s   (%d morceaux, %d massifs, %d trous)"
