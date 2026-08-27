@@ -274,9 +274,24 @@ nord valait 8 — exactement le bit du coin 1 de l'ergot (`4 << coin` couvre 4, 
 deux se marchaient dessus sans que rien ne le dise. Les bits du bord sont désormais rangés
 au-dessus de tous ceux de l'ergot.
 
-**Restent 5 extrémités**, cinq **singletons** d'espèces toutes différentes, aux rangées 152–153
-et 170 — c'est-à-dire dans la **marge basse** de la planche, au bord du monde. Ce sont
-vraisemblablement des cas de bordure, pas une règle manquante ; à confirmer avant de clore L2.
+**Restent 5 extrémités**, et la vérification (`tools/edge_cases.gd`) donne **deux réponses**,
+pas une :
+
+⚠ **DEUX SONT DES CAS DE BORDURE, et d'une espèce précise.** Aux **coins bas du monde**, une
+falaise tombe dans le **vide** — donc elle ne pose pas son pied, le modèle le dit — et la
+planche n'a que **six rangées de marge** là où une chute de trois étages en demande **neuf**.
+La falaise est **coupée par le cadre**. C'est un relief qui manque de place, pas une règle qui
+manque : le dossier écrit déjà qu'*une robe hors grille est une tuile impeignable* et que la
+marge vaut une chute entière. À corriger dans la planche, pas dans le dessin.
+
+⚠ **TROIS NE LE SONT PAS.** Cases (19,152), (16,153), (19,153) — **quinze rangées** au-dessus
+de la fin de la matière, treize à seize colonnes du bord. La configuration : un plateau d'étage
+**2** avec, juste au nord, des cases d'étage **0 couvertes par une robe** — une falaise qui
+passe au ras d'un plateau plus haut. C'est un vrai défaut, et il reste à le nommer.
+
+⚠ **Et « ça sent le bord du monde » n'était pas une mesure.** Les cinq tombaient toutes dans le
+tiers bas de la planche, ce qui rendait la conclusion tentante ; trois d'entre elles sont en
+plein milieu.
 
 ### Ce que L2 a coûté en tuiles
 
