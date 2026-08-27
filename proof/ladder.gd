@@ -40,7 +40,7 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -210,25 +210,77 @@ func _paint(vocabulary: Dictionary, freedom: int) -> Dictionary:
 	for key: Variant in vocabulary.keys():
 		var index: int = int(key)
 		var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
-		# La matiere est un rectangle, rentre du cote des cardinaux VIDES. A F0 elle remplit
-		# la case ; a F1 chaque tuile choisit librement de combien elle rentre.
-		var inset: Array[int] = [0, 0, 0, 0]
-		for side: int in range(4):
-			if (index & CARDINALS[side]) == 0:
-				inset[side] = _depth(index, side, freedom)
-		for y: int in range(inset[0], RES - inset[2]):
-			for x: int in range(inset[3], RES - inset[1]):
-				tile.set_pixel(x, y, GRASS)
-		for side: int in range(4):
-			if (index & CARDINALS[side]) != 0:
-				continue
-			# ⚠ LE TRAIT S'ARRETE AU BORD DE SA PROPRE MATIERE. Trace sur toute la hauteur de
-			# la tuile, il depasse dans la bande que l'autre cote vient de creuser -- un ergot
-			# a chaque coin saillant, invisible au compte de morceaux et flagrant au compte
-			# d'extremites : 332 pour 42 contours par ailleurs justes.
-			var from: int = inset[0] if side == 1 or side == 3 else inset[3]
-			var to: int = RES - 1 - (inset[2] if side == 1 or side == 3 else inset[1])
-			_edge(tile, side, inset[side], from, to)
+		# La matiere est ce que les quatre profils laissent. A F0 ils valent zero et elle
+		# remplit la case ; a F1 ils sont constants ; a F2 ils serpentent.
+		var solid: Array[PackedByteArray] = []
+		for y: int in range(RES):
+			var line: PackedByteArray = PackedByteArray()
+			line.resize(RES)
+			for x: int in range(RES):
+				var inside: bool = true
+				if (index & CARDINALS[0]) == 0 and y < _depth(index, 0, x, freedom):
+					inside = false
+				if (index & CARDINALS[1]) == 0 and x > RES - 1 - _depth(index, 1, y, freedom):
+					inside = false
+				if (index & CARDINALS[2]) == 0 and y > RES - 1 - _depth(index, 2, x, freedom):
+					inside = false
+				if (index & CARDINALS[3]) == 0 and x < _depth(index, 3, y, freedom):
+					inside = false
+				line[x] = 1 if inside else 0
+			solid.append(line)
+		# ⚠ ET LA MATIERE N'A PAS D'AIGUILLE. La ou deux courbes libres se rencontrent -- un
+		# coin saillant dont les deux cotes serpentent -- il reste parfois une pointe d'un
+		# seul pixel, accrochee par un coin. Son trait n'a alors qu'UN voisin : c'est une
+		# extremite, donc une interruption. Mesure : deux, sur toute la planche, dans la
+		# tuile 120.
+		#
+		# C'est la regle d'epaisseur d'un cran plus bas, et pour la meme raison : une aiguille
+		# d'un pixel n'est pas une silhouette. On la retire, et on recommence jusqu'a ce qu'il
+		# n'en reste plus -- retirer une pointe peut en decouvrir une autre. Rien la-dedans ne
+		# demande de connaitre la voisine : la tuile se relit elle-meme.
+		var needled: bool = true
+		while needled:
+			needled = false
+			for y: int in range(RES):
+				for x: int in range(RES):
+					if solid[y][x] == 0:
+						continue
+					var kin: int = 0
+					for step: Vector2i in STEPS:
+						var near: Vector2i = Vector2i(x, y) + step
+						if near.x < 0 or near.y < 0 or near.x >= RES or near.y >= RES:
+							# Au-dela d'un cardinal plein la matiere continue chez la voisine.
+							if (index & CARDINALS[STEPS.find(step)]) != 0:
+								kin += 1
+							continue
+						if solid[near.y][near.x] != 0:
+							kin += 1
+					if kin >= 2:
+						continue
+					var line3: PackedByteArray = solid[y]
+					line3[x] = 0
+					solid[y] = line3
+					needled = true
+
+		# ⚠ LE TRAIT SE DEDUIT DE LA MATIERE, IL NE SE TRACE PAS A PART. Trace a part, il faut
+		# le decouper a la main partout ou deux cotes se rencontrent -- et c'est exactement la
+		# qu'il depassait, en ergot, a chaque coin saillant. Deduit, il epouse la matiere par
+		# construction. Tout ce qu'il faut savoir en plus est LOCAL : au-dela d'un cardinal
+		# plein il y a de la matiere, au-dela d'un cardinal vide il n'y a rien.
+		for y: int in range(RES):
+			for x: int in range(RES):
+				if solid[y][x] == 0:
+					continue
+				var edge: bool = false
+				for side: int in range(4):
+					var probe: Vector2i = Vector2i(x, y) + STEPS[side]
+					if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
+						if (index & CARDINALS[side]) == 0:
+							edge = true
+						continue
+					if solid[probe.y][probe.x] == 0:
+						edge = true
+				tile.set_pixel(x, y, OUTLINE if edge else GRASS)
 		if freedom > 0:
 			_reentrant(tile, index, freedom)
 		tiles[index] = tile
@@ -259,8 +311,8 @@ func _reentrant(tile: Image, index: int, freedom: int) -> void:
 			continue
 		if (index & DIAGONALS[corner]) != 0:
 			continue
-		_stub(tile, a, b, _depth(index, b, freedom))
-		_stub(tile, b, a, _depth(index, a, freedom))
+		_stub(tile, a, b, _depth(index, b, 0, freedom))
+		_stub(tile, b, a, _depth(index, a, 0, freedom))
 
 
 ## Un bout de trait le long du bord `along`, depuis le coin qu'il partage avec `from`.
@@ -275,27 +327,31 @@ func _stub(tile: Image, along: int, from: int, length: int) -> void:
 			_: tile.set_pixel(0, offset, OUTLINE)
 
 
-## LA PROFONDEUR DU TRAIT, par tuile et par cote.## LA PROFONDEUR DU TRAIT, par tuile et par cote. C'est TOUTE la liberte de F1 : le trait
-## reste droit, mais chaque tuile le pose ou elle veut lateralement.
+## LA PROFONDEUR DU TRAIT, le long d'un cote.
 ##
-## ⚠ ET ELLE EST TIREE DE L'INDEX, PAS DU HASARD. Deux executions doivent donner la meme
-## image : un banc qui bouge d'une fois sur l'autre ne dit plus si un correctif a servi.
-func _depth(index: int, side: int, freedom: int) -> int:
+##   F0  zero partout : le trait est au ras du bord.
+##   F1  une constante PAR COTE : le trait rentre, mais droit -- et commune, sinon il saute a
+##       chaque changement d'index le long d'un meme bord (mesure : 168 morceaux pour 42
+##       massifs, exactement quatre par massif).
+##   F2  cette meme constante AUX DEUX BOUTS, libre entre les deux.
+##
+## ⚠ ET LA TRAVERSEE RESTE COMMUNE A F2 : C'EST LA SEULE CHOSE QUI NE SE NEGOCIE PAS. Deux
+## tuiles qui se suivent le long d'un bord se retrouvent a leur frontiere ; si elles n'y
+## arrivent pas a la meme profondeur, le trait se rompt. Entre ces deux points la ligne fait
+## ce qu'elle veut -- c'est ca, la liberte de F2, et elle est entiere.
+func _depth(index: int, side: int, along: int, freedom: int) -> int:
 	if freedom == 0:
 		return 0
-	var _unused: int = index
-	var seed: int = absi((side + 1) * 19349663)
-	return 1 + seed % 3
-
-
-## Pose le trait sur la ligne de bord d'un cote, a `depth` pixels du ras.
-func _edge(tile: Image, side: int, depth: int, from: int = 0, to: int = RES - 1) -> void:
-	for i: int in range(from, to + 1):
-		match side:
-			0: tile.set_pixel(i, depth, OUTLINE)
-			1: tile.set_pixel(RES - 1 - depth, i, OUTLINE)
-			2: tile.set_pixel(i, RES - 1 - depth, OUTLINE)
-			_: tile.set_pixel(depth, i, OUTLINE)
+	var crossing: int = 1 + absi((side + 1) * 19349663) % 3
+	if freedom == 1:
+		return crossing
+	# ⚠ TIREE DE L'INDEX, PAS DU HASARD : deux executions doivent donner la meme image, sans
+	# quoi le banc ne dit plus si un correctif a servi.
+	var seed: int = absi((index + 1) * 73856093 ^ (side + 1) * 19349663)
+	var reach: float = float(1 + seed % 3)
+	var skew: float = 0.7 + 0.6 * float(seed % 101) / 100.0
+	var t: float = float(along) / float(RES - 1)
+	return crossing + int(round(reach * sin(PI * pow(t, skew))))
 
 
 ## L0 : une tuile par case, et rien d'autre. L'empilement, les falaises et les poses arriere
@@ -350,7 +406,8 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 				continue
 			end_count += 1
 			if ends.size() < 6:
-				ends.append("%d,%d dans %d,%d" % [x % RES, y % RES, x / RES, y / RES])
+				var owner: int = int(indices.get(Vector2i(x / RES, y / RES), -1))
+				ends.append("%d,%d dans la tuile %d" % [x % RES, y % RES, owner])
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
@@ -403,13 +460,30 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 	# lui demander son profil rend « rien », et « rien » differe d'une tuile a l'autre selon
 	# le coin que son voisin y a laisse. Sept profils au premier essai, tous fantomes.
 	var profiles: Dictionary = {}
+	var wavy: int = 0
 	for key: Variant in tiles.keys():
 		for side: int in range(4):
 			if (int(key) & CARDINALS[side]) != 0:
 				continue
-			profiles[_profile(tiles[key] as Image, side)] = true
-	var promised: int = 1 if freedom == 0 else 2
-	var i5: bool = profiles.size() == 1 if freedom == 0 else profiles.size() >= promised
+			var shape: String = _profile(tiles[key] as Image, side)
+			profiles[shape] = true
+			var parts: PackedStringArray = shape.split(",")
+			for i: int in range(1, parts.size()):
+				if parts[i] != parts[0]:
+					wavy += 1
+					break
+	var promised: String = ""
+	var i5: bool = true
+	match freedom:
+		0:
+			promised = "un seul profil, plat"
+			i5 = profiles.size() == 1 and wavy == 0
+		1:
+			promised = "plusieurs profils, tous plats"
+			i5 = profiles.size() >= 2 and wavy == 0
+		_:
+			promised = "des profils qui serpentent"
+			i5 = wavy > 0
 
 	return {
 		"I1": {"nom": "fermeture", "ok": i1 and end_count == 0,
@@ -424,8 +498,8 @@ func _measure(image: Image, mask: PackedStringArray, indices: Dictionary, tiles:
 		"I4": {"nom": "matiere", "ok": pierced == 0,
 				"dit": "%d pixel(s) de fond dans une case sans bord" % pierced},
 		"I5": {"nom": "liberte", "ok": i5,
-				"dit": "%d profil(s) de bord distinct(s), %d promis" % [profiles.size(),
-				promised]},
+				"dit": "%d profil(s) distinct(s), %d qui serpentent -- promis : %s"
+				% [profiles.size(), wavy, promised]},
 	}
 
 
@@ -507,9 +581,13 @@ func _draws(image: Image, cell: Vector2i, side: int) -> bool:
 
 ## Le profil d'un bord : la profondeur du trait, colonne par colonne. C'est la mesure de la
 ## liberte -- a F0 il n'y en a qu'un seul possible, a F1 sa hauteur varie, a F2 sa forme.
+## ⚠ ET IL SE LIT LOIN DES COINS. Pres d'un coin saillant, la rangee n'a pas de matiere du
+## tout -- l'autre cote l'a creusee -- et la sonde y rencontre le trait PERPENDICULAIRE, a une
+## profondeur qui n'a rien a voir. Elle annoncait alors 24 profils « qui serpentent » sur un
+## F1 parfaitement droit. On lit donc le quart central, la ou le cote est seul.
 func _profile(tile: Image, side: int) -> String:
 	var out: PackedStringArray = PackedStringArray()
-	for i: int in range(1, RES - 1):
+	for i: int in range(RES / 4, 3 * RES / 4):
 		var depth: int = -1
 		for d: int in range(RES):
 			var at: Vector2i = Vector2i.ZERO

@@ -125,7 +125,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 |---|---|---|
 | **L0/F0** | **✅ acquis** | 27/27 silhouettes · 42 contours pour 42 massifs, **0 extrémité** · 0 pavé 2×2 · 1 086 frontières, 0 double, 0 muette, 0 parasite · 0 trou · 1 profil |
 | **L0/F1** | **✅ acquis** | idem, **8 profils de bord distincts** — la liberté latérale est réelle. Prix : **44 tuiles pour 27 silhouettes** |
-| L0/F2 | à faire | |
+| **L0/F2** | **✅ acquis** | idem, **26 profils distincts dont 33 qui serpentent** — le trait est libre à l'intérieur |
 | L1/F0… | à faire | |
 
 ### Ce que L0/F1 a coûté, et pourquoi
@@ -149,6 +149,27 @@ suffit à fermer.
 chaque changement d'index le long d'un même bord : **168 morceaux pour 42 massifs**, exactement
 quatre par massif. Commune au côté : 73. Avec les coins rentrants : 42.
 
+### Ce que L0/F2 a coûté : rien de plus que F1
+
+⚠ **LA TRAVERSEE RESTE COMMUNE, ET C'EST LA SEULE CHOSE QUI NE SE NEGOCIE PAS.** Deux tuiles
+qui se suivent le long d'un bord se retrouvent à leur frontière ; si elles n'y arrivent pas à
+la même profondeur, le trait se rompt. **Entre ces deux points la ligne fait ce qu'elle veut**
+— et c'est ça, la liberté de F2, entière. Aucune tuile de plus que les 44 de F1.
+
+⚠ **ET LA MATIÈRE N'A PAS D'AIGUILLE.** Là où deux courbes libres se rencontrent — un coin
+saillant dont les deux côtés serpentent — il reste parfois une **pointe d'un seul pixel**,
+accrochée par un coin. Son trait n'a alors qu'un voisin : une extrémité, donc une
+interruption. Mesuré : **deux, sur toute la planche**, dans la tuile 120. C'est la règle
+d'épaisseur d'un cran plus bas, et pour la même raison — une aiguille d'un pixel n'est pas une
+silhouette. La tuile se relit elle-même et la retire ; rien là-dedans ne demande de connaître
+la voisine.
+
+⚠ **Et le trait se DÉDUIT de la matière, il ne se trace pas à part.** Tracé à part, il faut le
+découper à la main partout où deux côtés se rencontrent — et c'est exactement là qu'il
+dépassait, en ergot, à chaque coin saillant. Déduit, il épouse la matière par construction.
+Tout ce qu'il faut savoir en plus est **local** : au-delà d'un cardinal plein il y a de la
+matière, au-delà d'un cardinal vide il n'y a rien.
+
 ### Trois défauts de mesure, tous dans le banc
 
 ⚠ **I1 « le bon nombre de morceaux » NE SUFFIT PAS** — un contour fermé **avec un ergot** reste
@@ -163,6 +184,11 @@ de matière » : faux dès que le trait rentre, l'entaille étant de la transpar
 une case dont l'ouest rentre ayant forcément sa ligne nord entamée, exactement comme sa voisine
 du nord — 3 046 de plus. Ce qui reste vrai à toute liberté : **une case sans aucun bord est
 entièrement opaque**.
+
+⚠ **Le profil se lit LOIN DES COINS.** Près d'un coin saillant, la rangée n'a pas de matière
+du tout — l'autre côté l'a creusée — et la sonde y rencontre le trait **perpendiculaire**, à
+une profondeur qui n'a rien à voir. Elle annonçait 24 profils « qui serpentent » sur un F1
+parfaitement droit. On lit donc le quart central, là où le côté est seul.
 
 ⚠ **I3 se sonde perpendiculairement, au milieu du côté.** Au ras, la ligne du bord suffisait ;
 dès que le trait rentre, elle ne trouve plus rien et toutes les frontières se disent muettes.
