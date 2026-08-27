@@ -128,8 +128,25 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L0/F2** | **✅ acquis** | idem, **17 profils distincts dont 16 qui serpentent** — le trait est libre à l'intérieur. Prix : **aucune tuile** |
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
-| L1/F2 | **6 pixels** | tout vert sauf I2 : **6 pavés 2×2**, tous dans la case (20,157) — une jonction en T entre les bords de deux étages |
+| **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
 | L2/F0… | à faire | |
+
+### La forme d'un bord ne dépend que de ce bord-là
+
+⚠ **C'est ce qui ferme L1/F2, et c'est une loi déjà écrite au dossier pour les falaises.** Deux
+silhouettes d'étages différents peuvent s'arrêter au **même endroit** — c'est la « pile », jusqu'à
+trois sur la planche — et chacune y trace son bord. Si elles serpentent différemment, le même
+trait se **dédouble** : deux courbes qui se croisent et s'écartent, et là où elles passent à un
+pixel l'une de l'autre, un pavé. Mesuré : **6 à L1/F2**, tous dans une seule case, invisibles à
+F0 et F1 où les bords sont droits donc confondus.
+
+Tirées du seul **côté**, les deux courbes sont la **même** : elles se superposent au pixel près,
+et il ne reste qu'un trait.
+
+⚠ **Et la liberté ne s'en trouve pas amputée, seulement déplacée** : ce n'est plus « chaque
+tuile dessine son bord comme elle veut » mais « **chaque bord a sa forme**, et toutes les tuiles
+la respectent ». Mesuré : 10 profils distincts dont 25 qui serpentent, contre 22 quand chaque
+tuile tirait le sien — et surtout, **zéro pavé** au lieu de six.
 
 ### « Le sommet trace, les enterrés se posent pleins » : essayé, RÉFUTÉ
 

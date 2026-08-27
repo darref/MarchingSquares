@@ -46,7 +46,7 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -387,9 +387,20 @@ func _depth(index: int, side: int, along: int, freedom: int) -> int:
 	var crossing: int = 2 + absi((side + 1) * 19349663) % 3
 	if freedom == 1:
 		return crossing
-	# ⚠ TIREE DE L'INDEX, PAS DU HASARD : deux executions doivent donner la meme image, sans
-	# quoi le banc ne dit plus si un correctif a servi.
-	var seed: int = absi((index + 1) * 73856093 ^ (side + 1) * 19349663)
+	# ⚠ LA FORME D'UN BORD NE DEPEND QUE DE CE BORD-LA, jamais de la tuile qui le porte. Deux
+	# silhouettes d'etages differents peuvent s'arreter au MEME endroit -- c'est la « pile »,
+	# jusqu'a trois sur la planche -- et chacune y trace son bord. Si elles serpentent
+	# differemment, le meme trait se dedouble : deux courbes qui se croisent et s'ecartent, et
+	# la ou elles passent a un pixel l'une de l'autre, un pave. Mesure : 6 a L1/F2, tous dans
+	# une seule case, invisibles a F0 et F1 ou les bords sont droits donc confondus.
+	#
+	# Tirees du seul cote, les deux courbes sont la MEME : elles se superposent au pixel pres,
+	# et il ne reste qu'un trait. C'est la loi deja ecrite au dossier pour les falaises.
+	#
+	# ⚠ Et tiree, pas au hasard : deux executions doivent donner la meme image, sans quoi le
+	# banc ne dit plus si un correctif a servi.
+	var _unused: int = index
+	var seed: int = absi((side + 1) * 19349663)
 	var reach: float = float(1 + seed % 3)
 	var skew: float = 0.7 + 0.6 * float(seed % 101) / 100.0
 	var t: float = float(along) / float(RES - 1)
