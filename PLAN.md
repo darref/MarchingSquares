@@ -153,7 +153,63 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L2/F0** | **✅ acquis** | **56 + 20 = 76 tuiles** · I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
 | L2/F1 | **2 pixels** | I1 **2 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
 | L2/F2 | **2 pixels** | idem, 7 profils dont 33 qui serpentent |
-| L3/F0… | à faire | |
+| L3/F0 | **vide** | l'image est **identique au bit près** à L2/F0 — voir ci-dessous |
+| L3/F1 | **décision ouverte** | 763 poses arrière posées ; trois conceptions mesurées |
+
+### L3 : LE TÉMOIN EST AVEUGLE, ET C'EST UN RÉSULTAT
+
+⚠ **L3/F0 N'EST PAS UN CRAN, C'EST UN ANGLE MORT.** Le banc pose les 763 poses arrière de la
+planche — 372 chapiteaux sous leur lèvre, 387 pieds d'atterrissage, 4 corps d'écrêtage — et rend
+une image **identique au bit près** à celle de L2/F0 (même md5). La raison est structurelle :
+*une pose arrière ne se voit qu'à travers une transparence*, et à F0 le trait est au ras, donc la
+tuile de surface est **pleine** et ne laisse rien voir.
+
+**Conséquence sur la méthode, et elle est sérieuse.** La règle d'avancement dit : *« si un
+invariant rougit à F0 au niveau suivant, le défaut est dans le modèle ; s'il rougit en montant en
+F, il est dans le dessin »*. À L3 cette séparation **ne tient plus** : le niveau n'existe qu'à
+partir de F1, donc un rouge à L3/F1 peut être de la règle comme de la main. L3 n'est pas un
+niveau du **monde**, c'est un niveau de la **liberté du dessin** — le premier de l'échelle.
+
+### L3 : TROIS CONCEPTIONS, MESURÉES SUR LE MÊME MONDE (L3/F1)
+
+Une pose arrière repose une tuile de robe sous une case de surface. La question du niveau est
+donc : **cette tuile cachée a-t-elle le droit de tracer ?**
+
+| conception | tuiles | dessins | I1 extrémités | I2 pavés |
+|---|---|---|---|---|
+| elle pose **sa** tuile, contour compris | 76 | 76 | 2 — dont **une nouvelle** | **300** |
+| `mute` — sa matière **sans** son contour | 76 | **+20** | 2, celles de L2 | **0** |
+| `full` — la **roche pleine** (rôle continue/continue, un corps) | 76 | 76 | 2, celles de L2 | **0** |
+
+⚠ **LA PREMIÈRE EST REFUSÉE, ET LE DÉFAUT EST EXACTEMENT CELUI QUE J2 A DÉJÀ TRANCHÉ.** Les 300
+pavés sont **282 sous un chapiteau reposé, 15 sous un pied, 3 sous un corps**, tous sur la
+**bande de flanc** au milieu du côté (`3,7` `3,8` `3,9` à l'ouest, `12,7…` à l'est). La surface
+trace son bord latéral à sa traversée, la roche reposée trace son flanc à la sienne : deux traits
+à un pixel l'un de l'autre. C'est *sommet contre face*, mais **empilé dans une seule case** au
+lieu d'être côte à côte.
+
+⚠ **ET I3 NE LE VOIT PAS — C'EST I2 QUI L'ATTRAPE.** La sonde de I3 compte les *passages* de fond
+à trait ; les deux traits étant collés, elle n'en compte qu'un. Déjà écrit au dossier pour les
+lentilles, et vrai ici pour la raison inverse : *ce qui se touche ne se compte pas deux fois.*
+
+⚠ **LA POSE ARRIÈRE NE FERME AUCUNE DES DEUX EXTRÉMITÉS DE L2, et le dossier annonçait le
+contraire.** Il était écrit que les deux derniers pixels de L2 « appartiennent à L3 » et que la
+pose derrière les fermerait. Mesuré : elle ne les ferme que dans la conception qui **trace** — et
+celle-là en rouvre une autre (20,157) et coûte 300 pavés. Muette ou pleine, les deux extrémités
+de L2 sont **toujours là**. Fermer demande un trait ; une pose arrière qui ne trace pas ne peut
+rien fermer. **Le renvoi à L3 était une hypothèse, pas une mesure.**
+
+⚠ **ET LES CINQ INVARIANTS NE DISTINGUENT PAS `mute` DE `full`.** Ils sont identiques sur les
+cinq, et pourtant les deux images diffèrent à l'œil : `mute` montre le **vrai flanc** de la vraie
+face (renflement compris, creux compris), `full` affirme de la roche **jusqu'au bord de la case**,
+y compris là où le flanc s'arrête. C'est le manque de l'échelle à ce cran : *ce qu'une pose
+arrière garantit — la bonne matière derrière une transparence — n'est lu par aucun des cinq.*
+Tant qu'il n'est pas mesuré, le choix ne peut pas être tranché par le banc.
+
+**Le prix, dit franchement :** `full` ne coûte **aucun dessin** — le rôle (continue, continue)
+d'un corps n'a aucun côté ouvert, c'est un carré de roche sans trait, et le peintre l'a déjà fait.
+`mute` coûte **un second dessin par rôle**, c'est-à-dire une seconde feuille ou un trait effacé à
+l'exécution : ça contredit « une tuile, un dessin » et ça se paierait au contrat.
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
 

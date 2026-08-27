@@ -153,6 +153,15 @@ static var _j2_on_face: bool = false
 ## ZERO et le vocabulaire reste a 47.
 static var _j2_none: bool = false
 
+## L3 : CE QU'UNE POSE ARRIERE A LE DROIT DE TRACER. Trois conceptions, toutes mesurees.
+##
+##   (defaut)  elle pose SA tuile, contour compris -- une tuile, un dessin, rien de neuf ;
+##   `mute`    elle pose sa matiere SANS son contour -- deux dessins pour une tuile ;
+##   `full`    elle pose la ROCHE PLEINE, c'est-a-dire le role (continue, continue) d'un corps,
+##             qui n'a aucun cote ouvert donc aucun trait. Zero tuile de plus : c'est une tuile
+##             que le peintre a deja faite.
+static var _backing: String = ""
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -205,6 +214,7 @@ const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 func _initialize() -> void:
 	_j2_on_face = OS.get_environment("LADDER_J2") == "face"
 	_j2_none = OS.get_environment("LADDER_J2") == "none"
+	_backing = OS.get_environment("LADDER_BACKING")
 	if _j2_none:
 		_j2_on_face = true
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -484,6 +494,54 @@ func _run(couple: String) -> bool:
 			var role: Vector2i = roles[cell]
 			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if falls else role
 	roles = closed
+
+	# ------------------------------------------------------------- L3 : LES POSES ARRIERE
+	#
+	# ⚠ UNE POSE, PAS UNE TUILE -- c'est la ligne du dossier, et c'est ce qui rend le niveau
+	# bon marche. Les trois especes reposent une tuile de robe DEJA au vocabulaire, sous une
+	# case de surface : le PIED sous une case d'atterrissage, un CORPS sous la case qui ecrete
+	# une chute, le CHAPITEAU sous la levre qui lance la face. Rien de neuf a peindre.
+	#
+	# ⚠ CE QUI EST NEUF, C'EST QU'UNE CASE PORTE DEUX TUILES. Jusqu'ici chaque case avait un
+	# seul occupant ; ici la surface recouvre la roche et ne la laisse voir que par ses coins
+	# decoupes. C'est le « 2 revendiquants, dont une cachee » du plan, et toute la question du
+	# niveau tient dans ce que la tuile cachee a le droit de tracer.
+	#
+	# ⚠ ET ELLES SE POSENT PAR ETAGE D'ATTERRISSAGE, jamais toutes au debut : l'assemblage
+	# dessine les etages du bas vers le haut, et posees en tete la plaine les recouvrirait
+	# avant meme que la banquette n'arrive. Meme regle que l'illustration du depot, meme
+	# raison -- elle y a ete trouvee a l'ecran, pas au test.
+	var under: Dictionary = {}
+	var under_by_level: Array[Dictionary] = []
+	for storey: int in range(storeys.size()):
+		under_by_level.append({})
+	if level >= 3:
+		under = Walls.visible_underfoot(world)
+		var by_kind: Dictionary = {}
+		for cell: Vector2i in under.keys():
+			var landing: int = HeightMask.level_at(world, cell.x, cell.y)
+			if landing < 0:
+				continue
+			var role: Vector2i = under[cell]
+			var kind: String = "corps (ecretage)"
+			if role.y == Walls.ROW_FOOT:
+				kind = "pied (atterrissage)"
+			elif role.y == Walls.ROW_CROWN:
+				kind = "chapiteau (sous sa levre)"
+			by_kind[kind] = int(by_kind.get(kind, 0)) + 1
+			# ⚠ `full` REPOSE UNE TUILE QUI EXISTE DEJA : le role (continue, continue) d'un
+			# corps n'a aucun cote ouvert, donc aucun trait -- c'est le carre de roche plein.
+			# Zero tuile de plus, et rien a fabriquer : le peintre l'a deja peinte.
+			var posed: Vector2i = role
+			if _backing == "full":
+				posed = Vector2i(_solid_pan(), Walls.ROW_CROWN + 1)
+			(under_by_level[landing] as Dictionary)[cell] = _wall_key(posed)
+		var said: PackedStringArray = PackedStringArray()
+		for kind: String in by_kind.keys():
+			said.append("%d %s" % [int(by_kind[kind]), kind])
+		said.sort()
+		print("  poses arriere : %d  -- %s" % [under.size(), ", ".join(said)])
+
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
@@ -498,6 +556,14 @@ func _run(couple: String) -> bool:
 		var kinds2: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			kinds2[roles[cell]] = true
+		# ⚠ ET LES ROLES REPOSES AUSSI. Une pose arriere n'ajoute aucune tuile au vocabulaire,
+		# mais elle peut etre la SEULE occurrence d'un role sur ce monde-la : sans sa cle, le
+		# dictionnaire des tuiles n'a rien a rendre et l'assemblage tombe sur un nul, qui ne
+		# dit rien de plus utile que « get_width sur null ».
+		for cell: Vector2i in under.keys():
+			kinds2[_wall_key(under[cell])] = true
+		if _backing == "full":
+			kinds2[_wall_key(Vector2i(_solid_pan(), Walls.ROW_CROWN + 1))] = true
 		role_tiles = _wall_tiles(kinds2, freedom)
 		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
 				% [role_tiles.size(), tiles.size() + role_tiles.size()])
@@ -518,9 +584,19 @@ func _run(couple: String) -> bool:
 							break
 		print("  liberte des faces : %d profil(s) distinct(s), %d qui serpentent"
 				% [shapes.size(), wavy])
-	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles)
+	# ⚠ `mute` EST LE SEUL DES TROIS QUI FABRIQUE UN SECOND DESSIN, et c'est son prix : la
+	# planche exportee dit « une tuile, un dessin », donc un moteur devrait poser une seconde
+	# feuille ou effacer un trait a l'execution. On le mesure quand meme -- refuser une option
+	# sans son chiffre, c'est exactement ce que ce plan existe pour empecher.
+	var backing_tiles: Dictionary = role_tiles
+	if _backing == "mute":
+		backing_tiles = {}
+		for key: Variant in role_tiles.keys():
+			backing_tiles[key] = _muted(role_tiles[key] as Image)
+	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
+			backing_tiles)
 	_write(image, couple)
-	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles)
+	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under)
 	var ok: bool = complete
 	for key: String in ["I1", "I2", "I3", "I4", "I5"]:
 		var line: Dictionary = report[key]
@@ -578,7 +654,11 @@ func _world(level: int) -> PackedStringArray:
 		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
 		return _board
 	_board = _with_margin(ProofScene.relief(Families.BY_CELL))
-	if level == 1 or level == 2:
+	# ⚠ L3 NE CHANGE PAS LE MONDE, IL CHANGE CE QU'ON Y POSE. La planche porte deja les trois
+	# especes de pose arriere -- l'atterrissage (le sous-pied), l'ecretage (la pose derriere,
+	# c'est la paire de piliers ajoutee pour ca), et la levre (le chapiteau sous sa levre).
+	# Un monde de plus ne prouverait rien de plus ; ce qui manquait, c'est la POSE.
+	if level >= 1 and level <= 3:
 		return _board
 	if level != 0:
 		return PackedStringArray()
@@ -648,6 +728,34 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 ## ⚠ ET PAS D'ERGOT DE COIN RENTRANT. Il demande de savoir si la DIAGONALE est vide alors que
 ## les deux cardinaux sont pleins ; un role de robe -- deux flancs, une rangee -- ne porte pas
 ## cette information. On note ce que le banc en dira plutot que de l'inventer.
+## LA CLE D'UNE TUILE DE ROBE A DEUX FORMES, selon le cote ou le bit de J2 est pose :
+## (pan, rangee) quand c'est la surface qui se tait, (pan, rangee, cession) quand c'est la
+## face. Une pose arriere est cachee sous une surface -- elle ne cede son trait a personne,
+## d'ou zero.
+func _wall_key(role: Vector2i) -> Variant:
+	return Vector3i(role.x, role.y, 0) if _j2_on_face else role
+
+
+## LE PAN DONT LES DEUX FLANCS CONTINUENT -- calcule, jamais ecrit en dur : c'est le seul
+## role sans aucun cote ouvert, donc le seul carre de roche sans trait.
+func _solid_pan() -> int:
+	for pan: int in range(Walls.PAN_COUNT):
+		if Walls.pan_west(pan) == Walls.SIDE_CONTINUE \
+				and Walls.pan_east(pan) == Walls.SIDE_CONTINUE:
+			return pan
+	return 0
+
+
+## La meme tuile, sa matiere sans son trait.
+func _muted(tile: Image) -> Image:
+	var out: Image = tile.duplicate() as Image
+	for y: int in range(RES):
+		for x: int in range(RES):
+			if out.get_pixel(x, y).is_equal_approx(OUTLINE):
+				out.set_pixel(x, y, ROCK)
+	return out
+
+
 func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
@@ -920,10 +1028,18 @@ func _depth(side: int, along: int, freedom: int) -> int:
 ## On garde donc l'empilement complet, et le defaut restant -- six pixels a une jonction en T
 ## entre les bords de deux etages -- attend son propre diagnostic.
 static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
-		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary) -> Image:
+		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
+		under_by_level: Array[Dictionary], backing_tiles: Dictionary) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	for storey: int in range(storeys.size()):
+		# ⚠ LA POSE ARRIERE PASSE JUSTE AVANT LA SURFACE DE SON ETAGE D'ATTERRISSAGE. Sous
+		# celle-ci, donc invisible partout ou la surface est opaque -- et visible par ses
+		# coins decoupes, ce qui est exactement l'endroit ou elle manquait.
+		var backing: Dictionary = under_by_level[storey]
+		for cell: Vector2i in backing.keys():
+			canvas.blend_rect(backing_tiles[backing[cell]] as Image, Rect2i(0, 0, RES, RES),
+					cell * RES)
 		var map: Dictionary = storeys[storey]
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
@@ -937,7 +1053,7 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
 
 func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
-		freedom: int, roles: Dictionary) -> Dictionary:
+		freedom: int, roles: Dictionary, under: Dictionary = {}) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 
@@ -1019,14 +1135,31 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	# UN SEUL morceau, donc la fermeture passe au vert pendant que l'oeil voit un renflement.
 	var thick: int = 0
 	var thick_where: Array[String] = []
+	# ⚠ ET ON DIT SOUS QUOI, comme I1 dit ou. Trois hypotheses raisonnees sur les extremites,
+	# trois fois faux : la lecon vaut pour l'epaisseur. Chaque pave se range par ce que porte
+	# sa case -- une surface, une robe -- et par l'espece de pose arriere posee dessous.
+	var thick_spread: Dictionary = {}
 	for y: int in range(height - 1):
 		for x: int in range(width - 1):
 			if not (_is_stroke(image, x, y) and _is_stroke(image, x + 1, y)
 					and _is_stroke(image, x, y + 1) and _is_stroke(image, x + 1, y + 1)):
 				continue
 			thick += 1
-			if thick_where.size() < 14:
-				thick_where.append("%d,%d" % [x / RES, y / RES])
+			var at: Vector2i = Vector2i(x / RES, y / RES)
+			if thick_where.size() < 10:
+				thick_where.append("%d,%d de la case %d,%d" % [x % RES, y % RES, at.x, at.y])
+			var mine: String = "robe" if roles.has(at) else "surface"
+			var below: String = "rien dessous"
+			if under.has(at):
+				var role: Vector2i = under[at]
+				if role.y == Walls.ROW_FOOT:
+					below = "pied repose"
+				elif role.y == Walls.ROW_CROWN:
+					below = "chapiteau repose"
+				else:
+					below = "corps repose"
+			var label: String = "%s, %s" % [mine, below]
+			thick_spread[label] = int(thick_spread.get(label, 0)) + 1
 
 	# I3 UNICITE. Chaque frontiere du monde est tracee par EXACTEMENT une tuile.
 	var claims: Dictionary = _claims(image, world, indices, roles)
@@ -1100,6 +1233,15 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			promised = "des profils qui serpentent"
 			i5 = wavy > 0
 
+	if thick > 0:
+		var kinds3: Array[String] = []
+		for key: Variant in thick_spread.keys():
+			kinds3.append(str(key))
+		kinds3.sort_custom(func(a: String, b: String) -> bool:
+				return int(thick_spread[a]) > int(thick_spread[b]))
+		print("  -- ou sont les %d paves --" % thick)
+		for label: String in kinds3:
+			print("     %4d  %s" % [int(thick_spread[label]), label])
 	if end_count > 0:
 		var labels: Array[String] = []
 		for key: Variant in spread.keys():
