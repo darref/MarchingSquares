@@ -26,18 +26,26 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const Families := preload("res://core/families.gd")
 const Walls := preload("res://core/walls.gd")
 
-## L'ARBITRAGE DE L2, mis derriere un interrupteur pour etre MESURE avant d'etre paye.
-##   ""  aucune des deux : les deux cotes tracent, 196 frontieres a deux traits.
-##   "A" un TROISIEME ETAT DE FLANC sur la robe -- « arret contre du nu » / « arret contre du
-##       sol ». Le flanc ne trace que contre du nu ; contre du sol, c'est le sol qui trace.
-##       4 -> 9 pans, 20 -> 45 roles.
-##   "B" le BORD sur la surface, a l'est et a l'ouest -- « nu » / « roche ». La surface ne
-##       trace son bord lateral que contre du nu ; contre de la roche, c'est le flanc qui
-##       trace. 27 -> 48 silhouettes (compte mesure en 9.0.0).
+## LE BORD D'UNE SURFACE : `nu` ou `roche`, a l'est et a l'ouest.
 ##
-## ⚠ Les deux disent LA MEME CHOSE, chacun de son cote de la frontiere. Ce qui les separe
-## n'est donc pas la justesse mais le prix -- et laquelle ferme AUSSI les 213 extremites.
-static var _option: String = ""
+## ⚠ C'EST LA REPONSE DE L2 A « QUI TRACE ? », ET ELLE A ETE MESUREE CONTRE SON ALTERNATIVE.
+## A la frontiere entre le flanc d'une falaise et le bord lateral de la surface voisine, les
+## deux tracent. Il n'y a pas de theoreme pour trancher -- un flanc qui s'arrete ne borde jamais
+## de la roche (0 sur 5 216) mais borde de la terre 35,5 % du temps et du vide 64,5 % -- donc
+## l'un des deux doit porter un BIT de plus. Mesure sur le meme monde, a L2/F1 :
+##
+##     option                          tuiles    extremites   doublements
+##     aucune                          47        213          196
+##     A  troisieme etat de flanc      59        720          1450
+##     B  le bord sur la surface       57        222          12
+##
+## ⚠ ON NE PEUT PAS FAIRE TAIRE LE FLANC, ON PEUT FAIRE TAIRE LA SURFACE. Le trait de flanc
+## PORTE LA CONNEXITE du contour de la falaise -- deja mesure : le retirer coute deux tirets par
+## falaise. Le faire taire contre du sol fragmente le contour, d'ou 720 extremites et 1 450
+## doublements. Le bord lateral d'une surface, lui, se tait sans rien casser. Et B est moins
+## cher : 57 tuiles contre 59.
+##
+## Le bit vaut 1 pour l'est, 2 pour l'ouest, et se range au-dessus des huit bits de silhouette.
 const MaskIO := preload("res://core/mask_io.gd")
 
 ## La planche relue une fois, gardee pour le fond de contexte des images.
@@ -72,7 +80,6 @@ const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vect
 
 
 func _initialize() -> void:
-	_option = OS.get_environment("LADDER_OPT")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -210,39 +217,23 @@ func _run(couple: String) -> bool:
 		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE. C'est justement ce qu'une tuile ne peut
 		# pas savoir : ce qu'il y a de l'autre cote. Le banc, lui, a le monde sous les yeux --
 		# c'est ce qui permet de MESURER le prix avant de decider si on le paie.
-		if _option == "A":
-			var widened: Dictionary = {}
-			for cell: Vector2i in roles.keys():
-				var role: Vector2i = roles[cell]
-				var ground: int = HeightMask.level_at(world, cell.x, cell.y)
-				var states: Array[int] = [0, 0]
-				var sides: Array[int] = [Walls.pan_west(role.x), Walls.pan_east(role.x)]
-				for i: int in range(2):
-					if sides[i] == Walls.SIDE_CONTINUE:
-						continue
-					var probe: Vector2i = cell + (Vector2i.LEFT if i == 0 else Vector2i.RIGHT)
-					var there: int = HeightMask.level_at(world, probe.x, probe.y)
-					states[i] = 2 if there > ground else 1
-				widened[cell] = Vector2i(states[0] * 3 + states[1], role.y)
-			roles = widened
-		if _option == "B":
-			for y: int in range(HeightMask.height(world)):
-				for x: int in range(HeightMask.width(world)):
-					var cell2: Vector2i = Vector2i(x, y)
-					if not indices.has(cell2):
-						continue
-					var tile2: int = int(indices[cell2])
-					var edge: int = 0
-					if (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
-						edge |= 1
-					if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
-						edge |= 2
-					indices[cell2] = tile2 | (edge << 8)
-					vocabulary[tile2 | (edge << 8)] = true
-					# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
-					# l'assemblage lit, pas la carte visible.
-					var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
-					mine2[cell2] = tile2 | (edge << 8)
+		for y: int in range(HeightMask.height(world)):
+			for x: int in range(HeightMask.width(world)):
+				var cell2: Vector2i = Vector2i(x, y)
+				if not indices.has(cell2):
+					continue
+				var tile2: int = int(indices[cell2])
+				var edge: int = 0
+				if (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
+					edge |= 1
+				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
+					edge |= 2
+				indices[cell2] = tile2 | (edge << 8)
+				vocabulary[tile2 | (edge << 8)] = true
+				# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
+				# l'assemblage lit, pas la carte visible.
+				var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
+				mine2[cell2] = tile2 | (edge << 8)
 		var kinds: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			kinds[roles[cell]] = true
@@ -322,13 +313,11 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		var open: Array[bool] = [false, false, false, false]
 		for side: int in range(4):
 			open[side] = (index & CARDINALS[side]) == 0
-		# OPTION B : contre de la ROCHE, la surface se tait -- c'est le flanc de la falaise
-		# qui trace. Le bit vaut 1 pour l'est, 2 pour l'ouest.
-		if _option == "B":
-			if (brink & 1) != 0:
-				open[1] = false
-			if (brink & 2) != 0:
-				open[3] = false
+		# Contre de la ROCHE, la surface se tait : c'est le flanc de la falaise qui trace.
+		if (brink & 1) != 0:
+			open[1] = false
+		if (brink & 2) != 0:
+			open[3] = false
 		# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
 		# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
 		# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
@@ -663,7 +652,11 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	var wavy: int = 0
 	for key: Variant in tiles.keys():
 		for side: int in range(4):
-			if side == 2 or (int(key) & CARDINALS[side]) != 0:
+			# ⚠ ET ON NE PROFILE PAS UN COTE QUE LE BORD VIENT DE FAIRE TAIRE. La sonde y
+			# rend « rien », et « rien » differe d'un profil trace : I5 comptait alors des
+			# profils fantomes et declarait fausse une liberte parfaitement tenue.
+			var quiet: bool = (int(key) >> 8) & (1 if side == 1 else 2) != 0 					if side == 1 or side == 3 else false
+			if side == 2 or quiet or (int(key) & CARDINALS[side]) != 0:
 				continue
 			var shape: String = _profile(tiles[key] as Image, side)
 			profiles[shape] = true

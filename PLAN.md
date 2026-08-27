@@ -129,9 +129,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0 | **en cours** | **20/20 rôles de robe** exercés, 1 404 cases de falaise · I1 2 extrémités · I2 1 526 pavés · **I3 196 doubles** · I4 0 trou |
-| L2/F1 | **en cours** | **I2 propre (0 pavé)** · I1 213 extrémités · I3 196 doubles |
-| L2/F2 | **en cours** | idem, 7 profils dont 21 qui serpentent |
+| L2/F0 | **en cours** | **B adopté** — 37 + 20 = **57 tuiles** · I1 2 extrémités · I2 94 pavés · **I3 12 doubles** · I4 0 trou · I5 ok |
+| L2/F1 | **en cours** | I2 **propre** · I1 222 extrémités · I3 12 doubles · I5 ok |
+| L2/F2 | **en cours** | idem, 7 profils dont 23 qui serpentent |
 | L3/F0… | à faire | |
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
@@ -194,6 +194,10 @@ mesure de ce matin : retirer le trait de flanc coûte deux tirets par falaise. O
 faire taire le flanc ; on peut faire taire la surface.
 
 ⚠ **Et B est moins cher que A** : 57 tuiles contre 59, pour un résultat sans commune mesure.
+
+**B est adopté.** Le vocabulaire de L2 est donc **37 silhouettes + 20 rôles = 57 tuiles**, et il
+reste trois défauts à L2, tous chiffrés : 222 extrémités (F1/F2), 94 pavés (F0 seulement), et
+12 doublements.
 
 ### Ce que F1 et F2 disent en plus
 
