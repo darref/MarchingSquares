@@ -129,9 +129,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0 | **en cours** | **B adopté** — 37 + 20 = **57 tuiles** · I1 2 extrémités · I2 94 pavés · **I3 12 doubles** · I4 0 trou · I5 ok |
-| L2/F1 | **en cours** | I2 **propre** · **I1 43 extrémités** (222 avant la règle de la cascade) · I3 12 doubles · I5 ok |
-| L2/F2 | **en cours** | idem, 7 profils dont 23 qui serpentent |
+| L2/F0 | **presque** | **49 + 20 = 69 tuiles** · I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F1 | **presque** | I1 **14 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F2 | **presque** | idem, 7 profils dont 30 qui serpentent |
 | L3/F0… | à faire | |
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
@@ -245,6 +245,36 @@ mon sol occupe ma case entière, le sol plus bas occupe la sienne, la frontière
 il est **faux** ici. La différence : sous une crête il y a une **face**, qui occupe sa case et
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
+
+### L2, à la fin de la séance : deux règles de plus, et tout est vert sauf I1
+
+| | au départ | maintenant |
+|---|---|---|
+| extrémités | 222 | **14** (3 à F0) |
+| doublements | 196 | **0** |
+| pavés | 7 399 | **0** |
+| tuiles | 47 | **69** |
+
+**Trois décisions payées, et une gratuite :**
+
+1. **B** — le bord `nu`/`roche` de la surface, à l'est et à l'ouest. +10 tuiles, 196 → 12 doubles.
+2. **la règle de la cascade** — les bords d'une face sont les bords de sa case. **Gratuite**, et
+   c'est elle qui a fait 222 → 43.
+3. **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu. +10 tuiles, 43 → 13.
+4. **le nord sous une face** — symétrique exact de B : le bas du **pied** et le bord nord de
+   l'atterrissage sont la même frontière, et **c'est le pied qui la porte**, parce que son bas
+   referme le contour de la falaise et que rien d'autre ne le peut. +2 tuiles, et **I2 et I3
+   passent au vert d'un coup**.
+
+⚠ **ET LE SENS DE (4) A ÉTÉ TROUVÉ EN L'ESSAYANT À L'ENVERS.** Faire taire le pied ferme aussi
+les doublements — mais ouvre **128 extrémités aux coins bas de chaque robe**. Mettre le bord
+nord au ras au lieu de le taire n'en ferme que 5. C'est la troisième fois qu'une paire
+« qui des deux se tait » ne se devine pas et se mesure.
+
+**Restent 14 extrémités**, dont **9 d'une seule famille** : le bord latéral d'une surface meurt
+à son **nord** quand la case au-dessus est silenciée par B de ce côté-là. C'est la même espèce
+que les 30 que D a fermées — une transition dans *qui trace* — mais sur un bord ordinaire, pas
+sur un ergot. Elle demandera son propre bit.
 
 ### Ce que les 43 étaient vraiment, vu au pixel
 

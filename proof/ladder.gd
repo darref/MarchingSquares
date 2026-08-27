@@ -152,7 +152,6 @@ const SIDE_NAMES: Array[String] = ["nord", "est", "sud", "ouest"]
 
 
 func _initialize() -> void:
-	_option = OS.get_environment("LADDER_OPT")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -301,6 +300,17 @@ func _run(couple: String) -> bool:
 					edge |= 1
 				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
 					edge |= 2
+				# ⚠ ET LE NORD : SOUS UNE FACE, C'EST UN PLI, DONC C'EST LE BORD. Quand une
+				# robe couvre ma voisine du nord, ce que j'ai au-dessus n'est pas un sol plus
+				# bas mais le PIED d'une falaise -- il occupe sa case entiere, et la frontiere
+				# entre nous est le bord de case. Mon bord nord s'y met donc au ras, et le pied
+				# n'a plus a le tracer.
+				#
+				# ⚠ CE N'EST PAS « TOUT NORD AU RAS », ESSAYE ET REFUTE : 43 -> 65 extremites,
+				# 94 paves. Contre un simple sol plus bas, le bord du voisin est libre, et
+				# mettre le mien au ras l'empeche de le retrouver.
+				if (tile2 & BlobIndex.N) == 0 and roles.has(cell2 + Vector2i.UP):
+					edge |= 8
 
 				indices[cell2] = tile2 | (edge << 8)
 				vocabulary[tile2 | (edge << 8)] = true
@@ -313,63 +323,62 @@ func _run(couple: String) -> bool:
 		# meme boucle, ils interrogent une case pas encore traitee et repondent au hasard : la
 		# voisine du sud, en ordre de lecture, n'a jamais encore le sien. Cinquieme fois qu'un
 		# ordre de calcul me coute une mesure.
-		if _option == "D":
-			for y2: int in range(HeightMask.height(world)):
-				for x2: int in range(HeightMask.width(world)):
-					var here2: Vector2i = Vector2i(x2, y2)
-					if not indices.has(here2):
+		for y2: int in range(HeightMask.height(world)):
+			for x2: int in range(HeightMask.width(world)):
+				var here2: Vector2i = Vector2i(x2, y2)
+				if not indices.has(here2):
+					continue
+				var full: int = int(indices[here2])
+				var shape: int = full & 0xff
+				var more: int = full >> 8
+				for corner: int in range(4):
+					var a: int = corner
+					var b: int = (corner + 3) % 4
+					if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
 						continue
-					var full: int = int(indices[here2])
-					var shape: int = full & 0xff
-					var more: int = full >> 8
-					for corner: int in range(4):
-						var a: int = corner
-						var b: int = (corner + 3) % 4
-						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
-							continue
-						if (shape & DIAGONALS[corner]) != 0:
-							continue
-						if not _draws_side(here2 + STEPS[a], b, indices, roles):
-							more |= 4 << corner
-						if not _draws_side(here2 + STEPS[b], a, indices, roles):
-							more |= 64 << corner
-					if more == full >> 8:
+					if (shape & DIAGONALS[corner]) != 0:
 						continue
-					indices[here2] = shape | (more << 8)
-					vocabulary[shape | (more << 8)] = true
-					var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
-					mine3[here2] = shape | (more << 8)
-		if _option == "C":
-			var widened: Dictionary = {}
-			for cell: Vector2i in roles.keys():
-				var role: Vector2i = roles[cell]
-				var above: Vector2i = cell + Vector2i.UP
-				var bits: int = 0
-				# ⚠ LA DISTRIBUTION A DIT OU CHERCHER, ET C'EST TOUJOURS LA MEME FORME : un
-				# trait meurt la ou la case suivante ne trace pas de son cote. Sur les 222 :
-				# 87 « surface, bord sud, en face une robe », 89 « robe contre robe », 30
-				# « surface contre surface ». Le geste qui les ferme est le meme -- un ERGOT
-				# le long du bord haut de la robe, jusqu'a la profondeur ou la case du dessus
-				# a laisse son trait.
-				#
-				# Il ne se pose que si MOI je ne trace pas de ce cote (flanc `continue`) et si
-				# ELLE trace. Peu importe ce qu'elle est : une robe qui s'arrete, ou une
-				# surface dont le cardinal est ouvert et que le bord n'a pas fait taire.
-				for i: int in range(2):
-					var side: int = 1 if i == 0 else 3
-					var mine: int = Walls.pan_east(role.x) if i == 0 else Walls.pan_west(role.x)
-					if mine != Walls.SIDE_CONTINUE:
-						continue
-					if not _above_draws(above, side, indices, roles):
-						continue
-					bits |= 1 << i
-				widened[cell] = Vector3i(role.x, role.y, bits)
-			roles = widened
-		var kinds: Dictionary = {}
+					if not _draws_side(here2 + STEPS[a], b, indices, roles):
+						more |= 4 << corner
+					if not _draws_side(here2 + STEPS[b], a, indices, roles):
+						more |= 64 << corner
+				if more == full >> 8:
+					continue
+				indices[here2] = shape | (more << 8)
+				vocabulary[shape | (more << 8)] = true
+				var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
+				mine3[here2] = shape | (more << 8)
+	if _option == "C":
+		var widened: Dictionary = {}
 		for cell: Vector2i in roles.keys():
-			kinds[roles[cell]] = true
-		print("  robes : %d roles distincts, %d cases de falaise"
-				% [kinds.size(), roles.size()])
+			var role: Vector2i = roles[cell]
+			var above: Vector2i = cell + Vector2i.UP
+			var bits: int = 0
+			# ⚠ LA DISTRIBUTION A DIT OU CHERCHER, ET C'EST TOUJOURS LA MEME FORME : un
+			# trait meurt la ou la case suivante ne trace pas de son cote. Sur les 222 :
+			# 87 « surface, bord sud, en face une robe », 89 « robe contre robe », 30
+			# « surface contre surface ». Le geste qui les ferme est le meme -- un ERGOT
+			# le long du bord haut de la robe, jusqu'a la profondeur ou la case du dessus
+			# a laisse son trait.
+			#
+			# Il ne se pose que si MOI je ne trace pas de ce cote (flanc `continue`) et si
+			# ELLE trace. Peu importe ce qu'elle est : une robe qui s'arrete, ou une
+			# surface dont le cardinal est ouvert et que le bord n'a pas fait taire.
+			for i: int in range(2):
+				var side: int = 1 if i == 0 else 3
+				var mine: int = Walls.pan_east(role.x) if i == 0 else Walls.pan_west(role.x)
+				if mine != Walls.SIDE_CONTINUE:
+					continue
+				if not _above_draws(above, side, indices, roles):
+					continue
+				bits |= 1 << i
+			widened[cell] = Vector3i(role.x, role.y, bits)
+		roles = widened
+	var kinds: Dictionary = {}
+	for cell: Vector2i in roles.keys():
+		kinds[roles[cell]] = true
+	print("  robes : %d roles distincts, %d cases de falaise"
+			% [kinds.size(), roles.size()])
 	var tiles: Dictionary = _paint(vocabulary, freedom, level)
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
 	if level >= 2:
@@ -465,6 +474,11 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
 		if level >= 2:
 			open[2] = false
+		# ⚠ ET SOUS UNE FACE, LA SURFACE SE TAIT AU NORD -- symetrique exact du bord lateral.
+		# Le bas du PIED et mon bord nord sont la meme frontiere ; le pied la porte, parce que
+		# son bas referme le contour de la falaise et que rien d'autre ne le peut.
+		if (brink & 8) != 0:
+			open[0] = false
 		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink)
 	return tiles
 
@@ -809,7 +823,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 					and _is_stroke(image, x, y + 1) and _is_stroke(image, x + 1, y + 1)):
 				continue
 			thick += 1
-			if thick_where.size() < 3:
+			if thick_where.size() < 14:
 				thick_where.append("%d,%d" % [x / RES, y / RES])
 
 	# I3 UNICITE. Chaque frontiere du monde est tracee par EXACTEMENT une tuile.
@@ -854,7 +868,14 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			# ⚠ ET ON NE PROFILE PAS UN COTE QUE LE BORD VIENT DE FAIRE TAIRE. La sonde y
 			# rend « rien », et « rien » differe d'un profil trace : I5 comptait alors des
 			# profils fantomes et declarait fausse une liberte parfaitement tenue.
-			var quiet: bool = (int(key) >> 8) & (1 if side == 1 else 2) != 0 					if side == 1 or side == 3 else false
+			var bit: int = 0
+			if side == 0:
+				bit = 8
+			elif side == 1:
+				bit = 1
+			elif side == 3:
+				bit = 2
+			var quiet: bool = bit != 0 and ((int(key) >> 8) & bit) != 0
 			if side == 2 or quiet or (int(key) & CARDINALS[side]) != 0:
 				continue
 			var shape: String = _profile(tiles[key] as Image, side)
@@ -957,7 +978,7 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
 			if roles.has(cell) or roles.has(probe):
 				if mine + theirs > 1:
 					doubles += 1
-					if witness.size() < 3:
+					if witness.size() < 14:
 						witness.append("%d,%d double (falaise)" % [cell.x, cell.y])
 				continue
 			if here == beyond:
@@ -966,7 +987,7 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
 					continue
 				if mine + theirs > 0:
 					parasites += 1
-					if witness.size() < 3:
+					if witness.size() < 14:
 						witness.append("%d,%d parasite" % [cell.x, cell.y])
 				continue
 			if here < beyond:
@@ -977,11 +998,11 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
 			var claimants: int = mine + theirs
 			if claimants == 0:
 				mutes += 1
-				if witness.size() < 3:
+				if witness.size() < 14:
 					witness.append("%d,%d muette" % [cell.x, cell.y])
 			elif claimants > 1:
 				doubles += 1
-				if witness.size() < 3:
+				if witness.size() < 14:
 					witness.append("%d,%d double" % [cell.x, cell.y])
 	return {"frontieres": frontiers, "doubles": doubles, "muettes": mutes,
 			"parasites": parasites, "pile": deepest, "ou": witness}
