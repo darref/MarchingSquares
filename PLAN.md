@@ -213,6 +213,24 @@ la traversée ne se plie pas** : un bord latéral doit franchir la frontière ho
 profondeur **commune**, et le pincer d'un côté le brouille avec la case du dessus comme avec
 celle du dessous.
 
+### Trois hypothèses sur les 222, toutes mesurées, toutes insuffisantes
+
+| hypothèse | ce qu'elle ferme | ce qu'elle coûte |
+|---|---|---|
+| **pincer le bord latéral au sud** | rien — **222 → 848**, +61 pavés | 0 tuile |
+| **C** — un bit sur la robe : « la case au-dessus trace de ce côté » | **rien**, le bit ne se déclenche qu'**une fois** | +1 tuile |
+| **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu | **222 → 211** | **57 → 67 tuiles** |
+
+⚠ **ET C'EST D QUI DIT LA CAUSE, EN ÉCHOUANT.** Les ergots qui pendent ne font que **onze** des
+222. Le reste est ailleurs. Trois hypothèses raisonnées, trois fois faux : il faut **regarder**
+un échantillon large d'extrémités, pas en deviner une de plus.
+
+⚠ **Et deux fautes de méthode à moi, dans le même mouvement.** Le bit de D interrogeait d'abord
+la case **diagonale**, alors que l'ergot traverse une frontière et va rejoindre le bord de la
+case **d'à côté**. Puis le remplacement du bloc a échoué **en silence**, faute d'un ancrage
+juste — et j'ai lu « aucun effet » pendant que le code n'était pas là. Un `assert` à l'ancrage
+aurait coûté une ligne.
+
 ⚠ **Ce cas n'arrive que quand le flanc du chapiteau dit `continue`.** S'il dit `arrêt`, il trace
 son propre bord à `dW` et le bord de la lèvre le retrouve exactement. Il faudrait donc que le
 chapiteau sache que **la lèvre au-dessus a son côté ouvert** — une information qu'un rôle de

@@ -46,6 +46,66 @@ const Walls := preload("res://core/walls.gd")
 ## cher : 57 tuiles contre 59.
 ##
 ## Le bit vaut 1 pour l'est, 2 pour l'ouest, et se range au-dessus des huit bits de silhouette.
+
+## L'OPTION D, CHIFFREE ET REFUSEE : l'ergot de coin rentrant se tait quand ce qu'il devait
+## rejoindre s'est tu.
+##
+## Diagnostic, vu au pixel apres deux hypotheses fausses : les 222 extremites sont des ERGOTS
+## QUI PENDENT. Un ergot est trace pour rejoindre le bord lateral de la case d'a cote, en
+## diagonale -- et le BORD (option B) vient justement de faire taire ce bord-la quand il longe
+## de la roche. L'ergot tombe alors dans le vide.
+##
+## Le bit : pour chaque coin ou l'ergot se declenche, la case DIAGONALE porte-t-elle une robe ?
+## Si oui, la voisine s'est tue et l'ergot n'a plus personne a rejoindre : on ne le trace pas.
+##
+## ⚠ MESURE : 222 -> 211 EXTREMITES, POUR 57 -> 67 TUILES. Dix tuiles pour onze extremites : le
+## marche est mauvais, et surtout il DIT LA CAUSE -- les ergots qui pendent ne font que onze des
+## 222. Le reste est ailleurs, et il faudra le regarder plutot que le deviner. L'option reste au
+## depot, derriere `LADDER_OPT=D`, comme trace de la mesure.
+##
+## ⚠ ET ELLE M'A ECHAPPE DEUX FOIS AVANT DE MESURER QUOI QUE CE SOIT. Premiere version : le bit
+## interrogeait la case DIAGONALE, alors que l'ergot traverse la frontiere `b` et va rejoindre
+## le bord de la case d'a cote -- c'est elle qu'il faut interroger. Deuxieme version : le
+## remplacement du bloc a echoue EN SILENCE, faute d'un ancrage juste, et j'ai lu « aucun effet »
+## pendant que le code n'etait pas la. Un `assert` a l'ancrage aurait coute une ligne.
+
+## Cette case-la trace-t-elle son bord de ce cote ? Quatre facons de ne pas le tracer, et
+## chacune fait pendre l'ergot qui comptait dessus : elle porte une ROBE, qui la recouvre ; son
+## cardinal est PLEIN, donc elle n'a pas de bord la ; le BORD (option B) l'a fait TAIRE ; ou
+## c'est son SUD, qui ne se trace plus du tout des L2.
+static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
+		roles: Dictionary) -> bool:
+	if side == 2:
+		return false
+	if roles.has(cell) or not indices.has(cell):
+		return false
+	var tile: int = int(indices[cell])
+	if (tile & CARDINALS[side]) != 0:
+		return false
+	var quiet: int = tile >> 8
+	if side == 1 and (quiet & 1) != 0:
+		return false
+	if side == 3 and (quiet & 2) != 0:
+		return false
+	return true
+
+
+## L'OPTION C, chiffree et SANS EFFET : un bit sur la robe, « la case au-dessus trace de ce
+## cote ». L'hypothese etait que les 222 venaient du flanc `continue` d'un chapiteau, qui laisse
+## tomber le bord lateral de sa levre. Mesure : 222 inchangees, et le bit ne se declenche
+## QU'UNE FOIS sur toute la planche -- 21 roles au lieu de 20. La cause etait ailleurs.
+##
+## L'OPTION C, a chiffrer : UN BIT SUR LA ROBE, « la case au-dessus trace de ce cote ».
+##
+## Les 222 extremites sont le bord lateral d'une LEVRE qui meurt a son bas, faute de retrouver
+## la crete du chapiteau. Le cas n'arrive que quand le flanc du chapiteau dit `continue` : s'il
+## dit `arret`, il trace son propre bord a la meme profondeur et les deux se retrouvent.
+##
+## Le chapiteau devrait donc savoir que la case au-dessus trace de ce cote-la, pour poser un
+## ERGOT le long de son bord haut -- exactement le geste des coins rentrants, de l'autre cote
+## de la frontiere. C'est une information qu'un role de robe ne porte pas : deux flancs, une
+## rangee, rien d'autre.
+static var _option: String = ""
 const MaskIO := preload("res://core/mask_io.gd")
 
 ## La planche relue une fois, gardee pour le fond de contexte des images.
@@ -80,6 +140,7 @@ const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vect
 
 
 func _initialize() -> void:
+	_option = OS.get_environment("LADDER_OPT")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -228,12 +289,47 @@ func _run(couple: String) -> bool:
 					edge |= 1
 				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
 					edge |= 2
+				# OPTION D : l'ergot de coin rentrant se tait quand ce qu'il devait rejoindre
+				# s'est tu. Deux ergots par coin, deux bits.
+				if _option == "D":
+					for corner: int in range(4):
+						var a: int = corner
+						var b: int = (corner + 3) % 4
+						if (tile2 & CARDINALS[a]) == 0 or (tile2 & CARDINALS[b]) == 0:
+							continue
+						if (tile2 & DIAGONALS[corner]) != 0:
+							continue
+						if not _draws_side(cell2 + STEPS[b], a, indices, roles):
+							edge |= 4 << corner
+						if not _draws_side(cell2 + STEPS[a], b, indices, roles):
+							edge |= 64 << corner
 				indices[cell2] = tile2 | (edge << 8)
 				vocabulary[tile2 | (edge << 8)] = true
 				# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
 				# l'assemblage lit, pas la carte visible.
 				var mine2: Dictionary = storeys[HeightMask.level_at(world, x, y)]
 				mine2[cell2] = tile2 | (edge << 8)
+		if _option == "C":
+			var widened: Dictionary = {}
+			for cell: Vector2i in roles.keys():
+				var role: Vector2i = roles[cell]
+				var above: Vector2i = cell + Vector2i.UP
+				var bits: int = 0
+				# ⚠ ON REGARDE CE QUE LA CASE DU DESSUS TRACE, PAS CE QU'ELLE EST. Une robe
+				# au-dessus qui s'arrete trace deja son flanc a la meme profondeur, et les deux
+				# se retrouvent sans rien ajouter ; c'est une SURFACE qui trace un bord lateral
+				# que le flanc `continue` laisse tomber dans le vide.
+				if not roles.has(above) and indices.has(above):
+					var t: int = int(indices[above])
+					var edge: int = t >> 8
+					if Walls.pan_east(role.x) == Walls.SIDE_CONTINUE \
+							and (t & BlobIndex.E) == 0 and (edge & 1) == 0:
+						bits |= 1
+					if Walls.pan_west(role.x) == Walls.SIDE_CONTINUE \
+							and (t & BlobIndex.W) == 0 and (edge & 2) == 0:
+						bits |= 2
+				widened[cell] = Vector3i(role.x, role.y, bits)
+			roles = widened
 		var kinds: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			kinds[roles[cell]] = true
@@ -330,7 +426,7 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
 		if level >= 2:
 			open[2] = false
-		tiles[int(key)] = _shape(open, freedom, GRASS, index)
+		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink >> 2)
 	return tiles
 
 
@@ -347,7 +443,14 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
-		var role: Vector2i = key as Vector2i
+		var bits: int = 0
+		var role: Vector2i = Vector2i.ZERO
+		if _option == "C":
+			var wide: Vector3i = key as Vector3i
+			role = Vector2i(wide.x, wide.y)
+			bits = wide.z
+		else:
+			role = key as Vector2i
 		# ⚠ ET LE BAS DU PIED RESTE, APRES L'AVOIR RETIRE ET MESURE. Le raisonnement etait
 		# symetrique de celui de la levre : un pied ATTERRIT toujours, la case d'atterrissage a
 		# forcement son nord vide, donc le bas du pied et ce bord nord sont la meme frontiere
@@ -358,7 +461,15 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 				Walls.pan_east(role.x) == Walls.SIDE_STOP,
 				role.y == Walls.ROW_FOOT,
 				Walls.pan_west(role.x) == Walls.SIDE_STOP]
-		tiles[role] = _shape(open, freedom, ROCK, -1)
+		var tile: Image = _shape(open, freedom, ROCK, -1)
+		# L'ERGOT DE ROBE : le long du bord HAUT, depuis le coin du cote concerne, jusqu'a la
+		# profondeur ou la case du dessus a laisse son trait.
+		if bits != 0 and freedom > 0:
+			if (bits & 1) != 0:
+				_stub(tile, 0, 1, _depth(1, 0, freedom))
+			if (bits & 2) != 0:
+				_stub(tile, 0, 3, _depth(3, 0, freedom))
+		tiles[key] = tile
 	return tiles
 
 
@@ -375,7 +486,8 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 ## de la case. Resultat : 222 extremites -> 848, et 61 paves. La loi de la traversee ne se plie
 ## pas -- un bord lateral doit franchir la frontiere horizontale a la profondeur COMMUNE, et le
 ## pincer d'un cote le brouille avec la case du dessus comme avec celle du dessous.
-func _shape(open: Array[bool], freedom: int, body: Color, index: int) -> Image:
+func _shape(open: Array[bool], freedom: int, body: Color, index: int,
+		quiet: int = 0) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var solid: Array[PackedByteArray] = []
 	for y: int in range(RES):
@@ -436,7 +548,7 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int) -> Image:
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else body)
 	if freedom > 0 and index >= 0:
-		_reentrant(tile, index, freedom)
+		_reentrant(tile, index, freedom, quiet)
 	return tile
 
 
@@ -456,16 +568,20 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int) -> Image:
 ## n'a pas de matiere a cet endroit : si elle tracait aussi, les deux traits seraient colles
 ## de part et d'autre de la frontiere -- un pave 2x2, I2 rouge. Ils se rejoignent en diagonale,
 ## ce qui suffit a fermer.
-func _reentrant(tile: Image, index: int, freedom: int) -> void:
+func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0) -> void:
 	for corner: int in range(4):
+		if (quiet & (1 << corner)) != 0:
+			continue
 		var a: int = corner                 # N, E, S, O
 		var b: int = (corner + 3) % 4       # le cote precedent : NO, NE, SE, SO
 		if (index & CARDINALS[a]) == 0 or (index & CARDINALS[b]) == 0:
 			continue
 		if (index & DIAGONALS[corner]) != 0:
 			continue
-		_stub(tile, a, b, _depth(b, 0, freedom))
-		_stub(tile, b, a, _depth(a, 0, freedom))
+		if (quiet & (4 << corner)) == 0:
+			_stub(tile, a, b, _depth(b, 0, freedom))
+		if (quiet & (64 << corner)) == 0:
+			_stub(tile, b, a, _depth(a, 0, freedom))
 
 
 ## Un bout de trait le long du bord `along`, depuis le coin qu'il partage avec `from`.
@@ -602,7 +718,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			end_count += 1
 			if ends.size() < 6:
 				var owner: int = int(indices.get(Vector2i(x / RES, y / RES), -1))
-				ends.append("%d,%d dans la tuile %d" % [x % RES, y % RES, owner])
+				ends.append("%d,%d de la case %d,%d (tuile %d)"
+						% [x % RES, y % RES, x / RES, y / RES, owner])
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
