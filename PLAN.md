@@ -181,6 +181,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
+| **L3/F2@battue1·2·3** | **rouge : 14 · 10 · 4 extrémités** | **des mondes tirés au sort par le GESTE DU PINCEAU** — I2 rouge sur deux d'entre eux, I3 · I4 · I5 · I6 verts partout |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
 (58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
@@ -246,6 +247,45 @@ n'arrive jamais ; sur le guide, treize fois.
 banc qui ne connaît qu'un monde ne prouve que ce monde**. La planche de preuve est bâtie pour
 exercer le *vocabulaire* — elle porte les 27 silhouettes — mais pas les *rencontres*. Le guide en
 porte d'autres, et un relief tiré au sort en porterait d'autres encore.
+
+### ⚠ LA BATTUE MORD : DEUX MONDES BÂTIS À LA MAIN NE SUFFISENT PAS NON PLUS
+
+Le guide avait montré que la planche ne suffit pas. Trois mondes **tirés au sort** montrent que
+les deux ensemble ne suffisent pas davantage.
+
+⚠ **ET ILS SONT TIRÉS PAR LE GESTE DU PINCEAU, PAS PAR DES BLOCS AU HASARD.** SoluPaint pose des
+tampons 3×3, efface en 3×3, et **refuse tout geste qui laisserait une case fine**. Une battue qui
+tire des rectangles cherche donc ailleurs que là où l'acheteur dessine — elle fabrique des
+rencontres que personne ne produira jamais, et en manque d'autres. C'est la règle de
+`tools/brush_census.gd`, reprise dans le banc. Ce que la battue trouve est donc **peignable**,
+donc réel.
+
+| monde | silhouettes exercées | tuiles | I1 | I2 |
+|---|---|---|---|---|
+| `@battue1` | 16 / 27 | 59 | **14 extrémités** | **4 pavés** |
+| `@battue2` | 15 / 27 | 61 | **10 extrémités** | ✅ |
+| `@battue3` | 15 / 27 | 53 | **4 extrémités** | **4 pavés** |
+
+**I3, I4, I5 et I6 sont verts sur les trois.** Ce qui casse est donc exclusivement la
+**fermeture** et l'**épaisseur** — c'est-à-dire les coins, encore et toujours : *qui trace là où
+la frontière tourne ?*
+
+⚠ **ET ELLES N'EXERCENT MÊME PAS TOUT LE VOCABULAIRE** — 15 ou 16 silhouettes sur 27 — et elles
+cassent quand même. Un monde plus riche en casserait davantage, pas moins.
+
+⚠ **LA GRAINE EST FIXE, ET C'EST VOULU.** *« Deux exécutions doivent donner la même image, sans
+quoi le banc ne dit plus si un correctif a servi »* — déjà écrit au dossier pour le tracé. Un
+monde tiré à neuf à chaque exécution trouverait plus de défauts et ne dirait jamais si on en a
+corrigé un.
+
+⚠ **CE QUE ÇA CHANGE AU MOT « ACQUIS ».** L2 et L3 sont verts **sur les deux mondes bâtis à la
+main** — ils le restent, et le rejeu les tient. Mais ils ne sont **pas clos** : le niveau n'est
+fini que quand la battue passe. C'est la même leçon qu'hier, d'un cran plus loin, et il vaut
+mieux l'écrire que la découvrir chez un acheteur.
+
+**Le prochain travail est là**, et la distribution dit par où commencer — sur `@battue1` :
+10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
+une **robe qui n'a rien en dessous**.
 
 ### LES TREIZE SONT FERMÉES, ET C'ÉTAIT DEUX DÉFAUTS, PAS UN
 

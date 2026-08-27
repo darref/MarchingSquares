@@ -731,10 +731,83 @@ func _with_margin(relief: PackedStringArray) -> PackedStringArray:
 	return out
 
 
+## UN MONDE TIRE AU SORT, MAIS PAR LE GESTE DU PINCEAU -- pas par des rectangles au hasard.
+##
+## ⚠ LE VOCABULAIRE N'EST PAS « TOUT RELIEF EPAIS », C'EST « TOUT RELIEF QUE LE PINCEAU PEUT
+## FAIRE ». SoluPaint pose des tampons 3x3, efface en 3x3, et refuse tout geste qui laisserait
+## une case fine. Une battue qui tire des blocs au hasard cherche donc ailleurs que la ou
+## l'acheteur dessine : elle peut fabriquer des rencontres que personne ne produira jamais, et
+## en manquer d'autres. C'est la regle de `tools/brush_census.gd`, reprise ici.
+##
+## ⚠ ET UNE MAIN POSE ALIGNE, LE HASARD NON. Un tampon pose a un decalage quelconque laisse
+## presque toujours une case fine -- la moitie des gestes refuses -- et la battue passe son
+## temps a se faire dire non. On tire donc surtout des poses alignees sur trois.
+##
+## ⚠ LA GRAINE EST FIXE, ET C'EST VOULU. « Deux executions doivent donner la meme image, sans
+## quoi le banc ne dit plus si un correctif a servi » -- deja ecrit au dossier pour le trace.
+## Un monde tire a chaque fois trouverait plus de defauts et ne dirait jamais si on en a
+## corrige un.
+func _battue(name: String) -> PackedStringArray:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 20260827 + int(name.substr(6))
+	var width: int = 40
+	var height: int = 30
+	var edge: int = 4
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(height):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(width)
+		grid.append(line)
+	# ⚠ ET IL EN FAUT BEAUCOUP : a quatre-vingt-dix gestes la battue ne remplissait qu'un quart
+	# du cadre et n'exercait que 13 silhouettes sur 27. Une battue qui ne rencontre pas le
+	# vocabulaire ne prouve pas qu'il est sain, elle prouve qu'elle n'a rien regarde.
+	for gesture: int in range(400):
+		var level: int = rng.randi_range(-1, 3)
+		var ox: int = rng.randi_range(edge, width - edge - 3)
+		var oy: int = rng.randi_range(edge, height - edge - 3)
+		if rng.randf() < 0.8:
+			ox = edge + ((ox - edge) / 3) * 3
+			oy = edge + ((oy - edge) / 3) * 3
+		var before: Array[PackedByteArray] = []
+		for line: PackedByteArray in grid:
+			before.append(line.duplicate())
+		for y: int in range(oy, oy + 3):
+			for x: int in range(ox, ox + 3):
+				var row: PackedByteArray = grid[y]
+				row[x] = level + 1
+				grid[y] = row
+		# LE REFUS DU PINCEAU : un geste qui laisse une case fine ne se pose pas.
+		if not Thickness.thin_cells(_text(grid)).is_empty():
+			grid = before
+	# ⚠ ET LA MARGE DU BAS VAUT UNE CHUTE ENTIERE DEPUIS LE PLUS HAUT ETAGE. Une chute dans le
+	# vide descend de STOREY_TILES x (etage + 1) -- douze rangees depuis l'etage 3 -- et une
+	# robe coupee par le cadre laisse son contour ouvert. Ce serait un defaut du MONDE, pas du
+	# dessin, et il accuserait la regle a tort.
+	var out: PackedStringArray = _text(grid)
+	var empty: String = ""
+	for x: int in range(width):
+		empty += "~"
+	for row: int in range(Walls.STOREY_TILES * 5):
+		out.append(empty)
+	return out
+
+
+func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for line: PackedByteArray in grid:
+		var said: String = ""
+		for value: int in line:
+			said += "~" if value == 0 else str(value - 1)
+		out.append(said)
+	return out
+
+
 func _world(level: int) -> PackedStringArray:
 	# ⚠ ET LE MONDE PEUT ETRE LE GUIDE, pour savoir s'il porte encore tout le vocabulaire.
 	# La planche de preuve est batie POUR l'exercer ; le guide, lui, est ce que l'acheteur
 	# peindra -- s'il ne porte pas une tuile, cette tuile est impeignable.
+	if _world_name.begins_with("battue"):
+		return _battue(_world_name)
 	if _world_name == "guide":
 		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
 		return _board
