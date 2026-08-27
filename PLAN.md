@@ -129,9 +129,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| L2/F0 | **presque** | **49 + 20 = 69 tuiles** · I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F1 | **presque** | I1 **14 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F2 | **presque** | idem, 7 profils dont 30 qui serpentent |
+| L2/F0 | **presque** | **55 + 20 = 75 tuiles** · I1 **3 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F1 | **presque** | I1 **5 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| L2/F2 | **presque** | idem, 7 profils dont 32 qui serpentent |
 | L3/F0… | à faire | |
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
@@ -246,7 +246,45 @@ il est **faux** ici. La différence : sous une crête il y a une **face**, qui o
 dont le haut *est* le bord ; au nord il n'y a qu'un sol plus bas, dont le bord à lui est libre,
 et mettre le mien au ras l'empêche de le retrouver. **43 → 65, plus 94 pavés.**
 
-### L2, à la fin de la séance : deux règles de plus, et tout est vert sauf I1
+### L2 : cinq règles, et il ne reste que cinq pixels
+
+| | au départ | maintenant |
+|---|---|---|
+| extrémités | 222 | **5** (3 à F0) |
+| doublements | 196 | **0** |
+| pavés | 7 399 | **0** |
+| tuiles | 47 | **75** |
+
+**Cinq décisions, dont une gratuite :**
+
+1. **la règle de la lèvre** — rien au sud d'une surface, la crête porte cette frontière. 780 → 196.
+2. **B** — le bord `nu`/`roche` de la surface, à l'est et à l'ouest. +10 tuiles, 196 → 12 doubles.
+3. **la règle de la cascade** — les bords d'une face sont les bords de sa case. **Gratuite**,
+   222 → 43 extrémités.
+4. **D** — l'ergot se tait quand ce qu'il devait rejoindre s'est tu. +10 tuiles, 43 → 13.
+5. **le nord sous une face** — le bas du **pied** et le bord nord de l'atterrissage sont la même
+   frontière, et c'est le pied qui la porte. +2 tuiles, et **I2 comme I3 passent au vert**.
+6. **la traversée au ras sous une voisine silenciée** — quand la case du dessus s'est tue de mon
+   côté, c'est le flanc d'une robe qui porte la frontière, une case plus haut et une colonne plus
+   loin : mon bord latéral traverse sa frontière nord **au ras** pour aller le toucher au coin.
+   +6 tuiles, 14 → 5.
+
+⚠ **UNE COLLISION DE BITS SILENCIEUSE, TROUVÉE EN CHERCHANT OÙ LOGER LES SUIVANTS.** Le bit du
+nord valait 8 — exactement le bit du coin 1 de l'ergot (`4 << coin` couvre 4, 8, 16, 32). Les
+deux se marchaient dessus sans que rien ne le dise. Les bits du bord sont désormais rangés
+au-dessus de tous ceux de l'ergot.
+
+**Restent 5 extrémités**, cinq **singletons** d'espèces toutes différentes, aux rangées 152–153
+et 170 — c'est-à-dire dans la **marge basse** de la planche, au bord du monde. Ce sont
+vraisemblablement des cas de bordure, pas une règle manquante ; à confirmer avant de clore L2.
+
+### Ce que L2 a coûté en tuiles
+
+⚠ **47 → 75.** C'est le prix de la première rencontre entre deux familles, et il est lourd. Il
+faudra le regarder en face avant de monter à L3 : la fiche du *sweet spot* dit que la grammaire
+est une monnaie, et on vient d'en dépenser 28.
+
+### Ce que les 43 étaient vraiment, vu au pixel
 
 | | au départ | maintenant |
 |---|---|---|

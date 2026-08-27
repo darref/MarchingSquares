@@ -150,6 +150,15 @@ const DIAGONALS: Array[int] = [BlobIndex.NW, BlobIndex.NE, BlobIndex.SE, BlobInd
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 const SIDE_NAMES: Array[String] = ["nord", "est", "sud", "ouest"]
 
+## LES BITS DU BORD, au-dessus des huit de silhouette.
+##
+## ⚠ ET ILS DOIVENT ETRE DISJOINTS DE CEUX DE L'ERGOT : `4 << coin` couvre 4, 8, 16, 32 et
+## `64 << coin` couvre 64 a 512. Le nord valait 8 -- exactement le bit du coin 1 de l'ergot.
+## Collision silencieuse, trouvee en cherchant ou loger les suivants.
+const NORTH_QUIET: int = 1024        ## une face me couvre au nord : c'est le PIED qui trace
+const ABOVE_QUIET_EAST: int = 2048   ## la case du dessus s'est tue a l'est
+const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
+
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -310,7 +319,7 @@ func _run(couple: String) -> bool:
 				# 94 paves. Contre un simple sol plus bas, le bord du voisin est libre, et
 				# mettre le mien au ras l'empeche de le retrouver.
 				if (tile2 & BlobIndex.N) == 0 and roles.has(cell2 + Vector2i.UP):
-					edge |= 8
+					edge |= NORTH_QUIET
 
 				indices[cell2] = tile2 | (edge << 8)
 				vocabulary[tile2 | (edge << 8)] = true
@@ -342,6 +351,18 @@ func _run(couple: String) -> bool:
 						more |= 4 << corner
 					if not _draws_side(here2 + STEPS[b], a, indices, roles):
 						more |= 64 << corner
+				# ⚠ ET LE BORD LATERAL MEURT A SON NORD QUAND LA CASE DU DESSUS S'EST TUE DE
+				# CE COTE-LA. Elle s'est tue parce qu'une ROBE la longe : c'est donc le flanc
+				# de cette robe qui porte la frontiere, une case plus haut et une colonne plus
+				# loin. Mon bord doit alors traverser ma frontiere nord AU RAS, pour aller le
+				# toucher au coin au lieu de s'arreter a sa profondeur.
+				var over: Vector2i = here2 + Vector2i.UP
+				if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
+					var up: int = int(indices[over]) >> 8
+					if (shape & BlobIndex.E) == 0 and (up & 1) != 0:
+						more |= ABOVE_QUIET_EAST
+					if (shape & BlobIndex.W) == 0 and (up & 2) != 0:
+						more |= ABOVE_QUIET_WEST
 				if more == full >> 8:
 					continue
 				indices[here2] = shape | (more << 8)
@@ -477,7 +498,7 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 		# ⚠ ET SOUS UNE FACE, LA SURFACE SE TAIT AU NORD -- symetrique exact du bord lateral.
 		# Le bas du PIED et mon bord nord sont la meme frontiere ; le pied la porte, parce que
 		# son bas referme le contour de la falaise et que rien d'autre ne le peut.
-		if (brink & 8) != 0:
+		if (brink & NORTH_QUIET) != 0:
 			open[0] = false
 		tiles[int(key)] = _shape(open, freedom, GRASS, index, brink)
 	return tiles
@@ -548,6 +569,18 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 ## mettre le mien au ras l'empeche de le retrouver.
 ##
 ## Le parametre reste, inutilise, comme trace de la mesure.
+## La profondeur d'un bord LATERAL, qui tombe a zero a son premier pixel quand la case du
+## dessus s'est tue de ce cote : la frontiere y est portee par le flanc d'une robe, une case
+## plus haut et une colonne plus loin, et il faut aller le toucher au coin.
+func _side_depth(side: int, along: int, freedom: int, quiet: int) -> int:
+	if along == 0:
+		if side == 1 and (quiet & ABOVE_QUIET_EAST) != 0:
+			return 0
+		if side == 3 and (quiet & ABOVE_QUIET_WEST) != 0:
+			return 0
+	return _depth(side, along, freedom)
+
+
 func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 		quiet: int = 0, flat_north: bool = false) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
@@ -559,11 +592,11 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 			var inside: bool = true
 			if open[0] and y < (0 if flat_north else _depth(0, x, freedom)):
 				inside = false
-			if open[1] and x > RES - 1 - _depth(1, y, freedom):
+			if open[1] and x > RES - 1 - _side_depth(1, y, freedom, quiet):
 				inside = false
 			if open[2] and y > RES - 1 - _depth(2, x, freedom):
 				inside = false
-			if open[3] and x < _depth(3, y, freedom):
+			if open[3] and x < _side_depth(3, y, freedom, quiet):
 				inside = false
 			line[x] = 1 if inside else 0
 		solid.append(line)
@@ -870,7 +903,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			# profils fantomes et declarait fausse une liberte parfaitement tenue.
 			var bit: int = 0
 			if side == 0:
-				bit = 8
+				bit = NORTH_QUIET
 			elif side == 1:
 				bit = 1
 			elif side == 3:
