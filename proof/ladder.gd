@@ -200,7 +200,8 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
-const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2", "L2/F0"]
+const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2",
+		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -361,6 +362,32 @@ func _run(couple: String) -> bool:
 	var role_tiles: Dictionary = {}
 	if level >= 2:
 		roles = Walls.visible(world)["roles"]
+		# ⚠ UNE CHUTE QUI S'ARRETE DOIT SE FERMER, QUELLE QUE SOIT LA RAISON. Le modele ne pose
+		# le PIED qu'a l'atterrissage : une chute qui tombe dans le VIDE n'en pose pas -- « on
+		# ne touche pas le fond d'un gouffre » -- et une chute ECRETEE non plus, elle s'arrete
+		# sur une rangee de corps. Or dans les deux cas la roche VISIBLE a une fin, et une
+		# rangee de corps n'a pas de bord bas : personne ne la trace.
+		#
+		# On y pose donc le PIED, qui est exactement la tuile « bas de falaise ». Cout : ZERO
+		# tuile. Ce qui change est le SENS du pied -- il ne prouve plus un atterrissage, il
+		# FERME CE QU'ON VOIT DE LA FACE. C'est deja ce qu'il faisait pour le vide ; l'ecretage
+		# est le meme fait, avec du sol derriere au lieu du neant.
+		#
+		# ⚠ ET LA CONDITION EST « AUCUNE ROBE EN DESSOUS », pas « du vide en dessous ». Un
+		# atterrissage a deja son pied, donc la substitution y est un no-op ; ce qu'elle attrape
+		# est exactement ce qui s'arretait sans bord.
+		#
+		# ⚠ ET ELLE SE FAIT AVANT LES BITS DE BORD, JAMAIS APRES. C'est `_foot_above` qui fait
+		# taire le nord de la surface d'en dessous : calculee apres, la substitution arrive trop
+		# tard, la surface trace son nord A SA PROFONDEUR et la frontiere a deux descriptions
+		# qui ne se rejoignent pas au coin. Sixieme fois qu'un ordre de calcul me coute une
+		# mesure.
+		var closed: Dictionary = {}
+		for cell: Vector2i in roles.keys():
+			var role: Vector2i = roles[cell]
+			var ends: bool = not roles.has(cell + Vector2i.DOWN)
+			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if ends else role
+		roles = closed
 		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE. C'est justement ce qu'une tuile ne peut
 		# pas savoir : ce qu'il y a de l'autre cote. Le banc, lui, a le monde sous les yeux --
 		# c'est ce qui permet de MESURER le prix avant de decider si on le paie.
@@ -483,27 +510,6 @@ func _run(couple: String) -> bool:
 						give |= 4
 				yielded[cell] = Vector3i(role.x, role.y, give)
 			roles = yielded
-	# ⚠ UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MEME SE FERMER. Le modele dit « une robe qui
-	# tombe dans le vide ne pose pas son pied -- on ne touche pas le fond d'un gouffre », et
-	# c'est juste tant qu'on parle du SOUS-PIED. Mais la derniere rangee, elle, s'arrete contre
-	# le vide : sa roche a une fin, et personne ne la trace. Mesure : deux extremites, aux deux
-	# coins bas du monde, et le fond de la falaise du bord du monde entierement nu.
-	#
-	# On y pose donc le PIED, qui est exactement la tuile « bas de falaise ». Cout : ZERO tuile.
-	# Ce qui change est le SENS du pied -- il ne prouve plus un atterrissage, il ferme une chute.
-	var closed: Dictionary = {}
-	for cell: Vector2i in roles.keys():
-		var under: Vector2i = cell + Vector2i.DOWN
-		var falls: bool = not roles.has(under) 				and HeightMask.level_at(world, under.x, under.y) < 0
-		# ⚠ LA CLE A DEUX FORMES SELON L'ENDROIT OU LE BIT DE J2 EST POSE : (pan, rangee) sur
-		# la surface, (pan, rangee, cession) sur la face. On ferme la chute dans les deux.
-		if _j2_on_face:
-			var wide: Vector3i = roles[cell]
-			closed[cell] = Vector3i(wide.x, Walls.ROW_FOOT, wide.z) if falls else wide
-		else:
-			var role: Vector2i = roles[cell]
-			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if falls else role
-	roles = closed
 
 	# ------------------------------------------------------------- L3 : LES POSES ARRIERE
 	#

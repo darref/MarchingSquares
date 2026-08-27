@@ -29,10 +29,16 @@ précédent satisfait.
    **preuve de minimalité**, pas un petit chiffre. 248 démontré minimal vaut mieux que 81 dont
    personne ne sait s'il l'est.
 
-⚠ **ET ÇA DISQUALIFIE LES DEUX CONCEPTIONS DE J2 EN L'ÉTAT.** Le bit sur la face laisse 34
-extrémités, le bit sur la surface en laisse 5 : **les deux sont troués**, donc aucune n'est
-acceptable. Le travail n'est pas de choisir entre elles, c'est de **fermer d'abord** — et de ne
-comparer les coûts qu'ensuite.
+⚠ **ET ÇA DISQUALIFIAIT LES DEUX CONCEPTIONS DE J2 EN L'ÉTAT.** Le bit sur la face laissait 34
+extrémités, le bit sur la surface 5 : **les deux étaient troués**, donc aucune n'était acceptable.
+Le travail n'était pas de choisir entre elles, c'était de **fermer d'abord** — et de ne comparer
+les coûts qu'ensuite.
+
+⚠ **C'EST FAIT : le bit sur la surface est à ZÉRO extrémité**, de L2/F0 à L3/F2, et l'ordre des
+priorités descend donc au critère 2. Les deux autres conceptions restent rouges là où elles
+l'étaient — **32 extrémités** pour le bit sur la face (deux de moins, fermées par la même règle),
+**202 doublements** pour l'absence de bit — et sont joignables par `LADDER_J2=face` et
+`LADDER_J2=none`.
 
 ⚠ **Et l'ordre interdit un raccourci qui tentait :** fermer en figeant. Un dessin sans liberté
 ferme toujours (F0 le prouve à chaque niveau) ; c'est le critère 2 qui l'interdit, et I5 qui le
@@ -166,12 +172,15 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| **L2/F0** | **✅ acquis** | **56 + 20 = 76 tuiles** · I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) |
-| L2/F1 | **2 pixels** | I1 **2 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) |
-| L2/F2 | **2 pixels** | idem, 7 profils dont 33 qui serpentent |
+| **L2/F0** | **✅ acquis** | **57 + 20 = 77 tuiles** · les six verts |
+| **L2/F1** | **✅ acquis** | **0 extrémité** — les deux derniers pixels sont fermés · les six verts |
+| **L2/F2** | **✅ acquis** | idem, **7 profils dont 34 qui serpentent** |
 | **L3/F0** | **✅ acquis, et aveugle** | l'image est **identique au bit près** à L2/F0 — I6 y regarde une fenêtre de **0 pixel** |
-| L3/F1 | **les 2 pixels de L2** | `mute` **tranché par I6** · I1 les 2 extrémités de L2/F1, à l'identique · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · **I6 ✅ à travers 5 828 pixels de transparence** |
-| L3/F2 | **les 2 pixels de L2** | idem, 7 profils dont 33 qui serpentent · **I6 ✅ à travers 8 445 pixels** |
+| **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
+| **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
+
+⚠ **L'ÉCHELLE EST DONC VERTE DE L0/F0 À L3/F2, DOUZE COUPLES, À 77 TUILES** — 57 surfaces et 20
+rôles de robe. Le prochain cran est **L4**, les raccords.
 
 ### L3 : LE TÉMOIN EST AVEUGLE, ET C'EST UN RÉSULTAT
 
@@ -409,6 +418,10 @@ signalée le 27 août au matin. C'est exactement ce que I3 compte, et c'est pour
 
 **LE CHOIX EST FAIT : c'est la surface qui se tait, 76 tuiles.**
 
+⚠ **Et le compte est passé à 77 depuis**, d'une tuile et pour fermer les deux dernières
+extrémités de L2 — voir *« une chute qui s'arrête doit se fermer »*. Le choix, lui, n'a pas
+bougé.
+
 ⚠ **La règle qui tranche est celle du projet depuis le début : traits continus SIMPLES, jamais
 doublés.** C'est elle qui garantit la **liberté maximale** et l'**exhaustivité** de ce qu'on
 pourra dessiner — un trait doublé n'est pas seulement laid, il retire à l'artiste la moitié de
@@ -480,22 +493,22 @@ l'herbe **sans un trait**. Vu au pixel.
 La condition se resserre à *« et seulement si c'est un PIED »*. **3 → 2 extrémités, +1 tuile**,
 et surtout **F0 passe à zéro**.
 
-### LES DEUX DERNIÈRES APPARTIENNENT À L3
+### LES DEUX DERNIÈRES ÉTAIENT À L2, ET J'AI RENVOYÉ DEUX FOIS AU MAUVAIS ENDROIT
 
 ⚠ **Elles sont la même configuration : une chute ÉCRÊTÉE.** En (19,152) la robe est sur de la
 plaine et juste dessous se trouve un bloc d'étage **2** qui arrête la chute ; en (16,153) idem,
 un cran plus haut. La roche s'arrête donc **contre un bloc**, et son bas n'est ni un pied ni une
-frontière avec du vide.
+frontière avec du vide. *Ça*, c'était juste.
 
-**Et le dossier a déjà la pièce qui ferme ça : LA POSE DERRIÈRE** — *une robe écrêtée repose le
-corps du pas suivant sous la case qui l'a coupée*. C'est une **pose**, pas une tuile, et elle est
-au niveau **L3**, que le banc n'implémente pas encore.
+**Ce qui suivait ne l'était pas, deux fois de suite.** D'abord : *« le dossier a déjà la pièce qui
+ferme ça, la pose derrière — c'est du L3, pas du L2 »*. Mesuré au cran suivant : la pose derrière
+ne ferme **rien**, parce qu'elle ne trace pas — et une pose qui ne trace pas ne peut fermer aucun
+contour. Puis, ce renvoi corrigé, le dossier a laissé les deux pixels sans propriétaire.
 
-⚠ **Donc L2 est clos à ce que L2 peut clore.** Les deux pixels qui restent ne sont pas une règle
-manquante de L2 : ce sont les poses arrière qui manquent, et elles sont le sujet du niveau
-suivant. C'est aussi la première fois qu'un défaut se laisse **renvoyer proprement au cran
-d'après** au lieu d'être rattrapé sur place — ce qui est exactement ce que l'échelle existe pour
-permettre.
+⚠ **ILS ÉTAIENT À L2, ET LA PIÈCE QUI LES FERME Y ÉTAIT DÉJÀ ÉCRITE** — voir la section suivante.
+Le renvoi au cran d'après était confortable : il donnait un défaut « expliqué » sans avoir à le
+résoudre. **Un défaut renvoyé n'est pas un défaut clos**, et l'échelle ne sert à rien si on s'en
+sert pour déménager les rouges.
 
 ### CHAQUE FAMILLE GARDE SA TRAVERSÉE — deux tentatives, deux refus
 
@@ -508,9 +521,45 @@ Les deux dernières extrémités sont un désaccord de profondeur : la **face** 
 | la surface traverse au ras | 2 → 6 extrémités et **57 pavés** — elle perd ses propres ergots, posés au bord |
 
 ⚠ **Chaque famille a sa traversée, et c'est LEUR RENCONTRE qu'il faut régler** — pas l'une des
-deux qui doit céder. C'est le dernier point ouvert de L2, et il vaut deux pixels.
+deux qui doit céder. **Et la rencontre s'est réglée sans toucher à aucune des deux traversées** :
+en donnant un bord bas à la rangée écrêtée, la frontière horizontale revient au bord de la case,
+là où le flanc l'attendait. Les deux tentatives ci-dessus cherchaient à déplacer un trait ; ce
+qu'il fallait, c'était **désigner qui le trace**. C'est le fil du plan, et je l'avais lâché.
 
-### UNE CHUTE QUI NE SE POSE PAS DOIT QUAND MÊME SE FERMER
+### UNE CHUTE QUI S'ARRÊTE DOIT SE FERMER — ET C'ÉTAIT LA MOITIÉ DE LA RÈGLE
+
+⚠ **LE PIED FERMAIT LE VIDE ET PAS L'ÉCRÊTAGE, ALORS QUE C'EST LE MÊME FAIT.** La règle écrite
+plus bas substituait le PIED à la dernière rangée d'une chute **quand la case du dessous est du
+vide**. Or il y a deux façons pour une chute de ne pas atterrir — tomber dans le vide, et **buter
+contre un bloc de son propre étage** — et dans les deux la roche *visible* a une fin, qu'une
+rangée de corps ne sait pas tracer. La condition juste n'est donc pas « du vide en dessous »,
+c'est **« aucune robe en dessous »** : un atterrissage a déjà son pied, la substitution y est un
+no-op, et ce qu'elle attrape est exactement ce qui s'arrêtait sans bord.
+
+**Ce que ça ferme : les deux dernières extrémités de L2, et rien d'autre. 2 → 0.**
+
+⚠ **Et le défaut n'était pas un trait manquant, c'était un trait TROP LONG.** Regardé au pixel
+sur (16,153) : le flanc est de la robe descend à ras du bord (colonne 15) sur toute la hauteur,
+tandis que la surface voisine (17,153) trace son bord nord **à sa traversée, quatre pixels plus
+bas**. Les deux se rejoignent bien — en diagonale, à la traversée — mais le flanc **dépasse de
+quatre pixels au-dessus**, et son bout pend. Une barbe de la longueur exacte de la traversée.
+
+Le pied la supprime des deux côtés à la fois : il donne à la rangée écrêtée un **bord bas**, à ras
+du bord de sa case, qui rencontre le flanc au coin ; et il fait taire le nord de la surface d'en
+dessous, puisque `NORTH_QUIET` ne demande qu'une chose — *que la robe au-dessus trace vraiment son
+bas*. Une frontière, un revendiquant, au bord de la case.
+
+⚠ **LE PRIX EST D'UNE TUILE DE SURFACE, ET ELLE SE NOMME.** 56 → **57**. La nouvelle est la
+silhouette **112 (S+SW+W) au nord muet** — le coin d'un plateau sous une face qui s'arrête ; elle
+n'existait pas parce qu'aucun pied ne s'était jamais arrêté là. Aucune tuile ne disparaît, et les
+20 rôles de robe ne bougent pas. **Zéro tuile de robe** : le pied est déjà au vocabulaire.
+
+⚠ **ET LA SUBSTITUTION SE FAIT AVANT LES BITS DE BORD, JAMAIS APRÈS.** C'est `_foot_above` qui
+fait taire le nord de la surface d'en dessous ; calculée après, elle arrive trop tard et la moitié
+de la règle ne s'applique pas — la barbe reste. **Sixième fois qu'un ordre de calcul me coûte une
+mesure**, et la seule qui se voie est celle où le résultat change.
+
+### LE VIDE, PREMIÈRE MOITIÉ DE LA MÊME RÈGLE
 
 ⚠ Le modèle dit *« une robe qui tombe dans le vide ne pose pas son pied — on ne touche pas le
 fond d'un gouffre »*, et c'est juste **tant qu'on parle du sous-pied**. Mais la dernière rangée,
@@ -548,6 +597,9 @@ rangées de vide de plus au monde. Aucun effet — la chute n'était pas coupée
    côté, c'est le flanc d'une robe qui porte la frontière, une case plus haut et une colonne plus
    loin : mon bord latéral traverse sa frontière nord **au ras** pour aller le toucher au coin.
    +6 tuiles, 14 → 5.
+7. **une chute qui s'arrête se ferme, quelle que soit la raison** — le pied ne fermait que le
+   vide ; il ferme aussi l'**écrêtage**, qui est le même fait avec du sol derrière au lieu du
+   néant. **+1 tuile**, 2 → **0**. C'est celle qui clôt L2.
 
 ⚠ **UNE COLLISION DE BITS SILENCIEUSE, TROUVÉE EN CHERCHANT OÙ LOGER LES SUIVANTS.** Le bit du
 nord valait 8 — exactement le bit du coin 1 de l'ergot (`4 << coin` couvre 4, 8, 16, 32). Les
