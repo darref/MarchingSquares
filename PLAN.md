@@ -364,6 +364,30 @@ famille qui le porte, parce qu'il **multiplie** le vocabulaire de cette famille 
 Chaque bit posé sur la surface double 27 silhouettes ; posé sur la face il ne touche que les
 rôles, qui sont moins nombreux et déjà structurés en pans × rangées.
 
+**Implémenté derrière `LADDER_J2=face`, et mesuré :**
+
+| | bit sur la **surface** | bit sur la **face** |
+|---|---|---|
+| surfaces rencontrées | 55 | **37** |
+| rôles rencontrés | 20 | 33 |
+| total rencontré | 75 | **70** |
+| **forme fermée** | **248** | **81** |
+| extrémités | **5** | 34 |
+| I2 · I3 | ✅ | ✅ |
+
+⚠ **LA FACE EST TROIS FOIS MOINS CHÈRE EN BORNE, ET ELLE FERME MOINS BIEN.** 34 extrémités
+contre 5 — et ce sont exactement celles que j'avais prévues : **quand la face cède, son bord est
+pincé aux traversées et celui de la surface est rentré ; ils ne se retrouvent pas.**
+
+C'est donc le prochain travail, et il est borné : fermer ces 34 sans reposer un bit sur la
+surface. Si on y arrive, L2 passe de 248 à **81 en forme fermée** — ce qui est le chiffre que le
+critère accepte. Si on n'y arrive pas, il faut choisir entre 248 fermé et 81 troué.
+
+⚠ **ET LES 37 NE SONT PAS 27** : les bits de l'ergot et de la voisine silenciée sont encore
+posés sur la surface. Ils existaient pour rattraper le silence de la surface — qui n'a plus
+lieu. À retirer avant de conclure, ce qui devrait ramener les surfaces à 27 et le total
+rencontré à 60.
+
 ⚠ **ET IL RESTE UNE CHOSE À VÉRIFIER AVANT DE PAYER LES 81**, honnêtement : quand la face
 **cède** le trait à la surface, la face est au ras (règle de la cascade) et le bord de la
 surface, lui, est rentré. Ils doivent quand même se retrouver. Si ça demande que la surface

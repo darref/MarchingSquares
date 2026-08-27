@@ -117,6 +117,10 @@ static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
 ## de la frontiere. C'est une information qu'un role de robe ne porte pas : deux flancs, une
 ## rangee, rien d'autre.
 static var _option: String = ""
+
+## ⚠ J2, ET DE QUEL COTE ON POSE LE BIT -- derriere un interrupteur pour etre MESURE avant
+## d'etre paye. `LADDER_J2=face` fait ceder la FACE ; sans lui, c'est la surface qui se tait.
+static var _j2_on_face: bool = false
 const MaskIO := preload("res://core/mask_io.gd")
 const Modes := preload("res://core/modes.gd")
 
@@ -162,6 +166,7 @@ const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 
 
 func _initialize() -> void:
+	_j2_on_face = OS.get_environment("LADDER_J2") == "face"
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -306,9 +311,9 @@ func _run(couple: String) -> bool:
 					continue
 				var tile2: int = int(indices[cell2])
 				var edge: int = 0
-				if (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
+				if not _j2_on_face and (tile2 & BlobIndex.E) == 0 and roles.has(cell2 + Vector2i.RIGHT):
 					edge |= 1
-				if (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
+				if not _j2_on_face and (tile2 & BlobIndex.W) == 0 and roles.has(cell2 + Vector2i.LEFT):
 					edge |= 2
 				# ⚠ ET LE NORD : SOUS UNE FACE, C'EST UN PLI, DONC C'EST LE BORD. Quand une
 				# robe couvre ma voisine du nord, ce que j'ai au-dessus n'est pas un sol plus
@@ -319,7 +324,7 @@ func _run(couple: String) -> bool:
 				# ⚠ CE N'EST PAS « TOUT NORD AU RAS », ESSAYE ET REFUTE : 43 -> 65 extremites,
 				# 94 paves. Contre un simple sol plus bas, le bord du voisin est libre, et
 				# mettre le mien au ras l'empeche de le retrouver.
-				if (tile2 & BlobIndex.N) == 0 and roles.has(cell2 + Vector2i.UP):
+				if not _j2_on_face and (tile2 & BlobIndex.N) == 0 and roles.has(cell2 + Vector2i.UP):
 					edge |= NORTH_QUIET
 
 				indices[cell2] = tile2 | (edge << 8)
@@ -370,32 +375,32 @@ func _run(couple: String) -> bool:
 				vocabulary[shape | (more << 8)] = true
 				var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
 				mine3[here2] = shape | (more << 8)
-	if _option == "C":
-		var widened: Dictionary = {}
+	# ⚠ J2 « SOMMET CONTRE FACE » : DE QUEL COTE ON POSE LE BIT. Un des deux doit se taire, donc
+	# il faut un bit -- mais il MULTIPLIE la famille qui le porte. Sur la surface il double 27
+	# silhouettes (jusqu'a 228 en forme fermee) ; sur la face il ne touche que 20 roles
+	# (jusqu'a 54). Le compte se calcule avant de choisir, et se MESURE avant d'etre paye.
+	if _j2_on_face:
+		var yielded: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			var role: Vector2i = roles[cell]
-			var above: Vector2i = cell + Vector2i.UP
-			var bits: int = 0
-			# ⚠ LA DISTRIBUTION A DIT OU CHERCHER, ET C'EST TOUJOURS LA MEME FORME : un
-			# trait meurt la ou la case suivante ne trace pas de son cote. Sur les 222 :
-			# 87 « surface, bord sud, en face une robe », 89 « robe contre robe », 30
-			# « surface contre surface ». Le geste qui les ferme est le meme -- un ERGOT
-			# le long du bord haut de la robe, jusqu'a la profondeur ou la case du dessus
-			# a laisse son trait.
-			#
-			# Il ne se pose que si MOI je ne trace pas de ce cote (flanc `continue`) et si
-			# ELLE trace. Peu importe ce qu'elle est : une robe qui s'arrete, ou une
-			# surface dont le cardinal est ouvert et que le bord n'a pas fait taire.
+			var ground: int = HeightMask.level_at(world, cell.x, cell.y)
+			var give: int = 0
+			# La face CEDE le trait a la surface qui le tracera de toute facon, et le GARDE
+			# la ou rien ne la borde. Une surface trace son bord vers moi si elle est PLUS
+			# HAUTE que le sol que je couvre : c'est ce qui rend son cardinal ouvert.
+			var sides: Array[int] = [Walls.pan_west(role.x), Walls.pan_east(role.x)]
 			for i: int in range(2):
-				var side: int = 1 if i == 0 else 3
-				var mine: int = Walls.pan_east(role.x) if i == 0 else Walls.pan_west(role.x)
-				if mine != Walls.SIDE_CONTINUE:
+				if sides[i] != Walls.SIDE_STOP:
 					continue
-				if not _above_draws(above, side, indices, roles):
-					continue
-				bits |= 1 << i
-			widened[cell] = Vector3i(role.x, role.y, bits)
-		roles = widened
+				var probe: Vector2i = cell + (Vector2i.LEFT if i == 0 else Vector2i.RIGHT)
+				if HeightMask.level_at(world, probe.x, probe.y) > ground:
+					give |= 1 << i
+			if role.y == Walls.ROW_FOOT:
+				var under: Vector2i = cell + Vector2i.DOWN
+				if HeightMask.level_at(world, under.x, under.y) > ground:
+					give |= 4
+			yielded[cell] = Vector3i(role.x, role.y, give)
+		roles = yielded
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
@@ -541,12 +546,12 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int) -> Dictionary:
 func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
-		var bits: int = 0
+		var give: int = 0
 		var role: Vector2i = Vector2i.ZERO
-		if _option == "C":
+		if _j2_on_face:
 			var wide: Vector3i = key as Vector3i
 			role = Vector2i(wide.x, wide.y)
-			bits = wide.z
+			give = wide.z
 		else:
 			role = key as Vector2i
 		# ⚠ ET LE BAS DU PIED RESTE, APRES L'AVOIR RETIRE ET MESURE. Le raisonnement etait
@@ -556,18 +561,13 @@ func _wall_tiles(roles: Dictionary, freedom: int) -> Dictionary:
 		# EXTREMITES DE PLUS -- le bas du pied est ce qui referme le contour de la falaise a sa
 		# base, et sans lui les deux flancs s'arretent dans le vide.
 		var open: Array[bool] = [role.y == Walls.ROW_CROWN,
-				Walls.pan_east(role.x) == Walls.SIDE_STOP,
-				role.y == Walls.ROW_FOOT,
-				Walls.pan_west(role.x) == Walls.SIDE_STOP]
+				Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
+				role.y == Walls.ROW_FOOT and (give & 4) == 0,
+				Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0]
 		# ESSAI : les bords d'une robe AU RAS de sa case.
 		var tile: Image = _shape(open, freedom, ROCK, -1, 0, false, true)
 		# L'ERGOT DE ROBE : le long du bord HAUT, depuis le coin du cote concerne, jusqu'a la
 		# profondeur ou la case du dessus a laisse son trait.
-		if bits != 0 and freedom > 0:
-			if (bits & 1) != 0:
-				_stub(tile, 0, 1, _depth(1, 0, freedom))
-			if (bits & 2) != 0:
-				_stub(tile, 0, 3, _depth(3, 0, freedom))
 		tiles[key] = tile
 	return tiles
 
