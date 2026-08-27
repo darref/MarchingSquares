@@ -153,14 +153,21 @@ static var _j2_on_face: bool = false
 ## ZERO et le vocabulaire reste a 47.
 static var _j2_none: bool = false
 
-## L3 : CE QU'UNE POSE ARRIERE A LE DROIT DE TRACER. Trois conceptions, toutes mesurees.
+## L3 : CE QU'UNE POSE ARRIERE A LE DROIT DE TRACER. Trois conceptions, toutes mesurees, et
+## c'est I6 QUI A TRANCHE -- les cinq premiers invariants ne les separaient pas.
 ##
-##   (defaut)  elle pose SA tuile, contour compris -- une tuile, un dessin, rien de neuf ;
-##   `mute`    elle pose sa matiere SANS son contour -- deux dessins pour une tuile ;
+##   `trace`   elle pose SA tuile, contour compris -- une tuile, un dessin, rien de neuf.
+##             REFUSEE : 300 paves 2x2, le trait de la surface et celui de la roche reposee a
+##             un pixel l'un de l'autre ;
 ##   `full`    elle pose la ROCHE PLEINE, c'est-a-dire le role (continue, continue) d'un corps,
-##             qui n'a aucun cote ouvert donc aucun trait. Zero tuile de plus : c'est une tuile
-##             que le peintre a deja faite.
-static var _backing: String = ""
+##             qui n'a aucun cote ouvert donc aucun trait. Zero tuile de plus, et vert sur les
+##             cinq premiers -- mais REFUSEE par I6 : 1 506 pixels de roche affirmee la ou le
+##             modele n'en a pas, sur 5 828 pixels de transparence, soit 26 % de la fenetre ;
+##   `mute`    (DEFAUT) elle pose sa matiere SANS son contour. Seule verte sur les six ; son
+##             prix est un second dessin par role, et il se paiera au contrat.
+##
+## Les deux refusees restent joignables par `LADDER_BACKING`, comme trace de la mesure.
+static var _backing: String = "mute"
 
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
@@ -214,7 +221,10 @@ const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 func _initialize() -> void:
 	_j2_on_face = OS.get_environment("LADDER_J2") == "face"
 	_j2_none = OS.get_environment("LADDER_J2") == "none"
-	_backing = OS.get_environment("LADDER_BACKING")
+	# ⚠ ET LE DEFAUT NE SE FAIT PAS ECRASER PAR UNE VARIABLE ABSENTE : sans elle, on garde la
+	# conception que la mesure a choisie.
+	if not OS.get_environment("LADDER_BACKING").is_empty():
+		_backing = OS.get_environment("LADDER_BACKING")
 	if _j2_none:
 		_j2_on_face = true
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -595,10 +605,19 @@ func _run(couple: String) -> bool:
 			backing_tiles[key] = _muted(role_tiles[key] as Image)
 	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
 			backing_tiles)
+	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
+	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
+	var bare: Image = null
+	if level >= 3:
+		var none: Array[Dictionary] = []
+		for storey: int in range(storeys.size()):
+			none.append({})
+		bare = _assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles)
 	_write(image, couple)
-	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under)
+	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under,
+			role_tiles, bare)
 	var ok: bool = complete
-	for key: String in ["I1", "I2", "I3", "I4", "I5"]:
+	for key: String in ["I1", "I2", "I3", "I4", "I5", "I6"]:
 		var line: Dictionary = report[key]
 		var green: bool = bool(line["ok"])
 		ok = ok and green
@@ -1053,7 +1072,8 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
 
 func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
-		freedom: int, roles: Dictionary, under: Dictionary = {}) -> Dictionary:
+		freedom: int, roles: Dictionary, under: Dictionary = {}, role_tiles: Dictionary = {},
+		bare: Image = null) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 
@@ -1251,6 +1271,82 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 		print("  -- ou sont les %d extremites --" % end_count)
 		for label: String in labels:
 			print("     %4d  %s" % [int(spread[label]), label])
+	# I6 VERITE. Ce qui se voit A TRAVERS UNE TRANSPARENCE est ce que le modele nomme.
+	#
+	# ⚠ C'EST LA MESURE QUI MANQUAIT, ET SON ABSENCE A LAISSE L3 SANS ARBITRE. Les cinq autres
+	# ne distinguent pas `mute` de `full` : ils sont identiques sur les cinq, et pourtant les
+	# deux images different a l'oeil. Ce qu'une pose arriere garantit n'est pas « de la matiere
+	# quelque part » -- I4 le dit deja -- mais « LA matiere que le modele nomme, a cet
+	# endroit-la ». Sans elle, un raccourci qui affirme de la roche jusqu'au bord de la case
+	# passait au vert : le banc ne pouvait pas trancher, et le dossier le disait.
+	#
+	# ⚠ ET ON LIT LA CONTRIBUTION DE LA POSE, JAMAIS LA COULEUR DU PIXEL. Assembler une seconde
+	# fois SANS les poses arriere donne un temoin : la pose a contribue exactement la ou les deux
+	# images different. Classer par la couleur aurait demande de decider si un pixel de trait
+	# vient de la roche reposee ou du sol d'en dessous -- deviner, la ou on peut mesurer.
+	#
+	# ⚠ ET LA FENETRE SE DIT, MEME QUAND LE COMPTE EST A ZERO. Une pose arriere ne se voit qu'a
+	# travers une transparence : a F0 il n'y en a aucune, donc zero ne prouve rien. La lecon est
+	# deja payee au dossier -- deux bandes vides sont trivialement egales.
+	var invented: int = 0
+	var lost: int = 0
+	var window: int = 0
+	var invented_where: Array[String] = []
+	var invented_spread: Dictionary = {}
+	if bare != null:
+		for cell: Vector2i in under.keys():
+			# Une case couverte par une robe VISIBLE ne montre rien de sa pose arriere : les robes
+			# se posent en dernier, par-dessus tout.
+			if roles.has(cell) or not indices.has(cell):
+				continue
+			var cover: Image = tiles[int(indices[cell])] as Image
+			var named: Image = role_tiles[_wall_key(under[cell])] as Image
+			for y: int in range(RES):
+				for x: int in range(RES):
+					if cover.get_pixel(x, y).a >= 0.5:
+						continue
+					window += 1
+					var px: int = cell.x * RES + x
+					var py: int = cell.y * RES + y
+					var shown: bool = not image.get_pixel(px, py).is_equal_approx(
+							bare.get_pixel(px, py))
+					var truth: bool = named.get_pixel(x, y).a >= 0.5
+					if shown == truth:
+						continue
+					if shown:
+						invented += 1
+						if invented_where.size() < 8:
+							invented_where.append("%d,%d de la case %d,%d"
+									% [x, y, cell.x, cell.y])
+						# LA DISTRIBUTION, sur le modele de celle de I1 : on arrete de deviner et on
+						# compte. Un pixel invente se range par la BANDE de la case ou il tombe -- le
+						# cote dont il est le plus proche -- et par l'espece de la pose qui le porte.
+						var reach: Array[int] = [y, RES - 1 - x, RES - 1 - y, x]
+						var near: int = 0
+						for side: int in range(1, 4):
+							if reach[side] < reach[near]:
+								near = side
+						var row: int = (under[cell] as Vector2i).y
+						var kind: String = "corps (ecretage)"
+						if row == Walls.ROW_CROWN:
+							kind = "chapiteau (sous sa levre)"
+						elif row == Walls.ROW_FOOT:
+							kind = "pied (atterrissage)"
+						var label: String = "bande %s, sous un %s" % [SIDE_NAMES[near], kind]
+						invented_spread[label] = int(invented_spread.get(label, 0)) + 1
+					else:
+						lost += 1
+
+	if invented > 0:
+		var spots: Array[String] = []
+		spots.assign(invented_spread.keys())
+		spots.sort_custom(func(a: String, b: String) -> bool:
+				return int(invented_spread[a]) > int(invented_spread[b]))
+		print("  -- ou est la matiere inventee (%d pixels sur %d de fenetre) --"
+				% [invented, window])
+		for label: String in spots:
+			print("     %4d  %s" % [int(invented_spread[label]), label])
+
 	return {
 		"I1": {"nom": "fermeture", "ok": end_count == 0,
 				"dit": "%d extremites %s   (%d morceaux, %d massifs, %d trous)"
@@ -1266,6 +1362,9 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 		"I5": {"nom": "liberte", "ok": i5,
 				"dit": "%d profil(s) distinct(s), %d qui serpentent -- promis : %s"
 				% [profiles.size(), wavy, promised]},
+		"I6": {"nom": "verite", "ok": invented == 0 and lost == 0,
+				"dit": "%d matiere(s) inventee(s), %d perdue(s), a travers %d pixel(s) de transparence %s"
+				% [invented, lost, window, str(invented_where)]},
 	}
 
 

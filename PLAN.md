@@ -79,7 +79,7 @@ et **de combien se mesure avant de décider**, jamais après.
 pas de ta main »*. On l'a payé cher : trois fois cette semaine j'ai corrigé un dessin pour
 un défaut de modèle, et une fois l'inverse.
 
-## Les cinq invariants
+## Les six invariants
 
 Ils se mesurent, tous, sur l'image assemblée — jamais en redemandant au modèle ce que le
 modèle affirme.
@@ -91,6 +91,7 @@ modèle affirme.
 | **I3** | **Unicité** — chaque frontière du monde est tracée par exactement une tuile | zéro frontière à deux revendiquants |
 | **I4** | **Matière** — aucun pixel de fond là où le monde a de la matière | zéro case percée |
 | **I5** | **Liberté** — le peintre fait ce qu'il veut à l'intérieur | nombre de pixels dont la position est imposée |
+| **I6** | **Vérité** — ce qui se voit à travers une transparence est ce que le modèle nomme | zéro pixel de matière inventée, zéro perdue, **et la fenêtre regardée est dite** |
 
 ⚠ **I3 EST LE NOUVEAU, ET C'EST CELUI QUI MANQUAIT.** I1, I2 et I4 sont des *conséquences*
 qu'on constate ; I3 est la *cause* qu'on peut interdire. Une frontière à deux revendiquants
@@ -101,10 +102,25 @@ ne se déguise.
 ⚠ **I5 EMPÊCHE LA TRICHE.** Sans lui, tout converge en fermant le dessin : F0 est vert à tous
 les niveaux et ne prouve rien. Un niveau n'est acquis qu'à **F2**.
 
+⚠ **I6 EST NÉ D'UN CONSTAT D'IMPUISSANCE, ET C'EST SA MEILLEURE RÉFÉRENCE.** Les cinq premiers
+ne distinguaient pas `mute` de `full` à L3 — verts sur les cinq, tous les deux, alors que les
+deux images diffèrent à l'œil. Ce qu'une pose arrière garantit n'est pas *de la matière quelque
+part* — I4 le dit déjà — mais **la matière que le modèle nomme, à cet endroit-là**. Le banc ne
+pouvait donc pas trancher L3 ; il le peut maintenant, et il l'a fait.
+
+⚠ **ET LA FENÊTRE SE DIT, MÊME QUAND LE COMPTE EST À ZÉRO.** Une pose arrière ne se voit qu'à
+travers une transparence : à F0 il n'y en a aucune, donc zéro ne prouve rien. C'est la leçon déjà
+payée trois fois au dossier — *une mesure doit avoir vu quelque chose*.
+
+⚠ **ET I6 LIT LA CONTRIBUTION DE LA POSE, JAMAIS LA COULEUR DU PIXEL.** Le banc assemble une
+seconde fois **sans une seule pose arrière** : la pose a contribué exactement là où les deux
+images diffèrent. Classer par la couleur aurait demandé de décider si un pixel de trait vient de
+la roche reposée ou du sol d'en dessous — deviner, là où on peut mesurer.
+
 ## La règle d'avancement
 
 1. On entre dans un niveau **L** à la liberté **F0**.
-2. Les cinq invariants doivent être verts **pour L et pour tous les niveaux en dessous**, à
+2. Les six invariants doivent être verts **pour L et pour tous les niveaux en dessous**, à
    **toutes** les libertés déjà acquises.
 3. On monte en F. Si un invariant rougit, **le défaut est dans le dessin** — on le corrige
    là, jamais dans le modèle.
@@ -150,11 +166,12 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| **L2/F0** | **✅ acquis** | **56 + 20 = 76 tuiles** · I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
-| L2/F1 | **2 pixels** | I1 **2 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ |
+| **L2/F0** | **✅ acquis** | **56 + 20 = 76 tuiles** · I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) |
+| L2/F1 | **2 pixels** | I1 **2 extrémités** · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) |
 | L2/F2 | **2 pixels** | idem, 7 profils dont 33 qui serpentent |
-| L3/F0 | **vide** | l'image est **identique au bit près** à L2/F0 — voir ci-dessous |
-| L3/F1 | **décision ouverte** | 763 poses arrière posées ; trois conceptions mesurées |
+| **L3/F0** | **✅ acquis, et aveugle** | l'image est **identique au bit près** à L2/F0 — I6 y regarde une fenêtre de **0 pixel** |
+| L3/F1 | **les 2 pixels de L2** | `mute` **tranché par I6** · I1 les 2 extrémités de L2/F1, à l'identique · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · **I6 ✅ à travers 5 828 pixels de transparence** |
+| L3/F2 | **les 2 pixels de L2** | idem, 7 profils dont 33 qui serpentent · **I6 ✅ à travers 8 445 pixels** |
 
 ### L3 : LE TÉMOIN EST AVEUGLE, ET C'EST UN RÉSULTAT
 
@@ -175,11 +192,11 @@ niveau du **monde**, c'est un niveau de la **liberté du dessin** — le premier
 Une pose arrière repose une tuile de robe sous une case de surface. La question du niveau est
 donc : **cette tuile cachée a-t-elle le droit de tracer ?**
 
-| conception | tuiles | dessins | I1 extrémités | I2 pavés |
-|---|---|---|---|---|
-| elle pose **sa** tuile, contour compris | 76 | 76 | 2 — dont **une nouvelle** | **300** |
-| `mute` — sa matière **sans** son contour | 76 | **+20** | 2, celles de L2 | **0** |
-| `full` — la **roche pleine** (rôle continue/continue, un corps) | 76 | 76 | 2, celles de L2 | **0** |
+| conception | tuiles | dessins | I1 extrémités | I2 pavés | **I6 matière inventée** |
+|---|---|---|---|---|---|
+| `trace` — elle pose **sa** tuile, contour compris | 76 | 76 | 2 — dont **une nouvelle** | **300** | 0 |
+| `full` — la **roche pleine** (rôle continue/continue, un corps) | 76 | 76 | 2, celles de L2 | 0 | **1 506** |
+| **`mute`** — sa matière **sans** son contour | 76 | **+20** | 2, celles de L2 | 0 | **0** |
 
 ⚠ **LA PREMIÈRE EST REFUSÉE, ET LE DÉFAUT EST EXACTEMENT CELUI QUE J2 A DÉJÀ TRANCHÉ.** Les 300
 pavés sont **282 sous un chapiteau reposé, 15 sous un pied, 3 sous un corps**, tous sur la
@@ -199,17 +216,62 @@ celle-là en rouvre une autre (20,157) et coûte 300 pavés. Muette ou pleine, l
 de L2 sont **toujours là**. Fermer demande un trait ; une pose arrière qui ne trace pas ne peut
 rien fermer. **Le renvoi à L3 était une hypothèse, pas une mesure.**
 
-⚠ **ET LES CINQ INVARIANTS NE DISTINGUENT PAS `mute` DE `full`.** Ils sont identiques sur les
-cinq, et pourtant les deux images diffèrent à l'œil : `mute` montre le **vrai flanc** de la vraie
-face (renflement compris, creux compris), `full` affirme de la roche **jusqu'au bord de la case**,
-y compris là où le flanc s'arrête. C'est le manque de l'échelle à ce cran : *ce qu'une pose
-arrière garantit — la bonne matière derrière une transparence — n'est lu par aucun des cinq.*
-Tant qu'il n'est pas mesuré, le choix ne peut pas être tranché par le banc.
+⚠ **ET LES CINQ INVARIANTS NE DISTINGUAIENT PAS `mute` DE `full`.** Ils étaient identiques sur
+les cinq, et pourtant les deux images diffèrent à l'œil : `mute` montre le **vrai flanc** de la
+vraie face (renflement compris, creux compris), `full` affirme de la roche **jusqu'au bord de la
+case**, y compris là où le flanc s'arrête. C'était le manque de l'échelle à ce cran : *ce qu'une
+pose arrière garantit — la bonne matière derrière une transparence — n'était lu par aucun des
+cinq.* **D'où I6, écrit pour ça** — et il a tranché.
 
 **Le prix, dit franchement :** `full` ne coûte **aucun dessin** — le rôle (continue, continue)
 d'un corps n'a aucun côté ouvert, c'est un carré de roche sans trait, et le peintre l'a déjà fait.
 `mute` coûte **un second dessin par rôle**, c'est-à-dire une seconde feuille ou un trait effacé à
 l'exécution : ça contredit « une tuile, un dessin » et ça se paierait au contrat.
+
+### L3 EST TRANCHÉ : `mute`, ET C'EST I6 QUI L'A DIT
+
+Le banc n'avait pas d'arbitre ; il en a un. **`full` affirme 1 506 pixels de roche que le modèle
+n'a pas**, à travers les 5 828 pixels de transparence par lesquels les 763 poses arrière se
+voient — soit **26 % de la fenêtre**. `mute` en invente **zéro**, et n'en perd aucun.
+
+⚠ **LE CHIFFRE EST GROS, ET C'EST CE QUI SURPREND.** L'argument de `full` était qu'on ne voit
+d'une pose arrière qu'un liseré de coin découpé, où la roche est de toute façon là. Mesuré, c'est
+faux d'un quart. Et **où** ces pixels tombent se compte plutôt que se devine :
+
+```
+  828  bande ouest, sous un chapiteau (sous sa levre)
+  576  bande est,   sous un chapiteau (sous sa levre)
+   90  bande ouest, sous un pied (atterrissage)
+   12  bande est,   sous un corps (ecretage)
+```
+
+⚠ **TOUT EST LATÉRAL, ET RIEN AU NORD NI AU SUD** — 1 404 sur 1 506, soit 93 %, sous un chapiteau
+reposé. C'est la superposition de **deux transparences du même côté** : le flanc du chapiteau
+rentre là où son pan dit qu'il s'arrête, et la surface au-dessus rentre au même bord. Le nord ne
+donne rien parce qu'une lèvre a sa voisine du nord pleine ; le sud non plus, parce que le sud
+d'une surface se tait dès L2. Par ce trou-là le modèle dit qu'il n'y a **rien** — et `full` y met
+de la roche.
+
+⚠ **ET C'EST LA RÈGLE 3 DE LA CHARTE, PAS UNE PRÉFÉRENCE DE DESSIN.** *Rien n'est fabriqué à la
+place de l'utilisateur.* Une pose arrière qui affirme de la matière jusqu'au bord de sa case
+fabrique — et le pire est qu'elle le fait **sans une seule erreur**, verte sur les cinq premiers
+invariants. C'est exactement l'espèce de défaut que ce plan existe pour attraper.
+
+⚠ **LE PRIX RESTE DÛ, ET IL EST ÉCRIT.** `mute` demande un **second dessin par rôle** — 20 de
+plus — et contredit « une tuile, un dessin ». Ce n'est pas une tuile de plus au vocabulaire : la
+tuile est la même, c'est sa version *sans trait* qu'il faut poser dessous. Un moteur la produit
+soit d'une seconde feuille, soit en effaçant le trait à l'exécution. **Ça se paiera au contrat**,
+et le jour venu c'est une clause, pas une surprise.
+
+⚠ **`trace` RESTE REFUSÉE, ET POUR UNE AUTRE RAISON QUE `full`.** Elle est juste sur I6 — elle
+pose la vraie tuile — mais elle **trace deux fois la même frontière**, ce qui est le défaut que
+tout le plan poursuit. Les deux refusées restent joignables par `LADDER_BACKING=trace` et
+`LADDER_BACKING=full`, comme trace de la mesure ; `mute` est le défaut du banc.
+
+⚠ **ET L3/F0 EST ACQUIS SANS RIEN PROUVER.** Les six sont verts, mais **I6 y regarde une fenêtre
+de zéro pixel** : à F0 la surface est pleine, il n'y a aucune transparence par où voir une pose
+arrière. C'est écrit dans la ligne de sortie, à côté du zéro, pour qu'on ne prenne jamais ce
+vert-là pour une preuve.
 
 ### L2 : le témoin accuse le MODÈLE, et c'est la première fois
 
@@ -985,7 +1047,7 @@ instrument neuf, et ils valent d'être notés :
 
 ## Le premier pas
 
-Un banc `proof/ladder.gd` qui prend **(L, F)** et rend les cinq invariants. Il commence avec
+Un banc `proof/ladder.gd` qui prend **(L, F)** et rend les six invariants. Il commence avec
 L0/F0 seulement, et il grandit avec le plan. Tant qu'il ne sait mesurer qu'un couple, il
 mesure déjà mieux que tout ce qu'on a : il dit **où** est le défaut, pas seulement qu'il y en
 a un.
