@@ -181,7 +181,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
-| **L3/F2@battue1·2·3** | **rouge : 14 · 10 · 4 extrémités** | **des mondes tirés au sort par le GESTE DU PINCEAU** — I2 rouge sur deux d'entre eux, I3 · I4 · I5 · I6 verts partout |
+| **L3/F2@battue1·2·3** | **rouge : 7 · 2 · 1 extrémités** | **des mondes tirés au sort par le GESTE DU PINCEAU** — de 14 · 10 · 4 au départ ; I2 vert sur deux d'entre eux, I3 · I4 · I5 · I6 verts partout |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
 (58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
@@ -286,6 +286,45 @@ mieux l'écrire que la découvrir chez un acheteur.
 **Le prochain travail est là**, et la distribution dit par où commencer — sur `@battue1` :
 10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
 une **robe qui n'a rien en dessous**.
+
+### UN BIT DE BORD EST UNE QUESTION DE CASE, PAS D'ÉTAGE — ET IL COÛTE ZÉRO TUILE
+
+Le banc sait désormais **dire pourquoi** (`LADDER_WHY=1`) : pour chaque extrémité, ce que la case
+trace et ce que ses quatre voisines tracent, lu par `_surface_open` et `_wall_open` — jamais par
+un test refait à la main. C'est ce qui a nommé le défaut en une lecture au lieu de trois
+reconstitutions au pixel.
+
+**Le trait fautif était le bord EST d'un étage ENTERRÉ**, à `x=12`, visible à travers l'encoche
+nord de la tuile du dessus. Les bits de bord n'étaient écrits que sur l'étage propre de la case :
+l'étage enterré gardait son bord ouvert et le traçait, alors que **la face qui couvre ma voisine
+la couvre pour tous mes étages à la fois**.
+
+| monde | avant | après |
+|---|---|---|
+| `@battue1` | 14 ext, 4 pavés | **7 ext, 0 pavé** |
+| `@battue2` | 10 ext, 0 | **3 → 2 ext, 0** |
+| `@battue3` | 4 ext, 4 pavés | **1 ext, 4 pavés** |
+| planche · guide | 0, 0 | 0, 0 — **78 et 84 tuiles, inchangées** |
+
+⚠ **ET CHAQUE ÉTAGE RÉPOND DEPUIS SA PROPRE SILHOUETTE, CE QUI REND LE CORRECTIF GRATUIT.** Posé
+en gros — le bit de la case visible recopié sur tous ses étages — il coûtait **+5 tuiles** sur la
+planche et **+17** sur la battue : sur un étage où le cardinal est déjà plein, le bit est inerte,
+mais il change la clé, donc il fabrique des tuiles qui ne diffèrent par rien de visible.
+Recalculé depuis la silhouette de chaque étage : **+0 partout**. Même discipline que pour
+`NORTH_FLUSH`, même gain.
+
+⚠ **MAIS UN ÉTAGE ENTERRÉ NE FAIT PAS TAIRE SON ERGOT, ET C'EST MESURÉ.** La règle du silence
+demande *« ma voisine trace-t-elle de ce côté ? »* — une question qu'une tuile **enterrée ne peut
+pas poser** : ce qui se voit à côté d'elle est le **sommet** de sa voisine, qui n'est pas son
+étage. La question est mal posée, et le défaut par défaut doit être le moins dangereux des deux —
+un ergot de trop risque un doublement (I2), un ergot de moins laisse un trou (I1).
+
+Mesure : la faire taire ferme **3** extrémités sur `@battue1`, **1** sur `@battue2` et **3 + les
+4 pavés** sur `@battue3` — mais elle en **rouvre une sur la planche et une sur le guide**, tous
+deux acquis. *Un couple acquis qui rougit arrête tout.* Et I2 reste vert à ne pas la taire : le
+risque de doublement ne se réalise pas. On ne tait donc que l'étage visible, et **les quatre
+qu'on n'a pas fermées attendent leur propre diagnostic** — elles ne se rachètent pas par une
+régression.
 
 ### LES TREIZE SONT FERMÉES, ET C'ÉTAIT DEUX DÉFAUTS, PAS UN
 

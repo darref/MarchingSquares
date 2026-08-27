@@ -494,16 +494,32 @@ func _run(couple: String) -> bool:
 		# sont des RUSTINES DU SILENCE DE LA SURFACE : ils existent pour rattraper un bord
 		# que la surface a cesse de tracer. Si c'est la face qui cede, la surface ne se tait
 		# jamais et il n'y a rien a rattraper -- les garder ferait payer 10 tuiles pour rien.
+		# ⚠ ET LA SECONDE PASSE SE FAIT PAR ETAGE, SUR LA SILHOUETTE DE CET ETAGE-LA. Meme
+		# raison que pour les bits de bord, et meme mesure : ecrite sur le seul etage visible,
+		# elle laissait les etages ENTERRES poser leurs ergots et leurs traversees au ras selon
+		# un voisinage qui n'est pas le leur -- et on les voit, par les encoches du dessus.
+		# Chaque etage interroge donc SES voisines, dans SA silhouette.
 		if not _j2_on_face:
-			for y2: int in range(HeightMask.height(world)):
-				for x2: int in range(HeightMask.width(world)):
-					var here2: Vector2i = Vector2i(x2, y2)
-					if not indices.has(here2):
-						continue
-					var full: int = int(indices[here2])
+			for storey3: int in range(storeys.size()):
+				var map3: Dictionary = storeys[storey3]
+				for here2: Vector2i in map3.keys():
+					var full: int = int(map3[here2])
 					var shape: int = full & 0xff
 					var more: int = full >> 8
-					for corner: int in range(4):
+					# ⚠ ET UN ETAGE ENTERRE NE FAIT PAS TAIRE SON ERGOT. La regle du silence
+					# demande « ma voisine trace-t-elle de ce cote ? » -- une question qu'une
+					# tuile ENTERREE ne peut pas poser : ce qui se voit a cote d'elle est le
+					# SOMMET de sa voisine, qui n'est pas son etage. La question est mal posee,
+					# et le defaut par defaut doit etre le moins dangereux des deux : un ergot
+					# de trop risque un doublement (I2), un ergot de moins laisse un trou (I1).
+					#
+					# Mesure, sur cinq mondes : le faire taire ferme 3 extremites sur @battue1,
+					# 1 sur @battue2 et 3 + 4 paves sur @battue3 -- mais il en ROUVRE UNE sur la
+					# planche ET une sur le guide, tous deux acquis. Un couple acquis qui rougit
+					# arrete tout (regle 5). Et I2 reste vert a ne pas le taire : le risque de
+					# doublement ne se realise pas. On ne tait donc que l'etage visible.
+					var mine4: bool = storey3 == HeightMask.level_at(world, here2.x, here2.y)
+					for corner: int in range(4 if mine4 else 0):
 						var a: int = corner
 						var b: int = (corner + 3) % 4
 						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
@@ -548,10 +564,14 @@ func _run(couple: String) -> bool:
 							more |= ABOVE_QUIET_WEST
 					if more == full >> 8:
 						continue
-					indices[here2] = shape | (more << 8)
+					map3[here2] = shape | (more << 8)
 					vocabulary[shape | (more << 8)] = true
-					var mine3: Dictionary = storeys[HeightMask.level_at(world, x2, y2)]
-					mine3[here2] = shape | (more << 8)
+			# ⚠ ET LA CARTE VISIBLE SE REFAIT DEPUIS LES SILHOUETTES, jamais l'inverse. C'est
+			# l'etage de la case qui dit quelle tuile on voit ; la garder a jour a la main
+			# serait une seconde source, donc un endroit ou mentir.
+			for cell3: Vector2i in indices.keys():
+				indices[cell3] = int((storeys[HeightMask.level_at(world, cell3.x, cell3.y)]
+						as Dictionary)[cell3])
 		# ⚠ J2 « SOMMET CONTRE FACE » : DE QUEL COTE ON POSE LE BIT. Un des deux doit se taire, donc
 		# il faut un bit -- mais il MULTIPLIE la famille qui le porte. Sur la surface il double 27
 		# silhouettes (jusqu'a 228 en forme fermee) ; sur la face il ne touche que 20 roles
