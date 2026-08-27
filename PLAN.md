@@ -179,10 +179,11 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
-| **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 50 bords → **35 classes** à L2/L3, les six verts, et I5 passe de **7 à 20 profils distincts** |
+| **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
+| **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 
-⚠ **L'ÉCHELLE EST DONC VERTE DE L0/F0 À L3/F2, DOUZE COUPLES, À 77 TUILES** — 57 surfaces et 20
-rôles de robe — **raccords compris**.
+⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
+(58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
 
 ### L4 : LES RACCORDS SE RECENSENT, ET ILS RENDENT DE LA LIBERTÉ AU LIEU D'EN PRENDRE
 
@@ -244,9 +245,42 @@ n'arrive jamais ; sur le guide, treize fois.
 ⚠ **ET C'EST LE RÉSULTAT LE PLUS UTILE DE LA JOURNÉE**, parce qu'il porte sur la méthode : **un
 banc qui ne connaît qu'un monde ne prouve que ce monde**. La planche de preuve est bâtie pour
 exercer le *vocabulaire* — elle porte les 27 silhouettes — mais pas les *rencontres*. Le guide en
-porte d'autres, et un relief tiré au sort en porterait d'autres encore. **Le prochain travail est
-là**, et il est double : fermer les treize, et faire tourner les six invariants sur plus d'un
-monde.
+porte d'autres, et un relief tiré au sort en porterait d'autres encore.
+
+### LES TREIZE SONT FERMÉES, ET C'ÉTAIT DEUX DÉFAUTS, PAS UN
+
+**Huit d'entre elles étaient une TROISIÈME COPIE de « qui trace de quel côté ».** `_draws_side` —
+la fonction qui décide si l'ergot du voisin doit être tracé — testait le bit *contre-la-roche* à
+l'est et à l'ouest, testait le sud, et **ne testait jamais `NORTH_QUIET`**. Une case dont le nord
+s'était tu sous un pied s'y annonçait donc traçante ; l'ergot du voisin se posait pour la
+rejoindre, et il ne rejoignait rien.
+
+⚠ **MÊME ESPÈCE QUE LES DEUX FAUTES LES PLUS CHÈRES DU DOSSIER** — `_check_wall_seams` qui
+redérivait `row_for`, et les deux vocabulaires de surface avant `core/families.gd`. *Deux copies
+d'une même règle finissent toujours par se contredire, et celle qui se tait est celle qu'on ne
+regarde pas.* Elle demande désormais à `_surface_open`, la seule source. **13 → 5, coût zéro.**
+
+**Les cinq restantes étaient un vrai manque, et il se paie.** Un bord nord tracé à sa traversée,
+contre un voisin dont le nord s'est tu sous un pied : le bas de ce pied porte la frontière **au
+ras** du bord de sa case, une rangée plus haut, quand mon bord la trace quatre pixels plus bas.
+Deux hauteurs pour une seule frontière horizontale, et rien au coin.
+
+Mon bord nord **remonte donc au ras à ce bout-là** — `NORTH_FLUSH_EAST` / `NORTH_FLUSH_WEST`,
+symétriques exacts de `ABOVE_QUIET_*`, qui font déjà mourir un bord latéral à son nord.
+
+⚠ **LE PRIX SE MESURE, ET IL A ÉTÉ DIVISÉ PAR SIX EN RESSERRANT LA CONDITION.** Posé dès que la
+voisine est muette : **+6 tuiles** sur la planche, **+10** sur le guide. Posé seulement quand je
+trace *vraiment* mon nord — `_surface_open`, pas un test refait à la main — et quand le cardinal
+vers elle est **plein**, sans quoi nos deux bords nord ne sont pas la même frontière :
+**+1 et +3**. La plupart des tuiles qu'il fabriquait ne différaient par rien de visible.
+
+⚠ **ET LE GUIDE ENTRE DANS L'ACQUIS**, au seul couple le plus exigeant : vingt secondes de plus,
+et le trou de méthode est fermé. Un banc qui ne connaît qu'un monde ne prouve que ce monde — la
+leçon se paie en la mettant dans le rejeu, pas en l'écrivant.
+
+⚠ **Une option qui échoue en silence vaut moins que pas d'option.** `-- L3 F2@guide` en ligne de
+commande demandait le monde « GUIDE » — les arguments sont mis en majuscules — donc le banc
+rendait **la planche en annonçant le guide**. Deux mesures fausses avant de le voir.
 
 ### L3 : LE TÉMOIN EST AVEUGLE, ET C'EST UN RÉSULTAT
 

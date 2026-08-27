@@ -80,33 +80,33 @@ static func _foot_above(cell: Vector2i, roles: Dictionary) -> bool:
 	return (roles[cell] as Vector2i).y == Walls.ROW_FOOT
 
 
+## ⚠ ET IL DEMANDE A `_surface_open`, IL NE REFAIT PAS LE CALCUL. C'etait une TROISIEME copie
+## de « qui trace de quel cote » : elle testait le bit contre-la-roche a l'est et a l'ouest,
+## elle testait le sud, et elle NE TESTAIT JAMAIS `NORTH_QUIET`. Une case dont le nord s'est tu
+## sous un pied s'y annoncait donc tracante, l'ergot du voisin se posait pour la rejoindre, et
+## il ne rejoignait rien : 13 extremites sur le guide, aucune sur la planche -- qui ne met
+## jamais les deux cas cote a cote.
+##
+## Meme espece que `_check_wall_seams` qui redérivait `row_for`, et que les deux vocabulaires de
+## surface avant `core/families.gd` : deux copies d'une meme regle finissent toujours par se
+## contredire, et celle qui se tait est celle qu'on ne regarde pas.
 static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
-		roles: Dictionary) -> bool:
-	if side == 2:
-		return false
+		roles: Dictionary, level: int) -> bool:
 	if roles.has(cell) or not indices.has(cell):
 		return false
-	var tile: int = int(indices[cell])
-	if (tile & CARDINALS[side]) != 0:
-		return false
-	var quiet: int = tile >> 8
-	if side == 1 and (quiet & 1) != 0:
-		return false
-	if side == 3 and (quiet & 2) != 0:
-		return false
-	return true
+	return _surface_open(int(indices[cell]), level)[side]
 
 
 ## La case du dessus laisse-t-elle un trait de ce cote-la ? Une ROBE le laisse si son flanc
 ## s'ARRETE ; une SURFACE le laisse si son cardinal est ouvert et que le bord ne l'a pas fait
 ## taire.
 static func _above_draws(cell: Vector2i, side: int, indices: Dictionary,
-		roles: Dictionary) -> bool:
+		roles: Dictionary, level: int) -> bool:
 	if roles.has(cell):
 		var role: Vector2i = roles[cell]
 		var flank: int = Walls.pan_east(role.x) if side == 1 else Walls.pan_west(role.x)
 		return flank == Walls.SIDE_STOP
-	return _draws_side(cell, side, indices, roles)
+	return _draws_side(cell, side, indices, roles, level)
 
 
 ## L'OPTION C, chiffree et SANS EFFET : un bit sur la robe, « la case au-dessus trace de ce
@@ -169,6 +169,9 @@ static var _j2_none: bool = false
 ## Les deux refusees restent joignables par `LADDER_BACKING`, comme trace de la mesure.
 static var _backing: String = "mute"
 
+## Le monde a batir : vide pour la planche de preuve, « guide » pour le guide livre.
+static var _world_name: String = ""
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -200,8 +203,13 @@ const BACKDROP: Color = Color("#23262b")
 const CONTEXT: Color = Color("#3f4a38")
 
 ## Les couples deja gagnes, dans l'ordre. On les rejoue tous a chaque execution.
+## ⚠ ET LE DERNIER COUPLE SE REJOUE SUR UN SECOND MONDE. La planche de preuve est batie pour
+## exercer le VOCABULAIRE -- elle porte les 27 silhouettes -- mais pas les RENCONTRES : le guide
+## en portait treize que la planche ne met jamais cote a cote, et elles etaient rouges pendant
+## que le banc etait vert. Un banc qui ne connait qu'un monde ne prouve que ce monde.
+## On ne rejoue que le couple le plus exigeant : vingt secondes de plus, et le trou est ferme.
 const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2",
-		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2"]
+		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2", "L3/F2@guide"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -217,6 +225,14 @@ const SIDE_NAMES: Array[String] = ["nord", "est", "sud", "ouest"]
 const NORTH_QUIET: int = 1024        ## une face me couvre au nord : c'est le PIED qui trace
 const ABOVE_QUIET_EAST: int = 2048   ## la case du dessus s'est tue a l'est
 const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
+## ⚠ ET LE SYMETRIQUE : MON BORD NORD MEURT A SON EST QUAND LA CASE D'A COTE S'EST TUE AU NORD.
+## Elle s'est tue parce qu'un PIED la couvre : la frontiere y est donc portee par le bas de ce
+## pied, AU RAS du bord de sa case -- une rangee au-dessus de la mienne. Mon bord nord, lui, la
+## trace a sa traversee, quatre pixels plus bas. Les deux decrivent la meme frontiere
+## horizontale a deux hauteurs differentes, et elles ne se rejoignent pas au coin.
+## Mon bord remonte donc au ras a ce bout-la, pour aller toucher le pied en diagonale.
+const NORTH_FLUSH_EAST: int = 8192
+const NORTH_FLUSH_WEST: int = 16384
 
 
 func _initialize() -> void:
@@ -287,7 +303,14 @@ func _write(image: Image, couple: String) -> void:
 
 
 func _run(couple: String) -> bool:
-	var parts: PackedStringArray = couple.split("/")
+	# LE MONDE SE NOMME APRES LE COUPLE : « L3/F2@guide ».
+	var named: PackedStringArray = couple.split("@")
+	# ⚠ ET ON RABAISSE LA CASSE : la ligne de commande MAJUSCULE ses arguments, si bien que
+	# `-- L3 F2@guide` demandait le monde « GUIDE », qui n'existe pas -- et le banc rendait la
+	# planche en annoncant le guide. Une option qui echoue en silence vaut moins que pas
+	# d'option : elle fait croire qu'on a mesure ce qu'on n'a pas mesure.
+	_world_name = String(named[1]).to_lower() if named.size() > 1 			else OS.get_environment("LADDER_WORLD").to_lower()
+	var parts: PackedStringArray = String(named[0]).split("/")
 	if parts.size() != 2:
 		push_error("ladder: couple illisible '%s' (attendu L0/F0)." % couple)
 		return false
@@ -459,15 +482,35 @@ func _run(couple: String) -> bool:
 							continue
 						if (shape & DIAGONALS[corner]) != 0:
 							continue
-						if not _draws_side(here2 + STEPS[a], b, indices, roles):
+						if not _draws_side(here2 + STEPS[a], b, indices, roles, level):
 							more |= 4 << corner
-						if not _draws_side(here2 + STEPS[b], a, indices, roles):
+						if not _draws_side(here2 + STEPS[b], a, indices, roles, level):
 							more |= 64 << corner
 					# ⚠ ET LE BORD LATERAL MEURT A SON NORD QUAND LA CASE DU DESSUS S'EST TUE DE
 					# CE COTE-LA. Elle s'est tue parce qu'une ROBE la longe : c'est donc le flanc
 					# de cette robe qui porte la frontiere, une case plus haut et une colonne plus
 					# loin. Mon bord doit alors traverser ma frontiere nord AU RAS, pour aller le
 					# toucher au coin au lieu de s'arreter a sa profondeur.
+					# ⚠ ET CE BIT-LA SE LIT SUR LA VOISINE LATERALE, DONC APRES LA PREMIERE
+					# PASSE. Il demande si ELLE s'est tue au nord, ce qui n'est vrai qu'une fois
+					# tous les `NORTH_QUIET` poses. Septieme fois qu'un ordre de calcul compte.
+					# ⚠ ET IL NE SE POSE QUE LA OU IL SERT, SOUS TROIS CONDITIONS -- sans
+					# quoi il fabrique des tuiles qui ne different par rien de visible :
+					# je dois VRAIMENT tracer mon nord (pas seulement l'avoir vide : le bord
+					# a pu me faire taire) ; le cardinal vers la voisine doit etre PLEIN,
+					# sinon nos deux bords nord ne sont pas la meme frontiere ; et c'est
+					# `_surface_open` qui repond, jamais un test refait a la main.
+					if _surface_open(full, level)[0]:
+						for way: int in range(2):
+							var toward: int = 1 if way == 0 else 3
+							if (shape & CARDINALS[toward]) == 0:
+								continue
+							var beside: Vector2i = here2 + STEPS[toward]
+							if roles.has(beside) or not indices.has(beside):
+								continue
+							if (int(indices[beside]) >> 8 & NORTH_QUIET) == 0:
+								continue
+							more |= NORTH_FLUSH_EAST if way == 0 else NORTH_FLUSH_WEST
 					var over: Vector2i = here2 + Vector2i.UP
 					if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
 						var up: int = int(indices[over]) >> 8
@@ -692,7 +735,7 @@ func _world(level: int) -> PackedStringArray:
 	# ⚠ ET LE MONDE PEUT ETRE LE GUIDE, pour savoir s'il porte encore tout le vocabulaire.
 	# La planche de preuve est batie POUR l'exercer ; le guide, lui, est ce que l'acheteur
 	# peindra -- s'il ne porte pas une tuile, cette tuile est impeignable.
-	if OS.get_environment("LADDER_WORLD") == "guide":
+	if _world_name == "guide":
 		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
 		return _board
 	_board = _with_margin(ProofScene.relief(Families.BY_CELL))
@@ -742,7 +785,7 @@ func _paint(vocabulary: Dictionary, freedom: int, level: int,
 ## devaient repondre a la meme question -- qui trace de quel cote -- et deux copies d'une meme
 ## regle finissent toujours par se contredire. C'est la lecon de `core/families.gd`, payee une
 ## fois de plus.
-func _surface_open(key: int, level: int) -> Array[bool]:
+static func _surface_open(key: int, level: int) -> Array[bool]:
 	var index: int = key & 0xff
 	var brink: int = key >> 8
 	var open: Array[bool] = [false, false, false, false]
@@ -874,6 +917,16 @@ func _wall_open(key: Variant) -> Array[bool]:
 ## La profondeur d'un bord LATERAL, qui tombe a zero a son premier pixel quand la case du
 ## dessus s'est tue de ce cote : la frontiere y est portee par le flanc d'une robe, une case
 ## plus haut et une colonne plus loin, et il faut aller le toucher au coin.
+## LA PROFONDEUR D'UN BORD NORD, qui remonte au ras a son bout quand la case d'a cote s'est tue
+## au nord -- c'est le bas d'un PIED qui y porte la frontiere, au ras du bord de sa case.
+func _north_depth(along: int, freedom: int, quiet: int, seam: int) -> int:
+	if along == RES - 1 and (quiet & NORTH_FLUSH_EAST) != 0:
+		return 0
+	if along == 0 and (quiet & NORTH_FLUSH_WEST) != 0:
+		return 0
+	return _depth(0, along, freedom, seam)
+
+
 func _side_depth(side: int, along: int, freedom: int, quiet: int, seam: int = 0) -> int:
 	if along == 0:
 		if side == 1 and (quiet & ABOVE_QUIET_EAST) != 0:
@@ -933,7 +986,7 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 		for x: int in range(RES):
 			var inside: bool = true
 			if open[0] and y < (_wall_depth(0, x, freedom, seams[0]) if wall
-					else (0 if flat_north else _depth(0, x, freedom, seams[0]))):
+					else (0 if flat_north else _north_depth(x, freedom, quiet, seams[0]))):
 				inside = false
 			if open[1] and x > RES - 1 - (_wall_depth(1, y, freedom, seams[1]) if wall
 					else _side_depth(1, y, freedom, quiet, seams[1])):
