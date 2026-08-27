@@ -57,6 +57,33 @@ func _initialize() -> void:
 	quit(1 if failed > 0 else 0)
 
 
+## Ecrire l'image, pour la regarder plutot que la croire.
+##
+##     ... -- L0 F1 sortie.png                 la planche entiere
+##     ... -- L0 F1 sortie.png 0 6 34 22 24    un gros plan, en CASES, puis le zoom
+##
+## ⚠ ET LE ZOOM EST AU PLUS PROCHE. Un lissage inventerait des coutures que le dessin n'a pas
+## -- c'est la lecon deja ecrite pour l'apercu en jeu et pour les voisines.
+func _write(image: Image, couple: String) -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if args.size() < 3:
+		return
+	var out: String = args[2]
+	var shown: Image = image
+	if args.size() >= 7:
+		var cw: int = int(args[5])
+		var ch: int = int(args[6])
+		var tile: int = int(args[7]) if args.size() > 7 else 20
+		var crop: Image = Image.create_empty(cw * RES, ch * RES, false, image.get_format())
+		crop.blit_rect(image, Rect2i(int(args[3]) * RES, int(args[4]) * RES, cw * RES,
+				ch * RES), Vector2i.ZERO)
+		crop.resize(cw * tile, ch * tile, Image.INTERPOLATE_NEAREST)
+		shown = crop
+	shown.save_png(out)
+	print("  ecrit : %s  (%d x %d px)  [%s]" % [out, shown.get_width(), shown.get_height(),
+			couple])
+
+
 func _run(couple: String) -> bool:
 	var parts: PackedStringArray = couple.split("/")
 	if parts.size() != 2:
@@ -106,6 +133,7 @@ func _run(couple: String) -> bool:
 
 	var tiles: Dictionary = _paint(vocabulary, freedom)
 	var image: Image = _assemble(mask, indices, tiles)
+	_write(image, couple)
 	var report: Dictionary = _measure(image, mask, indices, tiles, freedom)
 	var ok: bool = complete
 	for key: String in ["I1", "I2", "I3", "I4", "I5"]:

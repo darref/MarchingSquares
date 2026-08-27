@@ -172,7 +172,15 @@ traverse la tuile — pour une revendication de l'ouest.
 ```
 godot --headless --path . --script res://proof/ladder.gd            (tout l'acquis)
 godot --headless --path . --script res://proof/ladder.gd -- L0 F0   (un couple)
+
+# et pour le REGARDER plutot que le croire -- la planche entiere, puis un gros
+# plan decoupe en CASES suivi du zoom :
+... -- L0 F1 sortie.png
+... -- L0 F1 sortie.png 0 6 16 14 40
 ```
+
+⚠ **Le zoom est au plus proche**, jamais lissé : un lissage inventerait des coutures que le
+dessin n'a pas. Même raison que pour l'aperçu en jeu et pour les voisines.
 
 ⚠ **Trois défauts trouvés en écrivant le banc, tous dans le banc.** C'est le prix d'un
 instrument neuf, et ils valent d'être notés :
