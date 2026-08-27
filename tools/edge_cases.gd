@@ -18,10 +18,7 @@ const Families := preload("res://core/families.gd")
 const Walls := preload("res://core/walls.gd")
 
 ## Les cinq cases relevees par le banc, a L2/F1.
-const SUSPECTS: Array[Vector2i] = [
-	Vector2i(19, 152), Vector2i(16, 153), Vector2i(19, 153),
-	Vector2i(3, 170), Vector2i(82, 170),
-]
+const SUSPECTS: Array[Vector2i] = [Vector2i(19, 152), Vector2i(16, 153)]
 
 
 func _initialize() -> void:

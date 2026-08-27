@@ -285,6 +285,23 @@ l'herbe **sans un trait**. Vu au pixel.
 La condition se resserre à *« et seulement si c'est un PIED »*. **3 → 2 extrémités, +1 tuile**,
 et surtout **F0 passe à zéro**.
 
+### LES DEUX DERNIÈRES APPARTIENNENT À L3
+
+⚠ **Elles sont la même configuration : une chute ÉCRÊTÉE.** En (19,152) la robe est sur de la
+plaine et juste dessous se trouve un bloc d'étage **2** qui arrête la chute ; en (16,153) idem,
+un cran plus haut. La roche s'arrête donc **contre un bloc**, et son bas n'est ni un pied ni une
+frontière avec du vide.
+
+**Et le dossier a déjà la pièce qui ferme ça : LA POSE DERRIÈRE** — *une robe écrêtée repose le
+corps du pas suivant sous la case qui l'a coupée*. C'est une **pose**, pas une tuile, et elle est
+au niveau **L3**, que le banc n'implémente pas encore.
+
+⚠ **Donc L2 est clos à ce que L2 peut clore.** Les deux pixels qui restent ne sont pas une règle
+manquante de L2 : ce sont les poses arrière qui manquent, et elles sont le sujet du niveau
+suivant. C'est aussi la première fois qu'un défaut se laisse **renvoyer proprement au cran
+d'après** au lieu d'être rattrapé sur place — ce qui est exactement ce que l'échelle existe pour
+permettre.
+
 ### CHAQUE FAMILLE GARDE SA TRAVERSÉE — deux tentatives, deux refus
 
 Les deux dernières extrémités sont un désaccord de profondeur : la **face** pince à zéro, la
