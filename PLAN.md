@@ -179,6 +179,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
+| **L5/F0** | **rouge, et c'est le MODÈLE** | I1 ✅ · **I2 1 573 pavés** · **I3 160 doublements**, tous à la falaise · I4 ✅ — voir ci-dessous |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
@@ -287,6 +288,47 @@ mieux l'écrire que la découvrir chez un acheteur.
 **Le prochain travail est là**, et la distribution dit par où commencer — sur `@battue1` :
 10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
 une **robe qui n'a rien en dessous**.
+
+### L5 : LE CONTOUR À CHEVAL SE FERME TOUT SEUL, ET C'EST UN THÉORÈME
+
+**Le témoin est rouge, donc le défaut est dans le modèle** — c'est exactement ce que F0 existe pour
+dire. Mais il est vert là où on l'attendait le plus rouge.
+
+⚠ **I1 EST VERT DU PREMIER COUP : ZÉRO EXTRÉMITÉ.** Et ça se démontre avant de le mesurer. Le
+quadrant **SE** de la tuile d'un croisement et le quadrant **SO** de sa voisine de l'est désignent
+**la même case** : la matière traverse le bord de tuile sans qu'il y ait de frontière. **Le contour
+d'une tuile à cheval est donc entièrement INTERNE** — toute frontière qu'elle porte est chez elle,
+entre deux de ses propres quadrants. Elle n'a rien à savoir de son voisinage, et *la question « qui
+trace ? » ne se pose pas.* C'est ça, les quinze tuiles sans un seul bit de bord.
+
+Et une frontière du monde, qui court sur une case entière, est **partagée entre deux tuiles**,
+chacune en traçant sa moitié ; elles se rejoignent à leur bord commun, où toutes deux tracent au
+même endroit — l'axe de leur quadrant.
+
+⚠ **CE QUI CASSE EST LA RENCONTRE DES DEUX GRILLES, ET RIEN D'AUTRE.** Les surfaces sont décalées
+d'un demi-pas ; les **robes restent sur la case**. Toutes les jonctions surface/falaise sont donc à
+cheval, et le témoin les compte : **7 446 pavés et 744 doublements, tous à la falaise.**
+
+**Premier correctif, gratuit : « rien au sud » vaut aussi à cheval.** Une frontière horizontale
+interne dont le **haut est plein et le bas vide** est une **lèvre** — la face commence juste
+dessous, et c'est son chapiteau qui la porte. Même théorème que dans la famille par case, même
+gratuité : **7 446 → 1 573 pavés, 744 → 160 doublements.**
+
+⚠ **CE QUI RESTE EST LA JONCTION LATÉRALE, ET C'EST LÀ QUE LE NIVEAU SERA DUR.** La frontière
+verticale interne d'une tuile à cheval tombe **exactement sur le bord de case** — c'est son axe —
+donc au même endroit que le flanc d'une robe. Dans la famille par case, ce conflit-là s'est réglé
+par un **bit** (« contre de la roche, la surface se tait »). À cheval, **il n'y a pas de bit à
+payer sans détruire le théorème qui donne les quinze tuiles.** Les deux issues sont : faire céder
+la **face** — mesuré mauvais à L2 — ou accepter que la famille à cheval coûte des bits, et la
+chiffrer. **C'est la décision du niveau, et elle se mesurera avant d'être prise.**
+
+⚠ **Et deux invariants ne savent pas encore lire cette famille** : I5 promet « un seul profil » à
+F0, ce qui n'a pas de sens pour une tuile dont les quatre côtés sont à moitié pleins ; I6 cherche
+la pose arrière sous une case, alors que la surface qui la couvre est décalée. **Ils sont rouges
+pour une raison de mesure, pas de dessin, et il faut les adapter avant de juger L5.**
+
+⚠ **Et la planche de preuve n'exerce que 13 des 15 tuiles à cheval** : elle a été bâtie pour la
+famille par case. Un guide dual reste à construire.
 
 ### L3 EST CLOS : LA POSE ARRIÈRE NE DÉBORDE PAS AU NORD DE SA LÈVRE
 

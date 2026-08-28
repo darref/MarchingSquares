@@ -19,6 +19,7 @@ extends SceneTree
 ## couple acquis qui rougit arrete tout : c'est ca, « rien ne regresse ».
 
 const HeightMask := preload("res://core/height_mask.gd")
+const CornerIndex := preload("res://core/corner_index.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Thickness := preload("res://core/thickness.gd")
@@ -437,11 +438,42 @@ func _run(couple: String) -> bool:
 	print("  monde : %d x %d, %d etage(s), %d cases visibles, %d tuiles a peindre"
 			% [HeightMask.width(world), HeightMask.height(world), top + 1, indices.size(),
 			vocabulary.size()])
+	# L5 : LA FAMILLE A CHEVAL REMPLACE LE VOCABULAIRE DE SURFACE, PAS LE MONDE. Meme relief,
+	# memes falaises ; ce qui change est la grille sur laquelle les surfaces se posent -- le
+	# CROISEMENT de quatre cases au lieu de la case, donc un demi-pas de decalage.
+	if level >= 5:
+		var dual: Array[Dictionary] = []
+		for storey: int in range(storeys.size()):
+			var mask: PackedStringArray = HeightMask.silhouette(world, storey)
+			var map: Dictionary = {}
+			for j: int in range(HeightMask.height(mask) + 1):
+				for i: int in range(HeightMask.width(mask) + 1):
+					var code: int = CornerIndex.index_at(mask, i, j)
+					if code != CornerIndex.NO_INDEX and code != 0:
+						map[Vector2i(i, j)] = code
+			dual.append(map)
+		storeys = dual
+		indices = {}
+		vocabulary = {}
+		for point: Vector2i in CornerIndex.index_map(world).keys():
+			var code2: int = int(CornerIndex.index_map(world)[point])
+			if code2 != 0:
+				indices[point] = code2
+		for storey: int in range(storeys.size()):
+			for point: Vector2i in (storeys[storey] as Dictionary).keys():
+				vocabulary[int((storeys[storey] as Dictionary)[point])] = true
+		print("  a cheval : %d croisements visibles, %d tuiles de croisement"
+				% [indices.size(), vocabulary.size()])
+
 	var canonical: Dictionary = {}
 	for cell: Vector2i in indices.keys():
 		canonical[BlobIndex.canonicalize(int(indices[cell]) & 0xff)] = true
 	var expected: int = Thickness.SURFACE_INDICES.size()
 	var complete: bool = canonical.size() == expected
+	if level >= 5:
+		expected = CornerIndex.TILE_COUNT
+		canonical = vocabulary
+		complete = canonical.size() == expected
 	print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
 			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
 			vocabulary.size()])
@@ -453,6 +485,16 @@ func _run(couple: String) -> bool:
 	var role_tiles: Dictionary = {}
 	if level >= 2:
 		roles = Walls.visible(world)["roles"]
+		# ⚠ ET A CHEVAL, AUCUN BIT DE BORD. Une tuile de croisement ne porte que des frontieres
+		# INTERNES : hors d'elle, sa voisine designe les memes cases. Elle n'a donc rien a
+		# savoir de son voisinage, et la question « qui trace » ne se pose pas. C'est ce que le
+		# temoin doit confirmer -- ou refuter.
+		if level >= 5:
+			var closed5: Dictionary = {}
+			for cell5: Vector2i in roles.keys():
+				var role5: Vector2i = roles[cell5]
+				closed5[cell5] = Vector2i(role5.x, Walls.ROW_FOOT) 						if not roles.has(cell5 + Vector2i.DOWN) else role5
+			roles = closed5
 		# ⚠ UNE CHUTE QUI S'ARRETE DOIT SE FERMER, QUELLE QUE SOIT LA RAISON. Le modele ne pose
 		# le PIED qu'a l'atterrissage : une chute qui tombe dans le VIDE n'en pose pas -- « on
 		# ne touche pas le fond d'un gouffre » -- et une chute ECRETEE non plus, elle s'arrete
@@ -478,11 +520,12 @@ func _run(couple: String) -> bool:
 			var role: Vector2i = roles[cell]
 			var ends: bool = not roles.has(cell + Vector2i.DOWN)
 			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if ends else role
-		roles = closed
+		if level < 5:
+			roles = closed
 		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE. C'est justement ce qu'une tuile ne peut
 		# pas savoir : ce qu'il y a de l'autre cote. Le banc, lui, a le monde sous les yeux --
 		# c'est ce qui permet de MESURER le prix avant de decider si on le paie.
-		for y: int in range(HeightMask.height(world)):
+		for y: int in range(HeightMask.height(world) if level < 5 else 0):
 			for x: int in range(HeightMask.width(world)):
 				var cell2: Vector2i = Vector2i(x, y)
 				if not indices.has(cell2):
@@ -563,7 +606,7 @@ func _run(couple: String) -> bool:
 		# elle laissait les etages ENTERRES poser leurs ergots et leurs traversees au ras selon
 		# un voisinage qui n'est pas le leur -- et on les voit, par les encoches du dessus.
 		# Chaque etage interroge donc SES voisines, dans SA silhouette.
-		if not _j2_on_face:
+		if not _j2_on_face and level < 5:
 			for storey3: int in range(storeys.size()):
 				var map3: Dictionary = storeys[storey3]
 				for here2: Vector2i in map3.keys():
@@ -761,7 +804,12 @@ func _run(couple: String) -> bool:
 	print(said2 + "   (%d liens de superposition ; la continuation en joindrait %d de plus,"
 			% [int(seams["superposition"]), int(welded["continuation"])]
 			+ " et n'en laisserait que %d)" % [int(welded["classes"])])
-	var tiles: Dictionary = _paint(vocabulary, freedom, level, seams["graine"])
+	var tiles: Dictionary = {}
+	if level >= 5:
+		for key5: Variant in vocabulary.keys():
+			tiles[int(key5)] = _corner_tile(int(key5), freedom, [], level)
+	else:
+		tiles = _paint(vocabulary, freedom, level, seams["graine"])
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
 	if not OS.get_environment("LADDER_VOCAB").is_empty():
 		var listing: Array[int] = []
@@ -817,7 +865,7 @@ func _run(couple: String) -> bool:
 		for key: Variant in role_tiles.keys():
 			backing_tiles[key] = _muted(role_tiles[key] as Image)
 	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
-			backing_tiles)
+			backing_tiles, level >= 5)
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
 	var bare: Image = null
@@ -1072,7 +1120,7 @@ func _world(level: int) -> PackedStringArray:
 	# especes de pose arriere -- l'atterrissage (le sous-pied), l'ecretage (la pose derriere,
 	# c'est la paire de piliers ajoutee pour ca), et la levre (le chapiteau sous sa levre).
 	# Un monde de plus ne prouverait rien de plus ; ce qui manquait, c'est la POSE.
-	if level >= 1 and level <= 3:
+	if level >= 1 and level <= 5:
 		return _board
 	if level != 0:
 		return PackedStringArray()
@@ -1084,6 +1132,63 @@ func _world(level: int) -> PackedStringArray:
 			line += "0" if flat[y][x] == MaskIO.FILLED_CHAR else "~"
 		out.append(line)
 	return out
+
+
+# ------------------------------------------------------------ L5 : LA FAMILLE A CHEVAL
+
+## LA TUILE D'UN CROISEMENT : quatre quadrants, un par case touchee.
+##
+## ⚠ ET SON CONTOUR EST ENTIEREMENT INTERNE, C'EST LE THEOREME DU NIVEAU. Le quadrant SE de la
+## tuile d'un croisement et le quadrant SO de sa voisine de l'est designent LA MEME CASE : la
+## matiere traverse le bord de tuile sans qu'il y ait de frontiere. Une tuile a cheval n'a donc
+## jamais a savoir ce qu'il y a a cote -- toute frontiere qu'elle porte est chez elle, entre
+## deux de ses propres quadrants. C'est pour ca que la famille n'a que quinze tuiles et pas un
+## seul bit de bord.
+##
+## ⚠ ET UNE FRONTIERE DU MONDE EST PARTAGEE ENTRE DEUX TUILES, chacune en tracant sa moitie :
+## le bord entre deux cases court sur une case entiere, et deux tuiles voisines s'en partagent
+## les deux demis. Elles se rejoignent a leur bord commun, ou toutes deux tracent au meme
+## endroit -- l'axe de leur quadrant.
+## ⚠ ET « RIEN AU SUD » VAUT AUSSI A CHEVAL, PAR LE MEME THEOREME. Une frontiere horizontale
+## interne dont le HAUT est plein et le bas vide est une LEVRE : la face commence juste dessous,
+## et c'est son chapiteau qui porte cette frontiere. Sans cette regle, la tuile de croisement et
+## le chapiteau la tracent tous les deux, a un pixel l'un de l'autre -- mesure du temoin :
+## 7 446 paves et 744 doublements, tous a la falaise.
+func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0) -> Image:
+	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	var half: int = RES / 2
+	var solid: Array[PackedByteArray] = []
+	for y: int in range(RES):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(RES)
+		for x: int in range(RES):
+			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.
+			var corner: int = 0
+			if x >= half and y < half:
+				corner = 1
+			elif x >= half and y >= half:
+				corner = 2
+			elif x < half and y >= half:
+				corner = 3
+			line[x] = 1 if (index & CornerIndex.BITS[corner]) != 0 else 0
+		solid.append(line)
+	for y: int in range(RES):
+		for x: int in range(RES):
+			if solid[y][x] == 0:
+				continue
+			var edge: bool = false
+			for side: int in range(4):
+				# RIEN AU SUD des que le monde a des falaises : c'est le chapiteau qui trace.
+				if side == 2 and level >= 2:
+					continue
+				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
+				# ⚠ HORS DE LA TUILE N'EST JAMAIS UN BORD : la voisine y porte la meme case.
+				if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
+					continue
+				if solid[probe.y][probe.x] == 0:
+					edge = true
+			tile.set_pixel(x, y, OUTLINE if edge else GRASS)
+	return tile
 
 
 # ------------------------------------------------------------------ LE DESSIN
@@ -1539,7 +1644,8 @@ static func _clip_north(rock: Image, cover: Image) -> Image:
 
 static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
-		under_by_level: Array[Dictionary], backing_tiles: Dictionary) -> Image:
+		under_by_level: Array[Dictionary], backing_tiles: Dictionary,
+		astride: bool = false) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	for storey: int in range(storeys.size()):
@@ -1563,9 +1669,12 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 				rock = _clip_north(rock, tiles[int(cover[cell])] as Image)
 			canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 		var map: Dictionary = storeys[storey]
+		# ⚠ LE DECALAGE EST D'UN DEMI-PAS, ET C'EST TOUT CE QUE LA FAMILLE A CHEVAL CHANGE A LA
+		# POSE. La tuile d'un croisement est centree sur le coin de quatre cases.
+		var shift: Vector2i = Vector2i(RES / 2, RES / 2) if astride else Vector2i.ZERO
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
-			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES)
+			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES - shift)
 	for cell: Vector2i in roles.keys():
 		var rock: Image = role_tiles[roles[cell]] as Image
 		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
