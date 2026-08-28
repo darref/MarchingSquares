@@ -1243,6 +1243,20 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 			# l'axe fige d'un cote et libre de l'autre fait une MARCHE au milieu du profil,
 			# donc plusieurs profils dont onze qui ondulent la ou F1 les promet plats. Trois
 			# pixels contre la liberte annoncee : on ne paie pas.
+			# ⚠ TROIS ESSAIS POUR ACCORDER L'AXE AU FLANC DE LA ROBE, TOUS MESURES PIRES.
+			# La geometrie du defaut est exacte : l'axe d'une tuile a cheval tombe sur le BORD
+			# DE CASE, et le flanc d'une robe RENTRE de `_wall_depth` des F1 -- les deux ne
+			# coincident plus, le trait que la robe porte n'est plus sur la frontiere de la
+			# tuile, et il meurt dans la matiere.
+			#
+			#   geler l'axe la ou la robe trace          43 -> 40 extremites, et I5 rouge
+			#   l'axe suit -`_wall_depth`               43 -> 123
+			#   l'axe suit +`_wall_depth`               43 ->  77
+			#
+			# ⚠ ET LES DEUX DERNIERS ECHOUENT POUR LA MEME RAISON : LE SIGNE DEPEND DU COTE OU
+			# SE TROUVE LA ROBE, et le bit ne le dit pas -- il se leve quand l'UNE OU L'AUTRE
+			# des deux cases est couverte. Le dedoubler par cote coute des tuiles ; c'est la
+			# prochaine mesure a faire, et elle se chiffre avant d'etre payee.
 			var vx: int = half - 1 + _corner_shift(y, freedom, true)
 			var hy: int = half - 1 + _corner_shift(x, freedom, false)
 			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.

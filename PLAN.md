@@ -399,12 +399,23 @@ matière**. La cause est nette : les quatre bits sont calculés pour un axe **po
 case** ; dès que la liberté l'en écarte, la frontière que la robe porte n'est plus celle de la
 tuile, et le trait meurt dans la roche.
 
-⚠ **ET GELER L'AXE LÀ OÙ C'EST LA ROBE QUI TRACE A ÉTÉ ESSAYÉ, ET MESURÉ MAUVAIS.** L'idée se
-défendait — le bit qui fait taire une moitié dit déjà exactement où, il pouvait donc aussi figer
-sa position, pour zéro tuile. Résultat : **43 → 40 extrémités**, et **I5 rouge** — un axe figé
-d'un côté et libre de l'autre fait une **marche** au milieu du profil, donc plusieurs profils dont
-onze qui ondulent là où F1 les promet plats. **Trois pixels contre la liberté annoncée : on ne
-paie pas.**
+**TROIS FAÇONS D'ACCORDER L'AXE AU FLANC, TOUTES MESURÉES PIRES :**
+
+| tentative | I1 à F1 | |
+|---|---|---|
+| l'axe reste libre (l'état gardé) | **43** | I5 ✅ |
+| geler l'axe là où la robe trace | 40 | **I5 ❌** |
+| l'axe suit −`_wall_depth` | **123** | I5 ❌ |
+| l'axe suit +`_wall_depth` | **77** | I5 ❌ |
+
+⚠ **LA GELÉE REND TROIS PIXELS ET COÛTE LA LIBERTÉ ANNONCÉE.** Un axe figé d'un côté et libre de
+l'autre fait une **marche** au milieu du profil : plusieurs profils, dont onze qui ondulent là où
+F1 les promet plats. On ne paie pas trois pixels avec ça.
+
+⚠ **ET LES DEUX SUIVIS ÉCHOUENT POUR LA MÊME RAISON : LE SIGNE DÉPEND DU CÔTÉ OÙ SE TROUVE LA
+ROBE, et le bit ne le dit pas** — il se lève quand **l'une ou l'autre** des deux cases est
+couverte. Le dédoubler par côté coûte des tuiles ; **c'est la prochaine mesure, et elle se
+chiffre avant d'être payée.** Les trois essais restent en commentaire, avec leurs chiffres.
 
 ⚠ **Et la planche de preuve n'exerce que 13 des 15 tuiles à cheval** : elle a été bâtie pour la
 famille par case. Un guide dual reste à construire.
