@@ -556,8 +556,14 @@ func _run(couple: String) -> bool:
 	# tombe alors sur une tuile nulle, sans rien dire de plus utile que « get_width sur null ».
 	var roles: Dictionary = {}
 	var role_tiles: Dictionary = {}
+	# ⚠ UN SEUL ASSEMBLAGE POUR LES DEUX CARTES, ET IL SE DECLARE ICI. `visible()` et
+	# `visible_underfoot()` refaisaient chacune le parcours complet du relief, pour deux
+	# moities du meme calcul -- et la pose arriere se lit vingt lignes plus bas, donc la
+	# carte doit vivre a la portee de la fonction, pas du bloc.
+	var seen: Dictionary = {}
 	if level >= 2:
-		roles = Walls.visible(world)["roles"]
+		seen = Walls.visible_all(world)
+		roles = seen["roles"]
 		# ⚠ ET A CHEVAL, AUCUN BIT DE BORD. Une tuile de croisement ne porte que des frontieres
 		# INTERNES : hors d'elle, sa voisine designe les memes cases. Elle n'a donc rien a
 		# savoir de son voisinage, et la question « qui trace » ne se pose pas. C'est ce que le
@@ -801,7 +807,7 @@ func _run(couple: String) -> bool:
 	for storey: int in range(storeys.size()):
 		under_by_level.append({})
 	if level >= 3:
-		under = Walls.visible_underfoot(world)
+		under = seen["underfoot"]
 		var by_kind: Dictionary = {}
 		for cell: Vector2i in under.keys():
 			var landing: int = HeightMask.level_at(world, cell.x, cell.y)
@@ -1249,24 +1255,46 @@ func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
 func _enumerate(alphabet: int) -> void:
 	_quiet = true
 	_vocab_only = true
-	var blocks: int = 9
+	# ⚠ LA FENETRE SE PARAMETRE, PARCE QUE C'EST LA DIRECTION QUI COMPTE. Un etage de plus ne
+	# fait que rallonger l'alphabet ; une fenetre plus large eprouve la seule chose que le rayon
+	# 2 laisse ouverte -- une dependance qui deborderait la fenetre. On fixe donc l'alphabet et
+	# on fait varier la fenetre, jamais les deux a la fois.
+	var asked: String = OS.get_environment("LADDER_BLOCKS")
+	var wide: int = 3
+	var tall: int = 3
+	if asked.contains("x"):
+		wide = maxi(2, int(asked.split("x")[0]))
+		tall = maxi(2, int(asked.split("x")[1]))
+	elif not asked.is_empty():
+		wide = maxi(2, int(asked))
+		tall = wide
+	var blocks: int = wide * tall
 	var total: int = 1
 	for i: int in range(blocks):
 		total *= alphabet
-	print("=== DOMAINE REALISABLE : %d reliefs (3x3 blocs de 3x3, %d etages avec le vide) ==="
-			% [total, alphabet])
+	# ⚠ ET LA PLAGE SE DECOUPE, PARCE QUE L'ENUMERATION EST PARFAITEMENT SEPARABLE. Chaque
+	# relief est independant des autres : huit processus sur huit coeurs font le meme travail
+	# huit fois plus vite, et l'union de leurs listes est la reponse. C'est le seul levier qui
+	# vaille -- une machine plus rapide donne trois, le decoupage donne huit.
+	var from: int = int(OS.get_environment("LADDER_FROM"))
+	var upto: int = total
+	if not OS.get_environment("LADDER_TO").is_empty():
+		upto = mini(total, int(OS.get_environment("LADDER_TO")))
+	print("=== DOMAINE REALISABLE : %d reliefs (%dx%d blocs de 3x3, %d etages avec le vide)"
+			% [total, wide, tall, alphabet]
+			+ "  -- part [%d, %d) ===" % [from, upto])
 	var mark: int = 0
 	var stable: int = 0
-	for n: int in range(total):
+	for n: int in range(from, upto):
 		var code: int = n
 		var levels: Array[int] = []
 		for b: int in range(blocks):
 			levels.append(code % alphabet)
 			@warning_ignore("integer_division")
 			code = code / alphabet
-		_injected = _blocks(levels, alphabet)
+		_injected = _blocks(levels, alphabet, wide, tall)
 		_run("L3/F2")
-		if n % maxi(1, total / 20) == 0 or n == total - 1:
+		if n % maxi(1, (upto - from) / 10) == 0 or n == upto - 1:
 			var added: int = _vocab_seen.size() - mark
 			stable = stable + 1 if added == 0 else 0
 			print("  %8d / %d reliefs : %d tuiles de surface, %d roles   (+%d)"
@@ -1275,14 +1303,29 @@ func _enumerate(alphabet: int) -> void:
 	print("  DOMAINE EPUISE : %d tuiles de surface, %d roles de robe   -- TOTAL %d"
 			% [_vocab_seen.size(), _vocab_roles.size(),
 			_vocab_seen.size() + _vocab_roles.size()])
+	# ⚠ ET CHAQUE PART REND SA LISTE, PAS SON COMPTE. Huit comptes ne s'additionnent pas -- les
+	# parts se recouvrent -- alors que huit listes s'unissent.
+	var keys: Array[int] = []
+	keys.assign(_vocab_seen.keys())
+	keys.sort()
+	var said: PackedStringArray = PackedStringArray()
+	for key: int in keys:
+		said.append(str(key))
+	print("  TUILES: %s" % ",".join(said))
+	var found: PackedStringArray = PackedStringArray()
+	for role: Vector2i in _vocab_roles.keys():
+		found.append("%d.%d" % [role.x, role.y])
+	found.sort()
+	print("  ROLES: %s" % ",".join(found))
 
 
 ## Un relief fait de neuf blocs 3x3, avec la marge que le modele exige : une chute dans le vide
 ## descend de STOREY_TILES x (etage + 1), et une robe coupee par le cadre laisserait un contour
 ## ouvert -- ce serait un defaut du MONDE, pas du dessin.
-func _blocks(levels: Array[int], alphabet: int) -> PackedStringArray:
+func _blocks(levels: Array[int], alphabet: int, blocks: int, rows: int) -> PackedStringArray:
 	var side: int = 3
-	var wide: int = side * side
+	var wide: int = side * blocks
+	var high: int = side * rows
 	var edge: int = 3
 	var below: int = Walls.STOREY_TILES * alphabet + edge
 	var out: PackedStringArray = PackedStringArray()
@@ -1291,13 +1334,13 @@ func _blocks(levels: Array[int], alphabet: int) -> PackedStringArray:
 		empty += "~"
 	for row: int in range(edge):
 		out.append(empty)
-	for y: int in range(wide):
+	for y: int in range(high):
 		var line: String = ""
 		for x: int in range(edge):
 			line += "~"
 		for x: int in range(wide):
 			@warning_ignore("integer_division")
-			var level: int = levels[(y / side) * side + (x / side)]
+			var level: int = levels[(y / side) * blocks + (x / side)]
 			line += "~" if level == 0 else str(level - 1)
 		for x: int in range(edge):
 			line += "~"

@@ -462,14 +462,26 @@ static func visible_roles(heights: PackedStringArray) -> Dictionary:
 ##   roles : Dictionary[Vector2i, Vector2i]  case -> (pan, rangee)
 ##   lips  : Dictionary[Vector2i, int]       case -> etage de la levre
 static func visible(heights: PackedStringArray) -> Dictionary:
-	var roles: Dictionary = assemble(heights)["roles"]
+	var all: Dictionary = visible_all(heights)
+	return {"roles": all["roles"], "lips": all["lips"]}
+
+
+## LES TROIS CARTES VISIBLES, POUR UN SEUL ASSEMBLAGE.
+##
+## ⚠ `assemble()` CALCULE DEJA LES DEUX, ET ON LE PAYAIT DEUX FOIS. `visible()` prenait ses
+## robes et jetait les poses arriere ; `visible_underfoot()` reprenait tout depuis le debut
+## pour recuperer ce que la premiere avait jete. Un appelant qui veut les deux -- le banc de
+## l'echelle, le rendu, le plugin -- parcourait donc le relief entier deux fois.
+##
+## ⚠ ET LA SELECTION VIT ICI UNE SEULE FOIS. Les deux cartes se choisissent de la meme facon
+## -- l'etage le plus haut, parce qu'on ne voit que le sommet -- et deux copies d'une meme
+## regle finissent toujours par se contredire.
+##
+## Cles rendues : `roles` (en ordre de lecture), `lips`, `underfoot`.
+static func visible_all(heights: PackedStringArray) -> Dictionary:
+	var built: Dictionary = assemble(heights)
 	var highest: Dictionary = {}
-	var chosen: Dictionary = {}
-	for key: Vector3i in roles.keys():
-		var cell: Vector2i = Vector2i(key.x, key.y)
-		if not highest.has(cell) or key.z > int(highest[cell]):
-			highest[cell] = key.z
-			chosen[cell] = roles[key]
+	var chosen: Dictionary = _topmost(built["roles"], highest)
 	# ⚠ LA CARTE SORT EN ORDRE DE LECTURE, ET C'EST TRIE UNE SEULE FOIS ICI. Les robes se
 	# rassemblent etage par etage, donc dans un ordre qui n'est pas celui de l'ecran ; trier
 	# a chaque coup de crayon coutait plus cher que le compte lui-meme.
@@ -482,7 +494,21 @@ static func visible(heights: PackedStringArray) -> Dictionary:
 	for cell: Vector2i in cells:
 		ordered[cell] = chosen[cell]
 		lips[cell] = int(highest[cell])
-	return {"roles": ordered, "lips": lips}
+	return {"roles": ordered, "lips": lips,
+			"underfoot": _topmost(built["underfoot"], {})}
+
+
+## Une carte keyee par (case, etage) ramenee a une carte par case : on ne garde que l'etage
+## le plus haut, parce qu'on ne voit que le sommet. `heights` recoit au passage l'etage
+## retenu de chaque case, quand l'appelant en a besoin.
+static func _topmost(source: Dictionary, heights: Dictionary) -> Dictionary:
+	var chosen: Dictionary = {}
+	for key: Vector3i in source.keys():
+		var cell: Vector2i = Vector2i(key.x, key.y)
+		if not heights.has(cell) or key.z > int(heights[cell]):
+			heights[cell] = key.z
+			chosen[cell] = source[key]
+	return chosen
 
 
 ## La POSE DERRIERE visible de chaque case qui en recoit une : celle de l'etage le plus
@@ -492,15 +518,7 @@ static func visible(heights: PackedStringArray) -> Dictionary:
 ## la laisse voir que par ses coins decoupes -- c'est exactement la qu'elle doit se voir,
 ## et nulle part ailleurs.
 static func visible_underfoot(heights: PackedStringArray) -> Dictionary:
-	var under: Dictionary = assemble(heights)["underfoot"]
-	var highest: Dictionary = {}
-	var chosen: Dictionary = {}
-	for key: Vector3i in under.keys():
-		var cell: Vector2i = Vector2i(key.x, key.y)
-		if not highest.has(cell) or key.z > int(highest[cell]):
-			highest[cell] = key.z
-			chosen[cell] = under[key]
-	return chosen
+	return _topmost(assemble(heights)["underfoot"], {})
 
 
 ## La regle de livraison, appliquee aux robes : une case peinte est retenue pour son role,

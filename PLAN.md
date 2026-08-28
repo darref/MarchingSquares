@@ -2006,3 +2006,39 @@ close**, pas le monde entier. Les deux directions restantes se chiffrent :
 le compte est stable en largeur de fenêtre, la fermeture est acquise ; s'il monte, c'est que la
 dépendance déborde la fenêtre — ce que le rayon 2 rend improbable, mais improbable n'est pas
 mesuré.
+
+
+### 8 · ÉLARGIR LA FENÊTRE N'AJOUTE RIEN — 531 441 RELIEFS, AVEC DES ÉTAGES EMPILÉS
+
+*La section 7 laissait la vraie question ouverte : le compte tient-il quand la fenêtre s'élargit ?
+Le protocole est celui qu'on s'est donné — **on fixe l'alphabet et on fait varier la fenêtre,
+jamais les deux à la fois.***
+
+| fenêtre | états | reliefs | **tuiles** |
+|---|---|---|---|
+| 3×3 blocs | 2 | 512 | 36 + 9 = **45** |
+| **4×4 blocs** | 2 | 65 536 | 36 + 9 = **45** |
+| 3×3 blocs | 3 | 19 683 | 40 + 15 = **55** |
+| **4×3 blocs** | 3 | **531 441** | 40 + 15 = **55** |
+
+⚠ **QUADRUPLER LES BLOCS N'AJOUTE PAS UNE TUILE, À DEUX ÉTATS COMME À TROIS.** Et la seconde
+ligne compte plus que la première : à trois états le monde **empile** — il y a des plateaux sur
+des plateaux, donc des falaises qui passent devant d'autres — et c'est exactement là que la
+dépendance aurait pu déborder. Elle ne déborde pas.
+
+⚠ **C'EST LA CONFIRMATION DIRECTE DU RAYON 2, PAR UN AUTRE CHEMIN.** Le rayon 2 disait : la tuile
+est une fonction de moi et de mes quatre voisines. L'élargissement dit : un monde plus large ne
+produit rien qu'un monde étroit ne produise déjà. Les deux mesures sont indépendantes — l'une lit
+des contextes, l'autre énumère des reliefs — et elles disent la même chose.
+
+⚠ **ET LES SEPT PARTS RENDENT TOUTES LE MÊME VOCABULAIRE, ce qui est un contrôle en soi.** Chacune
+a parcouru un septième de l'espace, et les sept listes de rôles sont **identiques au caractère
+près** : la saturation n'est pas un effet de l'ordre de parcours.
+
+**Le découpage, mesuré avant d'être utilisé** : sur le témoin à 512 reliefs, l'union de deux parts
+redonne exactement les 36 tuiles du parcours entier. *Huit comptes ne s'additionnent pas — les
+parts se recouvrent en vocabulaire — mais huit listes s'unissent.*
+
+⚠ **CE QUI RESTE OUVERT, ET C'EST HONNÊTE DE LE DIRE : les poses NON alignées.** Tout ceci
+énumère ce que le pinceau fait *aligné sur trois*, parce que le dossier a mesuré qu'une main pose
+ainsi. Un geste décalé reste possible, et il n'est pas dans le domaine énuméré.
