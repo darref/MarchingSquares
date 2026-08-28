@@ -432,12 +432,22 @@ suive l'axe** : les deux sont des lois globales, une robe peut donc la connaîtr
 de deux — et la crête, qui est sur la grille des cases, s'arrête à `x=95`. Entre les deux, `x=96`
 est vide.
 
-⚠ **ET RECONNECTER L'AXE AU BORD DE CASE A ÉTÉ ESSAYÉ, ET MESURÉ CATASTROPHIQUE : 43 → 12 500
-extrémités, en 5 926 morceaux.** Le diagnostic était juste, le remède posait le petit bout
-horizontal à **chaque** rangée où la matière s'arrête, au lieu de la seule où le trait vertical
-**finit** — deux pixels par rangée, sur toute la planche. *Un remède juste appliqué trop largement
-fabrique mille fois le défaut qu'il répare.* Le bon geste est le même, mais **à une rangée** —
-c'est la prochaine mesure, et elle est étroite.
+⚠ **ET RECONNECTER L'AXE AU BORD DE CASE : DEUX ESSAIS, DEUX FOIS PIRE.**
+
+| le petit bout horizontal posé… | I1 à F1 |
+|---|---|
+| à **chaque** rangée où la matière s'arrête | **12 500**, en 5 926 morceaux |
+| à la **seule** rangée où le trait vertical finit | **354** |
+| (rien — l'état gardé) | **43** |
+
+*Un remède juste appliqué trop largement fabrique mille fois le défaut qu'il répare* — c'est la
+même leçon que le bit de bord posé « en gros » le matin même, qui coûtait +5 tuiles là où il en
+coûte zéro au bon endroit.
+
+⚠ **ET LE SECOND ÉCHOUE POUR UNE RAISON PRÉCISE, QUI EST LA CLÉ DU RESTE : la rangée où la
+MATIÈRE s'arrête est déjà SOUS LA ROBE, donc invisible** — la robe se pose par-dessus. Le dernier
+pixel **visible** du trait vertical est une rangée plus haut, au bord de case. **Le raccord doit
+se poser là, et pas où la tuile croit finir.** C'est la prochaine mesure, et elle est d'un pixel.
 
 ⚠ **LE DÉDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT — ET IL NE FERME PAS.** Il divise F2 par plus
 de deux (91 → 40) et confirme la géométrie : robe à l'**ouest**, l'axe recule de son flanc est ;

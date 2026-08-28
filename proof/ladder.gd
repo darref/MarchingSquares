@@ -1306,14 +1306,20 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else GRASS)
 
-	# ⚠ ET RECONNECTER L'AXE DEPLACE AU BORD DE CASE A ETE ESSAYE, ET MESURE CATASTROPHIQUE.
-	# Le diagnostic etait juste -- lu au pixel : le trait vertical a x=97, la crete qui
-	# s'arrete a x=95, un pixel de trou -- mais le remede posait le petit bout horizontal a
-	# CHAQUE rangee ou la matiere s'arrete, pas seulement la ou le trait vertical FINIT. Deux
-	# pixels par rangee, sur toute la planche : 43 extremites -> 12 500, en 5 926 morceaux.
+	# ⚠ RACCORDER L'AXE DEPLACE AU BORD DE CASE : DEUX ESSAIS, DEUX FOIS PIRE.
 	#
-	# La lecon est celle du dossier, une fois de plus : un remede juste applique trop largement
-	# fabrique mille fois le defaut qu'il repare. Le bon geste est le meme, mais a UNE rangee.
+	# Le diagnostic tient et il est lu au pixel : « rien au sud » rend la frontiere horizontale
+	# a la CRETE du chapiteau, qui est sur la grille des CASES, tandis que l'axe vertical se
+	# deplace avec la liberte -- trait vertical a x=97, crete qui s'arrete a x=95, UN pixel de
+	# trou, quarante-trois fois.
+	#
+	#   le petit bout horizontal a CHAQUE rangee ou la matiere s'arrete   43 -> 12 500
+	#   le meme, a la SEULE rangee ou le trait vertical finit             43 ->    354
+	#
+	# ⚠ ET LE SECOND ECHOUE POUR UNE RAISON PRECISE, QUI EST LA CLE DU RESTE : la rangee ou la
+	# MATIERE s'arrete est deja SOUS LA ROBE, donc invisible -- la robe se pose par-dessus. Le
+	# dernier pixel VISIBLE du trait vertical est une rangee plus haut, au bord de case. Le
+	# raccord doit donc se poser la, et pas ou la tuile croit finir. C'est la prochaine mesure.
 	return tile
 
 
