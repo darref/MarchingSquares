@@ -399,14 +399,22 @@ matière**. La cause est nette : les quatre bits sont calculés pour un axe **po
 case** ; dès que la liberté l'en écarte, la frontière que la robe porte n'est plus celle de la
 tuile, et le trait meurt dans la roche.
 
-**TROIS FAÇONS D'ACCORDER L'AXE AU FLANC, TOUTES MESURÉES PIRES :**
+**QUATRE FAÇONS D'ACCORDER L'AXE AU FLANC, TOUTES MESURÉES, AUCUNE PAYÉE :**
 
-| tentative | I1 à F1 | |
-|---|---|---|
-| l'axe reste libre (l'état gardé) | **43** | I5 ✅ |
-| geler l'axe là où la robe trace | 40 | **I5 ❌** |
-| l'axe suit −`_wall_depth` | **123** | I5 ❌ |
-| l'axe suit +`_wall_depth` | **77** | I5 ❌ |
+| tentative | I1 à F1 | I1 à F2 | tuiles à cheval |
+|---|---|---|---|
+| **l'axe reste libre** (l'état gardé) | **43** | 91 | **64** |
+| geler l'axe là où la robe trace | 40 | — | 64, mais **I5 ❌** |
+| suivre −`_wall_depth`, sans le côté | **123** | — | 64 |
+| suivre +`_wall_depth`, sans le côté | **77** | — | 64 |
+| **bit dédoublé par côté, et suivre** | **40** | **40** | **105** |
+
+⚠ **LE DÉDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT — ET IL NE FERME PAS.** Il divise F2 par plus
+de deux (91 → 40) et confirme la géométrie : robe à l'**ouest**, l'axe recule de son flanc est ;
+robe à l'**est**, il avance de son flanc ouest. Mais **quarante extrémités restent, et ce sont les
+mêmes à F1 et à F2** — une autre cause est devenue dominante, et elle ne dépend plus de la
+liberté. **Payer 41 tuiles pour une fermeture partielle contredit les deux premières priorités du
+plan** : on garde la mesure, on ne paie pas, et on cherche la cause qui reste.
 
 ⚠ **LA GELÉE REND TROIS PIXELS ET COÛTE LA LIBERTÉ ANNONCÉE.** Un axe figé d'un côté et libre de
 l'autre fait une **marche** au milieu du profil : plusieurs profils, dont onze qui ondulent là où

@@ -476,6 +476,11 @@ func _run(couple: String) -> bool:
 				var map5: Dictionary = storeys[storey]
 				for point: Vector2i in map5.keys():
 					var quiet5: int = 0
+					# ⚠ ET LE BIT SE DEDOUBLE PAR COTE. Il ne suffit pas de savoir qu'une robe
+					# borde cette demi-frontiere : il faut savoir DE QUEL COTE, parce que son
+					# flanc rentre CHEZ ELLE. A l'ouest il recule l'axe, a l'est il l'avance --
+					# un bit qui dit « l'une ou l'autre » ne permet pas de choisir le signe, et
+					# les deux essais a un seul bit ont mesure 123 et 77 extremites contre 43.
 					for half: int in range(2):
 						var a: Vector2i = point + CornerIndex.OFFSETS[0 if half == 0 else 3]
 						var b: Vector2i = point + CornerIndex.OFFSETS[1 if half == 0 else 2]
@@ -1243,20 +1248,23 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 			# l'axe fige d'un cote et libre de l'autre fait une MARCHE au milieu du profil,
 			# donc plusieurs profils dont onze qui ondulent la ou F1 les promet plats. Trois
 			# pixels contre la liberte annoncee : on ne paie pas.
-			# ⚠ TROIS ESSAIS POUR ACCORDER L'AXE AU FLANC DE LA ROBE, TOUS MESURES PIRES.
-			# La geometrie du defaut est exacte : l'axe d'une tuile a cheval tombe sur le BORD
-			# DE CASE, et le flanc d'une robe RENTRE de `_wall_depth` des F1 -- les deux ne
-			# coincident plus, le trait que la robe porte n'est plus sur la frontiere de la
-			# tuile, et il meurt dans la matiere.
+			# ⚠ QUATRE FACONS D'ACCORDER L'AXE AU FLANC DE LA ROBE, TOUTES MESUREES, AUCUNE
+			# PAYEE. La geometrie du defaut est exacte : l'axe d'une tuile a cheval tombe sur
+			# le BORD DE CASE, et le flanc d'une robe RENTRE de `_wall_depth` des F1 -- les
+			# deux ne coincident plus, le trait que la robe porte n'est plus sur la frontiere
+			# de la tuile, et il meurt dans la matiere.
 			#
-			#   geler l'axe la ou la robe trace          43 -> 40 extremites, et I5 rouge
-			#   l'axe suit -`_wall_depth`               43 -> 123
-			#   l'axe suit +`_wall_depth`               43 ->  77
+			#   l'axe reste libre (garde)                 43 ext a F1, 91 a F2,  64 tuiles
+			#   geler l'axe la ou la robe trace           40 a F1, et I5 ROUGE
+			#   suivre -`_wall_depth`, sans le cote      123 a F1
+			#   suivre +`_wall_depth`, sans le cote       77 a F1
+			#   BIT DEDOUBLE PAR COTE, et suivre          40 a F1, 40 a F2, 105 tuiles
 			#
-			# ⚠ ET LES DEUX DERNIERS ECHOUENT POUR LA MEME RAISON : LE SIGNE DEPEND DU COTE OU
-			# SE TROUVE LA ROBE, et le bit ne le dit pas -- il se leve quand l'UNE OU L'AUTRE
-			# des deux cases est couverte. Le dedoubler par cote coute des tuiles ; c'est la
-			# prochaine mesure a faire, et elle se chiffre avant d'etre payee.
+			# ⚠ LE DEDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT -- il divise F2 par plus de deux
+			# -- ET IL NE FERME PAS. Quarante extremites restent, les MEMES a F1 et a F2 : une
+			# autre cause est devenue dominante. Payer 41 tuiles pour une fermeture partielle
+			# contredit les deux premieres priorites du plan ; on garde la mesure et on cherche
+			# la cause qui reste.
 			var vx: int = half - 1 + _corner_shift(y, freedom, true)
 			var hy: int = half - 1 + _corner_shift(x, freedom, false)
 			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.
