@@ -177,6 +177,12 @@ static var _dumped: PackedStringArray = PackedStringArray()
 ## fait la difference entre un rayon 1 et un rayon 2.
 static var _local: Dictionary = {}
 
+## L'ENUMERATION EXHAUSTIVE : on se tait, sinon deux cent mille reliefs font un million de
+## lignes. Seul le releve de saturation parle.
+static var _quiet: bool = false
+## Le relief injecte par l'enumeration -- `_world()` le rend tel quel quand il n'est pas vide.
+static var _injected: PackedStringArray = PackedStringArray()
+
 ## Le monde a batir : vide pour la planche de preuve, « guide » pour le guide livre.
 static var _world_name: String = ""
 
@@ -296,6 +302,11 @@ func _initialize() -> void:
 	# BATTUE QUI NE RENCONTRE PAS UNE TUILE PROUVE QU'ELLE EST RARE, JAMAIS QU'ELLE EST
 	# IMPOSSIBLE. Ce qu'elle donne est une BORNE BASSE qui se stabilise, et la courbe de sa
 	# croissance -- laquelle dit si l'on a fini de chercher ou pas.
+	var full: int = int(OS.get_environment("LADDER_EXHAUSTIVE"))
+	if full > 0:
+		_enumerate(full)
+		quit(0)
+		return
 	var sweep: int = int(OS.get_environment("LADDER_SWEEP"))
 	if sweep > 0:
 		_vocab_only = true
@@ -397,7 +408,8 @@ func _run(couple: String) -> bool:
 		return false
 	var level: int = int(parts[0].substr(1))
 	var freedom: int = int(parts[1].substr(1))
-	print("=== %s ===" % couple)
+	if not _quiet:
+		print("=== %s ===" % couple)
 
 	var world: PackedStringArray = _world(level)
 	if world.is_empty():
@@ -447,9 +459,10 @@ func _run(couple: String) -> bool:
 		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
 			vocabulary[int((storeys[storey] as Dictionary)[cell])] = true
 
-	print("  monde : %d x %d, %d etage(s), %d cases visibles, %d tuiles a peindre"
-			% [HeightMask.width(world), HeightMask.height(world), top + 1, indices.size(),
-			vocabulary.size()])
+	if not _quiet:
+		print("  monde : %d x %d, %d etage(s), %d cases visibles, %d tuiles a peindre"
+					% [HeightMask.width(world), HeightMask.height(world), top + 1, indices.size(),
+					vocabulary.size()])
 	# L5 : LA FAMILLE A CHEVAL REMPLACE LE VOCABULAIRE DE SURFACE, PAS LE MONDE. Meme relief,
 	# memes falaises ; ce qui change est la grille sur laquelle les surfaces se posent -- le
 	# CROISEMENT de quatre cases au lieu de la case, donc un demi-pas de decalage.
@@ -533,9 +546,10 @@ func _run(couple: String) -> bool:
 		for key6: Variant in vocabulary.keys():
 			canonical[int(key6) & 0xf] = true
 		complete = canonical.size() == expected
-	print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
-			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
-			vocabulary.size()])
+	if not _quiet:
+		print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
+					% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
+					vocabulary.size()])
 
 	# ⚠ LES FALAISES D'ABORD, LES TUILES ENSUITE. Le calcul des bords change le VOCABULAIRE ;
 	# peindre avant, c'est peindre une liste a laquelle il manque des cles -- et l'assemblage
@@ -811,7 +825,8 @@ func _run(couple: String) -> bool:
 		for kind: String in by_kind.keys():
 			said.append("%d %s" % [int(by_kind[kind]), kind])
 		said.sort()
-		print("  poses arriere : %d  -- %s" % [under.size(), ", ".join(said)])
+		if not _quiet:
+			print("  poses arriere : %d  -- %s" % [under.size(), ", ".join(said)])
 
 	# ⚠ « LE SOMMET TRACE, LES ENTERRES SE POSENT PLEINS » -- la question de L1, remise sur le
 	# banc maintenant que L2 et L3 sont la. Une case appartient ENTIEREMENT a chaque silhouette
@@ -828,7 +843,7 @@ func _run(couple: String) -> bool:
 
 	_storeys = storeys
 
-	if level >= 2 and level < 5:
+	if level >= 2 and level < 5 and not _quiet:
 		var junc: Dictionary = _junctions(world, indices, roles, under)
 		var said4: Array[String] = []
 		said4.assign((junc["kinds"] as Dictionary).keys())
@@ -856,9 +871,10 @@ func _run(couple: String) -> bool:
 		kinds[roles[cell]] = true
 	# ET CE QUE LE MONDE DOIT AUX TROIS CLAUSES CANDIDATES, dit au passage : savoir si nos
 	# mondes LIVRES les respectent deja est la moitie de leur mesure.
-	print("  robes : %d roles distincts, %d cases de falaise" % [kinds.size(), roles.size()]
-			+ "   -- %d paroi(s) fine(s), %d contact(s) d'etages, %d marche(s) courte(s)"
-			% [_narrow_walls(roles), _mixed_faces(Walls.visible(world)), _short_lips(world)])
+	if not _quiet:
+		print("  robes : %d roles distincts, %d cases de falaise" % [kinds.size(), roles.size()]
+					+ "   -- %d paroi(s) fine(s), %d contact(s) d'etages, %d marche(s) courte(s)"
+					% [_narrow_walls(roles), _mixed_faces(Walls.visible(world)), _short_lips(world)])
 	# LA BATTUE DE VOCABULAIRE S'ARRETE ICI : elle veut la LISTE des tuiles, pas leur dessin.
 	# Peindre et mesurer coute trente secondes par monde ; batir le monde et poser ses bits en
 	# coute une fraction. C'est ce qui rend deux cents mondes tenables.
@@ -1215,7 +1231,85 @@ func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
 	return out
 
 
+## L'ENUMERATION DU DOMAINE REALISABLE.
+##
+## ⚠ ET LE DOMAINE N'EST PAS « TOUT RELIEF EPAIS », C'EST CE QUE LE PINCEAU PEUT FAIRE. SoluPaint
+## pose des tampons 3x3 et refuse tout geste qui laisserait une case fine ; une main pose aligne.
+## Le domaine est donc l'ensemble des reliefs faits de BLOCS 3x3 ALIGNES, chacun a un etage --
+## et celui-la s'enumere, la ou l'espace des reliefs quelconques ne s'enumere pas (5^25 pour une
+## fenetre 5x5).
+##
+## ⚠ ET L'EPAISSEUR EST GRATUITE PAR CONSTRUCTION. Une silhouette d'etage est une union de blocs
+## alignes sur trois : toute course y fait un multiple de trois, donc jamais moins de trois. Le
+## pinceau n'a rien a refuser -- c'est exactement pour ca qu'il pose des tampons.
+##
+## ⚠ CE QUE ÇA N'ENUMERE PAS, ET IL FAUT LE DIRE : les poses NON alignees, les fenetres plus
+## larges que trois blocs, et les etages au-dela de l'alphabet demande. C'est une famille close,
+## pas le monde entier.
+func _enumerate(alphabet: int) -> void:
+	_quiet = true
+	_vocab_only = true
+	var blocks: int = 9
+	var total: int = 1
+	for i: int in range(blocks):
+		total *= alphabet
+	print("=== DOMAINE REALISABLE : %d reliefs (3x3 blocs de 3x3, %d etages avec le vide) ==="
+			% [total, alphabet])
+	var mark: int = 0
+	var stable: int = 0
+	for n: int in range(total):
+		var code: int = n
+		var levels: Array[int] = []
+		for b: int in range(blocks):
+			levels.append(code % alphabet)
+			@warning_ignore("integer_division")
+			code = code / alphabet
+		_injected = _blocks(levels, alphabet)
+		_run("L3/F2")
+		if n % maxi(1, total / 20) == 0 or n == total - 1:
+			var added: int = _vocab_seen.size() - mark
+			stable = stable + 1 if added == 0 else 0
+			print("  %8d / %d reliefs : %d tuiles de surface, %d roles   (+%d)"
+					% [n + 1, total, _vocab_seen.size(), _vocab_roles.size(), added])
+			mark = _vocab_seen.size()
+	print("  DOMAINE EPUISE : %d tuiles de surface, %d roles de robe   -- TOTAL %d"
+			% [_vocab_seen.size(), _vocab_roles.size(),
+			_vocab_seen.size() + _vocab_roles.size()])
+
+
+## Un relief fait de neuf blocs 3x3, avec la marge que le modele exige : une chute dans le vide
+## descend de STOREY_TILES x (etage + 1), et une robe coupee par le cadre laisserait un contour
+## ouvert -- ce serait un defaut du MONDE, pas du dessin.
+func _blocks(levels: Array[int], alphabet: int) -> PackedStringArray:
+	var side: int = 3
+	var wide: int = side * side
+	var edge: int = 3
+	var below: int = Walls.STOREY_TILES * alphabet + edge
+	var out: PackedStringArray = PackedStringArray()
+	var empty: String = ""
+	for x: int in range(wide + 2 * edge):
+		empty += "~"
+	for row: int in range(edge):
+		out.append(empty)
+	for y: int in range(wide):
+		var line: String = ""
+		for x: int in range(edge):
+			line += "~"
+		for x: int in range(wide):
+			@warning_ignore("integer_division")
+			var level: int = levels[(y / side) * side + (x / side)]
+			line += "~" if level == 0 else str(level - 1)
+		for x: int in range(edge):
+			line += "~"
+		out.append(line)
+	for row: int in range(below):
+		out.append(empty)
+	return out
+
+
 func _world(level: int) -> PackedStringArray:
+	if not _injected.is_empty():
+		return _injected
 	# ⚠ ET LE MONDE PEUT ETRE LE GUIDE, pour savoir s'il porte encore tout le vocabulaire.
 	# La planche de preuve est batie POUR l'exercer ; le guide, lui, est ce que l'acheteur
 	# peindra -- s'il ne porte pas une tuile, cette tuile est impeignable.

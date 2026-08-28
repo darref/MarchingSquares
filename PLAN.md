@@ -1959,3 +1959,50 @@ donnent une borne basse qui monte — 86 puis 97 — et elles monteront encore. 
 viendra pas d'un monde de plus, elle viendra de l'énumération du domaine. *Une battue qui ne
 rencontre pas une tuile prouve qu'elle est rare, jamais qu'elle est impossible* — la ligne est
 au dossier depuis longtemps, et elle vient de désigner sa propre sortie.
+
+
+### 7 · LE DOMAINE RÉALISABLE S'ÉNUMÈRE — 19 683 RELIEFS, EXHAUSTIVEMENT, ET IL SATURE
+
+⚠ **CE QUI REND L'ÉNUMÉRATION POSSIBLE ÉTAIT DÉJÀ AU DOSSIER : le domaine n'est pas « tout relief
+épais », c'est CE QUE LE PINCEAU PEUT FAIRE.** SoluPaint pose des tampons **3×3** et refuse tout
+geste qui laisserait une case fine ; et *une main pose aligné, le hasard non*. Le domaine est donc
+l'ensemble des reliefs faits de **blocs 3×3 alignés**, un étage par bloc — et celui-là s'énumère,
+là où l'espace des reliefs quelconques ne s'énumère pas (5²⁵ pour une simple fenêtre 5×5).
+
+⚠ **ET L'ÉPAISSEUR Y EST GRATUITE, PAR CONSTRUCTION.** Une silhouette d'étage est une union de
+blocs alignés sur trois : toute course y fait un multiple de trois, donc jamais moins de trois.
+Le pinceau n'a rien à refuser — c'est exactement pour ça qu'il pose des tampons.
+
+**Mesure, `LADDER_EXHAUSTIVE=3` — les 19 683 reliefs de 3×3 blocs à deux étages plus le vide :**
+
+```
+       1 / 19683 reliefs :  0 tuiles
+     985 / 19683 reliefs : 32 tuiles   (+32)
+    2953 / 19683 reliefs : 38 tuiles   (+6)
+    3937 / 19683 reliefs : 40 tuiles   (+2)
+    ... plus rien pendant 15 746 reliefs ...
+   19683 / 19683 reliefs : 40 tuiles de surface, 15 roles   -- TOTAL 55
+```
+
+⚠ **CE N'EST PLUS UNE BORNE BASSE, C'EST UN COMPTE.** Sur cette famille-là, il n'existe **aucun**
+seizième rôle ni quarante-et-unième silhouette : les 19 683 reliefs ont tous été faits, pas
+échantillonnés. C'est la première fois du chantier qu'un nombre de tuiles est **fermé** et non
+« rencontré ».
+
+⚠ **ET LA SATURATION EST FRANCHE : plus rien après 3 937 reliefs, soit 20 % du parcours.** Les
+80 % restants n'apportent pas une tuile. C'est le contraire exact de la courbe des battues, qui
+montait encore à 160 mondes.
+
+⚠ **CE QUE ÇA N'ÉNUMÈRE PAS, ET IL FAUT LE DIRE AUSSI :** les poses **non alignées**, les fenêtres
+plus larges que trois blocs, et les étages au-delà de l'alphabet demandé. C'est une **famille
+close**, pas le monde entier. Les deux directions restantes se chiffrent :
+
+| direction | reliefs | coût à 21 ms |
+|---|---|---|
+| un étage de plus (`=4`) | 262 144 | ~90 min — **lancé** |
+| une fenêtre 4×4 blocs | 43 046 721 | 10 jours — **hors de portée telle quelle** |
+
+⚠ **La seconde direction est celle qui compte, et c'est elle qu'on ne sait pas encore payer.** Si
+le compte est stable en largeur de fenêtre, la fermeture est acquise ; s'il monte, c'est que la
+dépendance déborde la fenêtre — ce que le rayon 2 rend improbable, mais improbable n'est pas
+mesuré.
