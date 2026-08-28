@@ -181,6 +181,11 @@ static var _buried_full: bool = false
 ## La pile des silhouettes, gardee pour que le rapport « pourquoi » puisse la lire.
 static var _storeys: Array[Dictionary] = []
 
+## LA BATTUE DE VOCABULAIRE : on ne veut que la LISTE des tuiles, pas leur dessin.
+static var _vocab_only: bool = false
+static var _vocab_seen: Dictionary = {}
+static var _vocab_roles: Dictionary = {}
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -264,6 +269,34 @@ func _initialize() -> void:
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	if _j2_none:
 		_j2_on_face = true
+	# ⚠ LA BATTUE DE VOCABULAIRE : « combien de tuiles le modele peut-il produire ? »
+	#
+	# Sans elle on ne sait pas ce qui manque au guide, seulement qu'il manque quelque chose --
+	# l'union de cinq mondes n'est pas une forme fermee. Elle ne la donne pas non plus : UNE
+	# BATTUE QUI NE RENCONTRE PAS UNE TUILE PROUVE QU'ELLE EST RARE, JAMAIS QU'ELLE EST
+	# IMPOSSIBLE. Ce qu'elle donne est une BORNE BASSE qui se stabilise, et la courbe de sa
+	# croissance -- laquelle dit si l'on a fini de chercher ou pas.
+	var sweep: int = int(OS.get_environment("LADDER_SWEEP"))
+	if sweep > 0:
+		_vocab_only = true
+		var mark: int = 0
+		for run: int in range(1, sweep + 1):
+			_run("L3/F2@battue%d" % run)
+			if run % 10 == 0 or run == sweep:
+				print("  %4d mondes : %d tuiles de surface, %d roles   (+%d depuis le releve)"
+						% [run, _vocab_seen.size(), _vocab_roles.size(),
+						_vocab_seen.size() - mark])
+				mark = _vocab_seen.size()
+		var listing: Array[int] = []
+		listing.assign(_vocab_seen.keys())
+		listing.sort()
+		print("VOCAB %s" % str(listing))
+		var shapes: Dictionary = {}
+		for key: int in listing:
+			shapes[key & 0xff] = true
+		print("silhouettes rencontrees : %d" % shapes.size())
+		quit(0)
+		return
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var couples: Array[String] = []
 	if args.size() >= 2:
@@ -683,6 +716,16 @@ func _run(couple: String) -> bool:
 		kinds[roles[cell]] = true
 	print("  robes : %d roles distincts, %d cases de falaise"
 			% [kinds.size(), roles.size()])
+	# LA BATTUE DE VOCABULAIRE S'ARRETE ICI : elle veut la LISTE des tuiles, pas leur dessin.
+	# Peindre et mesurer coute trente secondes par monde ; batir le monde et poser ses bits en
+	# coute une fraction. C'est ce qui rend deux cents mondes tenables.
+	if _vocab_only:
+		for key: Variant in vocabulary.keys():
+			_vocab_seen[int(key)] = true
+		for cell: Vector2i in roles.keys():
+			_vocab_roles[roles[cell]] = true
+		return true
+
 	# L4 : LE RECENSEMENT DES RACCORDS, ET IL SE FAIT AVANT DE PEINDRE. Il ne decrit pas le
 	# dessin, il le CONTRAINT : chaque classe recoit sa graine, et deux bords qui doivent etre
 	# le meme dessin le sont par construction.
