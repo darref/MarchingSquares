@@ -2053,7 +2053,13 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				open_ends += 1
 			else:
 				buried_ends += 1
+			# ⚠ ET A CHEVAL, LE PIXEL SE RANGE PAR CROISEMENT, PAS PAR CASE. Les tuiles y sont
+			# decalees d'un demi-pas : lire `x / RES` designe la case, donc une AUTRE tuile que
+			# celle qui porte le pixel, et le releve accuse une innocente. Trois lectures au
+			# pixel perdues avant de s'en apercevoir.
 			var cell: Vector2i = Vector2i(x / RES, y / RES)
+			if level >= 5:
+				cell = Vector2i((x + RES / 2) / RES, (y + RES / 2) / RES)
 			var owner: int = int(indices.get(cell, -1))
 			if ends.size() < 14:
 				ends.append("%d,%d de la case %d,%d (tuile %d)"
@@ -2062,8 +2068,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			# faux : on arrete de deviner et on compte. Chaque extremite se range par le
 			# BORD ou elle se trouve, par ce que porte SA case, et par ce que porte la case
 			# de l'autre cote de ce bord.
-			var at_x: int = x % RES
-			var at_y: int = y % RES
+			var at_x: int = x % RES if level < 5 else (x + RES / 2) % RES
+			var at_y: int = y % RES if level < 5 else (y + RES / 2) % RES
 			var side: int = -1
 			if at_y == 0:
 				side = 0
@@ -2073,16 +2079,19 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				side = 2
 			elif at_x == 0:
 				side = 3
-			var mine_kind: String = "robe" if roles.has(cell) else "surface"
+			# ⚠ ET LES ROBES RESTENT PAR CASE, MEME A CHEVAL. Les chercher au croisement les
+			# rend toutes invisibles, et le releve annonce « surface » partout.
+			var home: Vector2i = Vector2i(x / RES, y / RES)
+			var mine_kind: String = "robe" if roles.has(home) else "surface"
 			var label: String = ""
 			if side < 0:
 				label = "%s, en plein milieu" % mine_kind
 			else:
-				var probe: Vector2i = cell + STEPS[side]
+				var probe: Vector2i = home + STEPS[side]
 				var kind: String = "vide"
 				if roles.has(probe):
 					kind = "robe"
-				elif indices.has(probe):
+				elif indices.has(cell + STEPS[side]):
 					kind = "surface"
 				label = "%s, bord %s, en face : %s" % [mine_kind, SIDE_NAMES[side], kind]
 			spread[label] = int(spread.get(label, 0)) + 1

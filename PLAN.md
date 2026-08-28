@@ -409,6 +409,26 @@ tuile, et le trait meurt dans la roche.
 | suivre +`_wall_depth`, sans le côté | **77** | — | 64 |
 | **bit dédoublé par côté, et suivre** | **40** | **40** | **105** |
 
+### ET LE RELEVÉ MENTAIT : IL RANGEAIT LES PIXELS PAR CASE
+
+Trois lectures au pixel perdues avant de s'en apercevoir. À cheval, les tuiles sont décalées d'un
+demi-pas : `x / RES` désigne **la case**, donc une **autre tuile** que celle qui porte le pixel —
+et le relevé accusait une innocente. ⚠ **Mais les robes, elles, restent par case** : les chercher
+au croisement les rend toutes invisibles et fait annoncer « surface » partout. Le relevé range
+donc désormais **la position par croisement et les robes par case**.
+
+**Et le défaut se nomme alors d'une ligne : les 43 sont le même.** Une tuile à cheval dont le seul
+quadrant **nord-ouest** est plein, dont la moitié sud est déjà silencieuse, et dont le trait
+vertical **s'arrête là où « rien au sud » commence**. À F0 son bout rencontre la **crête du
+chapiteau**, qui est sur la grille des cases ; dès que la liberté déplace l'axe de deux pixels,
+il ne la rencontre plus.
+
+⚠ **C'EST DONC ENCORE LA MÊME CAUSE, MAIS PAR LA CRÊTE ET NON PAR LE FLANC** — et elle échappe au
+bit, parce que « rien au sud » est **inconditionnel** : le figer là où il s'applique reviendrait à
+figer l'axe presque partout, c'est-à-dire à rendre la liberté. L'autre issue est que **la crête
+suive l'axe** : les deux sont des lois globales, une robe peut donc la connaître. **C'est la
+prochaine mesure.**
+
 ⚠ **LE DÉDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT — ET IL NE FERME PAS.** Il divise F2 par plus
 de deux (91 → 40) et confirme la géométrie : robe à l'**ouest**, l'axe recule de son flanc est ;
 robe à l'**est**, il avance de son flanc ouest. Mais **quarante extrémités restent, et ce sont les
