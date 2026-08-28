@@ -832,6 +832,16 @@ func _run(couple: String) -> bool:
 				% [int(junc["forces"]), int(junc["pire"])])
 		for label: String in said4:
 			print("     %6d  %s" % [int((junc["kinds"] as Dictionary)[label]), label])
+		var verdict: String = "LE PRODUIT TIENT" if int(junc["eclates"]) == 0 			else "LE PRODUIT NE TIENT PAS"
+		print("  contextes (silhouette + les 4 especes) : %d, dont %d recoivent PLUSIEURS"
+				% [int(junc["contextes"]), int(junc["eclates"])]
+				+ " tuiles (jusqu'a %d)  -- %s" % [int(junc["plus"]), verdict])
+		if int(junc["eclates"]) > 0:
+			print("     temoin : %s" % str(junc["temoin"]))
+		print("  le prix du SECOND ORDRE : %d tuiles de surface, %d sans les quatre bits qui"
+				% [int(junc["entier"]), int(junc["premier"])]
+				+ " demandent ce que la voisine trace  -- %d de moins"
+				% [int(junc["entier"]) - int(junc["premier"])])
 
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
@@ -875,7 +885,24 @@ func _run(couple: String) -> bool:
 					int(key5) >> 4)
 	else:
 		tiles = _paint(vocabulary, freedom, level, seams["graine"])
-	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
+	# ⚠ ET ON DIT COMBIEN SONT VRAIMENT POSEES, PAS SEULEMENT COMBIEN SONT PEINTES. `vocabulary`
+	# est nourri A CHAQUE PASSE -- silhouette nue, puis bords, puis ergots -- et une cle ajoutee
+	# avant d'etre affinee y RESTE : plus aucune case ne la porte, et le banc la peignait quand
+	# meme. Le compte annonce etait donc un majorant, jamais le vocabulaire. Mesure sur la
+	# planche : 59 peintes pour 45 posees.
+	#
+	# ⚠ ET C'EST LE CHIFFRE SUR LEQUEL TOUTE LA DISCUSSION DU SWEET SPOT REPOSE. Un compteur qui
+	# ne mesure pas ce qu'il pretend mesurer est pire que pas de compteur.
+	var posed: Dictionary = {}
+	for storey6: Dictionary in storeys:
+		for cell6: Vector2i in storey6.keys():
+			posed[int(storey6[cell6])] = true
+	var ghost: int = 0
+	for key6: Variant in tiles.keys():
+		if not posed.has(int(key6)):
+			ghost += 1
+	print("  A PEINDRE : %d tuiles de surface   (%d posees, %d JAMAIS POSEE(S))"
+			% [tiles.size(), posed.size(), ghost])
 	if not OS.get_environment("LADDER_VOCAB").is_empty():
 		var listing: Array[int] = []
 		listing.assign(tiles.keys())
@@ -1231,9 +1258,11 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 		under: Dictionary) -> Dictionary:
 	var kinds: Dictionary = {}
 	var seen: Dictionary = {}
+	var contexts: Dictionary = {}
 	var total: int = 0
 	for cell: Vector2i in indices.keys():
 		var mine: int = HeightMask.level_at(world, cell.x, cell.y)
+		var faces: PackedStringArray = PackedStringArray()
 		for side: int in range(4):
 			var probe: Vector2i = cell + STEPS[side]
 			var kind: String = "vide"
@@ -1264,6 +1293,20 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 			if not seen.has(who):
 				seen[who] = {}
 			(seen[who] as Dictionary)[kind] = true
+			faces.append(kind)
+		# ⚠ ET LE PARI DU RECENSEMENT SE VERIFIE ICI, PARCE QU'IL EST FALSIFIABLE. Le plan
+		# ecrit que « la forme fermee est le PRODUIT, sur les quatre cotes, du nombre de
+		# classes que chacun doit distinguer ». Ce produit n'a de sens que si la tuile posee
+		# est une FONCTION de (silhouette, les quatre especes en face) : si un meme contexte
+		# recoit deux tuiles differentes, alors la tuile depend d'autre chose que du
+		# voisinage par cote, et aucun produit ne la compte.
+		#
+		# On range donc chaque case sous son contexte et on regarde combien de tuiles
+		# distinctes chaque contexte recoit. Un seul contexte a deux tuiles suffit a refuter.
+		var context: String = "%d|%s" % [int(indices[cell]) & 0xff, "|".join(faces)]
+		if not contexts.has(context):
+			contexts[context] = {}
+		(contexts[context] as Dictionary)[int(indices[cell])] = true
 	var forced: int = 0
 	var worst: int = 0
 	for who: String in seen.keys():
@@ -1271,8 +1314,44 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 		worst = maxi(worst, many)
 		if many > 1:
 			forced += 1
+	# ⚠ ET CE QUE COUTENT LES BITS DE SECOND ORDRE, puisque ce sont eux qui font l'exception.
+	# `nu/roche` et `NORTH_QUIET` demandent CE QU'IL Y A EN FACE : ils sont une fonction de
+	# l'espece, donc le produit les compte. Les quatre autres demandent CE QUE MA VOISINE A
+	# DECIDE DE TRACER -- une information du second ordre, absente de l'alphabet des especes,
+	# et c'est exactement elle qui fait eclater les contextes. On compte donc le vocabulaire
+	# deux fois : tel quel, et une fois ces quatre bits effaces.
+	var second: int = ABOVE_QUIET_EAST | ABOVE_QUIET_WEST | BELOW_QUIET_EAST 			| BELOW_QUIET_WEST | NORTH_FLUSH_EAST | NORTH_FLUSH_WEST
+	# ⚠ ET ON COMPTE SUR TOUS LES ETAGES, PAS SUR LA CARTE VISIBLE. Le vocabulaire est ce que
+	# l'assemblage POSE, et il pose une tuile par etage et par case : compte sur les seules
+	# cases visibles, il annoncait 45 la ou le banc en peint 59. Un compteur qui ne mesure pas
+	# ce qu'il pretend mesurer est pire que pas de compteur.
+	var whole: Dictionary = {}
+	var first: Dictionary = {}
+	for storey: Dictionary in _storeys:
+		for cell: Vector2i in storey.keys():
+			whole[int(storey[cell])] = true
+			first[int(storey[cell]) & ~second] = true
+
+	# Combien de contextes recoivent PLUSIEURS tuiles, et le pire d'entre eux.
+	var split: int = 0
+	var most: int = 1
+	var example: String = ""
+	for context: String in contexts.keys():
+		var many: int = (contexts[context] as Dictionary).size()
+		if many > 1:
+			split += 1
+			if many > most or example.is_empty():
+				most = many
+				var which: Array[String] = []
+				for key: Variant in (contexts[context] as Dictionary).keys():
+					which.append("%d (silhouette %d, bits %d)"
+							% [int(key), int(key) & 0xff, int(key) >> 8])
+				which.sort()
+				example = "%s  ->  %s" % [context, ", ".join(which)]
 	return {"kinds": kinds, "total": total, "couples": seen.size(), "forces": forced,
-			"pire": worst}
+			"pire": worst, "contextes": contexts.size(), "eclates": split,
+			"plus": most, "temoin": example, "entier": whole.size(),
+			"premier": first.size()}
 
 
 # ------------------------------------------------------------ L5 : LA FAMILLE A CHEVAL

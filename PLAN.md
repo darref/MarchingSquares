@@ -1757,3 +1757,70 @@ projet : `_check_wall_seams` recalculait ses enchaînements avec la formule mêm
 vérifiait — donc la même erreur, donc rien de vérifié, et la suite était verte pendant que le
 dessin cassait aux deux tiers de ses jonctions. Le banc **rend l'image et regarde les
 pixels**.
+
+
+## MESURÉ EN PARALLÈLE (session mobile) — TROIS RÉSULTATS SUR LES CINQ MONDES
+
+*Fait pendant que le PC travaillait, sur la question laissée ouverte par le recensement des
+jonctions : **quelle restriction serait gratuite ?** Les trois tiennent en une phrase chacune.*
+
+### 1 · LE COMPTE ANNONCÉ N'EST PAS LE VOCABULAIRE — 59 PEINTES, 45 POSÉES
+
+⚠ **`vocabulary` est nourri À CHAQUE PASSE, et rien ne l'y retire.** Silhouette nue (ligne 440),
+puis les bits de bord (617, 645), puis les ergots (724) : une clé ajoutée avant d'être affinée y
+**reste**, alors que plus aucune case ne la porte. Le banc peignait donc des tuiles que
+l'assemblage ne pose nulle part.
+
+| monde | annoncées | **posées** | fantômes |
+|---|---|---|---|
+| planche | 59 | **45** | **14** |
+| guide | 65 | **51** | **14** |
+| `@battue1` | 46 | 40 | 6 |
+| `@battue2` | 49 | 41 | 8 |
+| `@battue3` | 42 | 38 | 4 |
+
+⚠ **ET C'EST LE CHIFFRE SUR LEQUEL TOUTE LA DISCUSSION DU *SWEET SPOT* REPOSE.** « 96 tuiles pour
+27 silhouettes », « au moins 116 et ça croît » — tous viennent de ce compteur-là. Le vocabulaire
+réel est plus petit, et de **24 % sur la planche**. Les cinq invariants, eux, ne bougent pas : ils
+mesurent l'image, et une tuile jamais posée n'y est pas. *Un compteur qui ne mesure pas ce qu'il
+prétend mesurer est pire que pas de compteur* — la ligne est déjà au dossier, et elle vient de se
+vérifier sur le nombre le plus cité du projet.
+
+### 2 · LE PRODUIT SUR LES QUATRE CÔTÉS NE TIENT PAS — MAIS À DIX CONTEXTES PRÈS SUR 1 370
+
+Le recensement pose que *« la forme fermée est le produit, sur les quatre côtés, du nombre de
+classes que chacun doit distinguer »*. C'est falsifiable, et ça se teste sans rien redériver : le
+produit n'a de sens que si la tuile posée est une **fonction** de (silhouette, les quatre espèces
+en face). On range donc chaque case sous son contexte et on compte les tuiles qu'il reçoit.
+
+| monde | contextes | qui reçoivent plusieurs tuiles |
+|---|---|---|
+| planche | 335 | **1** |
+| guide | 408 | **3** |
+| `@battue1` · `2` · `3` | 216 · 214 · 197 | 1 · 4 · 1 |
+
+**1 360 contextes sur 1 370 tiennent** — le produit est vrai à 99,3 %, ce qui n'est pas « vrai »
+mais dit exactement où regarder.
+
+### 3 · LES DIX EXCEPTIONS SONT TOUJOURS LES MÊMES QUATRE BITS, ET ON SAIT POURQUOI
+
+Les tuiles qui se disputent un contexte ne diffèrent jamais par `nu/roche` ni par `NORTH_QUIET` :
+**uniquement** par `ABOVE_QUIET_EAST/WEST`, `BELOW_QUIET_WEST`, `NORTH_FLUSH_WEST`.
+
+⚠ **ET LA COUPURE EST NETTE : CES QUATRE-LÀ NE DEMANDENT PAS *CE QU'IL Y A EN FACE*, ILS
+DEMANDENT *CE QUE MA VOISINE A DÉCIDÉ DE TRACER*.** C'est une information du **second ordre** —
+elle n'est pas dans l'alphabet des treize espèces, donc aucun produit sur les côtés ne peut la
+compter. Les autres bits, eux, sont bien une fonction de l'espèce : le produit les compte.
+
+**Conséquence directe sur la question posée** — *quelle restriction serait gratuite ?* :
+
+- interdire une **espèce de jonction** retire un facteur au produit, et le produit couvre
+  99,3 % des contextes : le levier est réel, et il est chiffrable espèce par espèce ;
+- mais il **ne touche pas** aux quatre bits de second ordre, qui sont les « rustines du
+  silence » — ils existent pour rattraper une voisine qui s'est tue.
+
+⚠ **ET LEUR PRIX EST PETIT, MESURÉ : 0 à 3 tuiles par monde.** Les effacer du vocabulaire ne rend
+que 0 · 1 · 1 · 1 · 3 tuiles. Ce ne sont donc **pas** eux qui font le facteur 3,5 entre 27
+silhouettes et le vocabulaire ; ils ne font que casser la formule. Le facteur est ailleurs, et il
+est dans les bits de **premier** ordre — ceux que le produit compte, donc ceux qu'une clause sur
+les espèces peut mordre.
