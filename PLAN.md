@@ -181,8 +181,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
-| **L3/F2@battue2·3** | **✅ verts** | des mondes **tirés au sort par le geste du pinceau** — partis de 10 et 4 extrémités |
-| **L3/F2@battue1** | **rouge : 1 extrémité** | parti de 14 extrémités et 4 pavés |
+| **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
+| **L3/F2@battue2·3** | **✅ acquis** | partis de 10 et 4 extrémités |
+| **L3/F2@battue1** | **1 extrémité** | et elle est **entièrement le prix de la pose arrière muette** — voir ci-dessous |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
 (58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
@@ -287,6 +288,40 @@ mieux l'écrire que la découvrir chez un acheteur.
 **Le prochain travail est là**, et la distribution dit par où commencer — sur `@battue1` :
 10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
 une **robe qui n'a rien en dessous**.
+
+### L2 EST CLOS, ET LA DERNIÈRE EXTRÉMITÉ DE L3 EST LE PRIX DE `mute`
+
+**L2/F2 est vert sur les cinq mondes, sur les six invariants** — planche, guide et les trois
+battues. Le niveau est clos, et le rejeu le tient : les trois battues entrent à l'acquis à L2, et
+deux des trois à L3.
+
+⚠ **ET LA DERNIÈRE EXTRÉMITÉ DE L3 EST MESURÉE, PAS SUPPOSÉE.** Sur `@battue1` :
+
+| conception | I1 | I2 |
+|---|---|---|
+| **L2** — aucune pose arrière | **0 extrémité** | 0 |
+| L3 · `mute` — la matière sans le contour | **1** | 0 |
+| L3 · `trace` — la pose dessine son contour | **7** | **7 pavés** |
+
+Le même monde sans poses arrière ferme parfaitement. Le pixel vient donc **entièrement de la pose
+arrière**, et pas d'une règle de surface ou de falaise.
+
+**Ce qui se passe, lu au pixel** : le bord nord d'une terrasse meurt contre la **roche d'un
+chapiteau reposé**, vu à travers l'encoche latérale de la lèvre qui le couvre. La roche est bien
+là — I4 est vert, il n'y a pas de trou — mais elle est **muette par décision**, donc le trait qui
+arrive n'a rien à rejoindre et s'arrête.
+
+⚠ **C'EST LE PRIX DE `mute`, ET IL EST ENFIN CHIFFRÉ.** I6 avait tranché contre `full`, qui
+inventait 1 506 pixels de roche ; `trace` reste refusée, qui double le trait. `mute` était la
+seule verte sur les six — elle l'est encore, et elle coûte **une extrémité sur trois battues**.
+Le choix ne change pas : un pixel de contour ouvert se paie moins cher que de la matière
+inventée. Mais il n'est plus gratuit, et le dossier ne doit pas laisser croire qu'il l'était.
+
+⚠ **ET LA COMPLÉTUDE DU VOCABULAIRE EST UNE EXIGENCE DE SPÉCIMEN, PAS DE MONDE.** La planche et
+le guide sont bâtis **pour** porter les 27 silhouettes, et un manque y est un défaut ; une battue
+n'a pas à les porter — elle éprouve les **rencontres**. Le compte reste imprimé (*une battue qui
+ne rencontre pas le vocabulaire ne prouve pas qu'il est sain, elle prouve qu'elle n'a rien
+regardé*), il ne juge plus.
 
 ### ⚠ LE GUIDE PROUVE LES SILHOUETTES, PAS LES TUILES — MESURÉ
 
