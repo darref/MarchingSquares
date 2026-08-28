@@ -2939,6 +2939,13 @@ donneraient cinq, neuf en donneraient sept — lineaire, a 9 tuiles la rangee.
 **Pari pose avant de mesurer, pour qu'il soit reprochable** : (1) et (2) ensemble ramenent
 autour de 60-65 tuiles sans rien retirer de ce qu'on veut dessiner.
 
+⚠ **MESURE, ET LE PARI EST REPROCHE : la clause (1) rend CINQ TUILES, pas trente.** Elle
+supprime exactement le pan **(arret, arret)** -- la paroi d'une seule colonne -- et ses cinq
+rangees : 20 roles de robe -> 15. Sur les surfaces elle ne rend **rien**. Et son prix n'est pas
+la liberte du geste (elle refuse a peine plus que l'epaisseur du relief) mais **nos deux mondes
+livres, qui la violent** : 18 parois fines a la planche de preuve, 21 au guide. Le detail et les
+chiffres sont dans `PLAN.md`, section « LA CLAUSE DES TROIS COLONNES EST CHIFFREE ».
+
 ### Fiche : DEUX CORRECTIFS MESURES, ECRITS, ET MIS DE COTE
 
 Tous deux sont **justes** et tous deux ont ete retires de l'arbre en revenant a l'etat vert :

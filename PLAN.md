@@ -360,6 +360,50 @@ seulement qu'il manque **au moins douze**. C'est le travail qui vient après la 
 *calculer la forme, puis bâtir le guide depuis elle* — comme les îlots de preuve, qui se
 cherchent et se jugent au lieu de se dessiner.
 
+### LA CLAUSE DES TROIS COLONNES EST CHIFFRÉE, ET LE PARI DE LA FICHE EST REPROCHÉ
+
+`CLAUDE.md`, fiche « LE SWEET SPOT », posait trois clauses de grammaire candidates et un pari :
+*« (1) et (2) ensemble ramènent autour de 60-65 tuiles »*. Voici (1), mesurée.
+
+**La clause** : aucune paroi plus étroite que trois colonnes. Une paroi est un *segment de face* —
+une suite de cases de robe, sur une même rangée, jointes par des flancs qui **continuent**. Elle
+est donnée au **pinceau** comme un refus de plus : un geste qui laisserait une paroi fine ne se
+pose pas, exactement comme un geste qui laisserait une case fine.
+
+| | sans clause | **sous clause** |
+|---|---|---|
+| gestes refusés sur 400 | ~93 | **102** |
+| parois étroites au monde fini | 1 · 0 · 9 | **0 · 0 · 0** |
+| **rôles de robe** | **20** | **15  (−25 %)** |
+| tuiles de surface, à 60 mondes | 86 | **89 — aucune réduction** |
+| tuiles de surface, à 160 mondes | **96**, et ça monte encore | — |
+| silhouettes rencontrées | 26 / 27 | 24 / 27 |
+
+⚠ **CE QU'ELLE SUPPRIME EST EXACTEMENT UN PAN, ET C'EST UN THÉORÈME.** Une paroi de trois colonnes
+ou plus a un **bout ouest** (arrêt|continue), un **milieu** (continue|continue) et un **bout est**
+(continue|arrêt) ; une paroi d'une seule colonne **est** le pan (arrêt|arrêt). Interdire les
+segments de moins de trois supprime donc ce pan-là et lui seul — avec ses cinq rangées. Vérifié
+par la battue : les quinze rôles survivants sont exactement les trois autres pans × cinq rangées.
+
+⚠ **ET ELLE NE TOUCHE PAS AUX SURFACES.** À nombre de mondes égal, la battue sous clause en trouve
+**plus** (89 contre 86) — elle explore autrement, pas moins. Le gain est donc **5 tuiles sur ~116**
+(96 + 20), soit **4 %**. Le pari annonçait 60-65 pour les deux clauses ensemble ; la première en
+rend cinq. **Il est reproché, et c'était sa raison d'être.**
+
+⚠ **ET SON PRIX N'EST PAS OÙ LA FICHE L'ANNONÇAIT.** Ce n'est pas la liberté du geste — la clause
+ne refuse presque rien de plus que l'épaisseur du relief, déjà en place. C'est que **nos deux
+mondes livrés la violent** : la planche de preuve porte **18** parois de moins de trois colonnes,
+le guide **21**. L'adopter, c'est les rebâtir tous les deux — et pour la planche c'est structurel,
+ses îlots de spécimens sont petits par construction.
+
+**Verdict : cinq tuiles pour deux mondes à refaire.** À garder en réserve, pas à payer seule ; elle
+ne vaut le coup que si (2) ou (3) rapportent gros et qu'on rebâtit de toute façon.
+
+⚠ **ET LE CHIFFRE QUI DOIT RESTER EN TÊTE EST L'AUTRE : le vocabulaire du banc est à AU MOINS
+96 + 20 = 116 tuiles, et il croît encore à 160 mondes** (+3 au dernier relevé), contre **27 + 20 =
+47** dans le produit livré. C'est ça, le problème du *sweet spot* — et une clause à 4 % ne le
+résout pas.
+
 ### UN BIT DE BORD EST UNE QUESTION DE CASE, PAS D'ÉTAGE — ET IL COÛTE ZÉRO TUILE
 
 Le banc sait désormais **dire pourquoi** (`LADDER_WHY=1`) : pour chaque extrémité, ce que la case

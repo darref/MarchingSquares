@@ -186,6 +186,9 @@ static var _vocab_only: bool = false
 static var _vocab_seen: Dictionary = {}
 static var _vocab_roles: Dictionary = {}
 
+## La clause de grammaire a l'essai : aucune paroi de moins de trois colonnes.
+static var _clause_walls: bool = false
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -267,6 +270,7 @@ func _initialize() -> void:
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
+	_clause_walls = OS.get_environment("LADDER_CLAUSE") == "paroi3"
 	if _j2_none:
 		_j2_on_face = true
 	# ⚠ LA BATTUE DE VOCABULAIRE : « combien de tuiles le modele peut-il produire ? »
@@ -295,6 +299,14 @@ func _initialize() -> void:
 		for key: int in listing:
 			shapes[key & 0xff] = true
 		print("silhouettes rencontrees : %d" % shapes.size())
+		# ⚠ ET ON DIT QUELS ROLES, PAS COMBIEN. « 20 -> 15 » ne dit pas si la clause supprime
+		# une famille entiere ou cinq cas epars -- et c'est toute la difference entre une
+		# regle et un hasard de battue.
+		var said3: PackedStringArray = PackedStringArray()
+		for role: Vector2i in _vocab_roles.keys():
+			said3.append("(%s, rangee %d)" % [Walls.pan_name(role.x), role.y])
+		said3.sort()
+		print("ROLES %s" % ", ".join(said3))
 		quit(0)
 		return
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -714,8 +726,10 @@ func _run(couple: String) -> bool:
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
-	print("  robes : %d roles distincts, %d cases de falaise"
-			% [kinds.size(), roles.size()])
+	# ET LES PAROIS ETROITES DU MONDE, dites au passage : c'est la clause de grammaire a
+	# l'essai, et savoir si nos mondes LIVRES la respectent deja est la moitie de sa mesure.
+	print("  robes : %d roles distincts, %d cases de falaise, %d paroi(s) de moins de trois"
+			% [kinds.size(), roles.size(), _narrow_walls(roles)])
 	# LA BATTUE DE VOCABULAIRE S'ARRETE ICI : elle veut la LISTE des tuiles, pas leur dessin.
 	# Peindre et mesurer coute trente secondes par monde ; batir le monde et poser ses bits en
 	# coute une fraction. C'est ce qui rend deux cents mondes tenables.
@@ -892,6 +906,7 @@ func _battue(name: String) -> PackedStringArray:
 	# ⚠ ET IL EN FAUT BEAUCOUP : a quatre-vingt-dix gestes la battue ne remplissait qu'un quart
 	# du cadre et n'exercait que 13 silhouettes sur 27. Une battue qui ne rencontre pas le
 	# vocabulaire ne prouve pas qu'il est sain, elle prouve qu'elle n'a rien regarde.
+	var refused: int = 0
 	for gesture: int in range(400):
 		var level: int = rng.randi_range(-1, 3)
 		var ox: int = rng.randi_range(edge, width - edge - 3)
@@ -908,19 +923,59 @@ func _battue(name: String) -> PackedStringArray:
 				row[x] = level + 1
 				grid[y] = row
 		# LE REFUS DU PINCEAU : un geste qui laisse une case fine ne se pose pas.
-		if not Thickness.thin_cells(_text(grid)).is_empty():
+		var said2: PackedStringArray = _text(grid)
+		if not Thickness.thin_cells(said2).is_empty():
 			grid = before
+			refused += 1
+			continue
+		# LA CLAUSE, quand on la mesure : un geste qui laisse une paroi de moins de trois
+		# colonnes ne se pose pas non plus. C'est le meme refus, un cran plus loin.
+		if _clause_walls and _narrow_walls(Walls.visible(said2)["roles"]) > 0:
+			grid = before
+			refused += 1
 	# ⚠ ET LA MARGE DU BAS VAUT UNE CHUTE ENTIERE DEPUIS LE PLUS HAUT ETAGE. Une chute dans le
 	# vide descend de STOREY_TILES x (etage + 1) -- douze rangees depuis l'etage 3 -- et une
 	# robe coupee par le cadre laisse son contour ouvert. Ce serait un defaut du MONDE, pas du
 	# dessin, et il accuserait la regle a tort.
 	var out: PackedStringArray = _text(grid)
+	if _clause_walls or _vocab_only:
+		# ⚠ ET ON DIT CE QUI RESTE, PAS SEULEMENT CE QU'ON A REFUSE. Une clause qui refuse peu
+		# peut vouloir dire deux choses opposees -- que le defaut est rare, ou que le detecteur
+		# ne le voit pas. Le compte des parois etroites du monde FINI tranche.
+		print("  %s : %d gestes refuses sur 400, %d paroi(s) etroite(s) au monde fini"
+				% [name, refused, _narrow_walls(Walls.visible(out)["roles"])])
 	var empty: String = ""
 	for x: int in range(width):
 		empty += "~"
 	for row: int in range(Walls.STOREY_TILES * 5):
 		out.append(empty)
 	return out
+
+
+## LES PAROIS TROP ETROITES : la clause de grammaire, chiffree avant d'etre decidee.
+##
+## Une PAROI est un segment de face : une suite de cases de robe, sur une meme rangee, jointes
+## par des flancs qui CONTINUENT. La clause dit qu'aucune ne doit faire moins de trois cases --
+## c'est l'epaisseur, deja imposee au relief, portee a la FACE.
+##
+## ⚠ ON COMPTE LES SEGMENTS, PAS LES CASES. Un segment de deux cases est UN defaut, pas deux :
+## compter les cases ferait croire que la clause coute le double de ce qu'elle coute.
+static func _narrow_walls(roles: Dictionary) -> int:
+	var narrow: int = 0
+	for cell: Vector2i in roles.keys():
+		var role: Vector2i = roles[cell]
+		# On ne part que du bout OUEST d'un segment, sinon on le compte autant de fois qu'il
+		# a de cases.
+		if Walls.pan_west(role.x) != Walls.SIDE_STOP:
+			continue
+		var run: int = 1
+		var at: Vector2i = cell
+		while Walls.pan_east((roles[at] as Vector2i).x) == Walls.SIDE_CONTINUE 				and roles.has(at + Vector2i.RIGHT) and run < 64:
+			at += Vector2i.RIGHT
+			run += 1
+		if run < 3:
+			narrow += 1
+	return narrow
 
 
 func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
