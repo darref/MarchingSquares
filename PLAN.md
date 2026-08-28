@@ -179,9 +179,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
-| **L5/F0** | **les six verts** — mais le monde n'exerce que **13 des 15** formes | I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) — au prix de **62 tuiles à cheval** |
-| L5/F1 | **55 extrémités**, dont 54 noyées | I2 ✅ · I5 ✅ · I6 ✅ |
-| L5/F2 | **122 extrémités**, dont 121 noyées | I2 ✅ · I5 ✅ (24 profils qui serpentent) |
+| **L5/F0** | **✅ acquis** | sur la **planche duale**, 15/15 formes, les six verts — **64 tuiles à cheval + 20 rôles** |
+| L5/F1 | **43 extrémités**, dont 42 noyées | I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ |
+| L5/F2 | **91 extrémités**, dont 90 noyées | I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ (28 profils qui serpentent) · I6 35 perdues |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
@@ -378,9 +378,33 @@ un axe **posé sur le bord de case** ; dès qu'il s'en écarte, la frontière de
 le flanc de la robe ne sont plus au même endroit, et le trait meurt dans la roche. **C'est le
 travail qui reste à L5.**
 
-⚠ **ET LA PLANCHE N'EXERCE QUE 13 DES 15 FORMES À CHEVAL, DONC L5/F0 N'ENTRE PAS À L'ACQUIS.**
-Elle a été bâtie **pour la famille par case**. Un guide dual reste à construire, et tant qu'il
-n'existe pas, six verts sur un monde qui n'exerce pas tout le vocabulaire ne sont pas un acquis.
+### ⚠ LE BANC BÂTISSAIT LA MAUVAISE PLANCHE — ET LE DÉPÔT AVAIT DÉJÀ LA BONNE
+
+13 formes à cheval sur 15, et les deux manquantes étaient **exactement les contacts diagonaux** —
+ceux que la canonicalisation du blob **jette**. Ce n'était pas un guide à construire : le dépôt
+porte **une planche de preuve par famille**, *« les deux planches sortent de la même fonction »*,
+et le banc appelait `ProofScene.relief(BY_CELL)` même à L5.
+
+Sur la planche **duale** : **15/15 formes, les six invariants verts, 64 tuiles à cheval.**
+**L5/F0 est acquis**, et il entre au rejeu.
+
+⚠ **UN MONDE BÂTI POUR UN VOCABULAIRE N'EXERCE PAS L'AUTRE**, et c'est écrit au dossier depuis
+longtemps — *« un guide complet en blob 47 n'est PAS automatiquement complet en dual, et ne peut
+pas l'être »*. Je l'ai redécouvert par la mesure au lieu de le lire.
+
+### CE QUI RESTE À L5 : LA LIBERTÉ CONTRE LES FALAISES
+
+À F1 et F2, tout est vert **sauf I1** : 43 et 91 extrémités, dont **42 et 90 noyées dans la
+matière**. La cause est nette : les quatre bits sont calculés pour un axe **posé sur le bord de
+case** ; dès que la liberté l'en écarte, la frontière que la robe porte n'est plus celle de la
+tuile, et le trait meurt dans la roche.
+
+⚠ **ET GELER L'AXE LÀ OÙ C'EST LA ROBE QUI TRACE A ÉTÉ ESSAYÉ, ET MESURÉ MAUVAIS.** L'idée se
+défendait — le bit qui fait taire une moitié dit déjà exactement où, il pouvait donc aussi figer
+sa position, pour zéro tuile. Résultat : **43 → 40 extrémités**, et **I5 rouge** — un axe figé
+d'un côté et libre de l'autre fait une **marche** au milieu du profil, donc plusieurs profils dont
+onze qui ondulent là où F1 les promet plats. **Trois pixels contre la liberté annoncée : on ne
+paie pas.**
 
 ⚠ **Et la planche de preuve n'exerce que 13 des 15 tuiles à cheval** : elle a été bâtie pour la
 famille par case. Un guide dual reste à construire.

@@ -235,7 +235,7 @@ const CONTEXT: Color = Color("#3f4a38")
 const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2",
 		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2", "L3/F2@guide",
 		"L2/F2@battue1", "L2/F2@battue2", "L2/F2@battue3",
-		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3"]
+		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3", "L5/F0"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -1171,7 +1171,13 @@ func _world(level: int) -> PackedStringArray:
 	if _world_name == "guide":
 		_board = HeightMask.read(Modes.guide_path(Modes.EPAIS))
 		return _board
-	_board = _with_margin(ProofScene.relief(Families.BY_CELL))
+	# ⚠ ET A L5 C'EST LA PLANCHE DUALE, PAS CELLE DES CASES. Le depot en a une pour chaque
+	# famille -- « les deux planches sortent de la meme fonction » -- et le banc bâtissait la
+	# mauvaise : 13 formes a cheval sur 15, les deux manquantes etant justement les contacts
+	# diagonaux, que la canonicalisation du blob JETTE. Un monde bati pour un vocabulaire
+	# n'exerce pas l'autre, et c'est ecrit au dossier depuis longtemps.
+	_board = _with_margin(ProofScene.relief(
+			Families.BY_CORNER if level >= 5 else Families.BY_CELL))
 	# ⚠ L3 NE CHANGE PAS LE MONDE, IL CHANGE CE QU'ON Y POSE. La planche porte deja les trois
 	# especes de pose arriere -- l'atterrissage (le sous-pied), l'ecretage (la pose derriere,
 	# c'est la paire de piliers ajoutee pour ca), et la levre (le chapiteau sous sa levre).
@@ -1229,6 +1235,14 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 			# tuile a cheval n'a pas de bord a faire rentrer -- ses cotes sont a moitie pleins
 			# par construction. Ce qui a une position, chez elle, c'est l'AXE entre deux
 			# quadrants ; le peintre le deplace, et c'est ca que I5 mesure.
+			# ⚠ GELER L'AXE LA OU C'EST LA ROBE QUI TRACE A ETE ESSAYE, ET MESURE MAUVAIS.
+			# L'idee : le flanc d'une robe est sur le BORD DE CASE, donc si l'axe s'en ecarte
+			# la frontiere que la robe porte n'est plus celle de la tuile. Le bit qui fait
+			# taire la moitie dit deja exactement ou -- il pouvait donc aussi figer sa
+			# position, pour zero tuile. Resultat : 43 extremites -> 40 a F1, et I5 rouge --
+			# l'axe fige d'un cote et libre de l'autre fait une MARCHE au milieu du profil,
+			# donc plusieurs profils dont onze qui ondulent la ou F1 les promet plats. Trois
+			# pixels contre la liberte annoncee : on ne paie pas.
 			var vx: int = half - 1 + _corner_shift(y, freedom, true)
 			var hy: int = half - 1 + _corner_shift(x, freedom, false)
 			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.
