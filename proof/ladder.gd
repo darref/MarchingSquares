@@ -820,6 +820,19 @@ func _run(couple: String) -> bool:
 
 	_storeys = storeys
 
+	if level >= 2 and level < 5:
+		var junc: Dictionary = _junctions(world, indices, roles, under)
+		var said4: Array[String] = []
+		said4.assign((junc["kinds"] as Dictionary).keys())
+		said4.sort()
+		print("  jonctions : %d especes distinctes sur %d adjacences ; %d couples (silhouette,"
+				% [(junc["kinds"] as Dictionary).size(), int(junc["total"]),
+				int(junc["couples"])]
+				+ " cote) dont %d EN VOIENT PLUSIEURS (jusqu'a %d)"
+				% [int(junc["forces"]), int(junc["pire"])])
+		for label: String in said4:
+			print("     %6d  %s" % [int((junc["kinds"] as Dictionary)[label]), label])
+
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
@@ -1199,6 +1212,67 @@ func _world(level: int) -> PackedStringArray:
 			line += "0" if flat[y][x] == MaskIO.FILLED_CHAR else "~"
 		out.append(line)
 	return out
+
+
+# ------------------------------------------------------- LE RECENSEMENT DES JONCTIONS
+
+## CE QUE LE MONDE PEUT METTRE EN FACE D'UNE TUILE.
+##
+## ⚠ C'EST LA MESURE QUI MANQUAIT A LA QUESTION DU VOCABULAIRE. Il ne grossit pas a cause du
+## trait : il grossit d'un bit a chaque JONCTION que le modele sait produire et qu'une tuile ne
+## sait pas reconnaitre. Si le nombre de jonctions distinctes est fini et se calcule, le
+## vocabulaire a une forme fermee ; sinon, c'est la qu'une clause de grammaire doit mordre --
+## sur les RENCONTRES, pas sur la forme du relief.
+##
+## ⚠ ET CE QUI COMPTE N'EST PAS LE NOMBRE DE JONCTIONS, C'EST LE NOMBRE DE COUPLES (TUILE,
+## COTE) QUI EN VOIENT PLUSIEURS. Un cote qui ne voit jamais qu'une seule chose n'a rien a
+## savoir : il n'a pas besoin de bit. Un cote qui en voit deux doit choisir, donc payer.
+func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary,
+		under: Dictionary) -> Dictionary:
+	var kinds: Dictionary = {}
+	var seen: Dictionary = {}
+	var total: int = 0
+	for cell: Vector2i in indices.keys():
+		var mine: int = HeightMask.level_at(world, cell.x, cell.y)
+		for side: int in range(4):
+			var probe: Vector2i = cell + STEPS[side]
+			var kind: String = "vide"
+			if roles.has(probe):
+				var role: Vector2i = roles[probe]
+				if role.y == Walls.ROW_CROWN:
+					kind = "face, chapiteau"
+				elif role.y == Walls.ROW_FOOT:
+					kind = "face, pied"
+				else:
+					kind = "face, corps"
+			elif indices.has(probe):
+				var there: int = HeightMask.level_at(world, probe.x, probe.y)
+				if there == mine:
+					kind = "sol, meme etage"
+				elif there < mine:
+					kind = "sol, plus bas"
+				else:
+					kind = "sol, plus haut"
+			# ⚠ ET LA POSE ARRIERE COMPTE, parce qu'elle change ce qu'on voit derriere une
+			# transparence -- c'est exactement ce que I6 mesure.
+			if under.has(probe):
+				kind += " + pose"
+			var label: String = "%s : %s" % [SIDE_NAMES[side], kind]
+			kinds[label] = int(kinds.get(label, 0)) + 1
+			total += 1
+			var who: String = "%d/%d" % [int(indices[cell]) & 0xff, side]
+			if not seen.has(who):
+				seen[who] = {}
+			(seen[who] as Dictionary)[kind] = true
+	var forced: int = 0
+	var worst: int = 0
+	for who: String in seen.keys():
+		var many: int = (seen[who] as Dictionary).size()
+		worst = maxi(worst, many)
+		if many > 1:
+			forced += 1
+	return {"kinds": kinds, "total": total, "couples": seen.size(), "forces": forced,
+			"pire": worst}
 
 
 # ------------------------------------------------------------ L5 : LA FAMILLE A CHEVAL

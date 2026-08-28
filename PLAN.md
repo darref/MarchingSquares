@@ -545,6 +545,50 @@ n'a pas à les porter — elle éprouve les **rencontres**. Le compte reste impr
 ne rencontre pas le vocabulaire ne prouve pas qu'il est sain, elle prouve qu'elle n'a rien
 regardé*), il ne juge plus.
 
+### LE RECENSEMENT DES JONCTIONS : L'ESPACE EST FINI, ET IL EST PETIT
+
+Le vocabulaire ne grossit pas à cause du **trait** — il grossit d'un bit à chaque **jonction** que
+le modèle sait produire et qu'une tuile ne sait pas reconnaître. La question juste n'était donc
+pas « faut-il un contour » mais **« combien de jonctions distinctes le monde peut-il produire ? »**
+
+**L'alphabet, lu du monde et non supposé** — pour un côté donné, ce qu'il peut avoir en face :
+
+```
+vide                                                          1
+sol   { meme etage, plus bas, plus haut }  x  { , + pose }     6
+face  { chapiteau, corps, pied }           x  { , + pose }     6
+                                                             ---
+                                                              13  par cote,  52 en tout
+```
+
+| monde | espèces observées | adjacences | couples (silhouette, côté) | **en voient plusieurs** | le pire |
+|---|---|---|---|---|---|
+| planche | **47** | 52 800 | 108 | **48** | 10 |
+| guide | **48** | 52 496 | 108 | **48** | 10 |
+| `@battue1·2·3` | 40 · 42 · 42 | ~2 000 | 64 · 60 · 60 | 49 · 54 · 51 | 8 · 7 · 8 |
+
+⚠ **L'ESPACE DES JONCTIONS EST DONC FINI, PETIT, ET DÉJÀ PRESQUE ÉPUISÉ : 48 observées sur un
+plafond de 52.** Le vocabulaire, lui, est à **≥ 116 et croît**. La croissance ne vient donc **pas**
+d'un espace de rencontres illimité — elle vient des **combinaisons** : une tuile a quatre côtés,
+et un vocabulaire qui distinguerait tout ferait 27 × 13⁴.
+
+⚠ **ET LE NOMBRE QUI COMPTE EST L'AUTRE : 48 COUPLES (SILHOUETTE, CÔTÉ) SUR 108 VOIENT PLUSIEURS
+ESPÈCES**, et le pire en voit **dix**. Ce sont exactement ceux qui réclament un bit ou une règle —
+*un côté qui ne voit jamais qu'une seule chose n'a rien à savoir.* Les bits payés aujourd'hui
+(nu/roche, `NORTH_QUIET`, `ABOVE`/`BELOW_QUIET`, `NORTH_FLUSH`) sont des **regroupements** de ces
+treize espèces en deux ou trois classes. **La forme fermée du vocabulaire est donc calculable** :
+c'est le produit, sur les quatre côtés, du nombre de classes que chacun doit distinguer — et ce
+nombre-là se mesure, espèce par espèce, au lieu de se découvrir un bit à la fois.
+
+⚠ **ET LA MESURE CONFIRME UN THÉORÈME AU PASSAGE, SANS QU'ON LE LUI DEMANDE : « sud : sol, plus
+bas » N'EXISTE PAS.** Zéro occurrence sur 52 800. C'est la règle de la lèvre — *une case dont le
+sud est vide a toujours sa propre face en face* — non plus supposée, mais **comptée**.
+
+⚠ **Et la clause de grammaire qui mordrait vraiment n'est pas sur la FORME du relief, mais sur les
+RENCONTRES.** Les trois clauses mesurées portaient toutes sur la forme, et elles ont rendu cinq
+tuiles. Interdire une **espèce de jonction** retirerait, elle, une distinction à un côté — donc un
+facteur, pas un terme.
+
 ### ⚠ LE GUIDE PROUVE LES SILHOUETTES, PAS LES TUILES — MESURÉ
 
 Question posée en cours de route : *le guide affiche-t-il tous les cas types ?* La réponse dépend
