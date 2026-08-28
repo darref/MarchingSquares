@@ -426,8 +426,18 @@ il ne la rencontre plus.
 ⚠ **C'EST DONC ENCORE LA MÊME CAUSE, MAIS PAR LA CRÊTE ET NON PAR LE FLANC** — et elle échappe au
 bit, parce que « rien au sud » est **inconditionnel** : le figer là où il s'applique reviendrait à
 figer l'axe presque partout, c'est-à-dire à rendre la liberté. L'autre issue est que **la crête
-suive l'axe** : les deux sont des lois globales, une robe peut donc la connaître. **C'est la
-prochaine mesure.**
+suive l'axe** : les deux sont des lois globales, une robe peut donc la connaître.
+
+**LU AU PIXEL, LE TROU FAIT UN PIXEL DE LARGE.** Le trait vertical est à `x=97` — l'axe déplacé
+de deux — et la crête, qui est sur la grille des cases, s'arrête à `x=95`. Entre les deux, `x=96`
+est vide.
+
+⚠ **ET RECONNECTER L'AXE AU BORD DE CASE A ÉTÉ ESSAYÉ, ET MESURÉ CATASTROPHIQUE : 43 → 12 500
+extrémités, en 5 926 morceaux.** Le diagnostic était juste, le remède posait le petit bout
+horizontal à **chaque** rangée où la matière s'arrête, au lieu de la seule où le trait vertical
+**finit** — deux pixels par rangée, sur toute la planche. *Un remède juste appliqué trop largement
+fabrique mille fois le défaut qu'il répare.* Le bon geste est le même, mais **à une rangée** —
+c'est la prochaine mesure, et elle est étroite.
 
 ⚠ **LE DÉDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT — ET IL NE FERME PAS.** Il divise F2 par plus
 de deux (91 → 40) et confirme la géométrie : robe à l'**ouest**, l'axe recule de son flanc est ;

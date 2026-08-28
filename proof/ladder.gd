@@ -1305,6 +1305,15 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 				if solid[probe.y][probe.x] == 0:
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else GRASS)
+
+	# ⚠ ET RECONNECTER L'AXE DEPLACE AU BORD DE CASE A ETE ESSAYE, ET MESURE CATASTROPHIQUE.
+	# Le diagnostic etait juste -- lu au pixel : le trait vertical a x=97, la crete qui
+	# s'arrete a x=95, un pixel de trou -- mais le remede posait le petit bout horizontal a
+	# CHAQUE rangee ou la matiere s'arrete, pas seulement la ou le trait vertical FINIT. Deux
+	# pixels par rangee, sur toute la planche : 43 extremites -> 12 500, en 5 926 morceaux.
+	#
+	# La lecon est celle du dossier, une fois de plus : un remede juste applique trop largement
+	# fabrique mille fois le defaut qu'il repare. Le bon geste est le meme, mais a UNE rangee.
 	return tile
 
 
