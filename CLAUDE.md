@@ -2946,6 +2946,18 @@ la liberte du geste (elle refuse a peine plus que l'epaisseur du relief) mais **
 livres, qui la violent** : 18 parois fines a la planche de preuve, 21 au guide. Le detail et les
 chiffres sont dans `PLAN.md`, section « LA CLAUSE DES TROIS COLONNES EST CHIFFREE ».
 
+⚠ **ET LES TROIS SONT MESUREES : ENSEMBLE ELLES RENDENT CINQ TUILES, TOUTES DES ROLES DE ROBE.**
+La (2) ne rend RIEN pour plus de la moitie des gestes refuses -- elle avait ete ecrite pour le pan
+`(devant, devant)`, qui N'EXISTE PLUS depuis la decomposition en couches : **une clause candidate
+se relit contre le vocabulaire du jour, pas contre celui qui l'a fait naitre.** La (3) rend UN
+role -- `(arret|arret)` au chapiteau seulement -- et est donc strictement plus faible que la (1).
+Et « 1 + 2 » donne exactement « 1 ».
+
+⚠ **LE PARI EST DONC REPROCHE, ET IL DEPLACE LA QUESTION.** L'explosion n'est pas dans les
+falaises -- 20 roles -- mais dans les SURFACES : **96 tuiles pour 27 silhouettes**, un facteur 3,5
+fait de BITS DE BORD. Aucune clause sur *ce que le monde a le droit d'etre* n'y touche ; le levier
+est **ce qu'une tuile de surface a le droit de savoir**, et il se paie en contours ouverts.
+
 ### Fiche : DEUX CORRECTIFS MESURES, ECRITS, ET MIS DE COTE
 
 Tous deux sont **justes** et tous deux ont ete retires de l'arbre en revenant a l'etat vert :

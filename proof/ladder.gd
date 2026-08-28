@@ -186,8 +186,11 @@ static var _vocab_only: bool = false
 static var _vocab_seen: Dictionary = {}
 static var _vocab_roles: Dictionary = {}
 
-## La clause de grammaire a l'essai : aucune paroi de moins de trois colonnes.
-static var _clause_walls: bool = false
+## LA CLAUSE DE GRAMMAIRE A L'ESSAI (`LADDER_CLAUSE=`), et il y en a trois candidates :
+##   `paroi3`  aucune paroi de moins de trois colonnes ;
+##   `etages`  deux faces d'etages differents ne se touchent pas lateralement ;
+##   `levre3`  une levre ne se decale que par blocs de trois colonnes.
+static var _clause: String = ""
 
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
@@ -270,7 +273,7 @@ func _initialize() -> void:
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
-	_clause_walls = OS.get_environment("LADDER_CLAUSE") == "paroi3"
+	_clause = OS.get_environment("LADDER_CLAUSE")
 	if _j2_none:
 		_j2_on_face = true
 	# ⚠ LA BATTUE DE VOCABULAIRE : « combien de tuiles le modele peut-il produire ? »
@@ -726,10 +729,11 @@ func _run(couple: String) -> bool:
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
-	# ET LES PAROIS ETROITES DU MONDE, dites au passage : c'est la clause de grammaire a
-	# l'essai, et savoir si nos mondes LIVRES la respectent deja est la moitie de sa mesure.
-	print("  robes : %d roles distincts, %d cases de falaise, %d paroi(s) de moins de trois"
-			% [kinds.size(), roles.size(), _narrow_walls(roles)])
+	# ET CE QUE LE MONDE DOIT AUX TROIS CLAUSES CANDIDATES, dit au passage : savoir si nos
+	# mondes LIVRES les respectent deja est la moitie de leur mesure.
+	print("  robes : %d roles distincts, %d cases de falaise" % [kinds.size(), roles.size()]
+			+ "   -- %d paroi(s) fine(s), %d contact(s) d'etages, %d marche(s) courte(s)"
+			% [_narrow_walls(roles), _mixed_faces(Walls.visible(world)), _short_lips(world)])
 	# LA BATTUE DE VOCABULAIRE S'ARRETE ICI : elle veut la LISTE des tuiles, pas leur dessin.
 	# Peindre et mesurer coute trente secondes par monde ; batir le monde et poser ses bits en
 	# coute une fraction. C'est ce qui rend deux cents mondes tenables.
@@ -928,9 +932,18 @@ func _battue(name: String) -> PackedStringArray:
 			grid = before
 			refused += 1
 			continue
-		# LA CLAUSE, quand on la mesure : un geste qui laisse une paroi de moins de trois
-		# colonnes ne se pose pas non plus. C'est le meme refus, un cran plus loin.
-		if _clause_walls and _narrow_walls(Walls.visible(said2)["roles"]) > 0:
+		# LES CLAUSES, quand on les mesure : le meme refus, un cran plus loin.
+		var broken: bool = false
+		if _clause == "paroi3":
+			broken = _narrow_walls(Walls.visible(said2)["roles"]) > 0
+		elif _clause == "etages":
+			broken = _mixed_faces(Walls.visible(said2)) > 0
+		elif _clause == "levre3":
+			broken = _short_lips(said2) > 0
+		elif _clause == "paroi3+etages":
+			var built2: Dictionary = Walls.visible(said2)
+			broken = _narrow_walls(built2["roles"]) > 0 or _mixed_faces(built2) > 0
+		if broken:
 			grid = before
 			refused += 1
 	# ⚠ ET LA MARGE DU BAS VAUT UNE CHUTE ENTIERE DEPUIS LE PLUS HAUT ETAGE. Une chute dans le
@@ -938,12 +951,15 @@ func _battue(name: String) -> PackedStringArray:
 	# robe coupee par le cadre laisse son contour ouvert. Ce serait un defaut du MONDE, pas du
 	# dessin, et il accuserait la regle a tort.
 	var out: PackedStringArray = _text(grid)
-	if _clause_walls or _vocab_only:
+	if _vocab_only:
 		# ⚠ ET ON DIT CE QUI RESTE, PAS SEULEMENT CE QU'ON A REFUSE. Une clause qui refuse peu
 		# peut vouloir dire deux choses opposees -- que le defaut est rare, ou que le detecteur
-		# ne le voit pas. Le compte des parois etroites du monde FINI tranche.
-		print("  %s : %d gestes refuses sur 400, %d paroi(s) etroite(s) au monde fini"
-				% [name, refused, _narrow_walls(Walls.visible(out)["roles"])])
+		# ne le voit pas. Le compte du monde FINI tranche, et on donne les trois pour que
+		# chaque clause dise aussi ce qu'elle fait aux deux autres.
+		var built3: Dictionary = Walls.visible(out)
+		print("  %s : %d gestes refuses sur 400 -- restent %d paroi(s) fine(s), %d contact(s)"
+				% [name, refused, _narrow_walls(built3["roles"]), _mixed_faces(built3)]
+				+ ", %d marche(s) courte(s)" % [_short_lips(out)])
 	var empty: String = ""
 	for x: int in range(width):
 		empty += "~"
@@ -976,6 +992,56 @@ static func _narrow_walls(roles: Dictionary) -> int:
 		if run < 3:
 			narrow += 1
 	return narrow
+
+
+## CLAUSE 2 : deux faces d'ETAGES DIFFERENTS ne se touchent pas lateralement.
+##
+## C'est le cas qui avait ressuscite le pan (devant, devant) avant la decomposition en couches :
+## deux parois cote a cote dont les levres ne sont pas au meme etage. `Walls.visible` rend
+## justement l'etage de la levre de chaque case couverte -- on compare, on ne devine pas.
+##
+## ⚠ ON COMPTE LES CONTACTS, PAS LES CASES : un contact est une PAIRE de cases voisines.
+static func _mixed_faces(built: Dictionary) -> int:
+	var roles: Dictionary = built["roles"]
+	var lips: Dictionary = built["lips"]
+	var mixed: int = 0
+	for cell: Vector2i in roles.keys():
+		var east: Vector2i = cell + Vector2i.RIGHT
+		if roles.has(east) and int(lips[cell]) != int(lips[east]):
+			mixed += 1
+	return mixed
+
+
+## CLAUSE 3 : une LEVRE ne se decale que par blocs de trois colonnes.
+##
+## Une levre est une case pleine dans la silhouette d'un etage dont la voisine du SUD ne l'est
+## pas : c'est de la que part une face. La clause dit que la marche d'un escalier fait au moins
+## trois colonnes -- les escaliers restent, plus grossiers.
+##
+## ⚠ ET CE N'EST PAS LA CLAUSE 1. Celle-ci ne contraint que la rangee du CHAPITEAU ; le flanc
+## d'une face, lui, change en descendant -- une colonne dont la chute s'arrete plus tot coupe le
+## segment plus bas. La clause 1 est donc la plus forte des deux, et la mesure doit le montrer.
+static func _short_lips(relief: PackedStringArray) -> int:
+	var width: int = HeightMask.width(relief)
+	var height: int = HeightMask.height(relief)
+	var top: int = 0
+	for y: int in range(height):
+		for x: int in range(width):
+			top = maxi(top, HeightMask.level_at(relief, x, y))
+	var short: int = 0
+	for storey: int in range(top + 1):
+		# On balaie rangee par rangee ; une marche est un segment de levres de meme rangee.
+		for y: int in range(height):
+			var run: int = 0
+			for x: int in range(width + 1):
+				var lip: bool = x < width 						and HeightMask.level_at(relief, x, y) >= storey 						and HeightMask.level_at(relief, x, y + 1) < storey
+				if lip:
+					run += 1
+					continue
+				if run > 0 and run < 3:
+					short += 1
+				run = 0
+	return short
 
 
 func _text(grid: Array[PackedByteArray]) -> PackedStringArray:

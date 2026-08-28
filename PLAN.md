@@ -399,6 +399,49 @@ ses îlots de spécimens sont petits par construction.
 **Verdict : cinq tuiles pour deux mondes à refaire.** À garder en réserve, pas à payer seule ; elle
 ne vaut le coup que si (2) ou (3) rapportent gros et qu'on rebâtit de toute façon.
 
+### LES TROIS CLAUSES, CÔTE À CÔTE — ET AUCUNE NE TOUCHE LES SURFACES
+
+Chacune est donnée au **pinceau** comme un refus de plus, et battue sur **60 mondes** :
+
+| clause | gestes refusés / 400 | silhouettes rencontrées | tuiles de surface | **rôles de robe** |
+|---|---|---|---|---|
+| **aucune** | ~93 | 22 | 86 | **20** |
+| **1** · paroi ≥ 3 colonnes | 102 | 24 | 89 | **15  (−5)** |
+| **2** · pas de contact d'étages | **205** | 25 | 87 | **20  (−0)** |
+| **3** · lèvre par blocs de 3 | 112 | 23 | 85 | **19  (−1)** |
+| **1 + 2** | **209** | 22 | 73 | **15  (−5)** |
+
+⚠ **LA CLAUSE 2 NE REND RIEN, ET ELLE COÛTE PLUS DE LA MOITIÉ DES GESTES.** Vingt rôles sur vingt
+survivent. Et la raison s'explique : elle avait été écrite pour le cas *« qui a ressuscité
+(devant, devant) »* — un état de flanc qui **n'existe plus** depuis la décomposition en couches,
+laquelle a ramené les flancs de **trois états à deux**. *La clause a survécu à sa justification.*
+C'est une leçon de dossier autant que de mesure : **une clause candidate se relit contre le
+vocabulaire du jour, pas contre celui qui l'a fait naître.**
+
+⚠ **LA CLAUSE 3 REND UN RÔLE, ET ON SAIT LEQUEL.** `(arrêt|arrêt)` disparaît **à la rangée 0
+seulement** — le chapiteau — et survit aux rangées 1 à 4. C'est exact et c'était prévisible : la
+clause ne contraint que la **lèvre**, alors que le flanc d'une face **change en descendant**. Elle
+est donc strictement plus faible que la clause 1, pour un coût plus élevé.
+
+⚠ **ET « 1 + 2 » DONNE EXACTEMENT « 1 ».** Quinze rôles, les mêmes. La clause 2 n'ajoute rien à la
+clause 1 — elle ne fait qu'ajouter son prix.
+
+⚠ **LE COMPTE DE SURFACES NE SE COMPARE PAS D'UNE LIGNE À L'AUTRE, ET IL FAUT LE DIRE.** 73 sous
+« 1+2 » n'est pas une réduction : c'est une **borne basse dégradée** — avec 209 gestes refusés sur
+400, la battue explore moins et ne rencontre que 22 silhouettes sur 27. À qualité de battue égale,
+**aucune clause ne retire une seule tuile de surface**.
+
+**Le pari est reproché, et de loin.** Il annonçait *« (1) et (2) ensemble ramènent autour de
+60-65 tuiles »* ; mesuré, elles en rendent **cinq**, et toutes les cinq sont des rôles de robe.
+Le total reste à **~96 + 15 = 111** au lieu de 116.
+
+⚠ **ET C'EST LE RÉSULTAT QUI COMPTE, PARCE QU'IL DÉPLACE LA QUESTION.** L'explosion n'est **pas
+dans les falaises** — 20 rôles, dont une clause en retire 5. Elle est dans les **surfaces** :
+**96 tuiles pour 27 silhouettes**, soit ×3,5, et ce facteur est fait de **bits de bord** — ce
+qu'une tuile doit savoir de son voisinage pour que le contour se ferme. Aucune clause sur *ce que
+le monde a le droit d'être* ne touche à ça. Le levier est ailleurs : **ce qu'une tuile de surface
+a le droit de savoir** — et il se paie en contours ouverts, pas en reliefs refusés.
+
 ⚠ **ET LE CHIFFRE QUI DOIT RESTER EN TÊTE EST L'AUTRE : le vocabulaire du banc est à AU MOINS
 96 + 20 = 116 tuiles, et il croît encore à 160 mondes** (+3 au dernier relevé), contre **27 + 20 =
 47** dans le produit livré. C'est ça, le problème du *sweet spot* — et une clause à 4 % ne le
