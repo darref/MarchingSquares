@@ -181,7 +181,8 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
-| **L3/F2@battue1·2·3** | **rouge : 7 · 2 · 1 extrémités** | **des mondes tirés au sort par le GESTE DU PINCEAU** — de 14 · 10 · 4 au départ ; I2 vert sur deux d'entre eux, I3 · I4 · I5 · I6 verts partout |
+| **L3/F2@battue2·3** | **✅ verts** | des mondes **tirés au sort par le geste du pinceau** — partis de 10 et 4 extrémités |
+| **L3/F2@battue1** | **rouge : 1 extrémité** | parti de 14 extrémités et 4 pavés |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
 (58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
@@ -287,6 +288,43 @@ mieux l'écrire que la découvrir chez un acheteur.
 10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
 une **robe qui n'a rien en dessous**.
 
+### ⚠ LE GUIDE PROUVE LES SILHOUETTES, PAS LES TUILES — MESURÉ
+
+Question posée en cours de route : *le guide affiche-t-il tous les cas types ?* La réponse dépend
+de **quel vocabulaire** on parle, et les deux réponses sont vraies en même temps.
+
+**Pour ce qui est livré aujourd'hui — oui, et c'est asserté.** Le produit est à 27 silhouettes +
+20 rôles + 15 croisements, et `tests/run.gd` (`_test_mode_guides_are_complete`) refuse un mode
+dont le guide ne les porte pas toutes. *Entrer un mode au catalogue, c'est s'engager à ce que son
+guide passe là.*
+
+**Pour ce que le banc est en train de bâtir — non.** Depuis que le bord entre dans l'identité
+d'une tuile, une tuile est un couple (silhouette, bord), et le compte se mesure par monde :
+
+| monde | tuiles de surface exercées | lui manque, sur l'union |
+|---|---|---|
+| **guide** | **65** | **12** |
+| planche de preuve | 59 | 18 |
+| `@battue2` | 49 | 28 |
+| `@battue1` | 46 | 31 |
+| `@battue3` | 42 | 35 |
+| **union des cinq** | **77** | — |
+
+⚠ **LES 27 SILHOUETTES, ELLES, SONT DANS TOUS LES MONDES** — c'est bien un théorème, et il tient.
+Ce qui manque n'est jamais une silhouette, c'est un **bord** : la même forme vue dans un voisinage
+que ce monde-là ne produit pas.
+
+⚠ **ET 8 TUILES SONT DANS LE GUIDE SANS ÊTRE DANS LA PLANCHE, 2 L'INVERSE, ET 10 NE SONT QUE DANS
+LES BATTUES.** Aucun des deux mondes bâtis à la main ne contient l'autre. **Une tuile absente du
+guide est une tuile que l'acheteur ne peut pas peindre** — c'est exactement le mode de panne déjà
+écrit au dossier, celui qui ne se signale pas.
+
+⚠ **ET 77 N'EST PAS UN COMPTE, C'EST UNE UNION DE CINQ MONDES.** La forme fermée du vocabulaire
+étendu n'est pas calculée ; tant qu'elle ne l'est pas, on ne peut pas dire ce qui manque au guide,
+seulement qu'il manque **au moins douze**. C'est le travail qui vient après la fermeture :
+*calculer la forme, puis bâtir le guide depuis elle* — comme les îlots de preuve, qui se
+cherchent et se jugent au lieu de se dessiner.
+
 ### UN BIT DE BORD EST UNE QUESTION DE CASE, PAS D'ÉTAGE — ET IL COÛTE ZÉRO TUILE
 
 Le banc sait désormais **dire pourquoi** (`LADDER_WHY=1`) : pour chaque extrémité, ce que la case
@@ -313,7 +351,50 @@ mais il change la clé, donc il fabrique des tuiles qui ne diffèrent par rien d
 Recalculé depuis la silhouette de chaque étage : **+0 partout**. Même discipline que pour
 `NORTH_FLUSH`, même gain.
 
-⚠ **MAIS UN ÉTAGE ENTERRÉ NE FAIT PAS TAIRE SON ERGOT, ET C'EST MESURÉ.** La règle du silence
+### L'ERGOT SE TAIT PARTOUT, ET CE QU'IL DÉCOUVRE ÉTAIT UNE FERMETURE ACCIDENTELLE
+
+*(Ce qui suit corrige la fiche ci-dessous, écrite une heure plus tôt.)* J'avais laissé les étages
+enterrés **ne pas** faire taire leur ergot, parce que le faire rouvrait une extrémité sur la
+planche et une sur le guide. En regardant **ce que la planche perdait** — le banc sait désormais
+dire la pile d'une case — la réponse était nette : le stub enterré qui fermait ce contour ne
+rejoignait rien de particulier, **il passait par là**. Une fermeture accidentelle masquait un
+défaut réel.
+
+**La règle s'applique donc à tous les étages**, et le défaut qu'elle découvre se répare pour ce
+qu'il est : le **symétrique exact d'`ABOVE_QUIET`, vers le bas**. Celui-là fait mourir mon bord
+latéral à son **nord** quand la case du dessus s'est tue de ce côté ; `BELOW_QUIET_*` le fait
+mourir à son **sud** quand c'est celle du dessous. Elle s'est tue parce qu'une robe la longe : la
+frontière y est portée par le flanc de cette robe, une case plus bas et une colonne plus loin.
+
+| monde | avant | après | tuiles |
+|---|---|---|---|
+| planche | 0 | **0** | 78 → **79** |
+| guide | 0 | **0** | 84 → **85** |
+| `@battue1` | 7 | **1** | 59 → 61 |
+| `@battue2` | 2 | **0** ✅ | 61 → 64 |
+| `@battue3` | 1 + 4 pavés | **0, 0** ✅ | 57 |
+
+⚠ **+1 TUILE, ET DEUX BATTUES SUR TROIS PASSENT AU VERT.** C'est le meilleur rapport de la
+journée, et il vient d'avoir regardé *ce que le correctif détruit* plutôt que *ce qu'il répare*.
+
+### ET « LE SOMMET TRACE, LES ENTERRÉS SE POSENT PLEINS » EST RÉFUTÉ UNE SECONDE FOIS
+
+Le plan laissait la question ouverte à L1 — *« mesuré aujourd'hui, c'est un no-op, mais masqué par
+L3, donc à revérifier une fois L1 isolé »*. Remise sur le banc à L3, avec toute la machinerie :
+
+| monde | étages enterrés tracés | **posés pleins** |
+|---|---|---|
+| planche | 0 extrémité | **14** |
+| guide | 0 | **9** |
+| `@battue1` | 7 | 14 |
+| `@battue2` | 2 | 14 |
+| `@battue3` | 1 | 9 |
+
+Et **aucune tuile économisée** — 58 dans les deux cas. Les traits des étages enterrés sont
+**porteurs** : ce sont eux qui raccordent deux terrasses de niveaux différents, et l'entaille du
+sommet n'est pas une décoration, c'est par où on les voit. La question est close.
+
+⚠ **UN ÉTAGE ENTERRÉ NE FAISAIT PAS TAIRE SON ERGOT — CORRIGÉ CI-DESSUS, GARDÉ POUR LA MESURE.** La règle du silence
 demande *« ma voisine trace-t-elle de ce côté ? »* — une question qu'une tuile **enterrée ne peut
 pas poser** : ce qui se voit à côté d'elle est le **sommet** de sa voisine, qui n'est pas son
 étage. La question est mal posée, et le défaut par défaut doit être le moins dangereux des deux —

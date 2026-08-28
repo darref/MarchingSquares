@@ -175,6 +175,12 @@ static var _world_name: String = ""
 ## Dire, pour chaque extremite, ce que la case et ses quatre voisines tracent (`LADDER_WHY=1`).
 static var _why: bool = false
 
+## Les etages enterres se posent-ils PLEINS ? (`LADDER_BURIED=plein`)
+static var _buried_full: bool = false
+
+## La pile des silhouettes, gardee pour que le rapport « pourquoi » puisse la lire.
+static var _storeys: Array[Dictionary] = []
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -236,6 +242,13 @@ const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 ## Mon bord remonte donc au ras a ce bout-la, pour aller toucher le pied en diagonale.
 const NORTH_FLUSH_EAST: int = 8192
 const NORTH_FLUSH_WEST: int = 16384
+## ⚠ ET LE SYMETRIQUE EXACT D'`ABOVE_QUIET_*`, VERS LE BAS. Celui-la fait mourir mon bord
+## lateral a son NORD quand la case du dessus s'est tue de ce cote ; celui-ci le fait mourir a
+## son SUD quand c'est la case du DESSOUS. Elle s'est tue parce qu'une robe la longe : la
+## frontiere y est portee par le flanc de cette robe, une case plus bas et une colonne plus
+## loin, et mon bord doit descendre au ras pour aller le toucher au coin.
+const BELOW_QUIET_EAST: int = 32768
+const BELOW_QUIET_WEST: int = 65536
 
 
 func _initialize() -> void:
@@ -246,6 +259,7 @@ func _initialize() -> void:
 	if not OS.get_environment("LADDER_BACKING").is_empty():
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
+	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	if _j2_none:
 		_j2_on_face = true
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -506,20 +520,7 @@ func _run(couple: String) -> bool:
 					var full: int = int(map3[here2])
 					var shape: int = full & 0xff
 					var more: int = full >> 8
-					# ⚠ ET UN ETAGE ENTERRE NE FAIT PAS TAIRE SON ERGOT. La regle du silence
-					# demande « ma voisine trace-t-elle de ce cote ? » -- une question qu'une
-					# tuile ENTERREE ne peut pas poser : ce qui se voit a cote d'elle est le
-					# SOMMET de sa voisine, qui n'est pas son etage. La question est mal posee,
-					# et le defaut par defaut doit etre le moins dangereux des deux : un ergot
-					# de trop risque un doublement (I2), un ergot de moins laisse un trou (I1).
-					#
-					# Mesure, sur cinq mondes : le faire taire ferme 3 extremites sur @battue1,
-					# 1 sur @battue2 et 3 + 4 paves sur @battue3 -- mais il en ROUVRE UNE sur la
-					# planche ET une sur le guide, tous deux acquis. Un couple acquis qui rougit
-					# arrete tout (regle 5). Et I2 reste vert a ne pas le taire : le risque de
-					# doublement ne se realise pas. On ne tait donc que l'etage visible.
-					var mine4: bool = storey3 == HeightMask.level_at(world, here2.x, here2.y)
-					for corner: int in range(4 if mine4 else 0):
+					for corner: int in range(4):
 						var a: int = corner
 						var b: int = (corner + 3) % 4
 						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
@@ -555,6 +556,17 @@ func _run(couple: String) -> bool:
 							if (int(indices[beside]) >> 8 & NORTH_QUIET) == 0:
 								continue
 							more |= NORTH_FLUSH_EAST if way == 0 else NORTH_FLUSH_WEST
+					# ⚠ ET LE MEME, VERS LE BAS. Mesure : sans lui, faire taire l'ergot des
+					# etages enterres -- ce qui est juste -- rouvre UNE extremite sur la planche
+					# et une sur le guide. Elles n'etaient fermees que par accident, par un
+					# ergot enterre qui passait par la.
+					var down2: Vector2i = here2 + Vector2i.DOWN
+					if (shape & BlobIndex.S) != 0 and map3.has(down2) and not roles.has(down2):
+						var low: int = int(map3[down2]) >> 8
+						if _surface_open(full, level)[1] and (low & 1) != 0:
+							more |= BELOW_QUIET_EAST
+						if _surface_open(full, level)[3] and (low & 2) != 0:
+							more |= BELOW_QUIET_WEST
 					var over: Vector2i = here2 + Vector2i.UP
 					if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
 						var up: int = int(indices[over]) >> 8
@@ -649,6 +661,21 @@ func _run(couple: String) -> bool:
 		said.sort()
 		print("  poses arriere : %d  -- %s" % [under.size(), ", ".join(said)])
 
+	# ⚠ « LE SOMMET TRACE, LES ENTERRES SE POSENT PLEINS » -- la question de L1, remise sur le
+	# banc maintenant que L2 et L3 sont la. Une case appartient ENTIEREMENT a chaque silhouette
+	# qui la contient : le monde n'y a pas de bord, et l'entaille du sommet n'est qu'une
+	# decoration du bord VISIBLE. Poser la tuile pleine sous le sommet supprime d'un coup tout
+	# ce qu'un etage enterre peut laisser fuir par une encoche.
+	if _buried_full:
+		for storey4: int in range(storeys.size()):
+			var map4: Dictionary = storeys[storey4]
+			for cell4: Vector2i in map4.keys():
+				if HeightMask.level_at(world, cell4.x, cell4.y) != storey4:
+					map4[cell4] = 0xff
+		vocabulary[0xff] = true
+
+	_storeys = storeys
+
 	var kinds: Dictionary = {}
 	for cell: Vector2i in roles.keys():
 		kinds[roles[cell]] = true
@@ -673,6 +700,11 @@ func _run(couple: String) -> bool:
 			+ " et n'en laisserait que %d)" % [int(welded["classes"])])
 	var tiles: Dictionary = _paint(vocabulary, freedom, level, seams["graine"])
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
+	if not OS.get_environment("LADDER_VOCAB").is_empty():
+		var listing: Array[int] = []
+		listing.assign(tiles.keys())
+		listing.sort()
+		print("  VOCAB %s" % str(listing))
 	if _open_edges > 0:
 		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
 				% [_open_edges, _bare_edges, 100.0 * float(_bare_edges) / float(_open_edges)])
@@ -1053,6 +1085,11 @@ func _side_depth(side: int, along: int, freedom: int, quiet: int, seam: int = 0)
 		if side == 1 and (quiet & ABOVE_QUIET_EAST) != 0:
 			return 0
 		if side == 3 and (quiet & ABOVE_QUIET_WEST) != 0:
+			return 0
+	if along == RES - 1:
+		if side == 1 and (quiet & BELOW_QUIET_EAST) != 0:
+			return 0
+		if side == 3 and (quiet & BELOW_QUIET_WEST) != 0:
 			return 0
 	return _depth(side, along, freedom, seam)
 
@@ -1547,6 +1584,16 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				print("     %d,%d de %d,%d : %s | voisines %s"
 						% [at_x, at_y, cell.x, cell.y, _tells(cell, indices, roles, freedom),
 						_around(cell, indices, roles, freedom)])
+				# ⚠ ET LA PILE, parce que c'est elle qui fuit. Un etage ENTERRE trace son bord
+				# sous le sommet, et on le voit par l'encoche de celui-ci : dire seulement la
+				# tuile visible, c'est accuser celle qui n'a rien fait.
+				var deep2: PackedStringArray = PackedStringArray()
+				for storey5: int in range(_storeys.size()):
+					var map5: Dictionary = _storeys[storey5]
+					if map5.has(cell):
+						deep2.append("etage %d: %s" % [storey5,
+								_tells_key(int(map5[cell]), freedom)])
+				print("          pile  %s" % " ; ".join(deep2))
 
 	# I2 EPAISSEUR. Un trait d'un pixel ne peut pas remplir un pave 2x2. Des qu'il y en a un,
 	# deux traits se sont colles ou un trait a double.
@@ -1894,6 +1941,15 @@ func _draws(image: Image, cell: Vector2i, side: int) -> int:
 ## profondeur qui n'a rien a voir. Elle annoncait alors 24 profils « qui serpentent » sur un
 ## F1 parfaitement droit. On lit donc le quart central, la ou le cote est seul.
 ## CE QU'UNE CASE TRACE, EN CLAIR -- pour lire une extremite au lieu de la deviner.
+func _tells_key(key: int, freedom: int) -> String:
+	var open2: Array[bool] = _surface_open(key, 2)
+	var sides2: PackedStringArray = PackedStringArray()
+	for side: int in range(4):
+		if open2[side]:
+			sides2.append(SIDE_NAMES[side])
+	return "%d (silhouette %d, bord %d) [%s]" % [key, key & 0xff, key >> 8, ", ".join(sides2)]
+
+
 func _tells(cell: Vector2i, indices: Dictionary, roles: Dictionary, freedom: int) -> String:
 	if roles.has(cell):
 		var role: Vector2i = roles[cell]
