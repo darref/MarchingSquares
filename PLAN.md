@@ -1854,8 +1854,7 @@ côté. Même règle que pour les battues.
 
 ⚠ **LA RESTRICTION GRATUITE EST TROUVÉE, ET C'EST LE « + POSE ».** Il est fusionné **partout**,
 sauf quatre créneaux : `sol, plus bas + pose` au nord, à l'est et à l'ouest, `face, chapiteau +
-pose` au sud. Autrement dit **44 des 48 distinctions que la pose arrière introduit dans
-l'alphabet ne servent à rien** — l'alphabet tombe de 13 espèces par côté à 7, et le plafond du
+pose` au sud. Autrement dit **19 des 23 « + pose » observés ne servent à rien** — l'alphabet tombe de 13 espèces par côté à 7, et le plafond du
 recensement de 52 à 28.
 
 ⚠ **ET « SOL, PLUS HAUT » N'EXISTE PAS AU NORD**, sur aucun des cinq mondes : un voisin du nord
@@ -1872,3 +1871,42 @@ chiffrées plus haut : les paires jamais comparées peuvent encore scinder une c
 contextes éclatés disent que la tuile n'est pas *exactement* une fonction du voisinage par côté ;
 et les silhouettes non vues à un côté donné ne contribuent que ce qu'on a vu. **86 est une borne
 mesurée sur cinq mondes**, à confronter à un sixième.
+
+
+### 5 · CONFRONTÉ À DIX MONDES DE PLUS : UNE FUSION SUR CINQ TOMBE, LA PRINCIPALE TIENT
+
+*La section 4 disait « borne mesurée sur cinq mondes, à confronter à un sixième ». Dix ont été
+tirés — `@battue4` à `@battue13`, graines neuves, 4 803 cases de plus.*
+
+| | 5 mondes | **15 mondes** |
+|---|---|---|
+| cases lues | 27 793 | **32 596** |
+| contextes | 659, dont **10** éclatés | 1 007, dont **30** éclatés |
+| classes nord · est · sud · ouest | 4 · 4 · 3 · **3** | 4 · 4 · 3 · **4** |
+| produit | 144 | **192** |
+| **borne par silhouette** | **86** | **97** |
+
+⚠ **UNE SEULE FUSION EST RÉFUTÉE, ET C'ÉTAIT LA PLUS SUSPECTE : `sol, plus bas` = `vide` à
+l'ouest.** Les dix nouveaux mondes les séparent. Le signe était là et je ne l'ai pas lu :
+**l'ouest annonçait 3 classes quand l'est en annonçait 4**, alors que rien dans le modèle ne
+distingue les deux flancs à ce niveau. *Une asymétrie sans cause est un défaut d'échantillon,
+pas un résultat.* À quinze mondes, est et ouest sont **identiques**, et c'est le meilleur signe
+de convergence qu'on ait ici.
+
+⚠ **LA RÉDUCTION PRINCIPALE, ELLE, TIENT SANS BOUGER D'UN POUCE.** Le « + pose » reste fusionné
+dans la grande classe des quatre côtés, sur 32 596 cases, et n'est distingué que dans les **mêmes
+quatre créneaux** qu'à cinq mondes. C'est ce qu'on demandait à la confrontation : elle a cassé ce
+qui devait casser et laissé debout ce qui tenait.
+
+⚠ **MAIS LA BORNE A BOUGÉ DE 13 % QUAND ON A TRIPLÉ LES MONDES — DONC CE N'EST PAS UNE FORME
+FERMÉE, ET IL NE FAUT PAS L'APPELER AINSI.** 86 puis 97 : c'est une **borne basse qui monte**,
+exactement comme le compte de tuiles qu'elle prétend expliquer. Ce qu'elle apporte n'est pas le
+chiffre, c'est la **structure** : trois ou quatre classes par côté, lisibles, dont une qui absorbe
+les deux tiers de l'alphabet.
+
+⚠ **Et les contextes éclatés passent de 1,5 % à 3,0 %.** La tuile est un peu moins une fonction du
+voisinage par côté qu'on ne le croyait à cinq mondes — ce sont toujours les mêmes bits de second
+ordre, et leur part grandit avec la variété des reliefs.
+
+**Au passage, et gratuitement : les dix mondes neufs sont VERTS à L3/F2** — zéro extrémité,
+I1 comme le reste. L3 ne tenait que sur cinq mondes ; il en tient quinze.
