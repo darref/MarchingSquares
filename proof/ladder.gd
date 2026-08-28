@@ -193,6 +193,9 @@ static var _vocab_roles: Dictionary = {}
 ##   `levre3`  une levre ne se decale que par blocs de trois colonnes.
 static var _clause: String = ""
 
+## L5 : QUI CEDE A LA JONCTION LATERALE (`LADDER_ASTRIDE=`) -- `surface` (defaut) ou `face`.
+static var _astride: String = ""
+
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
 static var _bare_edges: int = 0
@@ -275,6 +278,7 @@ func _initialize() -> void:
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	_clause = OS.get_environment("LADDER_CLAUSE")
+	_astride = OS.get_environment("LADDER_ASTRIDE")
 	if _j2_none:
 		_j2_on_face = true
 	# ⚠ LA BATTUE DE VOCABULAIRE : « combien de tuiles le modele peut-il produire ? »
@@ -462,6 +466,44 @@ func _run(couple: String) -> bool:
 		for storey: int in range(storeys.size()):
 			for point: Vector2i in (storeys[storey] as Dictionary).keys():
 				vocabulary[int((storeys[storey] as Dictionary)[point])] = true
+		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE : c'est ce qu'une tuile ne peut pas savoir.
+		# Une demi-frontiere verticale se tait quand l'une des deux cases qu'elle separe est
+		# couverte par une FACE -- c'est le flanc de cette face qui la porte, au meme endroit.
+		if _astride != "face":
+			var walls5: Dictionary = Walls.visible(world)["roles"]
+			var under5: Dictionary = Walls.visible_underfoot(world)
+			for storey: int in range(storeys.size()):
+				var map5: Dictionary = storeys[storey]
+				for point: Vector2i in map5.keys():
+					var quiet5: int = 0
+					for half: int in range(2):
+						var a: Vector2i = point + CornerIndex.OFFSETS[0 if half == 0 else 3]
+						var b: Vector2i = point + CornerIndex.OFFSETS[1 if half == 0 else 2]
+						if walls5.has(a) or walls5.has(b):
+							quiet5 |= 1 << half
+					# Les deux moities de la frontiere HORIZONTALE : ouest (NO au-dessus de SO)
+					# et est (NE au-dessus de SE). Elles se taisent sous un PIED.
+					for half: int in range(2):
+						var over5: Vector2i = point + CornerIndex.OFFSETS[0 if half == 0 else 1]
+						# ⚠ ET UN PIED REPOSE COMPTE AUTANT QU'UN PIED VISIBLE. Il trace son
+						# bord bas au meme endroit ; ne pas le voir laissait 47 paves, tous
+						# « robe, pied repose ».
+						if _foot_above(over5, walls5) or _foot_above(over5, under5):
+							quiet5 |= 4 << half
+					map5[point] = int(map5[point]) | (quiet5 << 4)
+			indices = {}
+			vocabulary = {}
+			for point: Vector2i in CornerIndex.index_map(world).keys():
+				var here5: int = HeightMask.level_at(world, point.x, point.y)
+				var top5: int = 0
+				for off: Vector2i in CornerIndex.OFFSETS:
+					top5 = maxi(top5, HeightMask.level_at(world, point.x + off.x,
+							point.y + off.y))
+				if (storeys[top5] as Dictionary).has(point):
+					indices[point] = int((storeys[top5] as Dictionary)[point])
+			for storey: int in range(storeys.size()):
+				for point: Vector2i in (storeys[storey] as Dictionary).keys():
+					vocabulary[int((storeys[storey] as Dictionary)[point])] = true
 		print("  a cheval : %d croisements visibles, %d tuiles de croisement"
 				% [indices.size(), vocabulary.size()])
 
@@ -807,7 +849,8 @@ func _run(couple: String) -> bool:
 	var tiles: Dictionary = {}
 	if level >= 5:
 		for key5: Variant in vocabulary.keys():
-			tiles[int(key5)] = _corner_tile(int(key5), freedom, [], level)
+			tiles[int(key5)] = _corner_tile(int(key5) & 0xf, freedom, [], level,
+					int(key5) >> 4)
 	else:
 		tiles = _paint(vocabulary, freedom, level, seams["graine"])
 	print("  A PEINDRE : %d tuiles de surface" % tiles.size())
@@ -1154,7 +1197,14 @@ func _world(level: int) -> PackedStringArray:
 ## et c'est son chapiteau qui porte cette frontiere. Sans cette regle, la tuile de croisement et
 ## le chapiteau la tracent tous les deux, a un pixel l'un de l'autre -- mesure du temoin :
 ## 7 446 paves et 744 doublements, tous a la falaise.
-func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0) -> Image:
+## ⚠ ET LES DEUX ISSUES DE LA JONCTION LATERALE SE CHIFFRENT ICI. La frontiere verticale interne
+## d'une tuile a cheval tombe sur le BORD DE CASE -- son axe -- donc la ou une robe trace son
+## flanc. Deux facons d'en sortir, et le banc les mesure toutes les deux :
+##   `surface`  la tuile a cheval se tait, et paie DEUX BITS -- un par demi-frontiere, nord et
+##              sud, chacun leve quand cette moitie-la borde de la roche ;
+##   `face`     la robe cede son flanc, et paie une CESSION sur la famille des robes.
+func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
+		quiet: int = 0) -> Image:
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	var half: int = RES / 2
 	var solid: Array[PackedByteArray] = []
@@ -1181,6 +1231,18 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0) -
 				# RIEN AU SUD des que le monde a des falaises : c'est le chapiteau qui trace.
 				if side == 2 and level >= 2:
 					continue
+				# CONTRE DE LA ROCHE, LA TUILE A CHEVAL SE TAIT AUSSI -- par demi-frontiere.
+				if side == 1 or side == 3:
+					var half2: int = 1 if y < RES / 2 else 2
+					if (quiet & half2) != 0:
+						continue
+				# ET SOUS UN PIED, ELLE SE TAIT AU NORD -- meme regle que `NORTH_QUIET` dans la
+				# famille par case : le bas du pied et cette frontiere sont la meme, et c'est
+				# le pied qui la porte.
+				if side == 0:
+					var half3: int = 4 if x < RES / 2 else 8
+					if (quiet & half3) != 0:
+						continue
 				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
 				# ⚠ HORS DE LA TUILE N'EST JAMAIS UN BORD : la voisine y porte la meme case.
 				if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
@@ -1355,6 +1417,13 @@ func _wall_open(key: Variant) -> Array[bool]:
 		give = wide.z
 	else:
 		role = key as Vector2i
+	# ⚠ L'ISSUE A DE LA JONCTION LATERALE : LA FACE CEDE SES FLANCS. Si la tuile a cheval les
+	# trace de toute facon -- son axe tombe exactement sur le bord de case -- alors le flanc
+	# d'une robe est un second traceur, et c'est lui qu'on peut retirer. Le PAN ne sert plus a
+	# rien : les vingt roles tombent aux cinq rangees. On mesure si ca ferme.
+	if _astride == "face":
+		return [role.y == Walls.ROW_CROWN, false,
+				role.y == Walls.ROW_FOOT and (give & 4) == 0, false]
 	return [role.y == Walls.ROW_CROWN,
 			Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
 			role.y == Walls.ROW_FOOT and (give & 4) == 0,

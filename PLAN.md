@@ -179,7 +179,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
-| **L5/F0** | **rouge, et c'est le MODÈLE** | I1 ✅ · **I2 1 573 pavés** · **I3 160 doublements**, tous à la falaise · I4 ✅ — voir ci-dessous |
+| **L5/F0** | **quatre invariants sur six** | I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ — au prix de **13 → 62 tuiles à cheval**. I5 et I6 ne savent pas encore lire cette famille |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
@@ -314,18 +314,44 @@ interne dont le **haut est plein et le bas vide** est une **lèvre** — la face
 dessous, et c'est son chapiteau qui la porte. Même théorème que dans la famille par case, même
 gratuité : **7 446 → 1 573 pavés, 744 → 160 doublements.**
 
-⚠ **CE QUI RESTE EST LA JONCTION LATÉRALE, ET C'EST LÀ QUE LE NIVEAU SERA DUR.** La frontière
-verticale interne d'une tuile à cheval tombe **exactement sur le bord de case** — c'est son axe —
-donc au même endroit que le flanc d'une robe. Dans la famille par case, ce conflit-là s'est réglé
-par un **bit** (« contre de la roche, la surface se tait »). À cheval, **il n'y a pas de bit à
-payer sans détruire le théorème qui donne les quinze tuiles.** Les deux issues sont : faire céder
-la **face** — mesuré mauvais à L2 — ou accepter que la famille à cheval coûte des bits, et la
-chiffrer. **C'est la décision du niveau, et elle se mesurera avant d'être prise.**
+### LES DEUX ISSUES DE LA JONCTION LATÉRALE, CHIFFRÉES
 
-⚠ **Et deux invariants ne savent pas encore lire cette famille** : I5 promet « un seul profil » à
-F0, ce qui n'a pas de sens pour une tuile dont les quatre côtés sont à moitié pleins ; I6 cherche
-la pose arrière sous une case, alors que la surface qui la couvre est décalée. **Ils sont rouges
-pour une raison de mesure, pas de dessin, et il faut les adapter avant de juger L5.**
+La frontière verticale interne d'une tuile à cheval tombe **exactement sur le bord de case** —
+c'est son axe — donc au même endroit que le flanc d'une robe. Deux façons d'en sortir, mesurées :
+
+| issue | tuiles à cheval | I1 | I2 pavés | I3 doubles |
+|---|---|---|---|---|
+| aucune (le témoin) | 13 | ✅ 0 | 1 573 | 160 |
+| **A · la face cède ses flancs** | 13 | **❌ 134 extrémités** | 141 | 9 |
+| **B · la tuile à cheval paie des bits** | **62** | ✅ **0** | ✅ **0** | ✅ **0** |
+
+⚠ **L'ISSUE A EST RÉFUTÉE, ET C'EST LA MÊME LEÇON QU'À L2.** Retirer le flanc d'une robe ouvre
+**134 extrémités** : *le flanc est ce qui referme le contour de la falaise*, exactement comme
+« le bas du pied » l'avait déjà montré — *12 doublements de moins, mais 128 extrémités de plus*.
+Le bénéfice espéré était gros — le pan ne servant plus à rien, les vingt rôles seraient tombés
+aux cinq rangées — et il ne se réalise pas.
+
+⚠ **L'ISSUE B FERME TOUT, ET ELLE COÛTE QUATRE BITS.** Deux pour la frontière **verticale** — une
+par moitié, nord et sud, levée quand cette moitié-là borde de la roche — et deux pour la
+frontière **horizontale**, levées sous un **pied**, visible **ou reposé**. Chacun est l'analogue
+exact d'un bit déjà payé dans la famille par case (« contre de la roche » et `NORTH_QUIET`) ; ce
+que la famille à cheval ajoute est qu'ils se posent **par demi-frontière**, parce qu'une tuile en
+porte deux moitiés indépendantes.
+
+⚠ **ET LE PIED REPOSÉ COMPTE AUTANT QUE LE PIED VISIBLE** — il trace son bord bas au même
+endroit. Ne pas le voir laissait **47 pavés, tous « robe, pied reposé »**.
+
+**Le prix, dit franchement : 13 tuiles exercées deviennent 62.** Le théorème des quinze tuiles
+sans bit **ne survit pas à la rencontre avec les falaises** : il ne vaut que pour la famille à
+cheval seule, sur un monde sans face. C'est un résultat, pas une déception — il était annoncé
+comme le nœud du niveau, et il est maintenant chiffré au lieu d'être craint.
+
+⚠ **Et deux invariants ne savent pas encore lire cette famille, donc L5/F0 N'EST PAS ACQUIS.**
+I5 promet « un seul profil, plat » à F0 et en compte 13 — ce qui n'a pas de sens pour une tuile
+dont les quatre côtés sont à moitié pleins ; I6 cherche la pose arrière sous une **case** alors
+que la surface qui la couvre est **décalée d'un demi-pas**, et compte donc ses 1 024 pixels de
+fenêtre comme autant de matières perdues. **Ils sont rouges pour une raison de mesure, pas de
+dessin** — et tant qu'ils ne savent pas lire, quatre verts sur six ne sont pas un acquis.
 
 ⚠ **Et la planche de preuve n'exerce que 13 des 15 tuiles à cheval** : elle a été bâtie pour la
 famille par case. Un guide dual reste à construire.
