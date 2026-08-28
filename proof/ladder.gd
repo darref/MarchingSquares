@@ -938,6 +938,15 @@ func _run(couple: String) -> bool:
 		listing.assign(tiles.keys())
 		listing.sort()
 		print("  VOCAB %s" % str(listing))
+		# ⚠ ET LA LISTE DES POSEES, PAS SEULEMENT DES PEINTES. C'est elle qui se compare a un
+		# domaine enumere : une tuile peinte que rien ne pose n'est nulle part dans le monde.
+		var placed: Array[int] = []
+		placed.assign(posed.keys())
+		placed.sort()
+		var told: PackedStringArray = PackedStringArray()
+		for key7: int in placed:
+			told.append(str(key7))
+		print("  POSEES: %s" % ",".join(told))
 	if _open_edges > 0:
 		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
 				% [_open_edges, _bare_edges, 100.0 * float(_bare_edges) / float(_open_edges)])

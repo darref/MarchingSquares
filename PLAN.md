@@ -2042,3 +2042,46 @@ parts se recouvrent en vocabulaire — mais huit listes s'unissent.*
 ⚠ **CE QUI RESTE OUVERT, ET C'EST HONNÊTE DE LE DIRE : les poses NON alignées.** Tout ceci
 énumère ce que le pinceau fait *aligné sur trois*, parce que le dossier a mesuré qu'une main pose
 ainsi. Un geste décalé reste possible, et il n'est pas dans le domaine énuméré.
+
+
+### 9 · L'ALPHABET NON PLUS N'AJOUTE RIEN — ET LE DOMAINE ÉNUMÉRÉ N'EST PAS LE DOMAINE
+
+**Le dernier axe est fermé.** 3×3 blocs à **quatre** états — un troisième étage de plateau, donc
+des chutes de neuf cases et des empilements à trois niveaux — **262 144 reliefs exhaustifs :
+40 + 15 = 55**, identique aux trois états. Les deux axes du domaine ont été poussés, aucun ne
+produit une tuile de plus. **879 316 reliefs énumérés en tout.**
+
+⚠ **MAIS J'AI APPELÉ ÇA « LE DOMAINE RÉALISABLE », ET C'EST FAUX. C'EST UN SOUS-DOMAINE, ET LA
+MESURE LE DIT SANS APPEL :**
+
+| | tuiles posées | **hors du domaine énuméré** |
+|---|---|---|
+| domaine aligné, exhaustif | **40** | — |
+| planche de preuve | 45 | **17** |
+| guide | 51 | **17** (dont 15 les mêmes) |
+| **union des trois** | **59** | — |
+
+**Dix-neuf tuiles que les mondes livrés portent réellement ne sont produites par aucun des
+879 316 reliefs énumérés.** La fermeture à 40 ne ferme donc que la famille des **tampons
+alignés sur trois**, pas ce que le modèle peut produire.
+
+⚠ **ET LA FAUTE EST UNE ERREUR DE LECTURE À MOI, PAS UN DÉFAUT DE MESURE.** J'ai pris pour une
+règle du produit ce qui n'est qu'une **heuristique d'échantillonnage de la battue** — *« une main
+pose aligné, le hasard non ; on tire donc surtout des poses alignées »*. C'est écrit à propos de
+la **battue**, pas de SoluPaint : la règle du pinceau est *« un tampon 3×3, et refus de tout geste
+qui laisserait une case fine »*, sans un mot sur l'alignement. **Un tampon décalé est légal**, et
+c'est exactement ce que les 19 tuiles manquantes exercent — pour l'essentiel des **ergots de coin
+rentrant** (bits 272, 340, 544, 680), c'est-à-dire des encoches qu'une grille de blocs alignés ne
+sait pas creuser.
+
+**Ce qui reste vrai, et ce n'est pas rien :**
+
+- **la direction FENÊTRE est close** : 4×4 à deux états et 4×3 à trois états ne rendent rien de
+  plus que 3×3, empilements compris. Cette mesure-là ne dépend pas de l'alignement ;
+- **la direction ALPHABET est close** : quatre états ne rendent rien de plus que trois ;
+- **le rayon 2 tient** : 0 contexte éclaté sur 32 596 cases.
+
+⚠ **Ce qui n'est PAS acquis : le compte.** 55 est le compte d'une sous-famille. Le vrai domaine
+est au moins à 59, et sa fermeture demande d'énumérer les poses **décalées** — 9 positions par
+tampon, donc un espace qu'aucune énumération exhaustive ne couvrira telle quelle. *La fermeture
+existe (le rayon 2 le dit) ; le compte, lui, reste à établir.*
