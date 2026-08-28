@@ -231,7 +231,7 @@ const CONTEXT: Color = Color("#3f4a38")
 const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2",
 		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2", "L3/F2@guide",
 		"L2/F2@battue1", "L2/F2@battue2", "L2/F2@battue3",
-		"L3/F2@battue2", "L3/F2@battue3"]
+		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -808,6 +808,10 @@ func _run(couple: String) -> bool:
 	# feuille ou effacer un trait a l'execution. On le mesure quand meme -- refuser une option
 	# sans son chiffre, c'est exactement ce que ce plan existe pour empecher.
 	var backing_tiles: Dictionary = role_tiles
+	if _backing == "bout" or _backing == "cote":
+		backing_tiles = {}
+		for key: Variant in role_tiles.keys():
+			backing_tiles[key] = _muted_but(role_tiles[key] as Image, _backing == "bout")
 	if _backing == "mute":
 		backing_tiles = {}
 		for key: Variant in role_tiles.keys():
@@ -1183,6 +1187,40 @@ func _muted(tile: Image) -> Image:
 	return out
 
 
+## LA POSE ARRIERE QUI NE GARDE QU'UNE PART DE SON TRAIT.
+##
+## ⚠ ET ON N'Y TOUCHE PAS A LA MATIERE, C'EST TOUTE LA LECON DE L'ESSAI PRECEDENT. J'avais
+## d'abord ferme la crete et le pied du role -- ce qui change les cotes OUVERTS, donc la forme,
+## donc la matiere : la roche s'etendait jusqu'au bord et le trait des flancs pendait en haut
+## comme en bas. 90 extremites sur la planche, et I6 rouge. La matiere d'une pose arriere est ce
+## que le modele NOMME (I6) ; seul son TRAIT est negociable.
+##
+## On part donc de la vraie tuile et on eteint des pixels de contour, jamais des pixels de
+## matiere. Un pixel de contour appartient a la CRETE ou au PIED si le vide qu'il borde est
+## au-dessus ou au-dessous ; a un FLANC si ce vide est a gauche ou a droite.
+static func _muted_but(tile: Image, keep_vertical: bool) -> Image:
+	var out: Image = tile.duplicate() as Image
+	for y: int in range(RES):
+		for x: int in range(RES):
+			if not tile.get_pixel(x, y).is_equal_approx(OUTLINE):
+				continue
+			var vertical: bool = false
+			var lateral: bool = false
+			for side: int in range(4):
+				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
+				var outside: bool = probe.x < 0 or probe.y < 0 or probe.x >= RES 						or probe.y >= RES or tile.get_pixel(probe.x, probe.y).a < 0.5
+				if not outside:
+					continue
+				if side == 0 or side == 2:
+					vertical = true
+				else:
+					lateral = true
+			if vertical if keep_vertical else lateral:
+				continue
+			out.set_pixel(x, y, ROCK)
+	return out
+
+
 func _wall_tiles(roles: Dictionary, freedom: int, seed_of: Dictionary) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
@@ -1486,6 +1524,19 @@ func _depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 ##
 ## On garde donc l'empilement complet, et le defaut restant -- six pixels a une jonction en T
 ## entre les bords de deux etages -- attend son propre diagnostic.
+## LA POSE ARRIERE, RECADREE SOUS LA MATIERE DE LA CASE QUI LA COUVRE, au nord seulement.
+## Colonne par colonne : tout ce qui est au-dessus du premier pixel opaque du couvercle est
+## efface de la roche reposee.
+static func _clip_north(rock: Image, cover: Image) -> Image:
+	var out: Image = rock.duplicate() as Image
+	for x: int in range(RES):
+		for y: int in range(RES):
+			if cover.get_pixel(x, y).a >= 0.5:
+				break
+			out.set_pixel(x, y, Color(0, 0, 0, 0))
+	return out
+
+
 static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
 		under_by_level: Array[Dictionary], backing_tiles: Dictionary) -> Image:
@@ -1497,8 +1548,20 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		# coins decoupes, ce qui est exactement l'endroit ou elle manquait.
 		var backing: Dictionary = under_by_level[storey]
 		for cell: Vector2i in backing.keys():
-			canvas.blend_rect(backing_tiles[backing[cell]] as Image, Rect2i(0, 0, RES, RES),
-					cell * RES)
+			var rock: Image = backing_tiles[backing[cell]] as Image
+			# ⚠ ET LA POSE ARRIERE NE DEBORDE PAS AU NORD DE LA CASE QUI LA COUVRE. Un
+			# chapiteau repose sous sa levre remplit la case ENTIERE ; or la face d'une levre
+			# est AU SUD -- c'est le theoreme. Derriere l'encoche NORD de la levre il n'y a
+			# donc pas de roche, il y a ce que le monde a la : le vide, ou la terrasse d'en
+			# dessous. Sans ce recadrage, la roche y sort avec un bord que personne ne trace,
+			# et le trait de la terrasse voisine vient mourir dessus.
+			#
+			# ⚠ C'EST UNE POSE, PAS UNE TUILE. Zero dessin de plus : on ne fait que ne pas
+			# poser ce que le modele ne met pas la.
+			var cover: Dictionary = storeys[storey]
+			if cover.has(cell):
+				rock = _clip_north(rock, tiles[int(cover[cell])] as Image)
+			canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 		var map: Dictionary = storeys[storey]
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
@@ -1699,6 +1762,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	var ends: Array[String] = []
 	var spread: Dictionary = {}
 	var end_count: int = 0
+	var open_ends: int = 0
+	var buried_ends: int = 0
 	for y: int in range(height):
 		for x: int in range(width):
 			if not _is_stroke(image, x, y):
@@ -1715,6 +1780,23 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			if around > 1:
 				continue
 			end_count += 1
+			# ⚠ UNE EXTREMITE NOYEE DANS LA MATIERE N'EST PAS UN TROU. Un trait qui s'arrete
+			# contre du vide laisse le contour ouvert : on voit le fond a travers. Un trait qui
+			# s'arrete au milieu de la matiere est OCCULTE -- la terrasse passe derriere la
+			# falaise, et son contour reprend de l'autre cote. On compte les deux separement
+			# AVANT de decider si la distinction vaut quelque chose.
+			var breathes: bool = false
+			for dy2: int in range(-1, 2):
+				for dx2: int in range(-1, 2):
+					if x + dx2 < 0 or y + dy2 < 0 or x + dx2 >= width or y + dy2 >= height:
+						breathes = true
+						continue
+					if image.get_pixel(x + dx2, y + dy2).a < 0.5:
+						breathes = true
+			if breathes:
+				open_ends += 1
+			else:
+				buried_ends += 1
 			var cell: Vector2i = Vector2i(x / RES, y / RES)
 			var owner: int = int(indices.get(cell, -1))
 			if ends.size() < 14:
@@ -1919,9 +2001,18 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				continue
 			var cover: Image = tiles[int(indices[cell])] as Image
 			var named: Image = role_tiles[_wall_key(under[cell])] as Image
-			for y: int in range(RES):
-				for x: int in range(RES):
-					if cover.get_pixel(x, y).a >= 0.5:
+			for x: int in range(RES):
+				# ⚠ ET L'ENCOCHE NORD NE REGARDE PAS VERS LE BAS, ELLE REGARDE VERS LE NORD.
+				# Une pose arriere remplit les marges ou le modele met la face -- au sud et sur
+				# les flancs. Au-dessus du bord nord de la case qui la couvre, ce que le monde a
+				# n'est pas la face : c'est le sol plus au nord, ou le vide. Y exiger de la
+				# roche accuserait le dessin d'etre juste -- et sans ce recadrage la roche y
+				# sortait avec un bord que personne ne trace.
+				var above: int = 0
+				while above < RES and cover.get_pixel(x, above).a < 0.5:
+					above += 1
+				for y: int in range(RES):
+					if cover.get_pixel(x, y).a >= 0.5 or y < above:
 						continue
 					window += 1
 					var px: int = cell.x * RES + x
@@ -1967,8 +2058,9 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 
 	return {
 		"I1": {"nom": "fermeture", "ok": end_count == 0,
-				"dit": "%d extremites %s   (%d morceaux, %d massifs, %d trous)"
-				% [end_count, str(ends), strokes, massifs, holes]},
+				"dit": "%d extremites (%d au bord du vide, %d noyees) %s"
+				% [end_count, open_ends, buried_ends, str(ends)]
+				+ "   (%d morceaux, %d massifs, %d trous)" % [strokes, massifs, holes]},
 		"I2": {"nom": "epaisseur", "ok": thick == 0,
 				"dit": "%d pave(s) 2x2 de trait %s" % [thick, str(thick_where)]},
 		"I3": {"nom": "unicite", "ok": i3,

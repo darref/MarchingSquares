@@ -182,8 +182,7 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
-| **L3/F2@battue2·3** | **✅ acquis** | partis de 10 et 4 extrémités |
-| **L3/F2@battue1** | **1 extrémité** | et elle est **entièrement le prix de la pose arrière muette** — voir ci-dessous |
+| **L3/F2@battue1·2·3** | **✅ acquis** | **L3 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 14 · 10 · 4 extrémités |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
 (58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
@@ -289,7 +288,50 @@ mieux l'écrire que la découvrir chez un acheteur.
 10 extrémités au **bord nord** d'une surface, 2 à l'**ouest**, 2 à l'**est**, et les 4 pavés sur
 une **robe qui n'a rien en dessous**.
 
-### L2 EST CLOS, ET LA DERNIÈRE EXTRÉMITÉ DE L3 EST LE PRIX DE `mute`
+### L3 EST CLOS : LA POSE ARRIÈRE NE DÉBORDE PAS AU NORD DE SA LÈVRE
+
+Le dernier pixel est fermé, et **ce n'était pas la muteté**. Cinq conceptions de pose arrière ont
+été mesurées avec le code du jour, sur les cinq mondes :
+
+| conception | planche | guide | b1 | b2 | b3 | pavés | I6 |
+|---|---|---|---|---|---|---|---|
+| **`mute`** — la matière sans le contour | 0 | 0 | **1** | 0 | 0 | 0 partout | ✅ |
+| `full` — la roche pleine | 0 | 0 | **1** | 0 | 0 | 0 partout | ❌ jusqu'à 1 500 inventés |
+| `trace` — elle dessine son contour | 1 | 3 | 7 | 5 | 7 | 0/7/7/3/0 | ❌ 6 perdues |
+| `flanc` — ses flancs seulement | 90 | 63 | 18 | 18 | 18 | — | ❌ |
+| `bout` — sa crête et son pied seulement | 489 | 356 | 98 | — | — | — | ❌ |
+
+⚠ **`full` LAISSE EXACTEMENT LA MÊME EXTRÉMITÉ QUE `mute`**, et ça disqualifie l'hypothèse d'un
+coup : le pixel ne vient pas de ce que la pose *ne trace pas*. Et toute conception qui n'en trace
+qu'une part est catastrophique — un trait partiel pend par ses deux bouts.
+
+⚠ **ET IL FALLAIT MESURER SI C'ÉTAIT UN TROU OU UNE OCCULTATION.** I1 dit désormais, pour chaque
+extrémité, si elle est **au bord du vide** ou **noyée dans la matière** — un trait qui s'arrête
+contre de la roche est occulté, la terrasse passe derrière la falaise. Mesuré : celle de `mute`
+est **au bord du vide**, donc un vrai trou. Celles de `trace`, à l'inverse, sont **toutes
+noyées**. Sans ce compteur j'aurais tranché à l'envers.
+
+**La cause, une fois le pixel regardé : le chapiteau reposé remplit la case ENTIÈRE de sa lèvre**,
+y compris derrière son encoche **nord**. Or la face d'une lèvre est **au sud** — c'est le
+théorème. Derrière l'encoche nord il n'y a pas de roche : il y a ce que le monde a là, le sol plus
+au nord ou le vide. La roche y sortait donc avec un bord que **personne ne trace**, et le trait de
+la terrasse voisine venait mourir dessus.
+
+**La pose arrière est donc recadrée sous la matière de la case qui la couvre, au nord seulement.**
+⚠ **C'est une POSE, pas une tuile** : zéro dessin de plus — on ne fait que ne pas poser ce que le
+modèle ne met pas là.
+
+⚠ **ET I6 A DÛ SUIVRE, CE QUI EST LE POINT DÉLICAT DE LA JOURNÉE.** Il exigeait la matière du rôle
+nommé sur **toute** la transparence du couvercle, encoche nord comprise — donc il comptait le
+recadrage comme 3 806 matières *perdues*. Sa fenêtre exclut désormais l'encoche nord, pour la
+raison qui vient d'être dite. **Affaiblir un invariant pour accepter un correctif est le geste le
+plus dangereux du dossier**, alors il a été vérifié dans les deux sens :
+- il **voit encore** — 2 442 pixels de fenêtre sur la planche, contre 7 610 (−68 %) ;
+- il **attrape encore `full`** — 138 matières inventées sur la planche, 108 sur le guide.
+⚠ Mais il ne l'attrape plus sur les battues, où la fenêtre tombe à 513 pixels. **La mesure est
+plus étroite qu'hier, et il faut le dire.**
+
+### L2 EST CLOS, ET LA DERNIÈRE EXTRÉMITÉ DE L3 ÉTAIT LE PRIX DE `mute` — CORRIGÉ CI-DESSUS
 
 **L2/F2 est vert sur les cinq mondes, sur les six invariants** — planche, guide et les trois
 battues. Le niveau est clos, et le rejeu le tient : les trois battues entrent à l'acquis à L2, et
