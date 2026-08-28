@@ -26,8 +26,11 @@ def lire(paths):
             ligne = ligne.rstrip("\n")
             if not ligne:
                 continue
-            cle, silhouette, especes = ligne.split("\t")
-            lignes.append((int(cle), int(silhouette), especes.split("|")))
+            bouts = ligne.split("\t")
+            # ⚠ LA TABLE PORTE MAINTENANT LE RAYON 2 -- les colonnes suivantes sont les
+            # contextes des quatre voisines. On n'en lit ici que les trois premieres.
+            cle, contexte = bouts[0], bouts[1].split("|")
+            lignes.append((int(cle), int(contexte[0]), contexte[1:]))
     return lignes
 
 

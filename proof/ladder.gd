@@ -173,6 +173,9 @@ static var _backing: String = "mute"
 ## Ou sortir la table brute (cle, silhouette, les quatre especes) -- vide, on n'ecrit rien.
 static var _dump: String = ""
 static var _dumped: PackedStringArray = PackedStringArray()
+## Le contexte de chaque case, garde pour pouvoir sortir celui de ses VOISINES : c'est ce qui
+## fait la difference entre un rayon 1 et un rayon 2.
+static var _local: Dictionary = {}
 
 ## Le monde a batir : vide pour la planche de preuve, « guide » pour le guide livre.
 static var _world_name: String = ""
@@ -1318,8 +1321,7 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 		# coute RIEN, et c'est exactement la restriction gratuite qu'on cherche. Le banc ne
 		# juge pas ca : il rend ce qu'il a vu, et l'analyse se fait a cote.
 		if not _dump.is_empty():
-			_dumped.append("%d\t%d\t%s" % [int(indices[cell]), int(indices[cell]) & 0xff,
-					"|".join(faces)])
+			_local[cell] = "%d|%s" % [int(indices[cell]) & 0xff, "|".join(faces)]
 	var forced: int = 0
 	var worst: int = 0
 	for who: String in seen.keys():
@@ -1333,7 +1335,22 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 	# DECIDE DE TRACER -- une information du second ordre, absente de l'alphabet des especes,
 	# et c'est exactement elle qui fait eclater les contextes. On compte donc le vocabulaire
 	# deux fois : tel quel, et une fois ces quatre bits effaces.
+	# ⚠ LE RAYON DE DEPENDANCE : LA QUESTION QUI DECIDE S'IL Y A UNE FERMETURE. Les contextes
+	# eclates sont tous des bits de SECOND ORDRE -- ils demandent ce que la voisine a decide de
+	# tracer, et sa decision depend de SA voisine. Une chaine, pas une fenetre : rien ne
+	# garantit qu'elle s'arrete, et la borne monte a chaque monde de plus.
+	#
+	# On sort donc, pour chaque case, SON contexte et celui de ses quatre voisines. Si les
+	# contextes eclates au rayon 1 se resolvent au rayon 2, la dependance est BORNEE, donc
+	# enumerable, donc close. S'ils survivent, c'est la cascade -- et il faudra changer la
+	# decomposition, pas chercher plus loin.
 	if not _dump.is_empty():
+		for cell: Vector2i in _local.keys():
+			var around: PackedStringArray = PackedStringArray()
+			for side: int in range(4):
+				around.append(String(_local.get(cell + STEPS[side], "hors")))
+			_dumped.append("%d\t%s\t%s" % [int(indices[cell]), String(_local[cell]),
+					"\t".join(around)])
 		var out: FileAccess = FileAccess.open(_dump, FileAccess.WRITE)
 		if out != null:
 			out.store_string("\n".join(_dumped) + "\n")

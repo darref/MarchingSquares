@@ -1910,3 +1910,52 @@ ordre, et leur part grandit avec la variété des reliefs.
 
 **Au passage, et gratuitement : les dix mondes neufs sont VERTS à L3/F2** — zéro extrémité,
 I1 comme le reste. L3 ne tenait que sur cinq mondes ; il en tient quinze.
+
+
+### 6 · LA DÉPENDANCE EST BORNÉE AU RAYON 2 — ET C'EST LA RÉPONSE À « POURQUOI ÇA FERMERAIT »
+
+*La question posée : qu'est-ce qui nous fait croire que ça converge vers une fermeture ? Les
+trois fermetures qu'on possède ont toutes la même forme — la tuile ne dépend que d'une **fenêtre
+bornée** (3×3 pour les 47, un flanc binaire pour les 20, quatre quadrants pour les 15). Le
+vocabulaire d'aujourd'hui ne fermait pas parce que ses bits de second ordre demandent **ce que la
+voisine a décidé de tracer**, et sa décision dépend de **sa** voisine : une chaîne, pas une
+fenêtre. Le test est donc : les contextes éclatés se résolvent-ils en regardant une case plus
+loin ?*
+
+| | contextes | **éclatés** | cases concernées |
+|---|---|---|---|
+| **rayon 1** — moi seul | 1 007 | **30** | 1 566 (4,8 %) |
+| **rayon 2** — moi + mes quatre voisines | 5 546 | **0** | **0** |
+
+**Zéro, sur les quinze mondes et 32 596 cases** (`tools/dependency_radius.py`, table brute par
+`LADDER_DUMP`). La chaîne ne cascade donc pas : elle a **une longueur, et cette longueur est
+un**. La tuile posée est une fonction de (mon contexte, celui de mes quatre voisines).
+
+⚠ **CE QUE ÇA AUTORISE À DIRE : LA FERMETURE EXISTE, ET ON SAIT PAR QUELLE MÉTHODE L'OBTENIR.**
+C'est exactement celle qui a donné les 27 — énumérer les fenêtres **réalisables**, prendre
+l'image. Ici : énumérer les contextes de rayon 2 que le modèle peut produire, et compter les
+tuiles distinctes qu'ils donnent. Le vocabulaire n'est plus une borne basse qui monte à chaque
+monde, c'est l'**image d'une fonction sur un domaine fini**.
+
+⚠ **ET LA FONCTION EST MASSIVEMENT NON INJECTIVE, CE QUI EST LA BONNE NOUVELLE** : 5 546
+contextes observés pour ~97 tuiles. Ce n'est pas le domaine qu'il faut réduire, c'est l'image
+qu'il faut compter — et elle est petite.
+
+⚠ **TROIS RÉSERVES, ET ELLES COMPTENT :**
+
+1. **C'est une mesure, pas un théorème.** Quinze mondes, dont douze tirés au sort ; un seizième
+   pourrait éclater un contexte. Ce qui change, c'est qu'on sait maintenant **quoi** énumérer
+   pour en faire un théorème.
+2. **« Rayon 2 » est borné EN ESPÈCES, pas en cases.** Une espèce comme `face, pied` est le
+   résultat d'une chute qui peut faire vingt-sept cases : l'information est déjà non locale
+   quand elle entre dans le contexte. La fermeture du dessin s'appuie donc sur celle du modèle
+   — les 20 rôles — qui, elle, est close par construction. La chaîne tient : relief → 20 rôles
+   → 13 espèces → tuile.
+3. **Le domaine réalisable n'est pas énuméré**, seulement échantillonné. C'est le travail qui
+   reste, et c'est un travail fini.
+
+⚠ **ET LA CONSÉQUENCE DE MÉTHODE EST IMMÉDIATE : LES BATTUES NE FERMERONT JAMAIS RIEN.** Elles
+donnent une borne basse qui monte — 86 puis 97 — et elles monteront encore. La fermeture ne
+viendra pas d'un monde de plus, elle viendra de l'énumération du domaine. *Une battue qui ne
+rencontre pas une tuile prouve qu'elle est rare, jamais qu'elle est impossible* — la ligne est
+au dossier depuis longtemps, et elle vient de désigner sa propre sortie.
