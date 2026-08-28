@@ -1824,3 +1824,51 @@ que 0 · 1 · 1 · 1 · 3 tuiles. Ce ne sont donc **pas** eux qui font le facteu
 silhouettes et le vocabulaire ; ils ne font que casser la formule. Le facteur est ailleurs, et il
 est dans les bits de **premier** ordre — ceux que le produit compte, donc ceux qu'une clause sur
 les espèces peut mordre.
+
+
+### 4 · LES TREIZE ESPÈCES SE RÉDUISENT À TROIS OU QUATRE CLASSES PAR CÔTÉ — MESURÉ
+
+*C'est la réponse à « quelle restriction serait gratuite ». Elle ne se raisonne pas : deux
+espèces qui donnent **toujours** la même tuile sont interchangeables, et les fusionner ne coûte
+rien.* Le banc sort la table brute (`LADDER_DUMP`), l'analyse se fait à côté
+(`tools/side_classes.py`) — **27 793 cases sur les cinq mondes**.
+
+⚠ **ON NE CONCLUT QUE DE CE QU'ON A COMPARÉ.** Deux espèces qu'aucun monde n'a mises dans le même
+contexte ne sont pas « fusionnables », elles sont **non éprouvées** — et il y en a 18 à 40 par
+côté. Même règle que pour les battues.
+
+| côté | espèces vues | **classes** | paires séparées / comparées | jamais comparées |
+|---|---|---|---|---|
+| nord | 12 | **4** | 10 / 26 | 40 |
+| est | 13 | **4** | 30 / 60 | 18 |
+| sud | 10 | **3** | 3 / 22 | 23 |
+| ouest | 13 | **3** | 31 / 55 | 23 |
+
+**Et les classes sont lisibles, ce qui est le meilleur signe qu'elles sont réelles :**
+
+- **nord** et **est** : *tout ce qui est matière à mon niveau ou au-dessus* | `sol, plus bas` |
+  `sol, plus bas + pose` | `vide` ;
+- **sud** : *tout le reste* | `face, chapiteau` | `face, chapiteau + pose` — c'est la **règle de
+  la lèvre**, retrouvée par la mesure et non supposée ;
+- **ouest** : *tout le reste* | `sol, plus bas` **=** `vide` | `sol, plus bas + pose`.
+
+⚠ **LA RESTRICTION GRATUITE EST TROUVÉE, ET C'EST LE « + POSE ».** Il est fusionné **partout**,
+sauf quatre créneaux : `sol, plus bas + pose` au nord, à l'est et à l'ouest, `face, chapiteau +
+pose` au sud. Autrement dit **44 des 48 distinctions que la pose arrière introduit dans
+l'alphabet ne servent à rien** — l'alphabet tombe de 13 espèces par côté à 7, et le plafond du
+recensement de 52 à 28.
+
+⚠ **ET « SOL, PLUS HAUT » N'EXISTE PAS AU NORD**, sur aucun des cinq mondes : un voisin du nord
+plus haut porte **toujours** une pose. C'est le chapiteau sous sa lèvre, retrouvé lui aussi par le
+compte plutôt que par la règle.
+
+**LA BORNE, ENFIN — 86 TUILES, PAS 228.** La forme fermée sous ce modèle est la **somme, sur les
+silhouettes, du produit des classes de leurs côtés ouverts** — un côté dont le cardinal est plein
+n'a rien à distinguer. Mesurée : **86**, contre **45 posées** sur la planche et **51** sur le
+guide, et contre 13⁴ = 28 561 pour l'alphabet brut.
+
+⚠ **CE N'EST PAS UN THÉORÈME, ET IL NE FAUT PAS LE VENDRE COMME TEL.** Trois réserves, toutes
+chiffrées plus haut : les paires jamais comparées peuvent encore scinder une classe ; les dix
+contextes éclatés disent que la tuile n'est pas *exactement* une fonction du voisinage par côté ;
+et les silhouettes non vues à un côté donné ne contribuent que ce qu'on a vu. **86 est une borne
+mesurée sur cinq mondes**, à confronter à un sixième.

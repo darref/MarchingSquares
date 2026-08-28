@@ -170,6 +170,10 @@ static var _j2_none: bool = false
 ## Les deux refusees restent joignables par `LADDER_BACKING`, comme trace de la mesure.
 static var _backing: String = "mute"
 
+## Ou sortir la table brute (cle, silhouette, les quatre especes) -- vide, on n'ecrit rien.
+static var _dump: String = ""
+static var _dumped: PackedStringArray = PackedStringArray()
+
 ## Le monde a batir : vide pour la planche de preuve, « guide » pour le guide livre.
 static var _world_name: String = ""
 
@@ -276,6 +280,7 @@ func _initialize() -> void:
 	if not OS.get_environment("LADDER_BACKING").is_empty():
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
+	_dump = OS.get_environment("LADDER_DUMP")
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	_clause = OS.get_environment("LADDER_CLAUSE")
 	_astride = OS.get_environment("LADDER_ASTRIDE")
@@ -1307,6 +1312,14 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 		if not contexts.has(context):
 			contexts[context] = {}
 		(contexts[context] as Dictionary)[int(indices[cell])] = true
+		# ⚠ ET ON PEUT SORTIR LA TABLE BRUTE, parce que la question suivante ne se repond pas
+		# d'un compteur : COMBIEN DE CLASSES CHAQUE COTE DOIT-IL VRAIMENT DISTINGUER ? Deux
+		# especes qui donnent toujours la meme tuile sont interchangeables -- les fusionner ne
+		# coute RIEN, et c'est exactement la restriction gratuite qu'on cherche. Le banc ne
+		# juge pas ca : il rend ce qu'il a vu, et l'analyse se fait a cote.
+		if not _dump.is_empty():
+			_dumped.append("%d\t%d\t%s" % [int(indices[cell]), int(indices[cell]) & 0xff,
+					"|".join(faces)])
 	var forced: int = 0
 	var worst: int = 0
 	for who: String in seen.keys():
@@ -1320,6 +1333,12 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 	# DECIDE DE TRACER -- une information du second ordre, absente de l'alphabet des especes,
 	# et c'est exactement elle qui fait eclater les contextes. On compte donc le vocabulaire
 	# deux fois : tel quel, et une fois ces quatre bits effaces.
+	if not _dump.is_empty():
+		var out: FileAccess = FileAccess.open(_dump, FileAccess.WRITE)
+		if out != null:
+			out.store_string("\n".join(_dumped) + "\n")
+			out.close()
+			print("  table brute ecrite : %s  (%d lignes)" % [_dump, _dumped.size()])
 	var second: int = ABOVE_QUIET_EAST | ABOVE_QUIET_WEST | BELOW_QUIET_EAST 			| BELOW_QUIET_WEST | NORTH_FLUSH_EAST | NORTH_FLUSH_WEST
 	# ⚠ ET ON COMPTE SUR TOUS LES ETAGES, PAS SUR LA CARTE VISIBLE. Le vocabulaire est ce que
 	# l'assemblage POSE, et il pose une tuile par etage et par case : compte sur les seules
