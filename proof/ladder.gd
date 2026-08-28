@@ -513,8 +513,12 @@ func _run(couple: String) -> bool:
 	var expected: int = Thickness.SURFACE_INDICES.size()
 	var complete: bool = canonical.size() == expected
 	if level >= 5:
+		# ⚠ ET ON COMPTE LES QUINZE SILHOUETTES, PAS LES TUILES. Les bits de bord multiplient
+		# les tuiles ; ce que le monde doit exercer, c'est le vocabulaire de FORMES.
 		expected = CornerIndex.TILE_COUNT
-		canonical = vocabulary
+		canonical = {}
+		for key6: Variant in vocabulary.keys():
+			canonical[int(key6) & 0xf] = true
 		complete = canonical.size() == expected
 	print("  vocabulaire exerce : %d / %d silhouettes%s   %d tuiles a peindre"
 			% [canonical.size(), expected, "" if complete else "  ⚠ INCOMPLET",
@@ -912,14 +916,23 @@ func _run(couple: String) -> bool:
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
 	var bare: Image = null
+	var cover: Image = null
 	if level >= 3:
 		var none: Array[Dictionary] = []
 		for storey: int in range(storeys.size()):
 			none.append({})
-		bare = _assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles)
+		bare = _assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles,
+				level >= 5)
+		# ⚠ ET LA COUVERTURE SE LIT SUR UNE ASSEMBLEE DES SURFACES SEULES, PAS SUR UNE TUILE.
+		# I6 demandait « la tuile qui couvre cette case » -- une question qui n'a plus de
+		# reponse des que les surfaces sont DECALEES D'UN DEMI-PAS : une case y est couverte
+		# par QUATRE tuiles a cheval. Une assemblee sans robes ni poses arriere repond pour
+		# toutes les familles, et sans rien redemander au modele.
+		cover = _assemble(world, storeys, tiles, {}, role_tiles, none, backing_tiles,
+				level >= 5)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under,
-			role_tiles, bare)
+			role_tiles, bare, cover, level)
 	# ⚠ LA COMPLETUDE DU VOCABULAIRE EST UNE EXIGENCE DE SPECIMEN, PAS DE MONDE. La planche et
 	# le guide sont batis POUR porter les 27 silhouettes, et un manque y est un defaut. Une
 	# battue, elle, n'a pas a les porter : elle est la pour eprouver les RENCONTRES, et lui
@@ -1212,13 +1225,19 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 		var line: PackedByteArray = PackedByteArray()
 		line.resize(RES)
 		for x: int in range(RES):
+			# ⚠ ET LES DEUX AXES SE DEPLACENT, C'EST TOUTE LA LIBERTE DE CETTE FAMILLE. Une
+			# tuile a cheval n'a pas de bord a faire rentrer -- ses cotes sont a moitie pleins
+			# par construction. Ce qui a une position, chez elle, c'est l'AXE entre deux
+			# quadrants ; le peintre le deplace, et c'est ca que I5 mesure.
+			var vx: int = half - 1 + _corner_shift(y, freedom, true)
+			var hy: int = half - 1 + _corner_shift(x, freedom, false)
 			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.
 			var corner: int = 0
-			if x >= half and y < half:
+			if x > vx and y <= hy:
 				corner = 1
-			elif x >= half and y >= half:
+			elif x > vx and y > hy:
 				corner = 2
-			elif x < half and y >= half:
+			elif x <= vx and y > hy:
 				corner = 3
 			line[x] = 1 if (index & CornerIndex.BITS[corner]) != 0 else 0
 		solid.append(line)
@@ -1251,6 +1270,29 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else GRASS)
 	return tile
+
+
+## LE DEPLACEMENT D'UN AXE, le long de lui-meme.
+##
+##   F0  zero : l'axe est au milieu, exactement.
+##   F1  une constante GLOBALE. ⚠ Et elle ne peut pas etre par tuile, c'est un theoreme de la
+##       famille : deux tuiles voisines se partagent les deux moities d'une meme frontiere, et
+##       se rejoignent a leur bord commun. Un axe plat DEPLACE ne se rejoint que si toutes les
+##       tuiles le deplacent pareil. La liberte laterale de F1 est donc GLOBALE ici, la ou elle
+##       est par tuile dans la famille par case.
+##   F2  la meme constante AUX DEUX BOUTS, libre entre les deux -- meme loi que partout.
+func _corner_shift(along: int, freedom: int, vertical: bool) -> int:
+	if freedom == 0:
+		return 0
+	# ⚠ ET LE MEME DEPLACEMENT POUR LES DEUX AXES. Deux valeurs differentes font deux profils
+	# plats la ou la liberte n'en promet qu'un -- et I5 le disait.
+	var shift: int = 2
+	if freedom == 1:
+		return shift
+	var seed: int = absi((3 if vertical else 5) * 19349663)
+	var reach: float = float(1 + seed % 3)
+	var t: float = float(along) / float(RES - 1)
+	return shift + int(round(reach * sin(PI * t)))
 
 
 # ------------------------------------------------------------------ LE DESSIN
@@ -1914,7 +1956,7 @@ func _seam_classes(storeys: Array[Dictionary], roles: Dictionary, level: int,
 
 func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
 		freedom: int, roles: Dictionary, under: Dictionary = {}, role_tiles: Dictionary = {},
-		bare: Image = null) -> Dictionary:
+		bare: Image = null, cover: Image = null, level: int = 0) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 
@@ -2096,7 +2138,25 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	# le coin que son voisin y a laisse. Sept profils au premier essai, tous fantomes.
 	var profiles: Dictionary = {}
 	var wavy: int = 0
+	# ⚠ LE PROFIL D'UNE TUILE A CHEVAL EST CELUI DE SA FRONTIERE INTERNE. Ses quatre cotes sont
+	# a moitie pleins par construction ; leur demander leur profondeur ne mesure rien. Ce qui a
+	# une position, chez elle, c'est l'axe entre deux quadrants -- et c'est ca que la liberte
+	# ferait bouger.
+	if level >= 5:
+		for key: Variant in tiles.keys():
+			for vertical: int in range(2):
+				var line2: String = _corner_profile(tiles[key] as Image, vertical == 0)
+				if line2.is_empty():
+					continue
+				profiles[line2] = true
+				var cut2: PackedStringArray = line2.split(",")
+				for i: int in range(1, cut2.size()):
+					if cut2[i] != cut2[0]:
+						wavy += 1
+						break
 	for key: Variant in tiles.keys():
+		if level >= 5:
+			break
 		for side: int in range(4):
 			# ⚠ ET ON NE PROFILE PAS UN COTE QUE LE BORD VIENT DE FAIRE TAIRE. La sonde y
 			# rend « rien », et « rien » differe d'un profil trace : I5 comptait alors des
@@ -2127,6 +2187,12 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 		1:
 			promised = "plusieurs profils, tous plats"
 			i5 = profiles.size() >= 2 and wavy == 0
+			if level >= 5:
+				# ⚠ A CHEVAL, LA LIBERTE LATERALE EST GLOBALE, PAS PAR TUILE -- theoreme de la
+				# famille, voir `_corner_shift`. La promesse juste est donc « un profil plat,
+				# mais DEPLACE » : un seul, sans ondulation, et ailleurs qu'au milieu.
+				promised = "un profil plat, mais deplace"
+				i5 = profiles.size() == 1 and wavy == 0 						and not profiles.has(",".join(_flat(RES / 2 - 1)))
 		_:
 			promised = "des profils qui serpentent"
 			i5 = wavy > 0
@@ -2175,9 +2241,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 		for cell: Vector2i in under.keys():
 			# Une case couverte par une robe VISIBLE ne montre rien de sa pose arriere : les robes
 			# se posent en dernier, par-dessus tout.
-			if roles.has(cell) or not indices.has(cell):
+			if roles.has(cell):
 				continue
-			var cover: Image = tiles[int(indices[cell])] as Image
 			var named: Image = role_tiles[_wall_key(under[cell])] as Image
 			for x: int in range(RES):
 				# ⚠ ET L'ENCOCHE NORD NE REGARDE PAS VERS LE BAS, ELLE REGARDE VERS LE NORD.
@@ -2187,10 +2252,11 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				# roche accuserait le dessin d'etre juste -- et sans ce recadrage la roche y
 				# sortait avec un bord que personne ne trace.
 				var above: int = 0
-				while above < RES and cover.get_pixel(x, above).a < 0.5:
+				while above < RES and cover.get_pixel(cell.x * RES + x,
+						cell.y * RES + above).a < 0.5:
 					above += 1
 				for y: int in range(RES):
-					if cover.get_pixel(x, y).a >= 0.5 or y < above:
+					if cover.get_pixel(cell.x * RES + x, cell.y * RES + y).a >= 0.5 							or y < above:
 						continue
 					window += 1
 					var px: int = cell.x * RES + x
@@ -2420,6 +2486,44 @@ func _around(cell: Vector2i, indices: Dictionary, roles: Dictionary, freedom: in
 		said.append("%s: %s" % [SIDE_NAMES[side],
 				_tells(cell + STEPS[side], indices, roles, freedom)])
 	return " ; ".join(said)
+
+
+## LE PROFIL DE LA FRONTIERE INTERNE d'une tuile a cheval : pour chaque rangee (ou colonne), ou
+## se trouve le trait. Vide s'il n'y en a pas de ce sens-la.
+## Un profil plat a la position donnee, pour le comparer.
+func _flat(at: int) -> PackedStringArray:
+	var said: PackedStringArray = PackedStringArray()
+	for i: int in range(RES):
+		said.append(str(at))
+	return said
+
+
+func _corner_profile(tile: Image, vertical: bool) -> String:
+	# ⚠ ON SUIT LA TRANSITION DE MATIERE, PAS LE PREMIER PIXEL DE TRAIT. Chercher le trait
+	# trouve celui de l'AUTRE orientation quand la sienne n'existe pas -- et une frontiere que
+	# le bit vient de faire taire n'a pas de trait du tout, alors que sa matiere, elle, est
+	# toujours la. C'est la position de la matiere que la liberte ferait bouger.
+	var said: PackedStringArray = PackedStringArray()
+	var found: bool = false
+	for along: int in range(RES):
+		var at: int = -1
+		for step: int in range(RES - 1):
+			var here: bool = tile.get_pixel(step if vertical else along,
+					along if vertical else step).a >= 0.5
+			var next: bool = tile.get_pixel(step + 1 if vertical else along,
+					along if vertical else step + 1).a >= 0.5
+			if here != next:
+				at = step
+				found = true
+				break
+		if at < 0:
+			# ⚠ ET ON NE PROFILE QU'UNE FRONTIERE ENTIERE. Une demi-frontiere -- un seul
+			# quadrant plein -- n'existe que sur la moitie de l'axe ; melanger les deux
+			# longueurs compte des profils la ou il n'y a qu'une forme de tuile. Meme regle
+			# que dans la famille par case, ou l'on ne profile pas un cote qui ne trace pas.
+			return ""
+		said.append(str(at))
+	return ",".join(said) if found else ""
 
 
 func _profile(tile: Image, side: int) -> String:

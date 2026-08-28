@@ -179,7 +179,9 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
-| **L5/F0** | **quatre invariants sur six** | I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ — au prix de **13 → 62 tuiles à cheval**. I5 et I6 ne savent pas encore lire cette famille |
+| **L5/F0** | **les six verts** — mais le monde n'exerce que **13 des 15** formes | I1 ✅ · I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ (fenêtre 0) — au prix de **62 tuiles à cheval** |
+| L5/F1 | **55 extrémités**, dont 54 noyées | I2 ✅ · I5 ✅ · I6 ✅ |
+| L5/F2 | **122 extrémités**, dont 121 noyées | I2 ✅ · I5 ✅ (24 profils qui serpentent) |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
@@ -346,12 +348,39 @@ sans bit **ne survit pas à la rencontre avec les falaises** : il ne vaut que po
 cheval seule, sur un monde sans face. C'est un résultat, pas une déception — il était annoncé
 comme le nœud du niveau, et il est maintenant chiffré au lieu d'être craint.
 
-⚠ **Et deux invariants ne savent pas encore lire cette famille, donc L5/F0 N'EST PAS ACQUIS.**
-I5 promet « un seul profil, plat » à F0 et en compte 13 — ce qui n'a pas de sens pour une tuile
-dont les quatre côtés sont à moitié pleins ; I6 cherche la pose arrière sous une **case** alors
-que la surface qui la couvre est **décalée d'un demi-pas**, et compte donc ses 1 024 pixels de
-fenêtre comme autant de matières perdues. **Ils sont rouges pour une raison de mesure, pas de
-dessin** — et tant qu'ils ne savent pas lire, quatre verts sur six ne sont pas un acquis.
+### I5 ET I6 SAVENT LIRE LA FAMILLE À CHEVAL, ET ILS ONT CHACUN APPRIS UNE CHOSE
+
+**I6 ne demande plus « quelle tuile couvre cette case ».** La question n'a plus de réponse quand
+les surfaces sont décalées d'un demi-pas : une case est couverte par **quatre** tuiles à cheval.
+Il lit désormais une **assemblée des surfaces seules** — sans robes ni poses arrière — qui répond
+pour toutes les familles sans rien redemander au modèle. ⚠ À F0 sa fenêtre vaut **0 pixel** : les
+surfaces sont pleines, il n'y a rien à voir. Le vert est donc vrai et ne prouve rien, et la ligne
+le dit.
+
+**I5 profile la frontière INTERNE, et il suit la matière, pas le trait.** Chercher le trait trouve
+celui de l'autre orientation quand la sienne n'existe pas — et une frontière qu'un bit vient de
+faire taire n'a **pas de trait du tout**, alors que sa matière est toujours là. Ce qui a une
+position chez une tuile à cheval, c'est l'**axe** entre deux quadrants.
+
+⚠ **ET IL A REFUSÉ UN DESSIN FIGÉ, CE POUR QUOI IL EXISTE.** À F1, avant que la liberté ne soit
+écrite, les quatre autres invariants étaient verts et I5 seul disait *« tu promets plusieurs
+profils, tu en livres un »*.
+
+⚠ **À CHEVAL, LA LIBERTÉ LATÉRALE EST GLOBALE, PAS PAR TUILE — ET C'EST UN THÉORÈME DE LA
+FAMILLE.** Deux tuiles voisines se partagent les deux moitiés d'une même frontière et se
+rejoignent à leur bord commun ; un axe plat **déplacé** ne se rejoint que si **toutes** les tuiles
+le déplacent pareil. La promesse juste de F1 est donc *« un profil plat, mais déplacé »*, là où la
+famille par case en promet plusieurs.
+
+⚠ **ET LA LIBERTÉ SE PAIE CONTRE LES FALAISES : 55 extrémités à F1, 122 à F2**, dont **54 et 121
+noyées dans la matière**. La raison est nette : les quatre bits de l'issue B ont été calculés pour
+un axe **posé sur le bord de case** ; dès qu'il s'en écarte, la frontière de la tuile à cheval et
+le flanc de la robe ne sont plus au même endroit, et le trait meurt dans la roche. **C'est le
+travail qui reste à L5.**
+
+⚠ **ET LA PLANCHE N'EXERCE QUE 13 DES 15 FORMES À CHEVAL, DONC L5/F0 N'ENTRE PAS À L'ACQUIS.**
+Elle a été bâtie **pour la famille par case**. Un guide dual reste à construire, et tant qu'il
+n'existe pas, six verts sur un monde qui n'exerce pas tout le vocabulaire ne sont pas un acquis.
 
 ⚠ **Et la planche de preuve n'exerce que 13 des 15 tuiles à cheval** : elle a été bâtie pour la
 famille par case. Un guide dual reste à construire.
