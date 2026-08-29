@@ -27,6 +27,7 @@ const PluginManifest := preload("res://addons/solupaint/manifest.gd")
 const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 const Thickness := preload("res://core/thickness.gd")
+const Domain := preload("res://core/domain.gd")
 const Seams := preload("res://core/seams.gd")
 const Junctions := preload("res://core/junctions.gd")
 const WorkArea := preload("res://ui/work_area.gd")
@@ -68,6 +69,7 @@ func _initialize() -> void:
 	_test_assembly()
 	_test_preview_scene()
 	_test_vocabulary_is_closed()
+	_test_domain()
 	_test_thickness()
 	_test_thickness_cross_check()
 	_test_deep_falls()
@@ -3760,6 +3762,62 @@ func _check_lip_seams(ink: GuideImage.Ink, marks: bool, label: String) -> void:
 	# mentait. L epaule se ferme desormais dans les deux, chacune dans sa palette.
 	_check_equal(pierced, PackedStringArray([]) as Array,
 			"%s : aucun bord sud ne laisse voir le fond -- l epaule bouche l angle" % label)
+
+
+## LE DOMAINE : ce qu'on refuse, a un seul endroit -- et on ne refuse pas ce qu'on livre.
+##
+## ⚠ UNE LISTE DE CLAUSES QUE PERSONNE NE VERIFIE N'EST QU'UN DOCUMENT, donc un endroit ou
+## mentir de plus. Ce qui se prouve ici : les clauses sont completes et distinctes ; chaque
+## guide LIVRE est dans le domaine ; un relief fin en sort et la clause est NOMMEE ; et une
+## clause ecartee le reste tant que nos propres mondes la violent.
+func _test_domain() -> void:
+	print("domaine : les clauses, a un seul endroit, et nos mondes dedans")
+	var seen: Dictionary = {}
+	var kinds: Array[String] = [Domain.KIND_WORLD, Domain.KIND_GUIDE, Domain.KIND_ABSENT,
+			Domain.KIND_DROPPED]
+	for entry: Dictionary in Domain.clauses():
+		var id: String = String(entry["id"])
+		_check(not seen.has(id), "la clause %s n est declaree qu une fois" % id)
+		seen[id] = true
+		_check(kinds.has(String(entry["kind"])), "%s est d une espece connue" % id)
+		_check(not String(entry["titre"]).is_empty(), "%s a un titre" % id)
+		_check(not String(entry["enonce"]).is_empty(), "%s a un enonce" % id)
+		_check_equal(Domain.clause(id)["titre"], entry["titre"], "%s se retrouve par son id" % id)
+	_check(Domain.clause("cette clause n existe pas").is_empty(),
+			"une clause inconnue rend un dictionnaire vide")
+
+	# ⚠ ON NE REFUSE PAS UN MONDE QU ON LIVRE SOI-MEME. C est la contradiction qu un domaine
+	# eparpille finit toujours par produire, et elle ne se voit qu en comparant les deux.
+	for id: StringName in Modes.ids():
+		if not Modes.is_available(id):
+			continue
+		var heights: PackedStringArray = HeightMask.read(Modes.guide_path(id))
+		var faults: Array[String] = Domain.violations(heights)
+		_check(faults.is_empty(), "le guide du mode %s est dans le domaine %s"
+				% [Modes.label(id), str(faults)])
+		# ⚠ ET LA CLAUSE ECARTEE RESTE ECARTEE TANT QUE LE GUIDE LA VIOLE. Le guide livre
+		# porte des parois sans masse d aucun cote ; remettre X1 en clause de MONDE
+		# refuserait notre propre guide, sans que rien d autre ne le dise.
+		if not Thickness.lonely_robe_cells(heights).is_empty():
+			_check_equal(Domain.clause("X1")["kind"], Domain.KIND_DROPPED,
+					"X1 reste ecartee : le guide %s porte ce qu elle interdirait"
+					% Modes.label(id))
+
+	# ⚠ ET LE REFUS NOMME SA CLAUSE. Un refus muet est le pire des refus : le pinceau doit
+	# pouvoir dire CE QUI manque, pas seulement qu il refuse.
+	var isthmus: PackedStringArray = PackedStringArray([
+			"~~~~~~~", "~11111~", "~11111~", "~~~1~~~", "~11111~", "~11111~", "~~~~~~~"])
+	_check(not Domain.accepts(isthmus), "un isthme d une case sort du domaine")
+	_check(Domain.violations(isthmus).has("D2"), "et c est la clause D2 qui le dit")
+
+	var block: PackedStringArray = PackedStringArray([
+			"~~~~~", "~111~", "~111~", "~111~", "~~~~~"])
+	_check(Domain.accepts(block), "un bloc 3x3 est dans le domaine")
+	# ⚠ UN CARACTERE ABERRANT SE LIT PLAINE EN SILENCE dans un masque bati a la main : c est
+	# exactement ce que D1 garde, et la mesure doit avoir vu quelque chose.
+	var junk: PackedStringArray = PackedStringArray([
+			"~~~~~", "~111~", "~1A1~", "~111~", "~~~~~"])
+	_check(Domain.violations(junk).has("D1"), "un caractere hors alphabet est nomme par D1")
 
 
 func _test_thickness() -> void:
