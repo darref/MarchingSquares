@@ -31,6 +31,7 @@ SILHOUETTES = [5,7,20,23,28,29,31,65,71,80,92,112,113,116,119,124,127,193,197,19
 
 
 RETIRES = 0
+DIAG_ERGOT = True   # la regle ; `--ergot=voisine` rejoue l'ancienne
 
 
 def libres(sil):
@@ -42,6 +43,11 @@ def libres(sil):
     for coin in range(4):
         a, b = coin, (coin + 3) % 4
         if sil & CARD[a] and sil & CARD[b] and not sil & DIAG[coin]:
+            # ⚠ PAR LA DIAGONALE : UN SEUL BIT PAR COIN, et c'est un FAIT du monde -- « une
+            # face couvre ma diagonale » -- au lieu de deux DECISIONS de voisines.
+            if DIAG_ERGOT:
+                out.append(4 << coin)
+                continue
             # ⚠ ET L'ERGOT DONT LE PARTENAIRE EST AU SUD N'EST PAS UN BIT : des L2 le sud ne
             # se trace jamais, donc il vaudrait TOUJOURS 1. Une constante deguisee en bit
             # double le vocabulaire potentiel sans distinguer quoi que ce soit.
@@ -95,8 +101,10 @@ NOMS = {"bord": BORD_E | BORD_W, "nq": NORTH_QUIET, "ergot": 1020,
 
 
 def main():
-    global RETIRES
+    global RETIRES, DIAG_ERGOT
     for a in sys.argv[1:]:
+        if a == "--ergot=voisine":
+            DIAG_ERGOT = False
         if a.startswith("--sans="):
             for nom in a.split("=")[1].split(","):
                 RETIRES |= NOMS[nom]

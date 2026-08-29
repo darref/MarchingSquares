@@ -2309,3 +2309,36 @@ détecteur qui l'a rendue visible.
 signifient exactement *« de la roche couvre ma diagonale »* — un **fait du monde**, pas une
 décision de la voisine. Reformulé ainsi il passe le test de la clause B, et il pourrait ne coûter
 **qu'un bit par coin au lieu de deux**.
+
+
+### 14 · LE BIT DE DIAGONALE — LA QUESTION SE RETOURNE, ET ELLE COÛTE MOITIÉ MOINS
+
+L'ergot demandait *« ma voisine trace-t-elle ce côté ? »* — une **décision**, ce que la clause B
+interdit. Le diagnostic disait pourquoi elle ne trace pas : dans **43 à 67 cas sur 47 à 73**, une
+**face couvre ma diagonale**. La question se retourne donc en un **fait du monde**, que la case
+pose elle-même — et **un seul bit par coin au lieu de deux**.
+
+| | départ | après l'ergot-sud | **après la diagonale** |
+|---|---|---|---|
+| tuiles posées (planche / guide) | 45 / 51 | 45 / 51 | **45 / 51** |
+| I1 · I2 · I3 | ✅ | ✅ | **✅** |
+| **borne haute** | **341** | 241 | **185** |
+| **serrage** (53 tuiles vues) | 16 % | 22 % | **29 %** |
+
+⚠ **ZÉRO PIXEL CHANGÉ, ZÉRO TUILE PERDUE, ET LA BORNE DESCEND DE 156 EN DEUX COUPS.** Les deux
+corrections sont de la même espèce, et c'est ce qui en fait une méthode plutôt qu'une chance :
+*l'identité de la tuile portait une information que le monde ne fait pas varier* — une
+**constante** d'abord (le sud), une **décision redondante** ensuite (ce que la voisine trace).
+
+⚠ **ET LES 4 À 6 CAS « LA VOISINE PORTE UNE ROBE » NE COÛTENT RIEN.** Je m'attendais à ce qu'ils
+rouvrent des extrémités — la diagonale ne les couvre pas en théorie. Mesure : **zéro**. Rejeu des
+vingt couples acquis : l'échelle tient.
+
+⚠ **CORRECTION D'UN CHIFFRE À MOI** : j'avais annoncé « serrage 18 % → 26 % » en mélangeant deux
+bases — l'union de toutes les familles, mesurée sous l'ancien jeu de bits. Sur une base constante,
+les 53 tuiles de la planche et du guide, c'est **16 % → 22 % → 29 %**.
+
+**Ce que le serrage désigne maintenant.** Les silhouettes les plus chargées sont **20 et 80, à 18
+tuiles chacune** ; le reste suit à 12. Tant que la borne reste à cinq fois ce qu'un monde produit,
+il reste des bits qui ne varient pas — et le détecteur les nommera un à un, comme il vient de le
+faire deux fois.

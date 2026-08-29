@@ -206,6 +206,11 @@ static var _drop: int = 0
 ## Le niveau du couple en cours -- le dessin en a besoin pour savoir si le sud se trace.
 static var _level: int = 0
 
+## L'ERGOT PAR LA DIAGONALE : un bit par coin, et c'est un FAIT du monde -- « une face couvre
+## ma diagonale » -- au lieu de deux DECISIONS de voisines. C'est la regle ; `LADDER_ERGOT=voisine`
+## rejoue l'ancienne.
+static var _ergot_diag: bool = false
+
 static var _dump: String = ""
 static var _dumped: PackedStringArray = PackedStringArray()
 ## Le contexte de chaque case, garde pour pouvoir sortir celui de ses VOISINES : c'est ce qui
@@ -325,6 +330,9 @@ func _initialize() -> void:
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	_dump = OS.get_environment("LADDER_DUMP")
+	# ⚠ LA DIAGONALE EST LA REGLE, ET L'ANCIENNE FORMULATION RESTE JOIGNABLE COMME TRACE :
+	# un chiffre qu'on ne peut plus reproduire n'est plus un chiffre.
+	_ergot_diag = OS.get_environment("LADDER_ERGOT") != "voisine"
 	for nom: String in OS.get_environment("LADDER_DROP").split(",", false):
 		match nom.strip_edges():
 			"bord": _drop |= 1 | 2
@@ -753,6 +761,18 @@ func _run(couple: String) -> bool:
 						if (shape & CARDINALS[a]) == 0 or (shape & CARDINALS[b]) == 0:
 							continue
 						if (shape & DIAGONALS[corner]) != 0:
+							continue
+						# ⚠ L'ERGOT PAR LA DIAGONALE : UN FAIT DU MONDE, PAS UNE DECISION.
+						# Les deux bits du coin demandaient « ma voisine trace-t-elle ce
+						# cote-la ? » -- une DECISION, ce que la clause B interdit. Or le
+						# diagnostic dit pourquoi elle ne trace pas : dans 43 a 67 cas sur
+						# 47 a 73, c'est que « le bord l'a fait taire », c'est-a-dire qu'une
+						# FACE couvre ma diagonale. La question se retourne donc en un fait
+						# que je peux poser moi-meme, et un seul par coin au lieu de deux.
+						if _ergot_diag:
+							var coin: Vector2i = here2 + STEPS[a] + STEPS[b]
+							if roles.has(coin):
+								more |= 4 << corner
 							continue
 						# ⚠ ET LE PARTENAIRE AU SUD N'EST PAS UNE QUESTION, C'EST UNE
 						# CONSTANTE. Des L2 le sud ne se trace plus jamais -- « le bord sud
@@ -2194,6 +2214,16 @@ func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0,
 		if (index & CARDINALS[a]) == 0 or (index & CARDINALS[b]) == 0:
 			continue
 		if (index & DIAGONALS[corner]) != 0:
+			continue
+		# ⚠ PAR LA DIAGONALE : un seul bit gouverne les deux ergots du coin. De la roche a ma
+		# diagonale veut dire que la voisine s'est tue de ce cote -- pour l'une comme pour
+		# l'autre, puisque c'est la MEME face qui les longe.
+		if _ergot_diag:
+			if (quiet & (4 << corner)) == 0:
+				if not (b == 2 and level >= 2):
+					_stub(tile, a, b, _depth(b, 0, freedom))
+				if not (a == 2 and level >= 2):
+					_stub(tile, b, a, _depth(a, 0, freedom))
 			continue
 		# ⚠ LE PARTENAIRE AU SUD NE TRACE JAMAIS DES L2 : l'ergot qui comptait sur lui pend,
 		# toujours. Le dessin le sait sans qu'on le lui dise -- c'est une constante du niveau,
