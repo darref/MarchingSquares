@@ -2202,3 +2202,53 @@ démontrées.
 qu'elles retirent au vocabulaire, et ce qu'elles coûtent en contours ouverts. La différence avec
 « minimal », c'est qu'elles sont **applicables** — on peut dire si une règle les respecte, tout
 de suite, sans énumérer un domaine.
+
+
+### 12 · LA CLAUSE B, CHIFFRÉE — LE TARIF DE CHAQUE BIT
+
+*« Un bit ne se paie que s'il ferme une jonction entière » était au plan depuis longtemps et
+n'avait jamais été appliquée, faute d'un tarif. Le voici : on retire un bit (`LADDER_DROP`), on
+regarde ce qui s'ouvre et ce qu'on économise — dans les deux monnaies, les tuiles **posées** et
+la **borne haute**.*
+
+| bit retiré | posées (planche / guide) | extrémités | doublements | **borne haute** |
+|---|---|---|---|---|
+| — | 45 / 51 | 0 | 0 | **341** |
+| `bord` (nu/roche) | −11 / −13 | 0 | **184 / 194** | 255 |
+| `nq` (NORTH_QUIET) | −5 / −8 | 0 | **18 / 68** | 302 |
+| **`ergot`** (8 bits) | **−0 / −2** | **30 / 50** | 0 | **113** |
+| `above` | −6 / −7 | 9 / 8 | 0 | 267 |
+| `flush` | −1 / −3 | 0 / 5 | 0 | 284 |
+| `below` | −1 / −1 | 1 / 1 | 0 | 275 |
+| `flush` + `below` | −2 / −4 | 1 / 6 | 0 | 228 |
+| `ergot`+`flush`+`below` | −2 / −6 | 30 / 55 | 0 | **72** |
+| … + `above` | — | — | — | **52** |
+
+⚠ **DEUX FAMILLES SE SÉPARENT NETTEMENT, ET CE N'EST PAS CELLE QU'ON CROYAIT.**
+
+- **`bord` et `nq` sont des RÈGLES.** Ils n'ouvrent **aucune** extrémité — la fermeture tient
+  sans eux — mais ils achètent l'**unicité** : 184 et 18 doublements sur la planche, 194 et 68
+  sur le guide. Ils servent la règle qui a tranché J2, *traits continus simples, jamais doublés*,
+  et ils la servent pour 11 et 5 tuiles. C'est un bon prix.
+- **`ergot`, `above`, `flush`, `below` sont des RUSTINES DE FERMETURE.** Ils n'achètent aucun
+  doublement ; ils bouchent des **extrémités**, une par une.
+
+⚠ **ET L'ERGOT EST LE CAS EXTRÊME, DANS LES DEUX SENS À LA FOIS : il ne coûte QUE 0 à 2 tuiles
+posées, et il coûte 228 tuiles de borne haute — les deux tiers du total.** Huit bits qui ne se
+déclenchent presque jamais, mais qui **multiplient** le vocabulaire potentiel par trois. C'est
+exactement la forme d'un bit qui devrait être une **règle** : il ferme 30 à 50 extrémités, donc
+il porte quelque chose de réel, mais il le porte de la manière la plus chère possible.
+
+⚠ **LE TEST DE LA CLAUSE B DOIT DONC SE DIRE SUR LA VALEUR, PAS SUR LA PRÉCONDITION.** Écrit
+« un bit dont la *précondition* ne se lit pas dans la silhouette », il innocente l'ergot — dont
+la précondition (deux cardinaux pleins, diagonale vide) est bien dans la silhouette. Écrit
+**« un bit dont la VALEUR demande ce que la voisine a DÉCIDÉ »**, il accuse les quatre, et les
+chiffres suivent : à eux quatre ils font passer la borne de **341 à 52**, soit **85 % de la
+borne haute**, pour **2 à 6 tuiles posées** et 55 extrémités.
+
+`bord` et `nq`, eux, demandent un **fait du monde** — « ma voisine est-elle couverte par une
+face ? » — pas une décision. Ils passent le test, et le tarif leur donne raison.
+
+**Ce que ça désigne comme prochain travail, et c'est précis : l'ergot de coin rentrant.** Trouver
+une règle qui ferme ces 30 à 50 extrémités sans demander à la voisine ce qu'elle trace ferait
+tomber la borne de **341 à 113** pour un coût observé **nul**. Aucun autre bit n'a ce profil.

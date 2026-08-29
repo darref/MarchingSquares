@@ -171,6 +171,16 @@ static var _j2_none: bool = false
 static var _backing: String = "mute"
 
 ## Ou sortir la table brute (cle, silhouette, les quatre especes) -- vide, on n'ecrit rien.
+## LA CLAUSE B, CHIFFREE : quels bits retirer, pour voir ce que chacun paie.
+##
+## ⚠ « UN BIT NE SE PAIE QUE S'IL FERME UNE JONCTION ENTIERE » -- la clause est au plan depuis
+## longtemps et n'a jamais ete appliquee, faute d'un tarif. Le voici : on retire un bit, on
+## regarde ce qui s'ouvre (I1, I2, I3) et ce qu'on economise (le vocabulaire). Un bit qui ne
+## ferme rien est une rustine ; un bit qui ferme cher est une regle.
+##
+##     LADDER_DROP=bord,nq,ergot,above,flush,below   (au choix, separes par des virgules)
+static var _drop: int = 0
+
 static var _dump: String = ""
 static var _dumped: PackedStringArray = PackedStringArray()
 ## Le contexte de chaque case, garde pour pouvoir sortir celui de ses VOISINES : c'est ce qui
@@ -290,6 +300,15 @@ func _initialize() -> void:
 		_backing = OS.get_environment("LADDER_BACKING")
 	_why = not OS.get_environment("LADDER_WHY").is_empty()
 	_dump = OS.get_environment("LADDER_DUMP")
+	for nom: String in OS.get_environment("LADDER_DROP").split(",", false):
+		match nom.strip_edges():
+			"bord": _drop |= 1 | 2
+			"nq": _drop |= NORTH_QUIET
+			"ergot": _drop |= 1020
+			"above": _drop |= ABOVE_QUIET_EAST | ABOVE_QUIET_WEST
+			"flush": _drop |= NORTH_FLUSH_EAST | NORTH_FLUSH_WEST
+			"below": _drop |= BELOW_QUIET_EAST | BELOW_QUIET_WEST
+			_: push_error("ladder: bit inconnu '%s'." % nom)
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	_clause = OS.get_environment("LADDER_CLAUSE")
 	_astride = OS.get_environment("LADDER_ASTRIDE")
@@ -650,6 +669,7 @@ func _run(couple: String) -> bool:
 				if not _j2_on_face and (tile2 & BlobIndex.N) == 0 					and _foot_above(cell2 + Vector2i.UP, roles):
 					edge |= NORTH_QUIET
 
+				edge &= ~_drop
 				indices[cell2] = tile2 | (edge << 8)
 				vocabulary[tile2 | (edge << 8)] = true
 				# ⚠ ET DANS LA SILHOUETTE AUSSI, sinon rien ne bouge : c'est elle que
@@ -755,6 +775,7 @@ func _run(couple: String) -> bool:
 							more |= ABOVE_QUIET_EAST
 						if (shape & BlobIndex.W) == 0 and (up & 2) != 0:
 							more |= ABOVE_QUIET_WEST
+					more &= ~_drop
 					if more == full >> 8:
 						continue
 					map3[here2] = shape | (more << 8)

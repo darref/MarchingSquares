@@ -30,6 +30,9 @@ SILHOUETTES = [5,7,20,23,28,29,31,65,71,80,92,112,113,116,119,124,127,193,197,19
                223,241,247,253,255]
 
 
+RETIRES = 0
+
+
 def libres(sil):
     """Les bits dont la precondition ne depend que de la silhouette."""
     out = []
@@ -43,7 +46,7 @@ def libres(sil):
             out.append(64 << coin)
     if sil & N and not sil & E: out.append(ABOVE_E)
     if sil & N and not sil & W: out.append(ABOVE_W)
-    return out
+    return [b for b in out if not b & RETIRES]
 
 
 def valide(sil, bits):
@@ -73,6 +76,7 @@ def forme():
                 if extra & 2: plus |= FLUSH_W
                 if extra & 4: plus |= BELOW_E
                 if extra & 8: plus |= BELOW_W
+                if plus & RETIRES: continue
                 if valide(sil, bits | plus):
                     vus.add(bits | plus)
         par_sil[sil] = len(vus)
@@ -80,7 +84,17 @@ def forme():
     return total, par_sil
 
 
+NOMS = {"bord": BORD_E | BORD_W, "nq": NORTH_QUIET, "ergot": 1020,
+        "above": ABOVE_E | ABOVE_W, "flush": FLUSH_E | FLUSH_W,
+        "below": BELOW_E | BELOW_W}
+
+
 def main():
+    global RETIRES
+    for a in sys.argv[1:]:
+        if a.startswith("--sans="):
+            for nom in a.split("=")[1].split(","):
+                RETIRES |= NOMS[nom]
     total, par_sil = forme()
     print("=== LA FORME FERMEE, AU JEU DE BITS D'AUJOURD'HUI ===")
     print("  %d tuiles de surface sur %d silhouettes" % (total, len(SILHOUETTES)))
@@ -88,9 +102,10 @@ def main():
     print("  les plus chargees : %s" % ", ".join("%d en %d" % kv for kv in gros))
     petites = sum(1 for v in par_sil.values() if v == 1)
     print("  silhouettes a une seule tuile : %d" % petites)
-    if len(sys.argv) > 1:
+    fichiers = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if fichiers:
         vues = set()
-        for l in open(sys.argv[1]):
+        for l in open(fichiers[0]):
             if "POSEES:" in l or "TUILES:" in l:
                 cle = "POSEES:" if "POSEES:" in l else "TUILES:"
                 vues |= {int(k) for k in l.split(cle)[1].strip().split(",")}
