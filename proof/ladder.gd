@@ -770,6 +770,15 @@ func _run(couple: String) -> bool:
 						# FACE couvre ma diagonale. La question se retourne donc en un fait
 						# que je peux poser moi-meme, et un seul par coin au lieu de deux.
 						if _ergot_diag:
+							# ⚠ ET AUX COINS SUD, LA REPONSE EST TOUJOURS OUI -- C'EST LA
+							# REGLE DE LA LEVRE, UN CRAN PLUS BAS. Au coin SE, ma cardinale
+							# EST est pleine et ma diagonale SE est vide : cette voisine a
+							# donc son sud vide, c'est une LEVRE, et sa face couvre ma
+							# diagonale. Toujours. Idem au SO par la voisine ouest. Mesure
+							# avant d'ecrire : bit mis 6 fois sur 6 aux deux coins sud,
+							# 2 fois sur 7 aux deux coins nord.
+							if corner >= 2 and level >= 2:
+								continue
 							var coin: Vector2i = here2 + STEPS[a] + STEPS[b]
 							if roles.has(coin):
 								more |= 4 << corner
@@ -2219,6 +2228,10 @@ func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0,
 		# diagonale veut dire que la voisine s'est tue de ce cote -- pour l'une comme pour
 		# l'autre, puisque c'est la MEME face qui les longe.
 		if _ergot_diag:
+			# La levre couvre toujours une diagonale sud : les deux ergots de ce coin sont
+			# muets sans qu'aucun bit n'ait a le dire.
+			if corner >= 2 and level >= 2:
+				continue
 			if (quiet & (4 << corner)) == 0:
 				if not (b == 2 and level >= 2):
 					_stub(tile, a, b, _depth(b, 0, freedom))

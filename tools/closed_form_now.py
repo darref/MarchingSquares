@@ -46,7 +46,11 @@ def libres(sil):
             # ⚠ PAR LA DIAGONALE : UN SEUL BIT PAR COIN, et c'est un FAIT du monde -- « une
             # face couvre ma diagonale » -- au lieu de deux DECISIONS de voisines.
             if DIAG_ERGOT:
-                out.append(4 << coin)
+                # ⚠ AUX COINS SUD, LA DIAGONALE EST TOUJOURS COUVERTE -- regle de la levre :
+                # ma cardinale pleine a son sud vide, donc c'est une levre, donc sa face est
+                # la. Constante, pas bit.
+                if coin < 2:
+                    out.append(4 << coin)
                 continue
             # ⚠ ET L'ERGOT DONT LE PARTENAIRE EST AU SUD N'EST PAS UN BIT : des L2 le sud ne
             # se trace jamais, donc il vaudrait TOUJOURS 1. Une constante deguisee en bit

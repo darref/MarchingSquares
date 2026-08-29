@@ -2342,3 +2342,59 @@ les 53 tuiles de la planche et du guide, c'est **16 % → 22 % → 29 %**.
 tuiles chacune** ; le reste suit à 12. Tant que la borne reste à cinq fois ce qu'un monde produit,
 il reste des bits qui ne varient pas — et le détecteur les nommera un à un, comme il vient de le
 faire deux fois.
+
+
+### 15 · LES DIAGONALES SUD SONT DES CONSTANTES — LA RÈGLE DE LA LÈVRE, UN CRAN PLUS BAS
+
+*Le serrage désignait les silhouettes 20 et 80, à 18 tuiles chacune. On regarde ce qu'elles
+portent vraiment.*
+
+⚠ **UNE SEULE COMBINAISON SUR DIX-HUIT, POUR L'UNE COMME POUR L'AUTRE** — et c'est le bit de
+diagonale, toujours **mis**. Vérifié ensuite sur toutes les silhouettes :
+
+| coin rentrant | bit mis | **pas mis** |
+|---|---|---|
+| NO | 2 | 5 |
+| NE | 2 | 5 |
+| **SE** | **6** | **0** |
+| **SO** | **6** | **0** |
+
+**Et c'est un théorème, pas une coïncidence de deux mondes.** Au coin SE, ma cardinale **est** est
+pleine et ma diagonale SE est vide : cette voisine a donc **son sud vide**, c'est une **lèvre**, et
+sa face couvre ma diagonale. Toujours. Idem au SO par la voisine ouest. C'est la règle de la lèvre
+— *une case dont le sud est vide a sa propre falaise juste dessous* — appliquée à la diagonale.
+
+| | tuiles posées | peintes | **borne haute** | serrage |
+|---|---|---|---|---|
+| départ de la soirée | 45 / 51 | 59 / 65 | **341** | 16 % |
+| ergot-sud (constante) | 45 / 51 | 59 / 65 | 241 | 22 % |
+| bit de diagonale (fait, pas décision) | 45 / 51 | 59 / 65 | 185 | 29 % |
+| **diagonales sud (constante)** | **45 / 51** | **49 / 57** | **139** | **38 %** |
+
+⚠ **ET CETTE FOIS LE NOMBRE DE TUILES PEINTES POUR RIEN TOMBE AUSSI — de 14 à 4.** Les trois coups
+précédents ne touchaient que la borne ; celui-ci retire des tuiles que le banc **fabriquait** et
+que l'assemblage ne posait nulle part. Rejeu des vingt couples : l'échelle tient.
+
+⚠ **TROIS FOIS LE MÊME DÉFAUT, TROIS FOIS LE MÊME DÉTECTEUR.** Le sud de l'ergot, puis la décision
+de la voisine, puis les diagonales sud : à chaque fois *l'identité de la tuile portait une
+information que le monde ne fait pas varier*, et à chaque fois c'est l'écart entre la borne et le
+rencontré qui l'a nommée. **341 → 139 en une soirée, sans changer un pixel ni perdre une tuile.**
+
+### CE QUE LE SERRAGE VEUT DIRE POUR L'ACHETEUR — ET CE N'EST PAS QUE DE L'ÉLÉGANCE
+
+Question posée en cours de route : *le but, pour le soft, c'est d'avoir le plus de jumelage
+possible ?* Presque — et la nuance est exactement ce que « serré » sert à dire.
+
+- **Le compte rencontré est le travail de l'acheteur.** Moins de tuiles distinctes = plus de
+  jumelles = plus de cases remplies par coup de crayon. Sur la planche : **45 tuiles de surface
+  pour 13 200 cases visibles**, près de trois cents jumelles par tuile.
+- **Mais maximiser le jumelage n'est pas le but** : on l'obtiendrait en fusionnant des tuiles qui
+  doivent différer, et le prix serait des trous. C'est ce que les six invariants interdisent.
+- **La borne haute, elle, est ce que SON monde pourrait un jour réclamer.** Et le dossier l'écrit
+  déjà : *« une tuile absente du guide est une tuile que l'acheteur ne peut pas peindre »*.
+  L'écart entre les deux n'est donc pas une inélégance, c'est un **risque de trou** — des tuiles
+  qu'un monde peut exiger et qu'aucun guide n'exerce.
+
+⚠ **D'où la formulation exacte de la promesse : tout ce qu'il peint sert, et tout ce dont il aura
+besoin est peint.** Les deux à la fois — c'est pourquoi les deux nombres doivent se **rejoindre**,
+et non l'un être petit. Chaque bit retiré ce soir retire du risque, pas seulement de la borne.
