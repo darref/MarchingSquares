@@ -2467,6 +2467,29 @@ Et le même jeu de correctifs sur le **guide**, qui n'a servi à aucun réglage 
 d'une seule espèce : des frontières que **personne** ne trace, et les extrémités qui vont avec —
 neuf muettes sur le guide dont **huit d'affilée sur une même rangée**, deux sur la battue.
 
+**6. UN PIED REPOSÉ NE TRACE RIEN, ET LE BIT AFFIRMAIT LE CONTRAIRE.** La sonde a nommé les deux
+muettes de la battue en une lecture : le croisement se taisait au nord parce qu'un **pied reposé**
+occupe la case du dessus. Or `mute` — la conception que I6 a choisie à L3 — c'est *la matière SANS
+son contour*. **Un bit de silence dit « quelqu'un d'autre trace » ; posé sur une pose arrière, il
+énonce une chose fausse.** Le dossier portait pourtant la note inverse — *« un pied reposé compte
+autant qu'un pied visible, il trace son bord bas au même endroit »* — écrite avant que L3 ne
+tranche, et jamais relue depuis. *Une règle survit à sa justification*, la troisième fois cette
+semaine.
+
+| | tuiles à cheval | I1 | I2 | I3 |
+|---|---|---|---|---|
+| **planche** | 64 → **45** | ✅ 0 | ✅ 0 | ✅ 0 · 0 |
+| **guide** | 84 → **55** | 6 → **4** | ✅ 0 | 9 muettes → ✅ **0** |
+| **`@battue1`** | 79 → **64** | 4 → **2** | 10 | ✅ 0 · 0 |
+
+⚠ **I3 EST VERT SUR LES TROIS MONDES, ET LE VOCABULAIRE TOMBE D'UN TIERS.** C'est le critère 3 du
+plan qui se vérifie tout seul : *un bit dont les deux valeurs ne sont pas toutes deux réalisées
+gonfle la borne sans distinguer quoi que ce soit.* Celui-là ne distinguait pas — il mentait — et il
+coûtait **19 tuiles sur la planche**. La famille à cheval y livre désormais **45 + 20 = 65** tuiles
+là où elle en demandait 84.
+
+Joignable par `LADDER_UNDERFOOT=trace`, comme trace de la mesure.
+
 **1. LA CARTE DES ROBES ÉTAIT ÉCRITE DEUX FOIS, ET C'EST LA FAUTE QUE LE DOSSIER RÉPÈTE À
 CHAQUE PAGE.** Une chute qui s'arrête pose son PIED, quelle qu'en soit la raison — c'est la
 substitution qui ferme ce qu'on voit de la face. Elle était appliquée à la carte qui **dessine**

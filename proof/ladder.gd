@@ -9,6 +9,13 @@ extends SceneTree
 ##     godot --headless --path . --script res://proof/ladder.gd -- L0 F0
 ##     godot --headless --path . --script res://proof/ladder.gd            (tout l'acquis)
 ##
+## ⚠ ET LE REJEU SE DECOUPE : `LADDER_SHARD=i/n` n'en garde qu'un couple sur n. Trois
+## processus en parallele rendent le verdict en un tiers du temps, et le verdict global est
+## l'ET des trois -- chacun imprime le sien.
+##
+##     for i in 0 1 2; do LADDER_SHARD=$i/3 godot --headless --path . \
+##             --script res://proof/ladder.gd > /tmp/rejeu$i.txt 2>&1 & done; wait
+##
 ## ⚠ IL NE REDERIVE JAMAIS LE CALCUL QU'IL CONTROLE. C'est la faute la plus chere du projet :
 ## `_check_wall_seams` recalculait ses enchainements avec la formule meme qu'il verifiait --
 ## la meme formule, donc la meme erreur, donc rien de verifie -- et la suite etait verte
@@ -277,6 +284,7 @@ static var _clause: String = ""
 static var _astride: String = ""
 static var _meet: String = "both"
 static var _half_axis: bool = false
+static var _backing_traces: bool = false
 
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
@@ -382,6 +390,7 @@ func _initialize() -> void:
 	# le savoir avant de l'accuser ou de le defendre.
 	_meet = OS.get_environment("LADDER_MEET")
 	_half_axis = OS.get_environment("LADDER_HALF") == "axe"
+	_backing_traces = OS.get_environment("LADDER_UNDERFOOT") == "trace"
 	if _meet.is_empty():
 		_meet = "both"
 	if _j2_none:
@@ -444,6 +453,21 @@ func _initialize() -> void:
 		couples.append(args[0].to_upper())
 	else:
 		couples.assign(ACQUIS)
+		# ⚠ LE REJEU SE DECOUPE, PARCE QU'UN BANC QU'ON N'OSE PLUS LANCER NE PROUVE PLUS RIEN.
+		# `LADDER_SHARD=i/n` ne garde qu'un couple sur n : trois processus en parallele font le
+		# rejeu en un tiers du temps, et le verdict est l'ET des trois. Meme lecon que la suite
+		# de tests passee de cinq minutes a une -- ce qui coute du temps finit par couter des
+		# mesures qu'on ne fait pas.
+		var shard: PackedStringArray = OS.get_environment("LADDER_SHARD").split("/")
+		if shard.size() == 2:
+			var mine: int = int(shard[0])
+			var total: int = maxi(1, int(shard[1]))
+			var kept: Array[String] = []
+			for at: int in range(couples.size()):
+				if at % total == mine % total:
+					kept.append(couples[at])
+			couples = kept
+			print("REJEU %d/%d : %d couple(s)" % [mine, total, couples.size()])
 	var failed: int = 0
 	for couple: String in couples:
 		if not _run(couple):
@@ -615,7 +639,11 @@ func _run(couple: String) -> bool:
 						# ⚠ ET UN PIED REPOSE COMPTE AUTANT QU'UN PIED VISIBLE. Il trace son
 						# bord bas au meme endroit ; ne pas le voir laissait 47 paves, tous
 						# « robe, pied repose ».
-						if _foot_above(over5, walls5) or _foot_above(over5, under5):
+						# ⚠ ET UN PIED REPOSE NE TRACE RIEN DEPUIS QUE L3 A CHOISI `mute` : c'est sa
+						# matiere SANS son contour. Le faire taire au-dessus laissait la frontiere
+						# sans personne. Joignable par `LADDER_UNDERFOOT=trace`.
+						if _foot_above(over5, walls5) \
+								or (_backing_traces and _foot_above(over5, under5)):
 							quiet5 |= 4 << half
 					map5[point] = int(map5[point]) | (quiet5 << 4)
 			indices = {}
