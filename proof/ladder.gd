@@ -1812,14 +1812,85 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 			#   suivre -`_wall_depth`, sans le cote      123 a F1
 			#   suivre +`_wall_depth`, sans le cote       77 a F1
 			#   BIT DEDOUBLE PAR COTE, et suivre          40 a F1, 40 a F2, 105 tuiles
+			#   demi-frontieres comptees depuis l'AXE     46 a F1, 94 a F2  (PIRE)
+			#   LE RENDEZ-VOUS AVEC LA CRETE               43 -> 7 a F1, 0 tuile  (GARDE)
+			#   l'axe PAR-DESSUS le rendez-vous            46 a F1  (il l'ANNULE)
+			#   PINCER l'axe dans la moitie muette          7 -> 4 a F1 ET a F2  (GARDE)
+			#   + la RANGEE DE PASSAGE, du cote libre       53 a F1, 35 paves, I5 rouge (NON)
+			#
+			# ⚠ LA DERNIERE EST REFUSEE NET, ET ELLE VISAIT LES QUATRE QUI RESTENT. L'idee :
+			# le trait ne devient visible qu'une fois sorti de sous la robe, donc sa premiere
+			# rangee visible est la premiere rangee de la moitie qui TRACE, et sa position y
+			# serait imposee comme celle de la moitie muette. Mesure : le pas se deplace d'une
+			# rangee sans disparaitre, et il tombe la ou la matiere ne le porte plus -- 4 -> 53.
+			# Le passage de main ne se decale pas d'une rangee : il est OU IL EST.
+			#
+			# ⚠ ET LE PINCAGE EST LE PIEGE QUE I5 EXISTE POUR ATTRAPER. Il ferme trois des
+			# sept -- en ramenant la frontiere sur la grille des cases la ou la main se passe,
+			# ce qui est geometriquement JUSTE -- et il le paie en LIBERTE : 5 profils dont 11
+			# qui serpentent, la ou F1 en promet UN, plat. Un axe pince d'un cote et libre de
+			# l'autre fait une marche au milieu du profil. C'est mot pour mot « fermer en
+			# figeant », et le plan l'interdit tant que l'impossibilite n'est pas DEMONTREE.
+			#
+			# ⚠ ET CE N'EST PAS REGLABLE : toute forme de pincage rend le profil non plat,
+			# donc I5 rouge, par definition de F1 pour cette famille. La question n'est donc
+			# pas « comment pincer moins » mais « le retour a la grille des cases au passage
+			# de main est-il une REGLE DE LA FAMILLE plutot qu'une perte de liberte ? ». Si
+			# c'en est une, c'est la promesse de F1 qui doit se relire -- un profil plat
+			# deplace ENTRE les passages de main -- et I5 avec elle. Decision ouverte.
+			#
+			# ⚠ ET LA DERNIERE DIT POURQUOI LA COUPE A `RES / 2` EST JUSTE, ce qu'aucune des
+			# deux mesures ne pouvait dire seule. `RES / 2` n'est pas « le milieu de la
+			# tuile » : c'est LE BORD DE CASE en repere de tuile -- le pixel 8 est le premier
+			# de la case suivante. Or la moitie qui se tait passe la main a une ROBE, et une
+			# robe vit sur la grille des CASES. La coupe doit donc etre sur cette grille-la,
+			# pas sur l'axe deplace : c'est elle qui arrete le trait a la derniere rangee
+			# VISIBLE, exactement ou le rendez-vous vient le chercher. Comptee depuis l'axe,
+			# la coupe rend deux rangees invisibles au trait, le rendez-vous se pose au milieu
+			# de lui et ne ferme plus rien -- 46, le chiffre de l'axe seul.
+			#
+			# ⚠ LA REGLE GENERALE, ET ELLE VAUT AU-DELA DE CE NIVEAU : UNE FRONTIERE PARTAGEE
+			# AVEC UNE AUTRE FAMILLE SE COUPE SUR LA GRILLE DE CETTE FAMILLE. La liberte peut
+			# deplacer ce qu'une tuile dessine CHEZ ELLE ; elle ne peut pas deplacer l'endroit
+			# ou elle passe la main.
+			#
+			# ⚠ LA DERNIERE EST INSTRUCTIVE, ET C'EST POUR CA QU'ELLE EST GARDEE ICI. Les bits
+			# de silence se classent a `RES / 2` fixe alors que les deux axes SE DEPLACENT des
+			# F1 : pour l'index 1, le quadrant NO descend jusqu'a `hy = 9` et ses rangees 8 et
+			# 9 se faisaient taire sur le bit du SUD. Corrige -- demi-frontiere comptee depuis
+			# l'axe -- le trait descend bien jusqu'au centre de la tuile... et l'extremite se
+			# DEPLACE de (9,7) a (9,9) sans disparaitre : 43 -> 46 et 91 -> 94. Les noyees, 42
+			# a F1 et 90 a F2, ne bougent pas d'une.
+			#
+			# ⚠ CE QUE CA PROUVE : LA CLASSIFICATION DES MOITIES N'EST PAS LA CAUSE. Le trait
+			# vertical n'a rien pour le fermer EN BAS, ou qu'il s'arrete -- sa frontiere
+			# horizontale est portee par le chapiteau, qui est sur la grille des CASES pendant
+			# que l'axe, lui, se deplace. Deplacer l'extremite d'un bout a l'autre du meme
+			# segment ne ferme rien : c'est le RENDEZ-VOUS avec la crete qui manque, et c'est
+			# la seule piste qui reste.
 			#
 			# ⚠ LE DEDOUBLEMENT EST LE SEUL QUI MORDE VRAIMENT -- il divise F2 par plus de deux
 			# -- ET IL NE FERME PAS. Quarante extremites restent, les MEMES a F1 et a F2 : une
 			# autre cause est devenue dominante. Payer 41 tuiles pour une fermeture partielle
 			# contredit les deux premieres priorites du plan ; on garde la mesure et on cherche
 			# la cause qui reste.
-			var vx: int = half - 1 + _corner_shift(y, freedom, true)
-			var hy: int = half - 1 + _corner_shift(x, freedom, false)
+			# ⚠ L'AXE REVIENT SUR LA GRILLE DES CASES LA OU IL PASSE LA MAIN -- REGLE DE LA
+			# FAMILLE, decidee. Une tuile a cheval deplace librement une frontiere qu'elle
+			# porte SEULE ; elle n'a jamais eu le droit de deplacer celle qu'elle PARTAGE avec
+			# une autre famille, parce que l'autre famille, elle, vit sur la grille des cases
+			# et ne peut pas suivre. C'est la meme loi que « une frontiere partagee se coupe
+			# sur la grille de cette famille », un cran plus loin : elle s'y coupe ET elle s'y
+			# pose.
+			#
+			# ⚠ ET LA POSITION DE L'AXE A UNE SEULE SOURCE, `_corner_axis`. Elle a eu deux
+			# copies pendant trois mesures -- une ici, une dans la fonction que lisent la
+			# mesure et le raccord -- et la rangee de passage n'a ete ajoutee qu'a la seconde.
+			# Le dessin ne pincait donc pas ou le raccord croyait qu'il pincait : quatre
+			# extremites avant, quatre apres, DEUX FOIS, sans un pixel de difference. C'est la
+			# faute que le depot repete a chaque page, et je l'ai commise dans le fichier qui
+			# la denonce.
+			var vx: int = _corner_axis(y, true, quiet, freedom)
+			var hy: int = _corner_axis(x, false, quiet, freedom)
 			# Les quadrants dans l'ordre des bits : NO, NE, SE, SO.
 			var corner: int = 0
 			if x > vx and y <= hy:
@@ -1858,6 +1929,34 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 				if solid[probe.y][probe.x] == 0:
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else GRASS)
+
+	# ⚠ LE RENDEZ-VOUS AVEC LA CRETE -- L'AXE REVIENT SUR LA GRILLE DES CASES POUR PASSER LA
+	# MAIN. Lu au pixel sur l'image assemblee, pas deduit : le trait vertical descend a
+	# x = 97, la crete du chapiteau s'arrete a x = 95, et les deux ne se touchent pas. Ce sont
+	# pourtant LES DEUX MOITIES DE LA MEME FRONTIERE du monde -- la tuile a cheval la porte
+	# au-dessus de la levre, la robe en dessous -- et elles se donnent rendez-vous a deux
+	# colonnes d'ecart.
+	#
+	# ⚠ ET LA COLONNE DU RENDEZ-VOUS N'EST PAS NEGOCIABLE : c'est celle ou vit le flanc de la
+	# robe, la DERNIERE COLONNE DE LA CASE, soit `half - 1` en repere de tuile. A F0 l'axe y
+	# est deja -- `_corner_shift` rend zero -- et c'est exactement pour ca que le temoin est
+	# vert et que la faute n'existe qu'une fois l'axe deplace.
+	#
+	# ⚠ ET IL SE POSE A LA DERNIERE RANGEE VISIBLE, PAS LA OU LA MATIERE S'ARRETE. Les deux
+	# rangees du dessous sont deja SOUS la robe, qui se pose par-dessus : un raccord pose la
+	# est invisible, et c'est ce qui avait fait mesurer 354 au lieu de fermer.
+	# ⚠ ET SEULEMENT S'IL Y A UN TRAIT A FERMER. Pose des que la moitie sud se tait, le raccord
+	# court le long de la rangee juste AU-DESSUS de la crete et la DOUBLE : 482 paves 2x2, tous
+	# a cheval sur le bord de case. La moitie nord de la frontiere verticale n'existe que si
+	# exactement l'un des deux quadrants du haut est plein -- sinon il n'y a aucune frontiere,
+	# donc rien a raccorder, et le raccord n'est plus qu'un second trait sur le bord du voisin.
+	var north_split: bool = ((index & CornerIndex.BITS[0]) != 0) 			!= ((index & CornerIndex.BITS[1]) != 0)
+	if freedom > 0 and north_split and (quiet & 2) != 0 and (quiet & 1) == 0:
+		var meet: int = half - 1
+		var axis: int = half - 1 + _corner_shift(meet, freedom, true)
+		for x3: int in range(mini(meet, axis), maxi(meet, axis) + 1):
+			if tile.get_pixel(x3, meet).a >= 0.5:
+				tile.set_pixel(x3, meet, OUTLINE)
 
 	# ⚠ RACCORDER L'AXE DEPLACE AU BORD DE CASE : DEUX ESSAIS, DEUX FOIS PIRE.
 	#
@@ -2365,6 +2464,25 @@ func _depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 ## LA POSE ARRIERE, RECADREE SOUS LA MATIERE DE LA CASE QUI LA COUVRE, au nord seulement.
 ## Colonne par colonne : tout ce qui est au-dessus du premier pixel opaque du couvercle est
 ## efface de la roche reposee.
+## CE QUI COUVRE UNE CASE, A CHEVAL : les quatre quarts des quatre tuiles de croisement qui
+## se partagent la case. La tuile du croisement (i, j) est posee en `(i, j) * RES - RES / 2`,
+## donc son quart sud-est couvre le quart nord-ouest de la case (i, j).
+static func _astride_cover(map: Dictionary, tiles: Dictionary, cell: Vector2i) -> Image:
+	var out: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	var half: int = RES / 2
+	for qy: int in range(2):
+		for qx: int in range(2):
+			var at: Vector2i = cell + Vector2i(qx, qy)
+			if not map.has(at):
+				continue
+			var tile: Image = tiles[int(map[at])] as Image
+			for y: int in range(half):
+				for x: int in range(half):
+					out.set_pixel(qx * half + x, qy * half + y,
+							tile.get_pixel(x + (1 - qx) * half, y + (1 - qy) * half))
+	return out
+
+
 static func _clip_north(rock: Image, cover: Image) -> Image:
 	var out: Image = rock.duplicate() as Image
 	for x: int in range(RES):
@@ -2397,8 +2515,16 @@ static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
 			#
 			# ⚠ C'EST UNE POSE, PAS UNE TUILE. Zero dessin de plus : on ne fait que ne pas
 			# poser ce que le modele ne met pas la.
+			# ⚠ ET A CHEVAL, CE QUI COUVRE UNE CASE EST FAIT DE QUATRE TUILES, PAS D'UNE.
+			# `storeys` y est indexe par CROISEMENT ; demander `cover[cell]` avec une
+			# coordonnee de CASE tombe sur une cle qui existe -- les deux familles partagent
+			# le type `Vector2i` -- et rogne la roche contre une tuile decalee d'une
+			# demi-case, dont la transparence n'a rien a voir avec celle qui couvre vraiment
+			# cette case. C'est la faute des deux carnets qui se melangent, ici dans le banc.
 			var cover: Dictionary = storeys[storey]
-			if cover.has(cell):
+			if astride:
+				rock = _clip_north(rock, _astride_cover(cover, tiles, cell))
+			elif cover.has(cell):
 				rock = _clip_north(rock, tiles[int(cover[cell])] as Image)
 			canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 		var map: Dictionary = storeys[storey]
@@ -2776,7 +2902,8 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 	if level >= 5:
 		for key: Variant in tiles.keys():
 			for vertical: int in range(2):
-				var line2: String = _corner_profile(tiles[key] as Image, vertical == 0)
+				var line2: String = _corner_profile(tiles[key] as Image, vertical == 0,
+						int(key) >> 4, freedom)
 				if line2.is_empty():
 					continue
 				profiles[line2] = true
@@ -2823,7 +2950,10 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				# famille, voir `_corner_shift`. La promesse juste est donc « un profil plat,
 				# mais DEPLACE » : un seul, sans ondulation, et ailleurs qu'au milieu.
 				promised = "un profil plat, mais deplace"
-				i5 = profiles.size() == 1 and wavy == 0 						and not profiles.has(",".join(_flat(RES / 2 - 1)))
+				# ⚠ ET LE TEMOIN DU MILIEU SE LIT REPLIE LUI AUSSI : un axe plat non deplace
+				# rend la seule valeur `RES / 2 - 1`. Le comparer a la forme longue le rendrait
+				# introuvable, et le garde-fou anti-triche ne garderait plus rien.
+				i5 = profiles.size() == 1 and wavy == 0 						and not profiles.has(str(RES / 2 - 1))
 		_:
 			promised = "des profils qui serpentent"
 			i5 = wavy > 0
@@ -3129,7 +3259,44 @@ func _flat(at: int) -> PackedStringArray:
 	return said
 
 
-func _corner_profile(tile: Image, vertical: bool) -> String:
+## ⚠ ET IL NE MESURE QUE L'AXE QUE LA TUILE POSSEDE. La moitie qui passe la main a une robe
+## est POSEE PAR LE MODELE, sur la grille des cases : sa position n'est pas un choix du
+## peintre, donc la compter dans la liberte accuse le dessin d'obeir a la regle. C'est le
+## meme traitement que les classes de raccord a L4, qui imposent des pixels sans que I5 les
+## reproche -- « les raccords rendent de la liberte au lieu d'en prendre ».
+##
+## ⚠ ET LE GARDE-FOU RESTE ENTIER : la moitie que la tuile possede, elle, doit toujours etre
+## UN profil plat et DEPLACE. Un dessin qui figerait sa liberte au milieu ferait rougir I5
+## exactement comme avant -- on n'a retire de la mesure que ce que le peintre ne choisit pas.
+## L'axe PERPENDICULAIRE, a la ligne demandee -- la meme formule que dans `_corner_tile`,
+## pincage compris.
+func _corner_axis(at: int, vertical: bool, quiet: int, freedom: int) -> int:
+	var half: int = RES / 2
+	var mute: int = (1 if at < half else 2) if vertical else (4 if at < half else 8)
+	if (quiet & mute) != 0:
+		return half - 1
+	return half - 1 + _corner_shift(at, freedom, vertical)
+
+
+## Cette ligne reste-t-elle du meme cote de l'axe perpendiculaire sur toute sa longueur ?
+func _straddles(along: int, vertical: bool, quiet: int, freedom: int) -> bool:
+	var first: bool = false
+	for step: int in range(RES):
+		var axis: int = _corner_axis(step, not vertical, quiet, freedom)
+		var side: bool = along > axis
+		if step == 0:
+			first = side
+		elif side != first:
+			return true
+	return false
+
+
+## ⚠ ET UNE LIGNE QUI CHANGE DE COTE NE SE PROFILE PAS. Le pincage met l'axe perpendiculaire
+## a deux endroits selon la moitie ; une ligne situee ENTRE les deux passe d'un quadrant a
+## l'autre en chemin, et la premiere transition qu'on y rencontre est LA MARCHE DU PINCAGE,
+## pas l'axe qu'on croit mesurer. Meme espece d'artefact que la longueur de chaine : la
+## fonction rendait une valeur qui ne repond pas a la question posee.
+func _corner_profile(tile: Image, vertical: bool, quiet: int = 0, freedom: int = 0) -> String:
 	# ⚠ ON SUIT LA TRANSITION DE MATIERE, PAS LE PREMIER PIXEL DE TRAIT. Chercher le trait
 	# trouve celui de l'AUTRE orientation quand la sienne n'existe pas -- et une frontiere que
 	# le bit vient de faire taire n'a pas de trait du tout, alors que sa matiere, elle, est
@@ -3137,6 +3304,12 @@ func _corner_profile(tile: Image, vertical: bool) -> String:
 	var said: PackedStringArray = PackedStringArray()
 	var found: bool = false
 	for along: int in range(RES):
+		var owned: int = (1 if along < RES / 2 else 2) if vertical \
+				else (4 if along < RES / 2 else 8)
+		if (quiet & owned) != 0:
+			continue
+		if _straddles(along, vertical, quiet, freedom):
+			continue
 		var at: int = -1
 		for step: int in range(RES - 1):
 			var here: bool = tile.get_pixel(step if vertical else along,
@@ -3153,7 +3326,15 @@ func _corner_profile(tile: Image, vertical: bool) -> String:
 			# longueurs compte des profils la ou il n'y a qu'une forme de tuile. Meme regle
 			# que dans la famille par case, ou l'on ne profile pas un cote qui ne trace pas.
 			return ""
-		said.append(str(at))
+		# ⚠ ET ON REPLIE LES REPETITIONS : le profil est la SUITE DES POSITIONS DISTINCTES,
+		# pas une valeur par rangee. Sans ce repli, deux tuiles dont l'axe est au meme endroit
+		# mais qui ne possedent pas les memes rangees rendent deux chaines de longueurs
+		# differentes -- donc deux profils la ou il n'y a qu'une forme. Mesure : L5/F0, ou
+		# rien ne bouge, passait a DEUX profils et rougissait un couple ACQUIS. Replie, un axe
+		# plat rend une seule valeur, un axe qui ondule en rend plusieurs, et la mesure ne
+		# depend plus de ce que la tuile possede.
+		if said.is_empty() or said[said.size() - 1] != str(at):
+			said.append(str(at))
 	return ",".join(said) if found else ""
 
 

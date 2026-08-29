@@ -2437,6 +2437,95 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 18 · L5 : DE 43 ET 91 EXTRÉMITÉS À 4 — OÙ ON S'EST ARRÊTÉ
+
+**L'état, mesuré, à reprendre tel quel.** Le rejeu des vingt couples dit `VERDICT : l'échelle
+tient` sur cette version.
+
+| | I1 | I2 | I3 | I4 | I5 | I6 |
+|---|---|---|---|---|---|---|
+| **L5/F0** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **L5/F1** | **4** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **L5/F2** | **4** | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Départ : **43 à F1, 91 à F2**, I6 rouge (35 matières perdues), I5 non tenu. **Zéro tuile
+ajoutée** — 64 croisements + 20 rôles, comme avant.
+
+**Les quatre corrections gardées, dans l'ordre où elles ont mordu :**
+
+1. **LE RENDEZ-VOUS AVEC LA CRÊTE** (43 → 7). Le trait vertical d'une tuile à cheval descend
+   à l'axe déplacé ; la crête du chapiteau qui doit le fermer vit sur la grille des CASES.
+   Lu au pixel : trait à x=97, crête à x=95. Le raccord se pose à la dernière rangée
+   **visible** — pas là où la matière s'arrête, qui est déjà sous la robe.
+2. **LE PINÇAGE** (7 → 4 à F1, 91 → 4 à F2). *Décision utilisateur : c'est une RÈGLE.* Une
+   tuile à cheval déplace librement une frontière qu'elle porte SEULE ; elle n'a jamais eu le
+   droit de déplacer celle qu'elle PARTAGE avec une autre famille, qui vit sur la grille des
+   cases et ne peut pas suivre.
+3. **I5 RELU EN CONSÉQUENCE** — le profil ne mesure que l'axe que la tuile POSSÈDE, il est
+   REPLIÉ (suite des positions distinctes, pas une par rangée), et une ligne qui change de
+   côté de l'axe perpendiculaire ne se profile pas. ⚠ Le garde-fou est intact : la part
+   possédée doit rester UN profil, PLAT, et DÉPLACÉ.
+4. **LE ROGNAGE DE LA POSE ARRIÈRE À CHEVAL** (I6 : 35 perdues → 0, fenêtre toujours à 35).
+   `_clip_north` rognait contre `tiles[storeys[cell]]` — or à L5 `storeys` est indexé par
+   CROISEMENT. Les deux familles partagent le type `Vector2i`, donc la clé existait et la
+   roche était rognée contre une tuile décalée d'une demi-case. `_astride_cover` reconstruit
+   ce qui couvre vraiment la case : les quatre quarts des quatre tuiles de croisement.
+
+**LES QUATRE QUI RESTENT, entièrement caractérisées.** Tuile **86** = index 6 (les deux
+quadrants EST pleins) + silences vertical-nord et horizontal-ouest. Pixel `(10,8)` en repère
+de croisement, aux quatre mêmes endroits, **identique à F1 et à F2** — donc structurel, pas un
+accident du dessin. Le trait est le bord OUEST de la matière EST ; il commence à la coupe
+`RES/2` et rien ne l'y rejoint.
+
+⚠ **Et le rendez-vous ne peut pas les atteindre, c'est démontré et non supposé.** Le
+déplacement de l'axe est SIGNÉ (+2) : quand la matière est à l'ouest, le trait a de la matière
+sous lui et peut revenir au bord de case ; quand elle est à l'est, les colonnes du bord sont
+VIDES dans la tuile — il n'y a rien sur quoi peindre. Le miroir a été posé et mesuré : il ne
+peint aucun pixel, 7 avant, 7 après.
+
+**Trois pistes essayées et refusées par la mesure, à ne pas rejouer :**
+
+| | |
+|---|---|
+| classification des moitiés depuis l'AXE | 46 à F1 — elle ANNULE le rendez-vous |
+| la même, PAR-DESSUS le rendez-vous | 46 — idem |
+| la RANGÉE DE PASSAGE pincée du côté libre | **53** à F1, 35 pavés, I5 rouge |
+
+⚠ **Et `RES / 2` est juste, ce que trois mesures ont fini par dire ensemble** : ce n'est pas
+« le milieu de la tuile », c'est **le bord de case en repère de tuile**. La moitié qui se tait
+passe la main à une ROBE, qui vit sur la grille des cases : la coupe doit être sur cette
+grille-là. **Une frontière partagée avec une autre famille se coupe ET se pose sur la grille
+de cette famille.**
+
+**DEUX PIÈGES DE MÉTHODE PAYÉS DEUX FOIS CHACUN, ce soir :**
+
+⚠ **Un correctif qui ne change RIEN n'est pas un correctif faible : c'est un correctif qui
+n'a pas été appliqué.** Deux fois j'ai mesuré 4 extrémités aux mêmes pixels après un
+changement, et deux fois j'ai cherché la cause dans la logique au lieu de vérifier que le code
+tournait. Les causes étaient (a) deux copies de la formule de l'axe, dont une seule modifiée,
+et (b) une réécriture qui a **effacé** l'édition précédente.
+
+⚠ **Remplacer un intervalle entre deux ancres supprime tout ce qui est au milieu.** Vérifier
+que les ancres sont uniques ne dit RIEN de ce que l'intervalle contient. C'est comme ça que
+l'extension de `_corner_axis` a disparu sans un message d'erreur.
+
+**Ce qu'il reste à faire sur L5** : fermer les quatre. Aucune piste vivante — les trois
+raisonnables sont mesurées et refusées. La prochaine idée devra venir de l'image, pas du
+raisonnement : c'est ce qui a marché les deux fois où quelque chose a mordu.
+`chafa -s 80 /tmp/z/1.png` montre le défaut ; `proof/ladder.gd -- L5 F1 <png> 3 46 5 5 160`
+le régénère.
+
+### 17bis · LE GUIDE REDESSINÉ SERA À MI-TUILE — décision utilisateur
+
+⚠ **Le guide doit se dessiner à la DEMI-TUILE, parce que c'est la seule échelle où la liberté
+vagabonde se voit.** L'axe d'une tuile à cheval est posé sur le croisement de quatre cases ;
+sa liberté est un déplacement latéral de cet axe. Un guide calé sur la grille des cases ne
+montre donc jamais où l'axe a le droit d'aller — il montre les cases, pas les frontières
+qu'elles se partagent. À mi-tuile, le vagabondage de l'arête est visible dans le guide
+lui-même, donc dessinable et jugeable.
+
+C'est à porter au cahier des charges du redessin, avec les accidents à composer un par bit.
+
 ### 17 · REDESSINER LE GUIDE : TROIS ROUTES, TROIS ÉCHECS, ET LA MÊME CAUSE
 
 | route | ce qu'elle produit | verdict |
