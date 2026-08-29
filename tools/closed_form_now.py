@@ -42,8 +42,13 @@ def libres(sil):
     for coin in range(4):
         a, b = coin, (coin + 3) % 4
         if sil & CARD[a] and sil & CARD[b] and not sil & DIAG[coin]:
-            out.append(4 << coin)
-            out.append(64 << coin)
+            # ⚠ ET L'ERGOT DONT LE PARTENAIRE EST AU SUD N'EST PAS UN BIT : des L2 le sud ne
+            # se trace jamais, donc il vaudrait TOUJOURS 1. Une constante deguisee en bit
+            # double le vocabulaire potentiel sans distinguer quoi que ce soit.
+            if b != 2:
+                out.append(4 << coin)
+            if a != 2:
+                out.append(64 << coin)
     if sil & N and not sil & E: out.append(ABOVE_E)
     if sil & N and not sil & W: out.append(ABOVE_W)
     return [b for b in out if not b & RETIRES]

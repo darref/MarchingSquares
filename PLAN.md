@@ -25,9 +25,32 @@ précédent satisfait.
 1. **JAMAIS TROUÉ.** La fermeture n'est pas négociable. I1 à zéro, ou ce n'est pas livrable.
 2. **LA LIBERTÉ NE SE SACRIFIE QUE SI C'EST DÉMONTRÉ IMPOSSIBLE.** Pas « si c'est plus simple »,
    pas « si ça coûte moins » — *impossible*, et prouvé. C'est la loi du moindre ras, généralisée.
-3. **LE NOMBRE DE TUILES DOIT ÊTRE MINIMAL, PAS FORCÉMENT PETIT.** Ce qui est exigé est une
-   **preuve de minimalité**, pas un petit chiffre. 248 démontré minimal vaut mieux que 81 dont
-   personne ne sait s'il l'est.
+3. **LE VOCABULAIRE DOIT ÊTRE SUFFISANT ET SERRÉ.** *Suffisant* : les six invariants ferment,
+   sur chaque monde. *Serré* : la borne **haute** — ce que le modèle peut exiger — et le compte
+   **rencontré** coïncident. Aucune tuile de la planche n'est là pour rien.
+
+   ⚠ **ET ÇA REMPLACE « MINIMAL, PROUVÉ », QUI N'A JAMAIS MORDU.** Minimal est une borne
+   *inférieure* — *rien de plus petit ne marche* — et la prouver demande d'explorer toutes les
+   conceptions alternatives : on en a vu le prix, chacune (bit sur la face, bit sur la surface,
+   aucun bit, trois états de flanc) demandant d'être implémentée et mesurée en entier. Pendant
+   ce temps le vocabulaire est monté 52 → 65 → 92 → 47 → 83, et le critère n'a arrêté aucun
+   cran. *Suffisant* seul ne vaut pas mieux : il se satisfait en grossissant.
+
+   ⚠ **CE QUI REND LE COUPLE OPÉRATOIRE, C'EST QUE LES DEUX NOMBRES SE CALCULENT.** Le banc
+   donne le rencontré, `tools/closed_form_now.py` donne la borne haute. Leur écart n'est pas
+   une note, c'est un **détecteur** : un bit dont les deux valeurs ne sont jamais toutes deux
+   réalisées gonfle la borne sans distinguer quoi que ce soit — et l'écart le désigne sans
+   qu'on le cherche.
+
+   ⚠ **ET IL CONVERGE PAR LES DEUX BOUTS**, là où la minimalité n'a pas de fin : la borne basse
+   monte quand on ajoute des mondes, la haute descend quand on retire une fausse liberté. Quand
+   elles se rejoignent, c'est **prouvé** — mot pour mot la façon dont les 27 ont été établis :
+   256 fenêtres filtrées d'un côté, ce que les mondes produisent de l'autre, et les deux comptes
+   se rencontrent.
+
+   ⚠ **CE QUE ÇA NE PROMET PAS** : serré ne veut pas dire minimal. Un autre modèle pourrait
+   faire mieux. Serré garantit qu'aucune tuile n'est là pour rien — une promesse qu'un acheteur
+   comprend, là où « minimal » est une promesse qu'on ne peut pas tenir.
 
 ⚠ **ET ÇA DISQUALIFIAIT LES DEUX CONCEPTIONS DE J2 EN L'ÉTAT.** Le bit sur la face laissait 34
 extrémités, le bit sur la surface 5 : **les deux étaient troués**, donc aucune n'était acceptable.
@@ -2252,3 +2275,37 @@ face ? » — pas une décision. Ils passent le test, et le tarif leur donne rai
 **Ce que ça désigne comme prochain travail, et c'est précis : l'ergot de coin rentrant.** Trouver
 une règle qui ferme ces 30 à 50 extrémités sans demander à la voisine ce qu'elle trace ferait
 tomber la borne de **341 à 113** pour un coût observé **nul**. Aucun autre bit n'a ce profil.
+
+
+### 13 · L'ERGOT, PREMIER COUP — LA MOITIÉ DE SON SILENCE ÉTAIT UNE CONSTANTE
+
+*Le tarif désignait l'ergot : 228 tuiles de borne haute pour 0 à 2 tuiles posées. Avant de le
+redessiner, on regarde **pourquoi** il se tait.*
+
+| raison du silence | planche | guide |
+|---|---|---|
+| **c'est le SUD** — lisible dans ma silhouette | **47** | **57** |
+| le BORD l'a fait taire — de la roche à ma diagonale | 43 | 67 |
+| la voisine porte une robe | 4 | 6 |
+
+⚠ **LA MOITIÉ N'ÉTAIT PAS UNE QUESTION, C'ÉTAIT UNE CONSTANTE.** Depuis L2 le sud ne se trace
+**jamais** — c'est le théorème de la lèvre, déjà au dossier. Pour les deux ergots dont le
+partenaire est au sud, le bit valait donc **toujours 1** : il ne nommait rien. Le dessin le sait
+sans qu'on le lui dise ; la clé n'en parle plus.
+
+| | avant | après |
+|---|---|---|
+| tuiles posées (planche / guide) | 45 / 51 | **45 / 51** — inchangées |
+| I1 · I2 · I3 | ✅ | ✅ |
+| **borne haute** | 341 | **241** |
+| **serrage** | 18 % | **26 %** |
+
+⚠ **CENT TUILES DE BORNE POUR ZÉRO PIXEL CHANGÉ**, et c'est la démonstration du nouveau critère
+dans le même mouvement où il est écrit : *une constante déguisée en bit ne distingue rien dans le
+monde réel, mais la forme fermée compte ses deux valeurs comme réalisables.* Le serrage est le
+détecteur qui l'a rendue visible.
+
+**Ce qui reste de l'ergot, et c'est la suite immédiate :** les 43 à 67 silences dus au bord
+signifient exactement *« de la roche couvre ma diagonale »* — un **fait du monde**, pas une
+décision de la voisine. Reformulé ainsi il passe le test de la clause B, et il pourrait ne coûter
+**qu'un bit par coin au lieu de deux**.

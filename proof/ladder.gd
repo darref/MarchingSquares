@@ -91,6 +91,28 @@ static func _foot_above(cell: Vector2i, roles: Dictionary) -> bool:
 ## Meme espece que `_check_wall_seams` qui redérivait `row_for`, et que les deux vocabulaires de
 ## surface avant `core/families.gd` : deux copies d'une meme regle finissent toujours par se
 ## contredire, et celle qui se tait est celle qu'on ne regarde pas.
+## POURQUOI L'ERGOT SE TAIT. Quatre raisons possibles, et elles ne se valent pas : trois
+## demandent ce que la VOISINE a decide, la quatrieme -- « c'est le sud, qui ne se trace plus
+## depuis L2 » -- se lit dans MA silhouette seule. Si c'est elle qui domine, la moitie des
+## huit bits de l'ergot est une CONSTANTE deguisee en bit.
+static var _stub_why: Dictionary = {}
+
+static func _why_stub(cell: Vector2i, side: int, indices: Dictionary, roles: Dictionary,
+		level: int) -> void:
+	var quoi: String = "?"
+	if side == 2 and level >= 2:
+		quoi = "c'est le SUD (constante : lisible dans ma silhouette)"
+	elif roles.has(cell):
+		quoi = "la voisine porte une ROBE"
+	elif not indices.has(cell):
+		quoi = "hors du monde"
+	elif (int(indices[cell]) & CARDINALS[side]) != 0:
+		quoi = "le cardinal de la voisine est PLEIN"
+	else:
+		quoi = "le BORD l'a fait taire"
+	_stub_why[quoi] = int(_stub_why.get(quoi, 0)) + 1
+
+
 static func _draws_side(cell: Vector2i, side: int, indices: Dictionary,
 		roles: Dictionary, level: int) -> bool:
 	if roles.has(cell) or not indices.has(cell):
@@ -180,6 +202,9 @@ static var _backing: String = "mute"
 ##
 ##     LADDER_DROP=bord,nq,ergot,above,flush,below   (au choix, separes par des virgules)
 static var _drop: int = 0
+
+## Le niveau du couple en cours -- le dessin en a besoin pour savoir si le sud se trace.
+static var _level: int = 0
 
 static var _dump: String = ""
 static var _dumped: PackedStringArray = PackedStringArray()
@@ -439,6 +464,7 @@ func _run(couple: String) -> bool:
 	if not _quiet:
 		print("=== %s ===" % couple)
 
+	_level = level
 	var world: PackedStringArray = _world(level)
 	if world.is_empty():
 		push_error("ladder: niveau L%d pas encore batissable." % level)
@@ -728,10 +754,22 @@ func _run(couple: String) -> bool:
 							continue
 						if (shape & DIAGONALS[corner]) != 0:
 							continue
-						if not _draws_side(here2 + STEPS[a], b, indices, roles, level):
-							more |= 4 << corner
-						if not _draws_side(here2 + STEPS[b], a, indices, roles, level):
-							more |= 64 << corner
+						# ⚠ ET LE PARTENAIRE AU SUD N'EST PAS UNE QUESTION, C'EST UNE
+						# CONSTANTE. Des L2 le sud ne se trace plus jamais -- « le bord sud
+						# d'une case et le bord nord de celle d'en dessous sont la meme
+						# frontiere, et c'est le sud qui se tait ». Le bit valait donc
+						# TOUJOURS 1 pour ces deux ergots-la : il ne nommait rien, il
+						# doublait le vocabulaire pour rien. Mesure : la moitie des silences
+						# de l'ergot etaient celui-la -- 47 sur la planche, 57 sur le guide.
+						# Le dessin s'en charge, la cle n'en parle plus.
+						if not (b == 2 and level >= 2):
+							if not _draws_side(here2 + STEPS[a], b, indices, roles, level):
+								more |= 4 << corner
+								_why_stub(here2 + STEPS[a], b, indices, roles, level)
+						if not (a == 2 and level >= 2):
+							if not _draws_side(here2 + STEPS[b], a, indices, roles, level):
+								more |= 64 << corner
+								_why_stub(here2 + STEPS[b], a, indices, roles, level)
 					# ⚠ ET LE BORD LATERAL MEURT A SON NORD QUAND LA CASE DU DESSUS S'EST TUE DE
 					# CE COTE-LA. Elle s'est tue parce qu'une ROBE la longe : c'est donc le flanc
 					# de cette robe qui porte la frontiere, une case plus haut et une colonne plus
@@ -981,6 +1019,15 @@ func _run(couple: String) -> bool:
 		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
 				% [_open_edges, _bare_edges, 100.0 * float(_bare_edges) / float(_open_edges)])
 	if level >= 2:
+		if not _stub_why.is_empty():
+			var raisons: Array[String] = []
+			raisons.assign(_stub_why.keys())
+			raisons.sort_custom(func(x: String, y: String) -> bool:
+					return int(_stub_why[x]) > int(_stub_why[y]))
+			print("  -- pourquoi l'ergot se tait --")
+			for quoi: String in raisons:
+				print("     %5d  %s" % [int(_stub_why[quoi]), quoi])
+			_stub_why.clear()
 		var kinds2: Dictionary = {}
 		for cell: Vector2i in roles.keys():
 			kinds2[roles[cell]] = true
@@ -2119,7 +2166,7 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge else body)
 	if freedom > 0 and index >= 0:
-		_reentrant(tile, index, freedom, quiet)
+		_reentrant(tile, index, freedom, quiet, _level)
 	return tile
 
 
@@ -2139,7 +2186,8 @@ func _shape(open: Array[bool], freedom: int, body: Color, index: int,
 ## n'a pas de matiere a cet endroit : si elle tracait aussi, les deux traits seraient colles
 ## de part et d'autre de la frontiere -- un pave 2x2, I2 rouge. Ils se rejoignent en diagonale,
 ## ce qui suffit a fermer.
-func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0) -> void:
+func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0,
+		level: int = 0) -> void:
 	for corner: int in range(4):
 		var a: int = corner                 # N, E, S, O
 		var b: int = (corner + 3) % 4       # le cote precedent : NO, NE, SE, SO
@@ -2147,9 +2195,12 @@ func _reentrant(tile: Image, index: int, freedom: int, quiet: int = 0) -> void:
 			continue
 		if (index & DIAGONALS[corner]) != 0:
 			continue
-		if (quiet & (4 << corner)) == 0:
+		# ⚠ LE PARTENAIRE AU SUD NE TRACE JAMAIS DES L2 : l'ergot qui comptait sur lui pend,
+		# toujours. Le dessin le sait sans qu'on le lui dise -- c'est une constante du niveau,
+		# pas un fait du voisinage.
+		if (quiet & (4 << corner)) == 0 and not (b == 2 and level >= 2):
 			_stub(tile, a, b, _depth(b, 0, freedom))
-		if (quiet & (64 << corner)) == 0:
+		if (quiet & (64 << corner)) == 0 and not (a == 2 and level >= 2):
 			_stub(tile, b, a, _depth(a, 0, freedom))
 
 
