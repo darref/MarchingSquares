@@ -2139,3 +2139,66 @@ cents reliefs contre 879 316.
 **Ce qui reste : une fenêtre assez large pour porter les 27 silhouettes.** Le libre 5×5 n'en
 exerce que 15 — un îlot de cinq cases dans le vide ne peut pas tout montrer. La 7×7 à trois états
 est en cours d'engendrement ; c'est elle qui dira si le compte se stabilise ou continue de monter.
+
+
+### 11 · LA BORNE HAUTE EST 341, ET C'EST ELLE QUI TRANCHE — CONTRE « MINIMAL »
+
+`tools/closed_form_now.py` compte, silhouette par silhouette, les assignations de bits que le
+modèle **peut** exiger : chaque bit a une précondition lisible dans la silhouette (et, pour
+quatre d'entre eux, dans les bits déjà posés), et sa valeur dépend de cases **hors** de la
+fenêtre — donc, l'extérieur étant libre, les deux valeurs sont réalisables dès que la
+précondition tient.
+
+| | tuiles de surface |
+|---|---|
+| borne **basse** mesurée (union de toutes les familles) | **63** |
+| borne **haute** calculée | **341** |
+
+⚠ **CONTRÔLE PASSÉ : les 60 tuiles rencontrées tombent toutes dans la forme.** Une seule dehors
+aurait condamné la transcription — c'est la seule façon honnête d'écrire une borne haute à la
+main.
+
+⚠ **ET L'EN-TÊTE DE L'OUTIL DIT DÉJÀ QUOI EN FAIRE : « si ce nombre est énorme, ce n'est pas le
+compte qu'il faut accepter, c'est le MODÈLE qu'il faut reprendre ».** 341 pour 63 rencontrées,
+c'est un facteur **5,4** : le modèle autorise cinq fois plus de distinctions qu'aucun monde n'en
+produit. Ce n'est pas la signature d'un vocabulaire riche, c'est celle de **bits qui ne décrivent
+pas une distinction du monde mais une rustine locale**.
+
+### LA CLAUSE RAISONNABLE, À LA PLACE DE « MINIMAL »
+
+**Pourquoi « minimal, prouvé » a échoué comme critère**, et il faut le dire franchement : il
+demande une forme fermée ; la forme fermée demande soit d'énumérer un domaine non borné —
+10,5 millions de reliefs pour une fenêtre 7×7, et ce n'est pas la plus grande — soit une borne
+analytique, qui vaut 341 et que personne n'accepterait de peindre. **Le critère n'a jamais mordu :
+il a fait mesurer au lieu de faire décider.** En une journée le vocabulaire est monté 52 → 65 →
+92 → 47 → 83, chaque cran justifié localement, et « minimal » n'a arrêté aucun.
+
+⚠ **ET LE PROJET A DÉJÀ FERMÉ DEUX FOIS — JAMAIS PAR UNE PREUVE DE MINIMALITÉ.** *Min trois* est
+une **décision**, pas un théorème, et elle a retiré 40 % du vocabulaire. *La décomposition en
+couches* est une **responsabilité retirée** — « une tuile ne répond que d'elle-même » — et elle a
+fait 92 → 47. Les deux fermetures du chantier sont des clauses raisonnables, pas des minimalités
+démontrées.
+
+**Trois clauses candidates, de la plus forte à la plus souple :**
+
+- **A · le vocabulaire est DÉCLARÉ, pas découvert.** Une tuile est (silhouette, classe de chaque
+  côté), le nombre de classes par côté étant **fixé d'avance** — mesuré : 3 ou 4. Le compte
+  devient une formule, ∑ ∏ classes, close par construction : aucun monde ne peut y ajouter.
+  Ce qui n'entre pas dans les classes n'est **pas** une tuile de plus, c'est un défaut à régler
+  autrement — une pose, une règle de préséance, un ourlet. *Mesure à l'appui : 97 % des contextes
+  sont déjà une fonction des classes, et les 3 % restants sont les quatre bits de second ordre.*
+
+- **B · un bit ne se paie que s'il ferme une JONCTION ENTIÈRE.** Déjà écrite au plan, jamais
+  appliquée. Le test opératoire : **un bit dont la précondition ne se lit pas dans la silhouette
+  seule n'est pas un bit, c'est un symptôme.** Les ergots, `ABOVE_QUIET`, `BELOW_QUIET` et
+  `NORTH_FLUSH` échouent tous à ce test — ils demandent ce que la voisine a *décidé*.
+
+- **C · le budget.** Un plafond **décidé**, chiffré, par exemple ≤ 64 tuiles par case, rôles
+  compris. Toute règle qui le dépasse est refusée, et on cherche une préséance à la place. C'est
+  le pendant exact de min trois : une décision de produit qui tranche, au lieu d'une mesure qui
+  constate.
+
+⚠ **ET LES TROIS SE MESURENT AVANT D'ÊTRE ADOPTÉES**, comme les trois clauses de grammaire : ce
+qu'elles retirent au vocabulaire, et ce qu'elles coûtent en contours ouverts. La différence avec
+« minimal », c'est qu'elles sont **applicables** — on peut dire si une règle les respecte, tout
+de suite, sans énumérer un domaine.
