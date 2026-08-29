@@ -75,6 +75,28 @@ const Walls := preload("res://core/walls.gd")
 ## c'est son SUD, qui ne se trace plus du tout des L2.
 ## La robe au-dessus trace-t-elle son bas ? Seul un PIED le fait -- une rangee de corps s'arrete
 ## sans bord, qu'elle soit ecretee ou non.
+## LA CARTE DES ROBES, FERMEE : une chute qui s'arrete pose son PIED, quelle que soit la raison
+## -- atterrissage, ecretage, ou chute dans le vide. Ce qui change est le SENS du pied : il ne
+## prouve plus un atterrissage, il FERME CE QU'ON VOIT DE LA FACE.
+##
+## ⚠ ET C'EST LA SEULE SOURCE, DESORMAIS. La regle etait ecrite DEUX FOIS -- une pour le
+## dessin, une pour les bits de silence a cheval, et celle-la lisait la carte BRUTE. La tuile de
+## robe posait donc son bas -- pied substitue -- pendant que la tuile a cheval, croyant avoir un
+## CORPS au-dessus, tracait la meme frontiere : deux traits pour un seul bord. Mesure sur
+## `@battue1` : 26 doublements, tous etiquetes `falaise`.
+##
+## ⚠ MEME ESPECE QUE `_check_wall_seams` QUI REDERIVAIT `row_for`, ET QUE LES DEUX
+## VOCABULAIRES DE SURFACE AVANT `core/families.gd`. Deux copies d'une meme regle finissent
+## toujours par se contredire, et celle qui se tait est celle qu'on ne regarde pas.
+static func _closed_roles(roles: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for cell: Vector2i in roles.keys():
+		var role: Vector2i = roles[cell]
+		var ends: bool = not roles.has(cell + Vector2i.DOWN)
+		out[cell] = Vector2i(role.x, Walls.ROW_FOOT) if ends else role
+	return out
+
+
 static func _foot_above(cell: Vector2i, roles: Dictionary) -> bool:
 	if not roles.has(cell):
 		return false
@@ -253,6 +275,8 @@ static var _clause: String = ""
 
 ## L5 : QUI CEDE A LA JONCTION LATERALE (`LADDER_ASTRIDE=`) -- `surface` (defaut) ou `face`.
 static var _astride: String = ""
+static var _meet: String = "both"
+static var _half_axis: bool = false
 
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
 static var _open_edges: int = 0
@@ -351,6 +375,15 @@ func _initialize() -> void:
 	_buried_full = OS.get_environment("LADDER_BURIED") == "plein"
 	_clause = OS.get_environment("LADDER_CLAUSE")
 	_astride = OS.get_environment("LADDER_ASTRIDE")
+	# ⚠ LE RENDEZ-VOUS SE DEBRANCHE, PARCE QU'UN CORRECTIF DONT ON NE SAIT PAS CE QU'IL COUTE
+	# N'EST PAS MESURE. `none`, `orig`, `miroir` -- et `both` par defaut, ce que la mesure a
+	# choisi. Sans ce robinet on ne peut pas dire, monde par monde, ce que le raccord FERME et
+	# ce qu'il CASSE : sur la planche il ferme 43 extremites pour zero pave, ailleurs il faut
+	# le savoir avant de l'accuser ou de le defendre.
+	_meet = OS.get_environment("LADDER_MEET")
+	_half_axis = OS.get_environment("LADDER_HALF") == "axe"
+	if _meet.is_empty():
+		_meet = "both"
 	if _j2_none:
 		_j2_on_face = true
 	# ⚠ LA BATTUE DE VOCABULAIRE : « combien de tuiles le modele peut-il produire ? »
@@ -559,7 +592,7 @@ func _run(couple: String) -> bool:
 		# Une demi-frontiere verticale se tait quand l'une des deux cases qu'elle separe est
 		# couverte par une FACE -- c'est le flanc de cette face qui la porte, au meme endroit.
 		if _astride != "face":
-			var walls5: Dictionary = Walls.visible(world)["roles"]
+			var walls5: Dictionary = _closed_roles(Walls.visible(world)["roles"])
 			var under5: Dictionary = Walls.visible_underfoot(world)
 			for storey: int in range(storeys.size()):
 				var map5: Dictionary = storeys[storey]
@@ -600,6 +633,39 @@ func _run(couple: String) -> bool:
 					vocabulary[int((storeys[storey] as Dictionary)[point])] = true
 		print("  a cheval : %d croisements visibles, %d tuiles de croisement"
 				% [indices.size(), vocabulary.size()])
+		# ⚠ UNE SONDE, PARCE QUE TROIS HYPOTHESES DE SUITE ONT ETE FAUSSES SUR LE MEME PIXEL.
+		# `LADDER_PROBE=i,j` dit tout ce qu'un croisement sait : les quatre cases, leur etage,
+		# la robe qui les couvre et sa levre, puis la cle a cheval de chaque etage avec ses
+		# quatre bits de silence en clair. Lire l'image dit OU le trait est ; ceci dit POURQUOI.
+		var probe5: String = OS.get_environment("LADDER_PROBE")
+		if not probe5.is_empty():
+			var cut5: PackedStringArray = probe5.split(",")
+			var point5: Vector2i = Vector2i(int(cut5[0]), int(cut5[1]))
+			var walls6: Dictionary = Walls.visible(world)
+			var under6: Dictionary = Walls.visible_underfoot(world)
+			print("  -- sonde du croisement %d,%d --" % [point5.x, point5.y])
+			for corner5: int in range(4):
+				var at5: Vector2i = point5 + CornerIndex.OFFSETS[corner5]
+				var said5: String = "etage %d" % HeightMask.level_at(world, at5.x, at5.y)
+				if (walls6["roles"] as Dictionary).has(at5):
+					var role5: Vector2i = (walls6["roles"] as Dictionary)[at5]
+					said5 += ", ROBE pan %d rangee %d (levre etage %d)" % [role5.x, role5.y,
+							int((walls6["lips"] as Dictionary)[at5])]
+				if under6.has(at5):
+					said5 += ", pose arriere rangee %d" % (under6[at5] as Vector2i).y
+				print("     case %s %s : %s" % [CornerIndex.BIT_NAMES[corner5], at5, said5])
+			for storey5: int in range(storeys.size()):
+				var map6: Dictionary = storeys[storey5]
+				if not map6.has(point5):
+					continue
+				var key5: int = int(map6[point5])
+				var mute5: PackedStringArray = PackedStringArray()
+				for bit5: int in range(4):
+					if ((key5 >> 4) & (1 << bit5)) != 0:
+						mute5.append(["vert-nord", "vert-sud", "horiz-ouest",
+								"horiz-est"][bit5])
+				print("     etage %d : cle %d (forme %d, silences %s)" % [storey5, key5,
+						key5 & 0xf, "aucun" if mute5.is_empty() else " ".join(mute5)])
 
 	var canonical: Dictionary = {}
 	for cell: Vector2i in indices.keys():
@@ -636,12 +702,6 @@ func _run(couple: String) -> bool:
 		# INTERNES : hors d'elle, sa voisine designe les memes cases. Elle n'a donc rien a
 		# savoir de son voisinage, et la question « qui trace » ne se pose pas. C'est ce que le
 		# temoin doit confirmer -- ou refuter.
-		if level >= 5:
-			var closed5: Dictionary = {}
-			for cell5: Vector2i in roles.keys():
-				var role5: Vector2i = roles[cell5]
-				closed5[cell5] = Vector2i(role5.x, Walls.ROW_FOOT) 						if not roles.has(cell5 + Vector2i.DOWN) else role5
-			roles = closed5
 		# ⚠ UNE CHUTE QUI S'ARRETE DOIT SE FERMER, QUELLE QUE SOIT LA RAISON. Le modele ne pose
 		# le PIED qu'a l'atterrissage : une chute qui tombe dans le VIDE n'en pose pas -- « on
 		# ne touche pas le fond d'un gouffre » -- et une chute ECRETEE non plus, elle s'arrete
@@ -662,13 +722,7 @@ func _run(couple: String) -> bool:
 		# tard, la surface trace son nord A SA PROFONDEUR et la frontiere a deux descriptions
 		# qui ne se rejoignent pas au coin. Sixieme fois qu'un ordre de calcul me coute une
 		# mesure.
-		var closed: Dictionary = {}
-		for cell: Vector2i in roles.keys():
-			var role: Vector2i = roles[cell]
-			var ends: bool = not roles.has(cell + Vector2i.DOWN)
-			closed[cell] = Vector2i(role.x, Walls.ROW_FOOT) if ends else role
-		if level < 5:
-			roles = closed
+		roles = _closed_roles(roles)
 		# ⚠ LE BIT SE CALCULE ICI, PAS DANS LA TUILE. C'est justement ce qu'une tuile ne peut
 		# pas savoir : ce qu'il y a de l'autre cote. Le banc, lui, a le monde sous les yeux --
 		# c'est ce qui permet de MESURER le prix avant de decider si on le paie.
@@ -1913,7 +1967,13 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 					continue
 				# CONTRE DE LA ROCHE, LA TUILE A CHEVAL SE TAIT AUSSI -- par demi-frontiere.
 				if side == 1 or side == 3:
+					# ⚠ LA MOITIE SE COMPTE DEPUIS L'AXE PERPENDICULAIRE, PAS DEPUIS LE MILIEU
+					# DE LA TUILE. Les deux axes SE DEPLACENT des F1 : les rangees 8 et 9 d'une
+					# tuile dont le quadrant nord descend jusqu'a `hy = 9` appartiennent encore
+					# au NORD, et se faisaient taire sur le bit du SUD.
 					var half2: int = 1 if y < RES / 2 else 2
+					if _half_axis:
+						half2 = 1 if y <= _corner_axis(x, false, quiet, freedom) else 2
 					if (quiet & half2) != 0:
 						continue
 				# ET SOUS UN PIED, ELLE SE TAIT AU NORD -- meme regle que `NORTH_QUIET` dans la
@@ -1921,6 +1981,8 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 				# le pied qui la porte.
 				if side == 0:
 					var half3: int = 4 if x < RES / 2 else 8
+					if _half_axis:
+						half3 = 4 if x <= _corner_axis(y, true, quiet, freedom) else 8
 					if (quiet & half3) != 0:
 						continue
 				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
@@ -1952,10 +2014,11 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 	# exactement l'un des deux quadrants du haut est plein -- sinon il n'y a aucune frontiere,
 	# donc rien a raccorder, et le raccord n'est plus qu'un second trait sur le bord du voisin.
 	var north_split: bool = ((index & CornerIndex.BITS[0]) != 0) 			!= ((index & CornerIndex.BITS[1]) != 0)
-	if freedom > 0 and north_split and (quiet & 2) != 0 and (quiet & 1) == 0:
+	if freedom > 0 and north_split and (quiet & 2) != 0 and (quiet & 1) == 0 \
+			and (_meet == "both" or _meet == "orig"):
 		var meet: int = half - 1
 		var axis: int = half - 1 + _corner_shift(meet, freedom, true)
-		for x3: int in range(mini(meet, axis), maxi(meet, axis) + 1):
+		for x3: int in range(mini(half, axis), maxi(half, axis) + 1):
 			if tile.get_pixel(x3, meet).a >= 0.5:
 				tile.set_pixel(x3, meet, OUTLINE)
 
@@ -1971,13 +2034,14 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 	# c'est sur elle que le trait se pose : on trace le bord de la matiere, jamais le vide.
 	var south_split: bool = ((index & CornerIndex.BITS[3]) != 0) \
 			!= ((index & CornerIndex.BITS[2]) != 0)
-	if freedom > 0 and south_split and (quiet & 1) != 0 and (quiet & 2) == 0:
+	if freedom > 0 and south_split and (quiet & 1) != 0 and (quiet & 2) == 0 \
+			and (_meet == "both" or _meet == "miroir"):
 		# ⚠ ET L'AXE SE LIT SUR LA PREMIERE RANGEE DE LA MOITIE LIBRE, pas sur la derniere de la
 		# moitie muette : c'est la moitie libre qui s'est ecartee du bord de case, et c'est son
 		# ecart que la marche doit franchir.
 		var meet2: int = half - 1
 		var axis2: int = half - 1 + _corner_shift(half, freedom, true)
-		for x4: int in range(mini(meet2, axis2), maxi(meet2, axis2) + 1):
+		for x4: int in range(mini(half, axis2), maxi(half, axis2) + 1):
 			if tile.get_pixel(x4, meet2).a >= 0.5:
 				tile.set_pixel(x4, meet2, OUTLINE)
 
@@ -3149,7 +3213,19 @@ func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
 				beyond = HeightMask.level_at(world, probe.x, probe.y)
 			var mine: int = _draws(image, cell, side)
 			var theirs: int = 0
-			if beyond >= 0:
+			# ⚠ ET ON REGARDE CHEZ LA VOISINE MEME QUAND ELLE EST HORS DU MONDE. « Pas de case
+			# la » n'est pas « pas de pixels la » : l'image, elle, couvre toute la grille. Le
+			# garde `beyond >= 0` confondait les deux, et a cheval ca se paie -- l'axe d'une
+			# tuile de croisement se DEPLACE au-dela du bord de case, donc le trait d'une
+			# frontiere contre le vide est peint DANS le carre de la case vide. La sonde ne le
+			# trouvait pas et declarait la frontiere muette : 26 fausses muettes sur `@battue1`,
+			# pour un trait parfaitement present a deux pixels de la.
+			#
+			# ⚠ ET ELARGIR UNE SONDE NE PEUT QUE RENDRE LA MESURE PLUS SEVERE, JAMAIS PLUS
+			# COMPLAISANTE : on ajoute un revendiquant possible, donc une muette peut devenir
+			# juste et une juste peut devenir DOUBLE. Dans la famille par case, ou le trait ne
+			# rentre que chez lui, la sonde ne trouve rien de plus -- c'est le rejeu qui le dit.
+			if probe.x >= 0 and probe.y >= 0 and probe.x < width and probe.y < height:
 				theirs = _draws(image, probe, (side + 2) % 4)
 			# ⚠ UNE CASE DE FALAISE NE SE JUGE PAS PAR SON ETAGE. Sur la carte, une case de
 			# robe est une case du SOL D'EN BAS : lui demander son niveau ne dit rien de la

@@ -2443,6 +2443,103 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 20 · CLORE L5 : LA CARTE DES ROBES ÉTAIT ÉCRITE DEUX FOIS, ET LA SONDE REGARDAIT DE BIAIS
+
+La planche duale est verte aux trois libertés ; le **guide** et **`@battue1`** ne le sont pas.
+Ce qui suit est le premier tour de la clôture, sur `@battue1` — 40×45, une minute par mesure,
+donc le monde où l'on itère.
+
+| sur `@battue1` | I1 | I2 | I3 |
+|---|---|---|---|
+| départ | 4 extrémités | 19 pavés | **14 doubles, 26 muettes** |
+| + la sonde qui regarde chez la voisine hors du monde | 4 | 19 | **26 doubles**, 2 muettes |
+| + la carte des robes à une seule source | 4 | 14 | **0 double**, 2 muettes |
+| + le rendez-vous s'arrête une colonne plus tôt | **4** | **10** | 0 · 2 |
+
+Et le même jeu de correctifs sur le **guide**, qui n'a servi à aucun réglage :
+
+| sur le **guide** (104×141, 84 tuiles à cheval) | I1 | I2 | I3 |
+|---|---|---|---|
+| départ | 6 extrémités | 8 pavés | 29 doubles, 13 muettes |
+| après les trois | **6** | ✅ **0** | ✅ **0 double**, 9 muettes |
+
+⚠ **I2 EST VERT SUR LE GUIDE, ET LES DOUBLEMENTS ONT DISPARU DES DEUX MONDES.** Ce qui reste est
+d'une seule espèce : des frontières que **personne** ne trace, et les extrémités qui vont avec —
+neuf muettes sur le guide dont **huit d'affilée sur une même rangée**, deux sur la battue.
+
+**1. LA CARTE DES ROBES ÉTAIT ÉCRITE DEUX FOIS, ET C'EST LA FAUTE QUE LE DOSSIER RÉPÈTE À
+CHAQUE PAGE.** Une chute qui s'arrête pose son PIED, quelle qu'en soit la raison — c'est la
+substitution qui ferme ce qu'on voit de la face. Elle était appliquée à la carte qui **dessine**
+les robes… et pas à celle que lisent les **bits de silence à cheval**, qui repartait de
+`Walls.visible()`. La tuile de robe posait donc son bas — pied substitué — pendant que la tuile
+à cheval, croyant avoir un **corps** au-dessus, traçait la même frontière. **26 doublements, tous
+étiquetés `falaise`, et ils tombent tous les vingt-six.**
+
+⚠ **MÊME ESPÈCE QUE `_check_wall_seams` QUI REDÉRIVAIT `row_for`, ET QUE LES DEUX VOCABULAIRES DE
+SURFACE AVANT `core/families.gd`.** *Deux copies d'une même règle finissent toujours par se
+contredire, et celle qui se tait est celle qu'on ne regarde pas.* Il y a maintenant une fonction,
+`_closed_roles`, et deux appelants.
+
+**2. LA SONDE D'I3 NE REGARDAIT PAS CHEZ UNE VOISINE HORS DU MONDE.** « Pas de case là » n'est pas
+« pas de pixels là » : l'image, elle, couvre toute la grille. Le garde `beyond >= 0` confondait les
+deux — et **à cheval ça se paie**, parce que l'axe d'une tuile de croisement se déplace **au-delà**
+du bord de case : le trait d'une frontière contre le vide est peint DANS le carré de la case vide.
+**26 fausses muettes**, pour un trait parfaitement présent à deux pixels de là.
+
+⚠ **ET ÉLARGIR UNE SONDE NE PEUT QUE RENDRE LA MESURE PLUS SÉVÈRE, JAMAIS PLUS COMPLAISANTE.** On
+ajoute un revendiquant possible : une muette peut devenir juste, et une juste peut devenir
+**double**. C'est exactement ce qui s'est passé — 14 doubles annoncés, 26 réels — et c'est ce qui a
+mis la faute n° 1 sous les yeux. *Corriger l'instrument avant de corriger le dessin*, sans quoi on
+corrige au juge. Le rejeu des vingt-deux couples reste vert : dans la famille par case, où le trait
+ne rentre que chez lui, la sonde élargie ne trouve rien de plus.
+
+**3. LA CLASSIFICATION DES MOITIÉS DEPUIS L'AXE EST RÉFUTÉE UNE SECONDE FOIS**, et cette fois sur un
+monde réel, avec le pinçage et le rendez-vous en place — c'est-à-dire dans les conditions où le
+premier refus pouvait être caduc. Elle ne l'est pas :
+
+| sur `@battue1` | I1 | I2 |
+|---|---|---|
+| moitiés au milieu de la tuile (gardé) | **4** | **10** |
+| moitiés depuis l'axe, sans rendez-vous | 20 | 18 |
+| moitiés depuis l'axe, avec | 14 | 33 |
+
+L'idée était bonne à énoncer : les rangées 8 et 9 d'une tuile dont le quadrant nord descend
+jusqu'à `hy = 9` appartiennent encore au **nord**, et se taisent sur le bit du **sud**. Elle reste
+fausse à la mesure. Joignable par `LADDER_HALF=axe`.
+
+**4. LE RENDEZ-VOUS S'ARRÊTE UNE COLONNE AVANT LE BORD DE CASE.** Lu au pixel : la marche est peinte
+à la rangée `half - 1`, et **le chapiteau d'en dessous trace sa crête au ras** aux colonnes qui
+bordent la case — `_wall_depth` s'y pince à zéro. Les deux traits se retrouvent donc collés,
+rangée contre rangée. Le raccord n'a jamais eu besoin d'aller jusqu'au bord : le contact **en
+diagonale** avec le coin du chapiteau suffit. **14 → 10 pavés, et la planche ne bouge pas.**
+
+⚠ **ET CE QUI RESTE EST LA MÊME COLLISION, UNE COLONNE PLUS LOIN.** Le pinçage de la crête n'est pas
+« les deux colonnes du bord » mais `along <= first`, avec `first` tiré de… `_depth(3, 0)`,
+c'est-à-dire de la **famille par case, qui n'existe pas à L5**. Le prochain coup est là : les points
+de pincement d'une robe doivent être les traversées de la famille de surface **du niveau**, et à
+cheval ce ne sont pas les mêmes. C'est la loi déjà écrite pour `_wall_depth` — *« un bord de face
+touche le bord de sa case aux deux traversées canoniques de la famille perpendiculaire »* — jamais
+relue depuis que la famille a changé.
+
+**5. LE ROBINET, PARCE QU'UN CORRECTIF DONT ON NE SAIT PAS CE QU'IL COÛTE N'EST PAS MESURÉ.**
+`LADDER_MEET=none|orig|miroir|both` débranche les deux rendez-vous. Sur `@battue1`, avant les
+correctifs ci-dessus :
+
+| | I1 | I2 |
+|---|---|---|
+| `none` | 12 | 5 |
+| `orig` | 5 | 19 |
+| `miroir` | 11 | 5 |
+| `both` | 4 | 19 |
+
+**Le miroir ferme une extrémité et ne coûte aucun pavé ; c'est l'original qui en coûte quatorze.**
+Sans ce robinet on aurait accusé le miroir, qui venait d'être écrit.
+
+⚠ **ET UNE SONDE DE CROISEMENT, `LADDER_PROBE=i,j`**, qui dit les quatre cases, leur étage, la robe
+qui les couvre et sa lèvre, puis la clé à cheval de chaque étage avec ses quatre silences en clair.
+Trois hypothèses de suite avaient été fausses sur le même pixel — lire l'image dit **où** le trait
+est, la sonde dit **pourquoi**. C'est elle qui a nommé la faute n° 1 en une lecture.
+
 ### 19 · LES QUATRE SONT FERMÉES : LE RENDEZ-VOUS AVAIT UN MIROIR, POSÉ À LA MAUVAISE RANGÉE
 
 **L5 est vert sur la planche duale, aux trois libertés, et ça ne coûte AUCUNE tuile** — 64
