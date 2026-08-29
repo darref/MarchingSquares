@@ -302,6 +302,15 @@ func _initialize() -> void:
 	# BATTUE QUI NE RENCONTRE PAS UNE TUILE PROUVE QU'ELLE EST RARE, JAMAIS QU'ELLE EST
 	# IMPOSSIBLE. Ce qu'elle donne est une BORNE BASSE qui se stabilise, et la courbe de sa
 	# croissance -- laquelle dit si l'on a fini de chercher ou pas.
+	# ⚠ ET LES RELIEFS PEUVENT VENIR D'UN FICHIER, parce que l'enumeration par BLOCS ALIGNES
+	# etait une sous-famille : 19 tuiles des mondes livres n'en sortaient pas. `tools/
+	# thick_reliefs.py` engendre TOUT relief epais d'une fenetre -- donc aussi ce qu'un tampon
+	# DECALE produit -- et le banc n'a plus qu'a les poser dans leur marge.
+	var fichier: String = OS.get_environment("LADDER_RELIEFS")
+	if not fichier.is_empty():
+		_from_file(fichier)
+		quit(0)
+		return
 	var full: int = int(OS.get_environment("LADDER_EXHAUSTIVE"))
 	if full > 0:
 		_enumerate(full)
@@ -1331,6 +1340,83 @@ func _enumerate(alphabet: int) -> void:
 ## Un relief fait de neuf blocs 3x3, avec la marge que le modele exige : une chute dans le vide
 ## descend de STOREY_TILES x (etage + 1), et une robe coupee par le cadre laisserait un contour
 ## ouvert -- ce serait un defaut du MONDE, pas du dessin.
+## LES RELIEFS D'UN FICHIER : un par bloc, separes par une ligne vide.
+func _from_file(path: String) -> void:
+	_quiet = true
+	_vocab_only = true
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_error("ladder: fichier de reliefs illisible '%s'." % path)
+		return
+	var all: PackedStringArray = file.get_as_text().split("\n\n", false)
+	file.close()
+	var from: int = int(OS.get_environment("LADDER_FROM"))
+	var upto: int = all.size()
+	if not OS.get_environment("LADDER_TO").is_empty():
+		upto = mini(upto, int(OS.get_environment("LADDER_TO")))
+	print("=== RELIEFS EPAIS : %d dans %s  -- part [%d, %d) ===" % [all.size(), path, from, upto])
+	var mark: int = 0
+	# ⚠ ET C'EST LE MODULE DU DEPOT QUI JUGE L'EPAISSEUR, PAS LE GENERATEUR. Deux fois de suite
+	# j'ai reecrit la regle en Python et deux fois elle etait fausse -- d'abord « courses de
+	# meme valeur » au lieu de « courses par silhouette », puis des courses de bord laissees
+	# libres alors que la marge de vide les TERMINE. Le compte de silhouettes l'a dit chaque
+	# fois : 34 rencontrees pour 27 au vocabulaire. On pose donc le relief dans sa marge, et
+	# on demande a `Thickness` -- celui-la meme que le pinceau consulte -- s'il est epais.
+	var refuses: int = 0
+	for n: int in range(from, upto):
+		_injected = _framed(String(all[n]).split("\n", false))
+		if not Thickness.thin_cells(_injected).is_empty():
+			refuses += 1
+			continue
+		_run("L3/F2")
+		if n % maxi(1, (upto - from) / 10) == 0 or n == upto - 1:
+			print("  %8d / %d reliefs : %d tuiles de surface, %d roles   (+%d)"
+					% [n + 1, all.size(), _vocab_seen.size(), _vocab_roles.size(),
+					_vocab_seen.size() - mark])
+			mark = _vocab_seen.size()
+	print("  DOMAINE EPUISE : %d tuiles de surface, %d roles de robe   -- TOTAL %d"
+			% [_vocab_seen.size(), _vocab_roles.size(),
+			_vocab_seen.size() + _vocab_roles.size()]
+			+ "   (%d relief(s) refuse(s) comme FINS par Thickness)" % refuses)
+	var keys: Array[int] = []
+	keys.assign(_vocab_seen.keys())
+	keys.sort()
+	var said: PackedStringArray = PackedStringArray()
+	for key: int in keys:
+		said.append(str(key))
+	print("  TUILES: %s" % ",".join(said))
+	var found: PackedStringArray = PackedStringArray()
+	for role: Vector2i in _vocab_roles.keys():
+		found.append("%d.%d" % [role.x, role.y])
+	found.sort()
+	print("  ROLES: %s" % ",".join(found))
+
+
+## LA MARGE QUE LE MODELE EXIGE, POSEE AUTOUR D'UNE FENETRE. Une chute dans le vide descend de
+## STOREY_TILES x (etage + 1) ; une robe coupee par le cadre laisserait un contour ouvert, et ce
+## serait un defaut du MONDE, pas du dessin.
+func _framed(rows: PackedStringArray) -> PackedStringArray:
+	var top: int = 0
+	for row: String in rows:
+		for i: int in range(row.length()):
+			if row[i] != "~":
+				top = maxi(top, int(row[i]))
+	var edge: int = 3
+	var below: int = Walls.STOREY_TILES * (top + 1) + edge
+	var wide: int = rows[0].length() + 2 * edge
+	var empty: String = ""
+	for x: int in range(wide):
+		empty += "~"
+	var out: PackedStringArray = PackedStringArray()
+	for row: int in range(edge):
+		out.append(empty)
+	for row: String in rows:
+		out.append("~~~" + row + "~~~")
+	for row: int in range(below):
+		out.append(empty)
+	return out
+
+
 func _blocks(levels: Array[int], alphabet: int, blocks: int, rows: int) -> PackedStringArray:
 	var side: int = 3
 	var wide: int = side * blocks

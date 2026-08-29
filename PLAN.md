@@ -2085,3 +2085,57 @@ sait pas creuser.
 est au moins à 59, et sa fermeture demande d'énumérer les poses **décalées** — 9 positions par
 tampon, donc un espace qu'aucune énumération exhaustive ne couvrira telle quelle. *La fermeture
 existe (le rayon 2 le dit) ; le compte, lui, reste à établir.*
+
+
+### 10 · LES POSES DÉCALÉES — TROIS GÉNÉRATEURS FAUX AVANT LE BON, ET LE COMPTE MONTE À 63
+
+*Le domaine aligné était une sous-famille ; restait à énumérer ce qu'un tampon **décalé**
+produit. Plutôt que de modéliser des poses — un espace qu'on ne parcourt pas — on engendre
+**tout relief épais** d'une fenêtre : c'est le sur-ensemble de ce que le pinceau peut faire,
+puisque sa seule règle est de refuser une case fine.*
+
+⚠ **ET J'AI ÉCRIT LA RÈGLE D'ÉPAISSEUR TROIS FOIS AVANT DE LA LIRE.** Chaque version paraissait
+juste et chacune a produit un chiffre crédible :
+
+| version | ce qu'elle imposait | ce que ça a donné |
+|---|---|---|
+| 1 | courses de même **valeur** ≥ 3 | 172 611 reliefs → **127 tuiles**, et **34 silhouettes** |
+| 2 | courses ≥ 3 **par silhouette**, bords libres | 1 058 271 reliefs → 129 tuiles, **34 silhouettes** |
+| 3 | idem, mais bords libres **en ligne seulement** | 46 736 reliefs → `Thickness` en refuse **1 862 sur 2 000** |
+| **4** | matière ≥ 3 **partout**, vide libre au bord | **6 098 reliefs → 0 refusé** |
+
+⚠ **LE DÉTECTEUR ÉTAIT LE MÊME LES QUATRE FOIS : LE COMPTE DE SILHOUETTES.** 34 rencontrées
+pour **27** au vocabulaire — une silhouette hors des 27 *est* une case fine. Sans cet invariant
+lisible j'annonçais 127 tuiles avec assurance. *Un compteur qui ne mesure pas ce qu'il prétend
+mesurer est pire que pas de compteur*, et cette fois c'est un compteur qui m'a sauvé.
+
+⚠ **LA RÈGLE JUSTE, ET POURQUOI ELLE N'EST PAS SYMÉTRIQUE : la fenêtre est posée dans le VIDE.**
+Une course de **matière** qui touche le bord y est **terminée** par la marge, donc elle doit faire
+trois ; une course de **vide** qui touche le bord **continue** dehors, donc elle est libre. C'est
+la même asymétrie que `window_realizable` pour les 27, vue de l'autre côté.
+
+⚠ **ET LE JUGE FINAL EST `Thickness`, PAS LE GÉNÉRATEUR.** Le banc refuse lui-même tout relief
+que le module du dépôt déclare fin, et il dit combien — *on ne réécrit pas une règle du dépôt,
+on la relit.* Le compte de refusés est passé de 2 984/3 000 à **0**.
+
+**Ce que l'énumération corrigée donne :**
+
+| famille | reliefs | tuiles de surface | rôles |
+|---|---|---|---|
+| aligné (blocs 3×3), 5 fenêtres | 879 316 | 40 | **15** |
+| **libre 5×5, exhaustif** | **6 098** | **29** | **17** |
+| mondes livrés (guide + planche) | — | 53 | 20 |
+| **UNION** | — | **63** (27 silhouettes) | **20** |
+
+⚠ **AUCUNE FAMILLE N'EN CONTIENT UNE AUTRE.** 17 tuiles de l'aligné manquent au libre 5×5, 31
+des mondes livrés y manquent aussi — et le libre en apporte que ni l'un ni les autres n'ont. **Le
+vocabulaire est donc au moins à 63 + 20 = 83**, et « 55 » était le compte d'une tranche.
+
+⚠ **ET LES CINQ RÔLES QUE L'ALIGNÉ NE PRODUISAIT PAS SORTENT DÈS LES 200 PREMIERS RELIEFS
+LIBRES.** Ils ne demandaient ni un monde plus grand ni un étage de plus : ils demandaient un
+**tampon décalé**. C'est la mesure qui condamne l'hypothèse d'alignement, et elle tient en deux
+cents reliefs contre 879 316.
+
+**Ce qui reste : une fenêtre assez large pour porter les 27 silhouettes.** Le libre 5×5 n'en
+exerce que 15 — un îlot de cinq cases dans le vide ne peut pas tout montrer. La 7×7 à trois états
+est en cours d'engendrement ; c'est elle qui dira si le compte se stabilise ou continue de monter.
