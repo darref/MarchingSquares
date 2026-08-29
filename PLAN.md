@@ -2398,3 +2398,40 @@ possible ?* Presque — et la nuance est exactement ce que « serré » sert à 
 ⚠ **D'où la formulation exacte de la promesse : tout ce qu'il peint sert, et tout ce dont il aura
 besoin est peint.** Les deux à la fois — c'est pourquoi les deux nombres doivent se **rejoindre**,
 et non l'un être petit. Chaque bit retiré ce soir retire du risque, pas seulement de la borne.
+
+
+### 16 · 29 ET 113 : LE DÉTECTEUR ATTEINT SA LIMITE, ET CE N'EST PAS UN DÉFAUT DU MODÈLE
+
+Le serrage désignait 29 et 113, à 12 tuiles chacune. Elles ne portent **qu'une** combinaison sur
+la planche et le guide — de quoi conclure « encore une constante ». **Compté avant de conclure :
+elles n'apparaissent que QUATRE fois** (et 20 et 80, seulement **deux**).
+
+⚠ **UNE CONSTANTE SUR QUATRE OCCURRENCES NE PROUVE RIEN**, et c'est exactement le piège que le
+dossier reproche aux battues : *une rencontre qui n'a pas eu lieu ne prouve rien.* J'ai donc
+cherché des occurrences ailleurs — douze battues de plus, au jeu de bits du jour :
+
+| silhouette | sur planche + guide | **sur quatorze mondes** |
+|---|---|---|
+| 29 | 1 combinaison | **2** — `bordW`, `bordW+diagNE` |
+| 113 | 1 | **2** — miroir exact |
+| 20 · 80 | 1 | 1 — `nu` |
+| 5 · 65 | 1 | 1 |
+
+**Le `diag` variait donc bien ; c'est l'échantillon qui était muet.** Et le `bord`, lui, reste mis
+partout — mais cette fois je ne conclus pas : aucun théorème ne le force, contrairement aux
+diagonales sud dont la règle de la lèvre garantissait la valeur. *La différence entre les deux
+cas est tout ce qui sépare une mesure d'une preuve.*
+
+⚠ **CE QUE ÇA APPREND SUR LE DÉTECTEUR LUI-MÊME : le serrage ne diagnostique que ce que les
+mondes exercent.** Là où une silhouette n'apparaît que deux fois, l'écart entre borne et
+rencontré ne dit pas si un bit est constant ou simplement pas encore vu. **La limite du
+détecteur est la couverture du guide**, et c'est la même ligne que le dossier écrit déjà :
+*« une tuile absente du guide est une tuile que l'acheteur ne peut pas peindre ».*
+
+**État après quatorze mondes : 67 tuiles rencontrées pour 139 en borne — serrage 48 %.**
+
+⚠ **Et la suite n'est donc plus dans les bits, elle est dans le GUIDE.** Tant que 255 occupe
+23 699 cases sur 26 324 et que six silhouettes en occupent deux ou quatre, le serrage ne peut
+plus descendre par la mesure : il descendra quand un guide exercera le vocabulaire au lieu de
+l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'est une planche de
+spécimens, et le redessiner reste à faire »*.
