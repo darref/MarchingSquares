@@ -104,6 +104,30 @@ NOMS = {"bord": BORD_E | BORD_W, "nq": NORTH_QUIET, "ergot": 1020,
         "below": BELOW_E | BELOW_W}
 
 
+def toutes():
+    """La liste complete des tuiles de la forme : c'est elle qu'il faut DECIDER, une par une."""
+    out = []
+    for sil in SILHOUETTES:
+        base = libres(sil)
+        vus = set()
+        for n in range(1 << len(base)):
+            bits = 0
+            for i, b in enumerate(base):
+                if n >> i & 1: bits |= b
+            for extra in range(16):
+                plus = 0
+                if extra & 1: plus |= FLUSH_E
+                if extra & 2: plus |= FLUSH_W
+                if extra & 4: plus |= BELOW_E
+                if extra & 8: plus |= BELOW_W
+                if plus & RETIRES: continue
+                if valide(sil, bits | plus):
+                    vus.add(bits | plus)
+        for b in vus:
+            out.append(sil | (b << 8))
+    return sorted(out)
+
+
 def main():
     global RETIRES, DIAG_ERGOT
     for a in sys.argv[1:]:
@@ -112,6 +136,9 @@ def main():
         if a.startswith("--sans="):
             for nom in a.split("=")[1].split(","):
                 RETIRES |= NOMS[nom]
+    if "--liste" in sys.argv:
+        print(",".join(str(k) for k in toutes()))
+        return
     total, par_sil = forme()
     print("=== LA FORME FERMEE, AU JEU DE BITS D'AUJOURD'HUI ===")
     print("  %d tuiles de surface sur %d silhouettes" % (total, len(SILHOUETTES)))
