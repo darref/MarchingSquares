@@ -239,6 +239,11 @@ static var _storeys: Array[Dictionary] = []
 static var _vocab_only: bool = false
 static var _vocab_seen: Dictionary = {}
 static var _vocab_roles: Dictionary = {}
+## ⚠ ET LE TEMOIN DE CHAQUE TUILE, PAS SEULEMENT SA PRESENCE. Un guide qui EXERCE le
+## vocabulaire se batit de temoins -- « l'ilot est calcule, jamais dessine » -- et pour ca il
+## faut savoir QUEL relief a produit chaque tuile, pas seulement qu'elle existe.
+static var _witness_of: Dictionary = {}
+static var _current: int = -1
 
 ## LA CLAUSE DE GRAMMAIRE A L'ESSAI (`LADDER_CLAUSE=`), et il y en a trois candidates :
 ##   `paroi3`  aucune paroi de moins de trois colonnes ;
@@ -983,6 +988,8 @@ func _run(couple: String) -> bool:
 	# coute une fraction. C'est ce qui rend deux cents mondes tenables.
 	if _vocab_only:
 		for key: Variant in vocabulary.keys():
+			if _current >= 0 and not _vocab_seen.has(int(key)):
+				_witness_of[int(key)] = _current
 			_vocab_seen[int(key)] = true
 		for cell: Vector2i in roles.keys():
 			_vocab_roles[roles[cell]] = true
@@ -1044,6 +1051,28 @@ func _run(couple: String) -> bool:
 		for key7: int in placed:
 			told.append(str(key7))
 		print("  POSEES: %s" % ",".join(told))
+		# ⚠ ET OU CHACUNE SE TROUVE, parce qu'un guide qui EXERCE le vocabulaire se decoupe
+		# dans les mondes qui le portent -- c'est deja la methode des demonstrations de
+		# falaise : « decoupee dans le guide, plus dessinee a la main ». Un vivier de reliefs
+		# 7x5 n'en produit que 29 ; les mondes livres en portent 51.
+		var ou: Dictionary = {}
+		for storey8: int in range(storeys.size()):
+			var map8: Dictionary = storeys[storey8]
+			for cell8: Vector2i in map8.keys():
+				var key8: int = int(map8[cell8])
+				if not ou.has(key8):
+					ou[key8] = cell8
+		var dits: PackedStringArray = PackedStringArray()
+		for key9: int in placed:
+			if ou.has(key9):
+				dits.append("%d@%d.%d" % [key9, (ou[key9] as Vector2i).x,
+						(ou[key9] as Vector2i).y])
+		print("  OU: %s" % ",".join(dits))
+		var out8: FileAccess = FileAccess.open("user://monde.txt", FileAccess.WRITE)
+		if out8 != null:
+			out8.store_string("\n".join(world) + "\n")
+			out8.close()
+			print("  MONDE ECRIT : %s" % ProjectSettings.globalize_path("user://monde.txt"))
 	if _open_edges > 0:
 		print("  bords ouverts d'une surface : %d, dont %d SANS face en face (%.1f %%)"
 				% [_open_edges, _bare_edges, 100.0 * float(_bare_edges) / float(_open_edges)])
@@ -1465,6 +1494,7 @@ func _from_file(path: String) -> void:
 		if not Thickness.thin_cells(_injected).is_empty():
 			refuses += 1
 			continue
+		_current = n
 		_run("L3/F2")
 		if n % maxi(1, (upto - from) / 10) == 0 or n == upto - 1:
 			print("  %8d / %d reliefs : %d tuiles de surface, %d roles   (+%d)"
@@ -1487,6 +1517,11 @@ func _from_file(path: String) -> void:
 		found.append("%d.%d" % [role.x, role.y])
 	found.sort()
 	print("  ROLES: %s" % ",".join(found))
+	var temoins: PackedStringArray = PackedStringArray()
+	for key: int in _witness_of.keys():
+		temoins.append("%d=%d" % [key, int(_witness_of[key])])
+	temoins.sort()
+	print("  TEMOINS: %s" % ",".join(temoins))
 
 
 ## LA MARGE QUE LE MODELE EXIGE, POSEE AUTOUR D'UNE FENETRE. Une chute dans le vide descend de

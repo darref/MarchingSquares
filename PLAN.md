@@ -2435,3 +2435,33 @@ détecteur est la couverture du guide**, et c'est la même ligne que le dossier 
 plus descendre par la mesure : il descendra quand un guide exercera le vocabulaire au lieu de
 l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'est une planche de
 spécimens, et le redessiner reste à faire »*.
+
+
+### 17 · REDESSINER LE GUIDE : TROIS ROUTES, TROIS ÉCHECS, ET LA MÊME CAUSE
+
+| route | ce qu'elle produit | verdict |
+|---|---|---|
+| famille **alignée** (blocs 3×3) — 879 316 reliefs | 40 tuiles | sous-domaine : 19 tuiles des mondes livrés n'en sortent pas |
+| **vivier 7×5** exhaustif — 297 340 reliefs | 29 tuiles | fenêtre trop étroite : moins que le guide actuel |
+| **témoins découpés** dans le guide — 51 fenêtres 9×15 | 40 / 51 visées | **25 découpes sur 51 refusées comme FINES** |
+
+⚠ **ET LES TROIS ÉCHOUENT POUR LA MÊME RAISON : je bâtis le guide DE L'EXTÉRIEUR** — en
+énumérant des reliefs ou en découpant des fenêtres — alors que la méthode du dépôt, celle qui
+marche, le bâtit **par accidents**. `tools/build_epais.gd` compose des formes nommées — district
+lacustre, sablier, moulins, défilé, gorge décalée, tour du cap, éperons doubles — et
+**s'auto-vérifie** : épaisseur, 27/27, 23/23, 15/15, zéro robe hors grille.
+
+⚠ **LA DÉCOUPE MENT, ET LE CHIFFRE LE DIT : 11 des 51 tuiles visées DISPARAISSENT** quand on
+coupe autour d'elles, et 4 autres apparaissent. Le bord de la fenêtre devient du vide : le
+voisinage change, donc la tuile change. C'était écrit dans l'en-tête de l'outil avant d'être
+mesuré — *« le contrôle n'est pas optionnel, il EST la mesure »* — et il a mordu du premier coup.
+
+**Ce qu'il faut faire à la place, et c'est petit :** pour chaque bit qu'un guide doit exercer —
+`bordE/W`, `NQ`, `diagNO/NE`, `aboveE/W`, `flushE/W`, `belowE/W` — **dessiner UN accident qui le
+force**, et l'ajouter au générateur qui existe. C'est exactement ce qui a été fait quand la
+famille duale a réclamé le **contact diagonal** : un accident de plus, nommé, vérifié, et le
+guide couvrait 15/15.
+
+⚠ **Et c'est la leçon de méthode de la soirée** : *le vocabulaire se réduit par la mesure, le
+guide se construit par le dessin.* Les deux moitiés du chantier ne se traitent pas avec les mêmes
+outils, et j'ai passé trois routes à essayer de mesurer ce qu'il fallait dessiner.
