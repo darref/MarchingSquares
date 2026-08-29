@@ -203,15 +203,21 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
 | **L5/F0** | **✅ acquis** | sur la **planche duale**, 15/15 formes, les six verts — **64 tuiles à cheval + 20 rôles** |
-| L5/F1 | **43 extrémités**, dont 42 noyées | I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ · I6 ✅ |
-| L5/F2 | **91 extrémités**, dont 90 noyées | I2 ✅ · I3 ✅ · I4 ✅ · I5 ✅ (28 profils qui serpentent) · I6 35 perdues |
+| **L5/F1** | **✅ acquis** | **0 extrémité** — parti de 43 · 1 profil plat déplacé · **64 + 20 = 84 tuiles**, inchangées |
+| **L5/F2** | **✅ acquis** | **0 extrémité** — parti de 91 · 6 profils dont 29 qui serpentent · I6 ✅ à travers 35 pixels |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
 | **L3/F2@battue1·2·3** | **✅ acquis** | **L3 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 14 · 10 · 4 extrémités |
 
-⚠ **L'ÉCHELLE EST DONC VERTE SUR TREIZE COUPLES** — les douze de la planche à **78 tuiles**
-(58 surfaces + 20 rôles), et le plus exigeant rejoué sur le **guide** à 84.
+⚠ **L'ÉCHELLE EST DONC VERTE SUR VINGT-DEUX COUPLES** — les douze de la planche par case à
+**78 tuiles** (58 surfaces + 20 rôles), le plus exigeant rejoué sur le **guide** à 84, les six
+des trois battues, et les **trois de la famille à cheval** sur la planche duale à 84 (64 + 20).
+
+⚠ **ET LES DEUX ÉCHELLES SONT MONTÉES JUSQU'EN HAUT, CHACUNE DANS SA FAMILLE.** Ce qui reste
+n'est plus un cran de liberté, c'est un cran de **monde** : L5 n'a été joué que sur la planche
+duale, comme L2 et L3 avant d'être clos. *Un banc qui ne connaît qu'un monde ne prouve que ce
+monde* — la clôture de L5 est donc `L5/F2@guide` et `L5/F2@battue1·2·3`.
 
 ### L4 : LES RACCORDS SE RECENSENT, ET ILS RENDENT DE LA LIBERTÉ AU LIEU D'EN PRENDRE
 
@@ -2437,16 +2443,77 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
-### 18 · L5 : DE 43 ET 91 EXTRÉMITÉS À 4 — OÙ ON S'EST ARRÊTÉ
+### 19 · LES QUATRE SONT FERMÉES : LE RENDEZ-VOUS AVAIT UN MIROIR, POSÉ À LA MAUVAISE RANGÉE
 
-**L'état, mesuré, à reprendre tel quel.** Le rejeu des vingt couples dit `VERDICT : l'échelle
-tient` sur cette version.
+**L5 est vert sur la planche duale, aux trois libertés, et ça ne coûte AUCUNE tuile** — 64
+croisements + 20 rôles, exactement comme avant.
 
 | | I1 | I2 | I3 | I4 | I5 | I6 |
 |---|---|---|---|---|---|---|
 | **L5/F0** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **L5/F1** | **4** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **L5/F2** | **4** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **L5/F1** | ✅ **0** (parti de 43) | ✅ | ✅ | ✅ | ✅ 1 profil plat déplacé | ✅ |
+| **L5/F2** | ✅ **0** (parti de 91) | ✅ | ✅ | ✅ | ✅ 6 profils, 29 qui serpentent | ✅ 35 px |
+
+**Ce qui manquait, et c'était une ligne.** Le rendez-vous avec la crête n'existait que dans un
+sens — *la moitié nord trace, la sud se tait*. Le sens inverse avait été posé, mesuré à
+« **il ne peint aucun pixel** », et abandonné sur cette mesure. **Le chiffre était juste et la
+conclusion fausse** : le miroir avait été posé à la rangée `half`, la **première de la moitié
+qui trace**, où les colonnes du bord sont effectivement vides. La marche, elle, est une rangée
+plus haut.
+
+⚠ **ET LA MARCHE EST TOUJOURS À LA MÊME RANGÉE, C'EST UN THÉORÈME ET NON UNE COÏNCIDENCE.** Le
+déplacement de l'axe est **signé** — vers l'est, toujours — et le pinçage remet la moitié muette
+sur le bord de case. Donc :
+
+```
+matiere a l OUEST, moitie libre au NORD    rangee 7 : x <= 9      rangee 8 : x <= 7
+matiere a l EST,   moitie libre au SUD     rangee 7 : x >= 8      rangee 8 : x >= 10
+```
+
+Dans les deux cas la matière qui **n'a plus rien sous elle** est aux colonnes 8 et 9 de la
+rangée **`half - 1`** — les deux mêmes pixels. On trace le bord de la matière, jamais le vide :
+le miroir se pose donc exactement où se pose l'original, et la seule chose qui change est de
+quel côté de l'axe la matière se trouve.
+
+**Lu au pixel avant d'écrire une ligne**, sur `L5 F1 … 3 46 5 5 160` — le même cadrage que la
+veille, et le PNG est **identique à l'octet** d'une exécution à l'autre :
+
+```
+        7777777777888888888
+        3456789012345678901
+   766  RRRRRRR#ggggggggggg     le flanc de la robe s arrete a x=79
+   767  ##RRRR#####gggggggg     sa derniere rangee : le trait est au ras, x=79
+   768  gggggggggggg#gggggg     le trait de la tuile a cheval commence a x=82  <-- extremite
+   769  gggggggggggg#gggggg
+```
+
+Les colonnes 80 et 81 de la rangée 767 portent la matière de la tuile ; **rien ne les traçait**,
+et les trois pixels d'écart se lisaient comme un trait qui meurt. Après le miroir, la même
+lecture au même cadrage :
+
+```
+   766  RRRRRRR#ggggggggggg
+   767  ##RRRR#########gggg     +2 pixels, et le contour descend en escalier
+   768  gggggggggggg#gggggg
+```
+
+**Deux pixels par occurrence, quatre occurrences, zéro tuile.** Le contour passe du flanc de la
+robe à `x=79`, marche à `80–81`, puis `x=82` : c'est la frontière du monde, dessinée par les deux
+familles chacune sur sa grille, et raccordée là où l'une passe la main à l'autre.
+
+⚠ **ET C'EST LA MÊME LEÇON QUE CELLE DÉJÀ ÉCRITE POUR L'ERGOT ENTERRÉ : IL FAUT REGARDER CE QUE
+LE CORRECTIF NE FAIT PAS.** « Il ne peint aucun pixel » aurait dû faire chercher *pourquoi il n'a
+rien trouvé à peindre*, pas conclure que la géométrie l'interdit. Un correctif qui ne peint rien
+est un correctif **mal posé** avant d'être un correctif impossible — c'est le jumeau exact du
+piège noté la veille au même endroit : *« un correctif qui ne change RIEN n'est pas un correctif
+faible, c'est un correctif qui n'a pas été appliqué »*.
+
+⚠ **ET L'ARGUMENT QUI L'AVAIT ENTERRÉ ÉTAIT VRAI, MAIS D'UNE AUTRE RANGÉE.** Le dossier disait :
+*« quand la matière est à l'est, les colonnes du bord sont VIDES dans la tuile — il n'y a rien
+sur quoi peindre »*. C'est exact **à la rangée 8**, et faux à la rangée 7. Une observation juste
+attachée au mauvais endroit ferme une piste aussi bien qu'une observation fausse.
+
+### CE QUE LA SECTION 18 DISAIT — l'état d'où l'on est parti
 
 Départ : **43 à F1, 91 à F2**, I6 rouge (35 matières perdues), I5 non tenu. **Zéro tuile
 ajoutée** — 64 croisements + 20 rôles, comme avant.
@@ -2509,11 +2576,34 @@ et (b) une réécriture qui a **effacé** l'édition précédente.
 que les ancres sont uniques ne dit RIEN de ce que l'intervalle contient. C'est comme ça que
 l'extension de `_corner_axis` a disparu sans un message d'erreur.
 
-**Ce qu'il reste à faire sur L5** : fermer les quatre. Aucune piste vivante — les trois
-raisonnables sont mesurées et refusées. La prochaine idée devra venir de l'image, pas du
-raisonnement : c'est ce qui a marché les deux fois où quelque chose a mordu.
-`chafa -s 80 /tmp/z/1.png` montre le défaut ; `proof/ladder.gd -- L5 F1 <png> 3 46 5 5 160`
-le régénère.
+**Ce qu'il restait à faire sur L5** : fermer les quatre — fait, voir la section 19. La consigne
+d'alors s'est vérifiée mot pour mot : *« la prochaine idée devra venir de l'image, pas du
+raisonnement »*. `proof/ladder.gd -- L5 F1 <png> 3 46 5 5 160` régénère le cadrage.
+
+**Ce qu'il reste à faire sur L5 maintenant** : le **clore**, c'est-à-dire le rejouer sur les
+autres mondes, comme L2 et L3 l'ont été. La planche duale est bâtie pour exercer le
+*vocabulaire* à cheval ; elle n'exerce pas les *rencontres*. **Mesuré aussitôt, et c'est rouge :**
+
+| monde à L5/F2 | tuiles à cheval | I1 | I2 | I3 |
+|---|---|---|---|---|
+| **planche duale** | 64 | ✅ 0 | ✅ 0 | ✅ 0 double, 0 muette |
+| **guide** (104×141) | **84** | **6 extrémités**, toutes noyées | **8 pavés** | **29 doubles, 13 muettes** |
+| **`@battue1`** (40×45) | **81** | **4 extrémités** | **19 pavés** | **14 doubles, 26 muettes** |
+
+⚠ **ET LA DISTRIBUTION DIT DÉJÀ OÙ CHERCHER, SANS AVOIR RIEN OUVERT.** Les huit pavés du guide
+sont **tous** « robe, rien dessous », et **tous** au pixel `(0,15)` ou `(1,15)` — le coin
+**bas-gauche** d'une tuile de robe. Les vingt-neuf doublements y sont tous étiquetés
+`double (falaise)`. Sur la battue, quatorze des dix-neuf pavés sont « surface, chapiteau
+reposé », les cinq autres « robe, rien dessous », aux coins `(15,15)` et `(0,15)`.
+
+**C'est la rencontre des deux grilles, et elle était annoncée** : *« les surfaces sont décalées
+d'un demi-pas ; les robes restent sur la case, donc toutes les jonctions surface/falaise sont à
+cheval »*. La planche duale ne la met presque jamais en scène ; le guide et la battue, si.
+
+⚠ **ET LE VOCABULAIRE À CHEVAL N'EST PAS LE MÊME D'UN MONDE À L'AUTRE — 64, 81, 84.** Les quatre
+bits de l'issue B se combinent avec les quinze formes ; ce que chaque monde exerce dépend de ses
+rencontres, pas de son vocabulaire de formes (15/15 partout). C'est la même leçon que pour les
+surfaces par case, où l'union de cinq mondes donnait 77 sans être une forme fermée.
 
 ### 17bis · LE GUIDE REDESSINÉ SERA À MI-TUILE — décision utilisateur
 

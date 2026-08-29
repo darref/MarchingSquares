@@ -293,7 +293,8 @@ const CONTEXT: Color = Color("#3f4a38")
 const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/F2",
 		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2", "L3/F2@guide",
 		"L2/F2@battue1", "L2/F2@battue2", "L2/F2@battue3",
-		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3", "L5/F0"]
+		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3",
+		"L5/F0", "L5/F1", "L5/F2"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -1957,6 +1958,28 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 		for x3: int in range(mini(meet, axis), maxi(meet, axis) + 1):
 			if tile.get_pixel(x3, meet).a >= 0.5:
 				tile.set_pixel(x3, meet, OUTLINE)
+
+	# ⚠ ET LE RENDEZ-VOUS A DEUX SENS, PARCE QUE LA MATIERE PEUT ETRE DE L'UN OU DE L'AUTRE
+	# COTE DE L'AXE. Le miroir -- la moitie NORD se tait, la SUD trace -- avait ete pose puis
+	# mesure a « il ne peint aucun pixel », et le chiffre etait juste : il avait ete pose a la
+	# rangee `half`, la PREMIERE de la moitie qui trace, ou les colonnes du bord sont vides.
+	#
+	# ⚠ LA MARCHE EST TOUJOURS A LA MEME RANGEE, ET C'EST UN THEOREME PLUTOT QU'UNE
+	# COINCIDENCE. Le deplacement de l'axe est vers l'est ; la matiere de l'ouest est donc plus
+	# LARGE au-dessus de la marche, et celle de l'est plus ETROITE en dessous. Dans les deux cas
+	# le surplomb -- la matiere qui n'a plus rien sous elle -- est a la rangee `half - 1`, et
+	# c'est sur elle que le trait se pose : on trace le bord de la matiere, jamais le vide.
+	var south_split: bool = ((index & CornerIndex.BITS[3]) != 0) \
+			!= ((index & CornerIndex.BITS[2]) != 0)
+	if freedom > 0 and south_split and (quiet & 1) != 0 and (quiet & 2) == 0:
+		# ⚠ ET L'AXE SE LIT SUR LA PREMIERE RANGEE DE LA MOITIE LIBRE, pas sur la derniere de la
+		# moitie muette : c'est la moitie libre qui s'est ecartee du bord de case, et c'est son
+		# ecart que la marche doit franchir.
+		var meet2: int = half - 1
+		var axis2: int = half - 1 + _corner_shift(half, freedom, true)
+		for x4: int in range(mini(meet2, axis2), maxi(meet2, axis2) + 1):
+			if tile.get_pixel(x4, meet2).a >= 0.5:
+				tile.set_pixel(x4, meet2, OUTLINE)
 
 	# ⚠ RACCORDER L'AXE DEPLACE AU BORD DE CASE : DEUX ESSAIS, DEUX FOIS PIRE.
 	#
