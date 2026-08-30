@@ -2521,8 +2521,40 @@ corps non indentés ; et deux constantes de modèle (`STEPS`, puis les précharg
 `HeightMask`) restées derrière. Aucun n'a survécu au premier chargement — **le compilateur est ici
 le meilleur des rejeux, et il coûte deux secondes.**
 
-**Ce qui reste pour un écran** : `render/` sait dessiner une tuile, `core/` sait dire laquelle —
-il manque celui qui les assemble pour un guide, et le branchement dans l'éditeur.
+### L'ÉCRAN EST LÀ : LE PRODUIT DESSINE LE CONTOUR PROUVÉ, ET IL EST FERMÉ
+
+Troisième et dernier morceau sorti du banc : **l'assemblage** — les classes de raccord, les tuiles
+de surface, les robes, les poses arrière, l'empilement étage par étage. `render/contour.gd`, 461
+lignes, avec une entrée que le produit appelle : `compose(relief, 3, 1)`.
+
+| | avant | après |
+|---|---|---|
+| `proof/ladder.gd` | 3 785 | **2 535** |
+| `core/brink.gd` — le **modèle** | — | 435 |
+| `render/contour_tiles.gd` — le **dessin** | — | 691 |
+| `render/contour.gd` — l'**assemblage** | — | **461** |
+
+**Et il produit l'image, sans une ligne de `proof/`** :
+
+```
+=== LE CONTOUR PROUVE, PAR LE PRODUIT ===
+  guide epais.txt  ->  1664 x 2256 px, F1, 1304 ms
+  13124 cases visibles, 53 tuiles de surface, 1394 cases de falaise
+
+  I1 fermeture   ok    0 extremite(s)
+  I2 epaisseur   ok    0 pave(s) 2x2
+```
+
+⚠ **LES 53 TUILES SONT EXACTEMENT LE COMPTE DU BANC SUR LE MÊME MONDE**, et c'est le seul contrôle
+qui rende la seconde orchestration sûre. Deux chemins d'une même chaîne finissent toujours par
+diverger ; celui-ci est mesuré, pas supposé.
+
+⚠ **`compose()` NE SERT QUE LA FAMILLE PAR CASE.** La famille à cheval pose ses surfaces sur le
+croisement de quatre cases : c'est un autre monde de tuiles, et le banc le mesure encore seul. Ce
+qui est chez le produit est ce que le logiciel livre.
+
+**Ce qui reste** : le branchement dans l'éditeur — le fond du guide, l'export, le plugin — et le
+redessin du guide, dont le cahier des charges est nommé à la section 23.
 
 ### 24 · MESURER LE PRODUIT, PAS LE BANC — ET CE QU'ON APPREND EN ESSAYANT
 

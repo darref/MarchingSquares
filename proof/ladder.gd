@@ -33,6 +33,9 @@ const Contour := preload("res://render/contour_tiles.gd")
 ## ⚠ ET LES BITS VIENNENT DE `core/`, PAS DU RENDU. Ce qu'une tuile doit SAVOIR est du
 ## modele ; ce qu'elle DESSINE est du rendu. Le banc lit les deux, chacun chez lui.
 const Brink := preload("res://core/brink.gd")
+## ⚠ ET L'ASSEMBLAGE AUSSI EST CHEZ LE PRODUIT. Le banc n'a plus que ce qui lui est
+## propre : les mondes, les six invariants, les battues et la forme fermee.
+const Compose := preload("res://render/contour.gd")
 const RES := Contour.RES
 const GRASS := Contour.GRASS
 const OUTLINE := Contour.OUTLINE
@@ -431,7 +434,7 @@ func _closed_form(path: String) -> void:
 	var vocab: Dictionary = {}
 	for piece: String in text.strip_edges().split(",", false):
 		vocab[int(piece.strip_edges())] = true
-	var tiles: Dictionary = _paint(vocab, freedom, level, {})
+	var tiles: Dictionary = Compose.paint(vocab, freedom, level, {})
 	var groups: Dictionary = {}
 	for key: Variant in tiles.keys():
 		var mark: String = (tiles[key] as Image).get_data().hex_encode()
@@ -879,8 +882,8 @@ func _run(couple: String) -> bool:
 			# Zero tuile de plus, et rien a fabriquer : le peintre l'a deja peinte.
 			var posed: Vector2i = role
 			if _backing == "full":
-				posed = Vector2i(_solid_pan(), Walls.ROW_CROWN + 1)
-			(under_by_level[landing] as Dictionary)[cell] = _wall_key(posed)
+				posed = Vector2i(Compose.solid_pan(), Walls.ROW_CROWN + 1)
+			(under_by_level[landing] as Dictionary)[cell] = Compose.wall_key(posed)
 		var said: PackedStringArray = PackedStringArray()
 		for kind: String in by_kind.keys():
 			said.append("%d %s" % [int(by_kind[kind]), kind])
@@ -958,8 +961,8 @@ func _run(couple: String) -> bool:
 	# commune parce que la TRAVERSEE les y ramene tous les deux, quelle que soit leur classe.
 	# On mesure les deux et on ne joint que la premiere -- et c'est l'experience qui tranche,
 	# pas le raisonnement : si les six invariants restent verts, la liberte mesuree est reelle.
-	var seams: Dictionary = _seam_classes(storeys, roles, level, false)
-	var welded: Dictionary = _seam_classes(storeys, roles, level, true)
+	var seams: Dictionary = Compose.seam_classes(storeys, roles, level, false)
+	var welded: Dictionary = Compose.seam_classes(storeys, roles, level, true)
 	var said2: String = "  raccords : %d bords traces -> %d classes independantes" 			% [int(seams["bords"]), int(seams["classes"])]
 	print(said2 + "   (%d liens de superposition ; la continuation en joindrait %d de plus,"
 			% [int(seams["superposition"]), int(welded["continuation"])]
@@ -970,7 +973,7 @@ func _run(couple: String) -> bool:
 			tiles[int(key5)] = Contour.corner_tile(int(key5) & 0xf, freedom, [], level,
 					int(key5) >> 4)
 	else:
-		tiles = _paint(vocabulary, freedom, level, seams["graine"])
+		tiles = Compose.paint(vocabulary, freedom, level, seams["graine"])
 	# ⚠ ET ON DIT COMBIEN SONT VRAIMENT POSEES, PAS SEULEMENT COMBIEN SONT PEINTES. `vocabulary`
 	# est nourri A CHAQUE PASSE -- silhouette nue, puis bords, puis ergots -- et une cle ajoutee
 	# avant d'etre affinee y RESTE : plus aucune case ne la porte, et le banc la peignait quand
@@ -1097,10 +1100,10 @@ func _run(couple: String) -> bool:
 		# dictionnaire des tuiles n'a rien a rendre et l'assemblage tombe sur un nul, qui ne
 		# dit rien de plus utile que « get_width sur null ».
 		for cell: Vector2i in under.keys():
-			kinds2[_wall_key(under[cell])] = true
+			kinds2[Compose.wall_key(under[cell])] = true
 		if _backing == "full":
-			kinds2[_wall_key(Vector2i(_solid_pan(), Walls.ROW_CROWN + 1))] = true
-		role_tiles = _wall_tiles(kinds2, freedom, seams["graine"])
+			kinds2[Compose.wall_key(Vector2i(Compose.solid_pan(), Walls.ROW_CROWN + 1))] = true
+		role_tiles = Compose.wall_tiles(kinds2, freedom, seams["graine"])
 		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
 				% [role_tiles.size(), tiles.size() + role_tiles.size()])
 		# ⚠ ET ON MESURE LA LIBERTE RENDUE AUX FACES, au lieu de la supposer. Le pincement aux
@@ -1128,12 +1131,12 @@ func _run(couple: String) -> bool:
 	if _backing == "bout" or _backing == "cote":
 		backing_tiles = {}
 		for key: Variant in role_tiles.keys():
-			backing_tiles[key] = _muted_but(role_tiles[key] as Image, _backing == "bout")
+			backing_tiles[key] = Compose.muted_but(role_tiles[key] as Image, _backing == "bout")
 	if _backing == "mute":
 		backing_tiles = {}
 		for key: Variant in role_tiles.keys():
-			backing_tiles[key] = _muted(role_tiles[key] as Image)
-	var image: Image = _assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
+			backing_tiles[key] = Compose.muted(role_tiles[key] as Image)
+	var image: Image = Compose.assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
 			backing_tiles, level >= 5)
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
@@ -1143,14 +1146,14 @@ func _run(couple: String) -> bool:
 		var none: Array[Dictionary] = []
 		for storey: int in range(storeys.size()):
 			none.append({})
-		bare = _assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles,
+		bare = Compose.assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles,
 				level >= 5)
 		# ⚠ ET LA COUVERTURE SE LIT SUR UNE ASSEMBLEE DES SURFACES SEULES, PAS SUR UNE TUILE.
 		# I6 demandait « la tuile qui couvre cette case » -- une question qui n'a plus de
 		# reponse des que les surfaces sont DECALEES D'UN DEMI-PAS : une case y est couverte
 		# par QUATRE tuiles a cheval. Une assemblee sans robes ni poses arriere repond pour
 		# toutes les familles, et sans rien redemander au modele.
-		cover = _assemble(world, storeys, tiles, {}, role_tiles, none, backing_tiles,
+		cover = Compose.assemble(world, storeys, tiles, {}, role_tiles, none, backing_tiles,
 				level >= 5)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under,
@@ -1765,109 +1768,6 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 
 # ------------------------------------------------------------------ LE DESSIN
 
-## F0 : LE TRAIT AU RAS DU BORD DE LA CASE. Aucune liberte.
-##
-## ⚠ C'EST LE TEMOIN, ET C'EST SA SEULE RAISON D'ETRE. A F0 le dessin ne peut rien inventer :
-## la tuile remplit sa case et pose son trait sur la colonne ou la rangee du bord, la ou son
-## cardinal est vide. Si un invariant rougit ici, le defaut est dans le MODELE -- pas dans la
-## main. C'est le seul instrument qui separe les deux, et il nous a manque toute la semaine.
-func _paint(vocabulary: Dictionary, freedom: int, level: int,
-		seed_of: Dictionary) -> Dictionary:
-	var tiles: Dictionary = {}
-	for key: Variant in vocabulary.keys():
-		var index: int = int(key) & 0xff
-		var brink: int = int(key) >> 8
-		var open: Array[bool] = Brink.surface_open(int(key), level)
-		var seams: Array[int] = []
-		for side: int in range(4):
-			seams.append(int(seed_of.get(_node("S", int(key), side), 0)))
-		tiles[int(key)] = Contour.shape(open, freedom, GRASS, index, brink, false, false, seams)
-	return tiles
-
-
-
-
-## LES ROBES : meme fabrique, autres bords ouverts.
-##
-## ⚠ ET C'EST TOUT CE QUE L2 AJOUTE AU DESSIN. Une tuile de robe a exactement les memes
-## frontieres qu'une surface, seulement designees autrement : la CRETE en haut du chapiteau,
-## le PIED en bas de la derniere rangee, et les flancs qui S'ARRETENT. Partout ailleurs la
-## roche continue chez la voisine, comme la matiere d'une surface continue chez la sienne.
-##
-## ⚠ ET PAS D'ERGOT DE COIN RENTRANT. Il demande de savoir si la DIAGONALE est vide alors que
-## les deux cardinaux sont pleins ; un role de robe -- deux flancs, une rangee -- ne porte pas
-## cette information. On note ce que le banc en dira plutot que de l'inventer.
-## LA CLE D'UNE TUILE DE ROBE A DEUX FORMES, selon le cote ou le bit de J2 est pose :
-## (pan, rangee) quand c'est la surface qui se tait, (pan, rangee, cession) quand c'est la
-## face. Une pose arriere est cachee sous une surface -- elle ne cede son trait a personne,
-## d'ou zero.
-func _wall_key(role: Vector2i) -> Variant:
-	return Vector3i(role.x, role.y, 0) if Brink.j2_on_face else role
-
-
-## LE PAN DONT LES DEUX FLANCS CONTINUENT -- calcule, jamais ecrit en dur : c'est le seul
-## role sans aucun cote ouvert, donc le seul carre de roche sans trait.
-func _solid_pan() -> int:
-	for pan: int in range(Walls.PAN_COUNT):
-		if Walls.pan_west(pan) == Walls.SIDE_CONTINUE \
-				and Walls.pan_east(pan) == Walls.SIDE_CONTINUE:
-			return pan
-	return 0
-
-
-## La meme tuile, sa matiere sans son trait.
-func _muted(tile: Image) -> Image:
-	var out: Image = tile.duplicate() as Image
-	for y: int in range(RES):
-		for x: int in range(RES):
-			if out.get_pixel(x, y).is_equal_approx(OUTLINE):
-				out.set_pixel(x, y, ROCK)
-	return out
-
-
-## LA POSE ARRIERE QUI NE GARDE QU'UNE PART DE SON TRAIT.
-##
-## ⚠ ET ON N'Y TOUCHE PAS A LA MATIERE, C'EST TOUTE LA LECON DE L'ESSAI PRECEDENT. J'avais
-## d'abord ferme la crete et le pied du role -- ce qui change les cotes OUVERTS, donc la forme,
-## donc la matiere : la roche s'etendait jusqu'au bord et le trait des flancs pendait en haut
-## comme en bas. 90 extremites sur la planche, et I6 rouge. La matiere d'une pose arriere est ce
-## que le modele NOMME (I6) ; seul son TRAIT est negociable.
-##
-## On part donc de la vraie tuile et on eteint des pixels de contour, jamais des pixels de
-## matiere. Un pixel de contour appartient a la CRETE ou au PIED si le vide qu'il borde est
-## au-dessus ou au-dessous ; a un FLANC si ce vide est a gauche ou a droite.
-static func _muted_but(tile: Image, keep_vertical: bool) -> Image:
-	var out: Image = tile.duplicate() as Image
-	for y: int in range(RES):
-		for x: int in range(RES):
-			if not tile.get_pixel(x, y).is_equal_approx(OUTLINE):
-				continue
-			var vertical: bool = false
-			var lateral: bool = false
-			for side: int in range(4):
-				var probe: Vector2i = Vector2i(x, y) + STEPS[side]
-				var outside: bool = probe.x < 0 or probe.y < 0 or probe.x >= RES 						or probe.y >= RES or tile.get_pixel(probe.x, probe.y).a < 0.5
-				if not outside:
-					continue
-				if side == 0 or side == 2:
-					vertical = true
-				else:
-					lateral = true
-			if vertical if keep_vertical else lateral:
-				continue
-			out.set_pixel(x, y, ROCK)
-	return out
-
-
-func _wall_tiles(roles: Dictionary, freedom: int, seed_of: Dictionary) -> Dictionary:
-	var tiles: Dictionary = {}
-	for key: Variant in roles.keys():
-		var open: Array[bool] = Contour.wall_open(key)
-		var seams: Array[int] = []
-		for side: int in range(4):
-			seams.append(int(seed_of.get(_node("W", key, side), 0)))
-		tiles[key] = Contour.shape(open, freedom, ROCK, -1, 0, false, true, seams)
-	return tiles
 
 
 
@@ -1886,261 +1786,32 @@ func _wall_tiles(roles: Dictionary, freedom: int, seed_of: Dictionary) -> Dictio
 
 
 
-## L'EMPILEMENT : une tuile par etage et par case, du bas vers le haut.
-##
-## C'est la regle du depot, pas une invention du banc : « on dessine du bas vers le haut,
-## chaque couche recouvrant la precedente ».
-##
-## ⚠ ET « LE SOMMET TRACE, LES ENTERRES SE POSENT PLEINS » A ETE ESSAYE PUIS REFUTE. C'etait
-## la reponse que le plan pronait pour L1, et elle se defend : une case appartient ENTIEREMENT
-## a chaque silhouette qui la contient, donc le monde n'y a pas de bord et l'entaille n'est
-## qu'une decoration du bord visible. Poser la tuile pleine sous le sommet efface bien les
-## paves -- 6 a L1/F2, zero apres.
-##
-## Mais elle en ouvre 26 ailleurs : le bord d'un etage qui passe SOUS un plateau voisin cesse
-## d'etre trace, et le contour de la terrasse s'arrete net au pied du plateau au lieu d'y
-## rejoindre le sien. Ce que l'etage enterre dessine n'est donc pas une decoration : c'est ce
-## qui RACCORDE deux terrasses de niveaux differents. Mesure : 26 extremites contre 6 paves.
-##
-## On garde donc l'empilement complet, et le defaut restant -- six pixels a une jonction en T
-## entre les bords de deux etages -- attend son propre diagnostic.
-## LA POSE ARRIERE, RECADREE SOUS LA MATIERE DE LA CASE QUI LA COUVRE, au nord seulement.
-## Colonne par colonne : tout ce qui est au-dessus du premier pixel opaque du couvercle est
-## efface de la roche reposee.
-## CE QUI COUVRE UNE CASE, A CHEVAL : les quatre quarts des quatre tuiles de croisement qui
-## se partagent la case. La tuile du croisement (i, j) est posee en `(i, j) * RES - RES / 2`,
-## donc son quart sud-est couvre le quart nord-ouest de la case (i, j).
-static func _astride_cover(map: Dictionary, tiles: Dictionary, cell: Vector2i) -> Image:
-	var out: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
-	var half: int = RES / 2
-	for qy: int in range(2):
-		for qx: int in range(2):
-			var at: Vector2i = cell + Vector2i(qx, qy)
-			if not map.has(at):
-				continue
-			var tile: Image = tiles[int(map[at])] as Image
-			for y: int in range(half):
-				for x: int in range(half):
-					out.set_pixel(qx * half + x, qy * half + y,
-							tile.get_pixel(x + (1 - qx) * half, y + (1 - qy) * half))
-	return out
 
 
-static func _clip_north(rock: Image, cover: Image) -> Image:
-	var out: Image = rock.duplicate() as Image
-	for x: int in range(RES):
-		for y: int in range(RES):
-			if cover.get_pixel(x, y).a >= 0.5:
-				break
-			out.set_pixel(x, y, Color(0, 0, 0, 0))
-	return out
 
 
-static func _assemble(world: PackedStringArray, storeys: Array[Dictionary],
-		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
-		under_by_level: Array[Dictionary], backing_tiles: Dictionary,
-		astride: bool = false) -> Image:
-	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
-			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
-	for storey: int in range(storeys.size()):
-		# ⚠ LA POSE ARRIERE PASSE JUSTE AVANT LA SURFACE DE SON ETAGE D'ATTERRISSAGE. Sous
-		# celle-ci, donc invisible partout ou la surface est opaque -- et visible par ses
-		# coins decoupes, ce qui est exactement l'endroit ou elle manquait.
-		var backing: Dictionary = under_by_level[storey]
-		for cell: Vector2i in backing.keys():
-			var rock: Image = backing_tiles[backing[cell]] as Image
-			# ⚠ ET LA POSE ARRIERE NE DEBORDE PAS AU NORD DE LA CASE QUI LA COUVRE. Un
-			# chapiteau repose sous sa levre remplit la case ENTIERE ; or la face d'une levre
-			# est AU SUD -- c'est le theoreme. Derriere l'encoche NORD de la levre il n'y a
-			# donc pas de roche, il y a ce que le monde a la : le vide, ou la terrasse d'en
-			# dessous. Sans ce recadrage, la roche y sort avec un bord que personne ne trace,
-			# et le trait de la terrasse voisine vient mourir dessus.
-			#
-			# ⚠ C'EST UNE POSE, PAS UNE TUILE. Zero dessin de plus : on ne fait que ne pas
-			# poser ce que le modele ne met pas la.
-			# ⚠ ET A CHEVAL, CE QUI COUVRE UNE CASE EST FAIT DE QUATRE TUILES, PAS D'UNE.
-			# `storeys` y est indexe par CROISEMENT ; demander `cover[cell]` avec une
-			# coordonnee de CASE tombe sur une cle qui existe -- les deux familles partagent
-			# le type `Vector2i` -- et rogne la roche contre une tuile decalee d'une
-			# demi-case, dont la transparence n'a rien a voir avec celle qui couvre vraiment
-			# cette case. C'est la faute des deux carnets qui se melangent, ici dans le banc.
-			var cover: Dictionary = storeys[storey]
-			if astride:
-				rock = _clip_north(rock, _astride_cover(cover, tiles, cell))
-			elif cover.has(cell):
-				rock = _clip_north(rock, tiles[int(cover[cell])] as Image)
-			canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
-		var map: Dictionary = storeys[storey]
-		# ⚠ LE DECALAGE EST D'UN DEMI-PAS, ET C'EST TOUT CE QUE LA FAMILLE A CHEVAL CHANGE A LA
-		# POSE. La tuile d'un croisement est centree sur le coin de quatre cases.
-		var shift: Vector2i = Vector2i(RES / 2, RES / 2) if astride else Vector2i.ZERO
-		for cell: Vector2i in map.keys():
-			var tile: Image = tiles[int(map[cell])]
-			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES - shift)
-	for cell: Vector2i in roles.keys():
-		var rock: Image = role_tiles[roles[cell]] as Image
-		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
-	return canvas
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ------------------------------------------------------------------ L4 : LES RACCORDS
 
-## LE NOM D'UN BORD : une famille, une tuile, un cote. C'est l'unite dont on cherche les
-## classes -- ce qui doit etre le MEME dessin d'une tuile a l'autre.
-func _node(kind: String, key: Variant, side: int) -> String:
-	if kind == "S":
-		return "S%d/%d" % [int(key), side]
-	var role: Vector2i = Vector2i(key) if not Brink.j2_on_face else Vector2i((key as Vector3i).x,
-			(key as Vector3i).y)
-	return "W%d.%d/%d" % [role.x, role.y, side]
 
 
-func _root(parent: Dictionary, node: String) -> String:
-	var at: String = node
-	while String(parent[at]) != at:
-		at = String(parent[at])
-	var walk: String = node
-	while String(parent[walk]) != at:
-		var next: String = String(parent[walk])
-		parent[walk] = at
-		walk = next
-	return at
 
 
-func _join(parent: Dictionary, a: String, b: String) -> void:
-	if not parent.has(a):
-		parent[a] = a
-	if not parent.has(b):
-		parent[b] = b
-	var ra: String = _root(parent, a)
-	var rb: String = _root(parent, b)
-	if ra != rb:
-		parent[ra] = rb
 
 
-## LE RECENSEMENT DES RACCORDS -- DEPUIS LE MONDE, JAMAIS DEPUIS UNE FORMULE.
-##
-## ⚠ C'EST LA LECON LA PLUS CHERE DU DEPOT, ET ELLE EST ECRITE AU DOSSIER : `Seams` deduisait
-## ses classes de `row_for` au lieu de les lire du monde, et ignorait 60 jonctions sur 109 --
-## l'illustration cassait aux 60, pendant que la suite etait verte.
-##
-## DEUX RELATIONS, ET ELLES SE MESURENT TOUTES LES DEUX :
-##
-##   SUPERPOSITION -- dans une meme case, plusieurs tuiles empilees tracent le meme bord. Si
-##   elles ne le tracent pas pareil, le trait se dedouble. C'est le defaut deja mesure a
-##   L1/F2 : « deux silhouettes d'etages differents peuvent s'arreter au MEME endroit -- la
-##   pile, jusqu'a trois sur la planche -- et chacune y trace son bord », 6 paves.
-##
-##   CONTINUATION -- deux cases cote a cote tracent le meme bord, qui se prolonge de l'une a
-##   l'autre. Leurs deux traits doivent se rejoindre a la frontiere commune.
-##
-## ⚠ ET LA CONTINUATION N'IMPOSE QUE LES DEUX BOUTS, PAS TOUT LE BORD. Deux segments
-## colineaires dans deux cases differentes n'ont a se rejoindre qu'AU POINT ou ils se
-## touchent. C'est la traversee, et c'est ce qui laisse le milieu libre.
-func _seam_classes(storeys: Array[Dictionary], roles: Dictionary, level: int,
-		join_continuation: bool) -> Dictionary:
-	var parent: Dictionary = {}
-	var cells: Dictionary = {}
-	for storey: int in range(storeys.size()):
-		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
-			cells[cell] = true
-	for cell: Vector2i in roles.keys():
-		cells[cell] = true
-
-	# La pile de chaque case, dans l'ordre du dessin, et les cotes que chacune trace.
-	var stacks: Dictionary = {}
-	for cell: Vector2i in cells.keys():
-		var stack: Array = []
-		for storey: int in range(storeys.size()):
-			var map: Dictionary = storeys[storey]
-			if map.has(cell):
-				stack.append(["S", map[cell], Brink.surface_open(int(map[cell]), level)])
-		if roles.has(cell):
-			stack.append(["W", roles[cell], Contour.wall_open(roles[cell])])
-		stacks[cell] = stack
-		for entry: Array in stack:
-			var open: Array[bool] = entry[2]
-			for side: int in range(4):
-				if not open[side]:
-					continue
-				var node: String = _node(String(entry[0]), entry[1], side)
-				if not parent.has(node):
-					parent[node] = node
-
-	# ⚠ ON COMPTE LES RELATIONS OBSERVEES, PAS LES FUSIONS EFFECTUEES. Premiere version : on
-	# n'incrementait que quand l'union changeait quelque chose -- donc le compte dependait de
-	# l'ORDRE des cases, et la superposition annoncait ZERO lien sur un monde a quatre etages
-	# qui en est plein. Un compteur qui ne mesure pas ce qu'il pretend mesurer.
-	var superposed: int = 0
-	var continued: int = 0
-	var crossed: int = 0
-	var witness: Array[String] = []
-	for cell: Vector2i in cells.keys():
-		var stack: Array = stacks[cell]
-		# SUPERPOSITION : tout ce qui trace le meme cote dans la meme case.
-		for side: int in range(4):
-			var first: String = ""
-			for entry: Array in stack:
-				if not (entry[2] as Array[bool])[side]:
-					continue
-				var node: String = _node(String(entry[0]), entry[1], side)
-				if first.is_empty():
-					first = node
-				else:
-					superposed += 1
-					_join(parent, first, node)
-		# CONTINUATION : la meme frontiere qui se prolonge chez la voisine. On ne regarde que
-		# l'est et le sud -- l'autre sens est le meme raccord, vu de l'autre cote.
-		for step: int in range(2 if join_continuation else 0):
-			var toward: Vector2i = Vector2i.RIGHT if step == 0 else Vector2i.DOWN
-			var near: Vector2i = cell + toward
-			if not stacks.has(near):
-				continue
-			var sides: Array[int] = []
-			sides.assign([0, 2] if step == 0 else [1, 3])
-			for side: int in sides:
-				for here: Array in stack:
-					if not (here[2] as Array[bool])[side]:
-						continue
-					for there: Array in (stacks[near] as Array):
-						if not (there[2] as Array[bool])[side]:
-							continue
-						continued += 1
-						# ⚠ ET ON GARDE LES LIENS QUI TRAVERSENT LES FAMILLES. Ce sont eux
-						# qui decident si une surface et une robe doivent se ressembler ; le
-						# reste de la cloture les emporte sans qu'on sache d'ou ils viennent.
-						if String(here[0]) != String(there[0]):
-							crossed += 1
-							if witness.size() < 6:
-								witness.append("%s en %d,%d contre %s en %d,%d, bord %s"
-										% [String(here[0]), cell.x, cell.y,
-										String(there[0]), near.x, near.y, SIDE_NAMES[side]])
-						_join(parent, _node(String(here[0]), here[1], side),
-								_node(String(there[0]), there[1], side))
-
-	var classes: Dictionary = {}
-	for node: String in parent.keys():
-		var root: String = _root(parent, node)
-		if not classes.has(root):
-			classes[root] = PackedStringArray()
-		var members: PackedStringArray = classes[root]
-		members.append(node)
-		classes[root] = members
-	# LA GRAINE D'UNE CLASSE : un entier stable, pour que le trait en depende. C'est ce qui
-	# transforme le recensement en experience -- si le dessin varie par classe et que les six
-	# invariants restent verts, alors la liberte mesuree est REELLE.
-	var seed_of: Dictionary = {}
-	var rank: int = 0
-	var roots: Array[String] = []
-	roots.assign(classes.keys())
-	roots.sort()
-	for root: String in roots:
-		for node: String in (classes[root] as PackedStringArray):
-			seed_of[node] = rank
-		rank += 1
-	return {"parent": parent, "bords": parent.size(), "classes": classes.size(),
-			"membres": classes, "superposition": superposed, "continuation": continued,
-			"croises": crossed, "temoins": witness, "graine": seed_of}
 
 
 # ------------------------------------------------------------------ LES CINQ INVARIANTS
@@ -2447,7 +2118,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			# se posent en dernier, par-dessus tout.
 			if roles.has(cell):
 				continue
-			var named: Image = role_tiles[_wall_key(under[cell])] as Image
+			var named: Image = role_tiles[Compose.wall_key(under[cell])] as Image
 			for x: int in range(RES):
 				# ⚠ ET L'ENCOCHE NORD NE REGARDE PAS VERS LE BAS, ELLE REGARDE VERS LE NORD.
 				# Une pose arriere remplit les marges ou le modele met la face -- au sud et sur
