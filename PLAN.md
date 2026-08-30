@@ -1782,6 +1782,22 @@ instrument neuf, et ils valent d'être notés :
   fabrique des silhouettes hors vocabulaire — 33 exercées pour 27 annoncées. La construction
   du dépôt, elle, **cherche** une position et la juge.
 
+## CE QUI VIENT APRÈS L5
+
+L0 à L5 sont clos. Restent, dans l'ordre où le plan les avait posés :
+
+- **L6 — le contrat et le plugin : la règle portée deux fois.** Le contrôle croisé noyau/plugin
+  compare **dans les deux sens**, et le manifeste reste *nécessaire et suffisant*. Rien de ce que
+  l'échelle a établi n'y est encore écrit : le vocabulaire du banc n'est pas celui que
+  `core/` livre, et c'est exactement le genre d'écart qui se paie chez un acheteur.
+- **Le guide, à redessiner** — voir les sections 17 et 17bis. La méthode est arrêtée : *pour chaque
+  bit qu'un guide doit exercer, dessiner UN accident qui le force*, et l'ajouter au générateur qui
+  existe ; et le dessiner **à la demi-tuile**, seule échelle où la liberté vagabonde se voit.
+- **Le serrage** — la borne haute (`tools/closed_form_now.py`) et le compte rencontré doivent se
+  rejoindre, famille par famille. À cheval, le banc rencontre **48 tuiles sur la planche, 58 sur le
+  guide, 66-67 sur les battues** : l'union n'est pas une forme fermée, et tant qu'elle ne l'est pas
+  on ne peut pas dire ce qui manque au guide.
+
 ## Le premier pas
 
 Un banc `proof/ladder.gd` qui prend **(L, F)** et rend les six invariants. Il commence avec
@@ -2766,8 +2782,8 @@ l'extension de `_corner_axis` a disparu sans un message d'erreur.
 d'alors s'est vérifiée mot pour mot : *« la prochaine idée devra venir de l'image, pas du
 raisonnement »*. `proof/ladder.gd -- L5 F1 <png> 3 46 5 5 160` régénère le cadrage.
 
-**Ce qu'il reste à faire sur L5 maintenant** : le **clore**, c'est-à-dire le rejouer sur les
-autres mondes, comme L2 et L3 l'ont été. La planche duale est bâtie pour exercer le
+**Ce qu'il restait à faire sur L5** : le **clore**, c'est-à-dire le rejouer sur les autres
+mondes, comme L2 et L3 l'ont été — **fait, voir la section 21**. La planche duale est bâtie pour exercer le
 *vocabulaire* à cheval ; elle n'exerce pas les *rencontres*. **Mesuré aussitôt, et c'est rouge :**
 
 | monde à L5/F2 | tuiles à cheval | I1 | I2 | I3 |
