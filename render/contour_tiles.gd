@@ -16,6 +16,20 @@
 extends RefCounted
 
 const BlobIndex := preload("res://core/blob_index.gd")
+## ⚠ LES BITS SONT DU MODELE, DONC ILS VIVENT DANS `core/` -- et le dessin les LIT.
+## L'inverse mettrait une question de modele dans un fichier de rendu, et `core/` ne
+## doit rien devoir a `render/`.
+const Brink := preload("res://core/brink.gd")
+const NORTH_QUIET := Brink.NORTH_QUIET
+const ABOVE_QUIET_EAST := Brink.ABOVE_QUIET_EAST
+const ABOVE_QUIET_WEST := Brink.ABOVE_QUIET_WEST
+const NORTH_FLUSH_EAST := Brink.NORTH_FLUSH_EAST
+const NORTH_FLUSH_WEST := Brink.NORTH_FLUSH_WEST
+const BELOW_QUIET_EAST := Brink.BELOW_QUIET_EAST
+const BELOW_QUIET_WEST := Brink.BELOW_QUIET_WEST
+const CARDINALS := Brink.CARDINALS
+const STEPS := Brink.STEPS
+const DIAGONALS := Brink.DIAGONALS
 const CornerIndex := preload("res://core/corner_index.gd")
 const Walls := preload("res://core/walls.gd")
 
@@ -50,42 +64,15 @@ const OUTLINE: Color = Color("#0d0f12")
 ## La roche des falaises : claire elle aussi, pour que le trait noir s'y lise.
 const ROCK: Color = Color("#d6bb95")
 
-const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 
-## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
-const DIAGONALS: Array[int] = [BlobIndex.NW, BlobIndex.NE, BlobIndex.SE, BlobIndex.SW]
 
-const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 
-## LES BITS DU BORD, au-dessus des huit de silhouette.
-##
-## ⚠ ET ILS DOIVENT ETRE DISJOINTS DE CEUX DE L'ERGOT : `4 << coin` couvre 4, 8, 16, 32 et
-## `64 << coin` couvre 64 a 512. Le nord valait 8 -- exactement le bit du coin 1 de l'ergot.
-## Collision silencieuse, trouvee en cherchant ou loger les suivants.
-const NORTH_QUIET: int = 1024        ## une face me couvre au nord : c'est le PIED qui trace
 
-const ABOVE_QUIET_EAST: int = 2048   ## la case du dessus s'est tue a l'est
 
-const ABOVE_QUIET_WEST: int = 4096   ## la case du dessus s'est tue a l'ouest
 
-## ⚠ ET LE SYMETRIQUE : MON BORD NORD MEURT A SON EST QUAND LA CASE D'A COTE S'EST TUE AU NORD.
-## Elle s'est tue parce qu'un PIED la couvre : la frontiere y est donc portee par le bas de ce
-## pied, AU RAS du bord de sa case -- une rangee au-dessus de la mienne. Mon bord nord, lui, la
-## trace a sa traversee, quatre pixels plus bas. Les deux decrivent la meme frontiere
-## horizontale a deux hauteurs differentes, et elles ne se rejoignent pas au coin.
-## Mon bord remonte donc au ras a ce bout-la, pour aller toucher le pied en diagonale.
-const NORTH_FLUSH_EAST: int = 8192
 
-const NORTH_FLUSH_WEST: int = 16384
 
-## ⚠ ET LE SYMETRIQUE EXACT D'`ABOVE_QUIET_*`, VERS LE BAS. Celui-la fait mourir mon bord
-## lateral a son NORD quand la case du dessus s'est tue de ce cote ; celui-ci le fait mourir a
-## son SUD quand c'est la case du DESSOUS. Elle s'est tue parce qu'une robe la longe : la
-## frontiere y est portee par le flanc de cette robe, une case plus bas et une colonne plus
-## loin, et mon bord doit descendre au ras pour aller le toucher au coin.
-const BELOW_QUIET_EAST: int = 32768
 
-const BELOW_QUIET_WEST: int = 65536
 
 
 ## LA TUILE D'UN CROISEMENT : quatre quadrants, un par case touchee.
@@ -377,45 +364,6 @@ static func corner_shift(along: int, freedom: int, vertical: bool) -> int:
 	return shift + int(round(reach * sin(PI * t)))
 
 
-## LES COTES OUVERTS D'UNE SURFACE -- tout ce que la tuile decide de son trait.
-##
-## ⚠ ET C'EST LE RECENSEMENT DES RACCORDS QUI L'A FAIT SORTIR DE `_paint`. Deux endroits
-## devaient repondre a la meme question -- qui trace de quel cote -- et deux copies d'une meme
-## regle finissent toujours par se contredire. C'est la lecon de `core/families.gd`, payee une
-## fois de plus.
-static func surface_open(key: int, level: int) -> Array[bool]:
-	var index: int = key & 0xff
-	var brink: int = key >> 8
-	var open: Array[bool] = [false, false, false, false]
-	for side: int in range(4):
-		open[side] = (index & CARDINALS[side]) == 0
-	# Contre de la ROCHE, la surface se tait : c'est le flanc de la falaise qui trace.
-	if (brink & 1) != 0:
-		open[1] = false
-	if (brink & 2) != 0:
-		open[3] = false
-	# ⚠ RIEN AU SUD -- MAIS SEULEMENT DANS UN MONDE QUI A DES FALAISES. Le theoreme est :
-	# une case dont le sud est vide est une LEVRE, sa propre falaise commence juste
-	# dessous, toujours. Le bord sud d'une surface et la crete du chapiteau sont donc LA
-	# MEME frontiere, et c'est le chapiteau qui la porte -- lui seul sait de quelle face il
-	# s'agit. Mesure : 780 doublements sans cette regle, 196 avec.
-	#
-	# ⚠ ET IL NE VAUT PAS A L0 NI A L1, dont les mondes n'ont pas de falaise : un sud vide
-	# y est une vraie frontiere libre, que personne d'autre ne tracera. L'appliquer partout
-	# a fait rougir les SIX couples acquis d'un coup -- c'est le rejeu qui l'a dit, pas moi.
-	# Une regle juste a un niveau peut etre fausse au niveau d'en dessous.
-	# ⚠ RIEN AU SUD, ET RENDRE LE SUD A ETE ESSAYE : 222 -> 669 extremites, 288
-	# doublements, 11 388 parasites. Le bord sud d'une case et le bord NORD de celle d'en
-	# dessous sont LA MEME frontiere -- l'une des deux doit se taire, et c'est le sud, dont
-	# la voisine du nord existe toujours alors que la crete, elle, peut manquer.
-	if level >= 2:
-		open[2] = false
-	# ⚠ ET SOUS UNE FACE, LA SURFACE SE TAIT AU NORD -- symetrique exact du bord lateral.
-	# Le bas du PIED et mon bord nord sont la meme frontiere ; le pied la porte, parce que
-	# son bas referme le contour de la falaise et que rien d'autre ne le peut.
-	if (brink & NORTH_QUIET) != 0:
-		open[0] = false
-	return open
 
 
 ## LES COTES OUVERTS D'UNE ROBE : la CRETE en haut du chapiteau, le PIED en bas de la derniere

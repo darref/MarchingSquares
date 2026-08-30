@@ -2475,6 +2475,55 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 25 · LE PORTAGE : LE BANC REND SON MODÈLE ET SON PINCEAU AU PRODUIT
+
+Deux déplacements, aucun changement de pixel — c'est même la définition de l'opération, et le
+rejeu en est la preuve.
+
+| | avant | après |
+|---|---|---|
+| `proof/ladder.gd` | 3 785 | **2 864** |
+| `render/contour_tiles.gd` — le **dessin** | — | **691** |
+| `core/brink.gd` — le **modèle** | — | **435** |
+
+**LA COUPURE EST CELLE QUE LE PORTAGE A SERVI À TRACER**, et elle vaut plus que les lignes
+déplacées :
+
+- **`core/brink.gd` — ce qu'une tuile doit SAVOIR.** Les sept bits de bord et leurs constantes,
+  `surface_open` (quels côtés une clé trace), `closed_roles` (une chute qui s'arrête pose son
+  pied), `foot_above`, `draws_side`, et `mark()` — les clés de tout un relief, étage par étage.
+- **`render/contour_tiles.gd` — ce qu'elle DESSINE.** Les profondeurs, les pinçages, `shape`,
+  l'ergot, et les deux rendez-vous de la famille à cheval.
+- **`proof/ladder.gd` — ce qu'on MESURE.** Les mondes, l'assemblage, les six invariants, les
+  battues, la forme fermée.
+
+⚠ **ET `core/` NE DOIT RIEN À `render/`, DANS CE SENS-LÀ SEULEMENT.** `surface_open` et les bits
+étaient partis avec le pinceau au premier déplacement ; c'était faux, ce sont des questions de
+**modèle**. Ils sont redescendus dans `core/`, et le rendu les lit — l'inverse aurait mis une
+règle du modèle dans un fichier de rendu.
+
+⚠ **CE QUI A RENDU LES DEUX DÉPLACEMENTS SÛRS EST UNE MESURE FAITE AVANT D'Y TOUCHER** : les blocs
+du pinceau n'appelaient **aucune** autre fonction du banc et ne lisaient que six variables de
+réglage. Le modèle, lui, en dépendait de dix — toutes nommées, toutes parties avec lui.
+
+⚠ **ET LES ROUTES REFUSÉES RESTENT JOIGNABLES**, dans les deux modules : `meet`, `half_axis`,
+`ergot_diag`, `j2_on_face`, `astride`. *Un chiffre qu'on ne peut plus reproduire n'est plus un
+chiffre.* Le banc les pose, le produit les laisse à leur défaut.
+
+**La preuve** : rejeu des vingt-six couples, trois parts en parallèle, `l'échelle tient` sur les
+trois — deux fois, une par déplacement. Et la suite du produit passe ses **665 vérifications**,
+dont celle qui refuse un script qui ne s'analyse pas.
+
+⚠ **TROIS PIÈGES DE LANGAGE PAYÉS, TOUS À LA POSE :** une déclaration `static var _level` renommée
+en `static var Contour.level` — le renommage avait suivi jusque dans la déclaration ; une
+dédentation de deux tabulations là où le corps en voulait une, qui rendait les commentaires du
+corps non indentés ; et deux constantes de modèle (`STEPS`, puis les préchargements de `Walls` et
+`HeightMask`) restées derrière. Aucun n'a survécu au premier chargement — **le compilateur est ici
+le meilleur des rejeux, et il coûte deux secondes.**
+
+**Ce qui reste pour un écran** : `render/` sait dessiner une tuile, `core/` sait dire laquelle —
+il manque celui qui les assemble pour un guide, et le branchement dans l'éditeur.
+
 ### 24 · MESURER LE PRODUIT, PAS LE BANC — ET CE QU'ON APPREND EN ESSAYANT
 
 `proof/ladder.gd` prouve un **modèle** : il peint ses propres tuiles avec son propre pinceau.
