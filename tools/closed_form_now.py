@@ -59,6 +59,11 @@ def libres(sil):
                 out.append(4 << coin)
             if a != 2:
                 out.append(64 << coin)
+    # ⚠ ET `ABOVE_*` NE VIT QUE SI LE COTE EST VRAIMENT TRACE. Il ne fait qu'une chose --
+    # ramener le bord lateral au ras a son premier pixel -- donc si le BORD a deja fait taire
+    # ce cote-la, il ne change plus rien. La precondition complete est dans `valide()`, comme
+    # celle de `BELOW_*` qui est exactement la meme d'un cran plus bas. Mesure : la sonde du
+    # banc a designe ce bit en peignant la forme, 7 confusions de chaque cote.
     if sil & N and not sil & E: out.append(ABOVE_E)
     if sil & N and not sil & W: out.append(ABOVE_W)
     return [b for b in out if not b & RETIRES]
@@ -73,6 +78,8 @@ def valide(sil, bits):
     if bits & FLUSH_W and not (trace_n and sil & W): return False
     if bits & BELOW_E and not (sil & S and trace_e): return False
     if bits & BELOW_W and not (sil & S and trace_w): return False
+    if bits & ABOVE_E and not trace_e: return False
+    if bits & ABOVE_W and not trace_w: return False
     return True
 
 

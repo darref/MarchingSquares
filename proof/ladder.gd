@@ -408,6 +408,20 @@ func _initialize() -> void:
 	# etait une sous-famille : 19 tuiles des mondes livres n'en sortaient pas. `tools/
 	# thick_reliefs.py` engendre TOUT relief epais d'une fenetre -- donc aussi ce qu'un tampon
 	# DECALE produit -- et le banc n'a plus qu'a les poser dans leur marge.
+	# ⚠ LA FORME FERMEE, PEINTE. `tools/closed_form_now.py --liste` enumere les cles que le
+	# modele PEUT exiger ; ce robinet les PEINT et compte les DESSINS distincts. Les deux
+	# nombres ne disent pas la meme chose : la forme compte ce que la regle sait distinguer,
+	# le dessin compte ce que la planche doit porter. Une cle de plus qui ne change pas un
+	# pixel est une case de planche pour rien.
+	#
+	# ⚠ ET ON REUTILISE LES DEUX SOURCES, ON N'EN ECRIT PAS UNE TROISIEME : l'enumeration
+	# vient de l'outil, le pinceau est celui du banc. Retranscrire l'une ou l'autre ici serait
+	# la faute que le dossier repete a chaque page.
+	var forme: String = OS.get_environment("LADDER_FORM")
+	if not forme.is_empty():
+		_closed_form(forme)
+		quit(0)
+		return
 	var fichier: String = OS.get_environment("LADDER_RELIEFS")
 	if not fichier.is_empty():
 		_from_file(fichier)
@@ -478,6 +492,118 @@ func _initialize() -> void:
 	print("VERDICT : %s" % ("l echelle tient." if failed == 0
 			else "%d couple(s) en echec." % failed))
 	quit(1 if failed > 0 else 0)
+
+
+## LA FORME FERMEE, PEINTE : combien de DESSINS pour combien de cles ?
+##
+##     tools/closed_form_now.py --liste > /tmp/forme.txt
+##     LADDER_FORM=/tmp/forme.txt godot --headless --path . \
+##             --script res://proof/ladder.gd -- L3 F1
+##
+## ⚠ LES GRAINES DE RACCORD VALENT ZERO ICI, ET IL FAUT LE DIRE. Les classes de L4 sont une
+## propriete du MONDE -- l'union-find se calcule des adjacences observees -- alors que la forme
+## fermee est une propriete du MODELE. On peint donc a graine nulle : deux cles qui rendent la
+## meme image ici peuvent differer dans un monde qui les met dans deux classes. Le compte est
+## donc le vocabulaire de FORMES, pas le nombre de cases d'une planche donnee.
+func _closed_form(path: String) -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var level: int = int(String(args[0]).substr(1)) if args.size() > 0 else 3
+	var freedom: int = int(String(args[1]).substr(1)) if args.size() > 1 else 1
+	_level = level
+	var text: String = FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ladder: liste de cles introuvable : %s" % path)
+		return
+	var vocab: Dictionary = {}
+	for piece: String in text.strip_edges().split(",", false):
+		vocab[int(piece.strip_edges())] = true
+	var tiles: Dictionary = _paint(vocab, freedom, level, {})
+	var groups: Dictionary = {}
+	for key: Variant in tiles.keys():
+		var mark: String = (tiles[key] as Image).get_data().hex_encode()
+		if not groups.has(mark):
+			groups[mark] = []
+		(groups[mark] as Array).append(int(key))
+	print("=== LA FORME FERMEE, PEINTE A L%d/F%d ===" % [level, freedom])
+	print("  %d cles enumerees  ->  %d DESSINS distincts" % [vocab.size(), groups.size()])
+	# ⚠ ET ON DIT QUELLES CLES SE CONFONDENT, pas seulement combien. Un compte range le
+	# constat ; la liste designe le bit qui ne sert a rien.
+	var fused: Array[String] = []
+	var pairs: Dictionary = {}
+	var shapes: Dictionary = {}
+	for mark2: Variant in groups.keys():
+		var group: Array = groups[mark2]
+		if group.size() < 2:
+			continue
+		group.sort()
+		var told: PackedStringArray = PackedStringArray()
+		for key2: int in group:
+			told.append(str(key2))
+		fused.append("[%s]" % ",".join(told))
+		for a: int in range(group.size()):
+			for b: int in range(a + 1, group.size()):
+				var diff: int = int(group[a]) ^ int(group[b])
+				if diff != 0 and (diff & (diff - 1)) == 0:
+					pairs[diff] = int(pairs.get(diff, 0)) + 1
+		shapes[int(group[0]) & 0xff] = true
+	print("  %d groupe(s) de cles confondues, sur %d silhouette(s)"
+			% [fused.size(), shapes.size()])
+	if not pairs.is_empty():
+		var bits: Array[int] = []
+		bits.assign(pairs.keys())
+		bits.sort()
+		var said: PackedStringArray = PackedStringArray()
+		for bit: int in bits:
+			said.append("%d x%d" % [bit, int(pairs[bit])])
+		print("  bits qui ne distinguent RIEN : %s" % ", ".join(said))
+	# ⚠ ET ON LES NOMME TOUS, un par ligne : c'est la LISTE qu'il faut decider, tuile par
+	# tuile, pas le compte. La cle la plus petite du groupe sert de representant -- c'est elle
+	# qui ira sur la planche, et les autres s'y ramenent.
+	var reps: Array[int] = []
+	for mark3: Variant in groups.keys():
+		var group3: Array = groups[mark3]
+		group3.sort()
+		reps.append(int(group3[0]))
+	reps.sort()
+	var lines: PackedStringArray = PackedStringArray()
+	for rep: int in reps:
+		lines.append("%d(s%d,b%d)" % [rep, rep & 0xff, rep >> 8])
+	print("  LES %d DESSINS : %s" % [reps.size(), " ".join(lines)])
+	# ⚠ ET ON DIT CE QU'UN MONDE EN EXERCE, parce que c'est la seule question qui serve au
+	# guide : quels dessins ne se peignent NULLE PART ? `LADDER_SEEN` prend la sortie d'un
+	# `LADDER_VOCAB=1` -- la ligne `POSEES:` -- et rend les groupes que ce monde ne touche pas.
+	var seen_path: String = OS.get_environment("LADDER_SEEN")
+	if seen_path.is_empty():
+		return
+	var seen: Dictionary = {}
+	for line: String in FileAccess.get_file_as_string(seen_path).split("\n"):
+		if not line.contains("POSEES:"):
+			continue
+		for piece2: String in line.split("POSEES:")[1].strip_edges().split(",", false):
+			seen[int(piece2.strip_edges())] = true
+	var touched: Dictionary = {}
+	var outside: Array[int] = []
+	for mark4: Variant in groups.keys():
+		for key4: int in (groups[mark4] as Array):
+			if seen.has(key4):
+				touched[mark4] = true
+	for key5: Variant in seen.keys():
+		if not tiles.has(int(key5)):
+			outside.append(int(key5))
+	var missing: PackedStringArray = PackedStringArray()
+	for mark5: Variant in groups.keys():
+		if not touched.has(mark5):
+			var g5: Array = groups[mark5]
+			g5.sort()
+			missing.append("%d(s%d,b%d)" % [int(g5[0]), int(g5[0]) & 0xff, int(g5[0]) >> 8])
+	missing.sort()
+	print("  MONDE : %d cles posees, %d dessins sur %d touches"
+			% [seen.size(), touched.size(), groups.size()])
+	if not missing.is_empty():
+		print("  LUI MANQUE (%d) : %s" % [missing.size(), " ".join(missing)])
+	if not outside.is_empty():
+		outside.sort()
+		print("  ⚠ %d CLE(S) HORS DE LA FORME : %s" % [outside.size(), str(outside)])
 
 
 ## Ecrire l'image, pour la regarder plutot que la croire.
@@ -969,9 +1095,20 @@ func _run(couple: String) -> bool:
 					var over: Vector2i = here2 + Vector2i.UP
 					if (shape & BlobIndex.N) != 0 and indices.has(over) and not roles.has(over):
 						var up: int = int(indices[over]) >> 8
-						if (shape & BlobIndex.E) == 0 and (up & 1) != 0:
+						# ⚠ ET IL FAUT QUE JE TRACE VRAIMENT CE COTE-LA, comme son jumeau
+						# `BELOW_*` le demande deja. `ABOVE_*` ne fait qu'une chose : ramener
+						# mon bord lateral au ras a son premier pixel. Si le BORD a deja fait
+						# taire ce cote, il ne change plus un pixel -- et il change quand meme
+						# la cle, donc il fabrique une tuile pour rien.
+						#
+						# ⚠ TROUVE PAR LE CONTROLE DE LA FORME FERMEE, ET DANS LE BON SENS.
+						# J'avais d'abord resserre l'ENUMERATION (`closed_form_now.py`), et
+						# quatre cles posees par le guide sont aussitot tombees HORS de la
+						# forme : c'est le monde qui avait raison. La regle appartient au
+						# banc, pas a l'enumeration -- celle-ci ne fait que la transcrire.
+						if _surface_open(full, level)[1] and (up & 1) != 0:
 							more |= ABOVE_QUIET_EAST
-						if (shape & BlobIndex.W) == 0 and (up & 2) != 0:
+						if _surface_open(full, level)[3] and (up & 2) != 0:
 							more |= ABOVE_QUIET_WEST
 					more &= ~_drop
 					if more == full >> 8:

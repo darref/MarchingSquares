@@ -2211,6 +2211,10 @@ précondition tient.
 | borne **basse** mesurée (union de toutes les familles) | **63** |
 | borne **haute** calculée | **341** |
 
+⚠ **CES DEUX NOMBRES SONT PÉRIMÉS — voir la section 23.** Le jeu de bits a bougé depuis (l'ergot
+par la diagonale, les diagonales sud devenues des constantes), et surtout le compte de **clés**
+n'est pas le compte de **dessins**. Au jeu d'aujourd'hui : **125 clés → 31 dessins**.
+
 ⚠ **CONTRÔLE PASSÉ : les 60 tuiles rencontrées tombent toutes dans la forme.** Une seule dehors
 aurait condamné la transcription — c'est la seule façon honnête d'écrire une borne haute à la
 main.
@@ -2470,6 +2474,89 @@ plus descendre par la mesure : il descendra quand un guide exercera le vocabulai
 l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'est une planche de
 spécimens, et le redessiner reste à faire »*.
 
+
+### 23 · LA FORME FERMÉE, PEINTE : 125 CLÉS, **31 DESSINS**
+
+C'est le nombre qu'on cherchait depuis le début du serrage, et il se calcule en deux temps —
+chacun avec l'outil qui existe déjà, sans en écrire un troisième :
+
+1. `tools/closed_form_now.py --liste` **énumère** les clés que le modèle peut exiger ;
+2. `LADDER_FORM=<liste> proof/ladder.gd -- L3 F1` les **peint** et compte les images distinctes.
+
+| | |
+|---|---|
+| clés énumérées (borne haute du modèle) | **125** |
+| **dessins distincts** (ce que la planche doit porter) | **31** |
+| rencontrés sur le guide | 24 |
+| rencontrés sur la planche de preuve | 19 |
+
+⚠ **ET LE COMPTE NE BOUGE PAS ENTRE F1 ET F2** : 31 dans les deux cas. Le trait droit et le trait
+qui serpente distinguent exactement les mêmes tuiles — la liberté du peintre n'ajoute pas de
+vocabulaire, ce qui est précisément ce que I5 promettait et qu'aucun chiffre n'avait encore dit.
+
+**LES 31, NOMMÉS.** Dix sont des silhouettes nues, vingt et une portent des bits :
+
+```
+   nues       5  7  20  65  71  80  92  193  197  199
+   ABOVE      s65 s193                          (est)   s5 s7      (ouest)
+   FLUSH      s20 s92   (est)   s80 s92 (ouest)   s92   (les deux)
+   BELOW      s80 s113 s209 (est)   s20 s23 s29 (ouest)   s80 (les deux)
+              s113 s209 (est + above)   s23 s29 (ouest + above)   s20 (ouest + flush)
+```
+
+⚠ **ET LES 27 SILHOUETTES NE FONT QUE DIX DESSINS.** C'est le résultat qui surprend, et il se
+démontre : depuis L2, `open[2]` est faux **inconditionnellement** — *rien au sud* — et `_reentrant`
+saute les deux coins sud. Le cardinal **S** et les diagonales **SE** et **SO** sont donc absents du
+dessin, et les 27 index canoniques, quotientés par ces trois bits, tombent à **dix formes** :
+`{4, 5, 7, 64, 65, 68, 71, 193, 197, 199}`. Vérifié dans les deux sens — la sonde du banc désigne
+exactement ces trois bits (`8 ×22, 16 ×6, 32 ×22`) et rien d'autre.
+
+⚠ **ET UN BIT S'EST RESSERRÉ EN CHEMIN, DÉSIGNÉ PAR LA MESURE : `ABOVE_*`.** Il ne fait qu'une
+chose — ramener le bord latéral au ras à son premier pixel — donc si le **bord** a déjà fait taire
+ce côté-là, il ne change plus rien. Sa précondition rejoint celle de `BELOW_*`, qui est la même un
+cran plus bas et qui, elle, l'avait toujours. **139 → 125 clés, 31 dessins inchangés**, et le guide
+perd 4 clés posées (51 → 47) sans perdre un dessin.
+
+⚠ **ET LE CONTRÔLE A ATTRAPÉ MA PREMIÈRE VERSION, DANS LE BON SENS.** J'avais resserré
+l'**énumération** — ajouter la précondition à `closed_form_now.py` — et quatre clés posées par le
+guide sont aussitôt tombées **hors de la forme**. C'est le monde qui avait raison : la règle
+appartient au **banc**, l'énumération ne fait que la transcrire. *« Une seule dehors, et c'est la
+transcription qui est fausse, pas le monde »* — la ligne était dans l'en-tête de l'outil, et elle
+a servi le jour même.
+
+### CE QUE LE GUIDE EXERCE : TREIZE DESSINS SUR TRENTE ET UN
+
+`LADDER_SEEN=<sortie de LADDER_VOCAB=1>` croise un monde avec la forme, et rend **les dessins que
+ce monde ne touche nulle part**. Sur le guide livré :
+
+```
+47 cles posees,  13 dessins sur 31 touches
+LUI MANQUE (18) :
+   5(s5,b0)         65(s65,b0)                       -- deux silhouettes NUES
+   524353(s65,ABOVE_E)     1048581(s5,ABOVE_W)
+   2097172(s20,FLUSH_E)    4194384(s80,FLUSH_W)      6291548(s92,FLUSH_E+W)
+   8388688(s80,BELOW_E)    8388721(s113,BELOW_E)     8388817(s209,BELOW_E)
+   8913009(s113,BELOW_E+ABOVE_E)  8913105(s209,BELOW_E+ABOVE_E)
+   12582992(s80,BELOW_E+W)
+   16777236(s20,BELOW_W)   16777245(s29,BELOW_W)
+   17825815(s23,BELOW_W+ABOVE_W)  17825821(s29,BELOW_W+ABOVE_W)
+   18874388(s20,BELOW_W+FLUSH_E)
+```
+
+⚠ **ET DEUX D'ENTRE ELLES SONT DES SILHOUETTES NUES.** Le guide porte bien les 27 index — la suite
+du produit l'assère — mais il ne les porte jamais **sans bit** : `s5` et `s65` n'y apparaissent
+qu'accompagnées. *Porter une silhouette n'est pas porter la tuile.*
+
+**C'est le cahier des charges du redessin**, nommé tuile par tuile au lieu d'être deviné : dix-huit
+accidents à composer, et la liste dit exactement lequel force quel bit.
+
+
+
+⚠ **ET LES GRAINES DE RACCORD VALENT ZÉRO DANS CE COMPTE, IL FAUT LE DIRE.** Les classes de L4
+sont une propriété du **monde** — l'union-find se calcule des adjacences observées — alors que la
+forme fermée est une propriété du **modèle**. Deux clés qui rendent la même image ici peuvent
+différer dans un monde qui les met dans deux classes. **31 est donc le vocabulaire de FORMES**, pas
+le nombre de cases d'une planche donnée.
 
 ### 22 · « POSÉE » N'EST PAS « DISTINCTE » — LE COMPTE ANNONCÉ TOMBE ENCORE D'UN TIERS
 
