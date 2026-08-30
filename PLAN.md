@@ -2564,61 +2564,59 @@ recouvrement. Cinq parts sur six cœurs.
 20x26.
 
 ```
-  res://guides/epais.txt   : 13 dessin(s) sur 23
-  res://guides/temoins.txt : 21 dessin(s) sur 23
-  REUNIS                   : 23 dessin(s) sur 23   -- RIEN NE MANQUE
+  avant les temoins : res://guides/epais.txt  ->  13 dessin(s) sur 23
+  apres             : res://guides/epais.txt  ->  23 dessin(s) sur 23
 ```
 
-### 26ter · UN GUIDE À PART, ET C'EST UN ARBITRAGE D'ÉCRAN — décision utilisateur
+### 26ter · LES TÉMOINS ENTRENT DANS LE GUIDE — décision utilisateur, et elle a été rectifiée
 
-Les huit blocs tiennent dans **104x65**. Posés au sud d'`epais.txt`, ils l'auraient fait passer
-de **141 à 215 rangées** — la case tombe de vingt-six à **dix-sept pixels d'écran** — et cela
-pour des tuiles **que le produit n'exporte pas encore** : il livre toujours les 27 silhouettes
-et les 20 rôles, pas les 23 dessins.
+**Premier essai, refusé :** un guide à part, `guides/temoins.txt`, invisible du soft, pour ne
+pas payer l'écran. L'utilisateur a tranché autrement, et l'argument porte plus loin que ce
+guide-ci : *« le but du soft est de tout avoir en face de soi en même temps ; ce que je vends,
+c'est la simplicité et l'intuitivité »*, puis *« ce que je veux, c'est le guide fini dans le
+soft, et la possibilité pour l'acheteur de dessiner n'importe quel monde avec toute la liberté
+qu'on a calculée, sans erreurs »*.
 
-Or *« ce qui compte n'est pas le nombre de cases, c'est la taille de la case à l'écran »* est
-au dossier, mesuré. On ne paie pas cet écran aujourd'hui : `guides/temoins.txt` est un guide à
-part, bâti et vérifié par `tools/build_temoins.gd`, qui **ne s'affiche nulle part**. Il entrera
-dans le guide livré le jour de la bascule, quand ces tuiles deviendront peignables.
+Les huit blocs entrent donc dans `epais.txt`, en **seconde réserve**, exactement comme les huit
+témoins de rôle de robe. `guides/temoins.txt` et son bâtisseur sont **supprimés** : un seul
+guide.
 
-⚠ **ET IL N'EST PAS DANS LE SOFT, IL NE LE SERA JAMAIS — règle utilisateur.** *« Le but du
-soft est de tout avoir en face de soi en même temps ; ce que je vends, c'est la simplicité et
-l'intuitivité. »* Aucune liste ne le propose, `core/modes.gd` ne nomme que `epais.txt`. **Le
-jour de la bascule, les dix témoins entrent DANS le guide unique** — pas dans une seconde
-entrée d'une liste. Le guide devra donc être **redessiné pour les porter**, et c'est
-exactement le travail que ce plan garde ouvert : les témoins lui donnent enfin son cahier des
-charges, accident par accident.
+⚠ **ET LA SECONDE RÉSERVE N'EST PAS UN PAYSAGE, ELLE NE PRÉTEND PAS L'ÊTRE** — même statut, mot
+pour mot, que la première : *« le paysage sert à juger le rendu ; la réserve sert à ce
+qu'aucune tuile ne manque. Confondre les deux, c'était demander à un seul dessin d'être à la
+fois beau et exhaustif. »*
 
-⚠ **ET IL N'EST PAS UN PAYSAGE, IL NE PRÉTEND PAS L'ÊTRE** — même statut, mot pour mot, que la
-réserve d'`epais.txt` : *« le paysage sert à juger le rendu ; la réserve sert à ce qu'aucune
-tuile ne manque. Confondre les deux, c'était demander à un seul dessin d'être à la fois beau
-et exhaustif. »*
+⚠ **ET ELLE SE VÉRIFIE LÀ OÙ ELLE POSE, pas seulement là où elle a été trouvée.** Chaque clé
+déclarée est retrouvée à la case où son bloc est stampé : un témoin découpé est juste dans
+*son* contexte — au milieu d'un champ de plaine — et le guide en est un autre, où il a des
+voisins à quatre cases. *La découpe ment* : on revérifie.
 
-⚠ **ET IL SE VÉRIFIE EN S'ÉCRIVANT, LÀ OÙ IL POSE.** Épaisseur partout, et **chaque clé
-déclarée retrouvée à la case où son bloc a été stampé** : un témoin découpé est juste dans
-*son* contexte — au milieu d'un champ de plaine — et la planche en est un autre, où il a des
-voisins à quatre cases. *La découpe ment* : on revérifie. 0 problème.
+**Le prix, dit franchement** : le guide passe de **104x141 à 104x229**, donc la case rétrécit à
+l'écran. C'est le prix de l'exhaustivité, et il est assumé — *un outil parfait ne peut pas ne
+pas montrer une tuile*.
 
-**La chaîne, de bout en bout :**
+⚠ **ET C'EST CE PRIX QUI OUVRE LA QUESTION SUIVANTE, POSÉE PAR L'UTILISATEUR : deux MODES DE
+DISPOSITION.** Un mode **paysage** — les accidents fondus dans des îles, pour juger le rendu —
+et un mode **damier de spécimens** — un îlot par tuile, calculé, compact et exhaustif. C'est la
+résolution de la double injonction qui déforme le guide depuis le début : *« demander à un seul
+dessin d'être à la fois beau et exhaustif »*. Chacun ferait une chose, et bien.
+
+⚠ **ET DEUX STYLES DE TRAIT, DEMANDÉS AVEC** : *straight lines* et *ondulated lines*. Ils
+existent déjà dans le modèle — ce sont **F1** et **F2** — et le compte de dessins **ne bouge pas
+entre les deux** : 31 dans les deux cas, mesuré. C'est donc un vrai style, gratuit en
+vocabulaire ; il ne reste qu'à l'exposer dans la liste des encres, à côté de *Peint* et *Fil de
+fer*.
+
+**Mesuré sur le guide fini, un seul fichier :**
 
 ```
-python tools/closed_form_now.py --liste > forme.txt
-PART=i/5 godot --headless --path . --script res://tools/brink_witnesses.gd -- forme.txt 15000 blocs_i.txt
-godot ... res://tools/brink_witnesses.gd -- --fusion forme.txt blocs_0.txt ...   # -> core/brink_witnesses.gd
-godot ... res://tools/build_temoins.gd                                          # -> guides/temoins.txt
-godot ... res://tools/brink_witnesses.gd -- --couverture forme.txt res://guides/epais.txt res://guides/temoins.txt
+  res://guides/epais.txt : 23 dessin(s) sur 23   -- RIEN NE MANQUE
+  contour : I1 fermeture ok (0 extremite), I2 epaisseur ok (0 pave)
+  batisseur : 0 probleme -- epaisseur, 27/27 surfaces, 25/25 roles,
+              15/15 croisements, zero robe hors grille, tout hors plaine,
+              et chaque cle de bord retrouvee a la case ou son bloc est stampe
 ```
 
-⚠ **ET `Brink.keys()` EST NÉ DE CE CHANTIER, EN RETIRANT UNE COPIE.** Les silhouettes par
-étage, la carte visible, le vocabulaire et les robes fermées vivaient **en entier** dans
-`Contour.compose`, qui n'en avait besoin que pour appeler `mark()` : tout outil voulant les
-clés d'un relief devait soit recopier le bloc, soit **dessiner l'image entière** pour lire un
-dictionnaire. Le modèle les tient désormais, une fois. Suite du produit : **665 vérifications,
-0 échec**, avant et après.
-
-⚠ **PIÈGE DE LANGAGE PAYÉ : ne pas nommer une méthode `_set`.** `Object._set(StringName,
-Variant)` existe déjà ; en redéfinir la signature est une **erreur d'analyse**, et le script
-ne charge plus du tout.
 
 ### 25 · LE PORTAGE : LE BANC REND SON MODÈLE ET SON PINCEAU AU PRODUIT
 

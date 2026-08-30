@@ -25,13 +25,15 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const BrinkLips := preload("res://core/brink_lips.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const Coverage := preload("res://core/coverage.gd")
+const Brink := preload("res://core/brink.gd")
+const BrinkWitnesses := preload("res://core/brink_witnesses.gd")
 
 const WIDTH: int = 104
 ## ⚠ LE GUIDE S'ALLONGE POUR SA RESERVE, et c'est un prix a l'ecran qu'il faut assumer :
 ## la case retrecit. Le paysage occupe le nord, les temoins puis la reserve le sud.
 ## Un outil parfait ne peut pas ne pas montrer une tuile : le game dev qui construit
 ## precisement ce cas-la ne doit pas se retrouver bloque. Voir `_witnesses` et `_reserve`.
-const HEIGHT: int = 141
+const HEIGHT: int = 229
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
@@ -396,6 +398,72 @@ var _placed: Array[Vector3i] = []
 var _witnessed: bool = false
 
 
+## Chaque temoin de bord pose : la case, et la cle qu'elle doit porter.
+var _brinks: Array[Array] = []
+
+
+## LA SECONDE RESERVE : LES TEMOINS DES BITS DE BORD.
+##
+## ⚠ ET C'EST UN AUTRE VOCABULAIRE QUE LES 27 SILHOUETTES. Une tuile du contour prouve est un
+## couple (silhouette, bits de bord) -- ce qu'une case sait de ce que ses voisines TRACENT --
+## et la forme fermee en compte 23 dessins. Dix d'entre eux ne naissent d'aucun accident
+## nomme : ils demandent une banquette qui s'arrete UNE rangee au-dessus d'un bord, une face
+## qui en longe une autre. La famille ALIGNEE sur trois, enumeree en entier (19 683 reliefs),
+## n'en rend AUCUN -- il faut des poses decalees.
+##
+## ⚠ ILS NE SONT PAS DESSINES A LA MAIN, ILS SONT TROUVES -- meme raison, mot pour mot, que
+## les huit temoins de robe plus haut. `tools/brink_witnesses.gd` les cherche, les decoupe et
+## les reverifie au milieu d'un champ de plaine ; ici on les repose, et on revérifie encore.
+##
+## ⚠ ET ILS SONT DANS LE GUIDE, PAS DANS UN FICHIER A COTE -- regle utilisateur : « le but du
+## soft est de tout avoir en face de soi en meme temps ». Le prix est en rangees, et il est
+## dit : le guide s'allonge, la case retrecit a l'ecran. C'est le prix de l'exhaustivite.
+func _brink_reserve(top: int) -> int:
+	var band: int = top
+	var wx: int = 4
+	var tall: int = 0
+	for at: int in range(BrinkWitnesses.BLOCKS.size()):
+		var rows: PackedStringArray = PackedStringArray()
+		for line: Variant in (BrinkWitnesses.BLOCKS[at] as Array):
+			rows.append(String(line))
+		var wide: int = rows[0].length()
+		if wx + wide > WIDTH - 4:
+			wx = 4
+			band += tall + 4
+			tall = 0
+		_stamp_witness(wx, band, rows)
+		for spot: Variant in (BrinkWitnesses.CARRIES[at] as Array):
+			var where: Vector3i = spot as Vector3i
+			_brinks.append([Vector2i(wx + where.x, band + where.y), where.z])
+		wx += wide + 4
+		tall = maxi(tall, rows.size())
+	return band + tall + 4
+
+
+## ⚠ ON REVERIFIE CHAQUE CLE LA OU ELLE EST POSEE, pas seulement la ou elle a ete trouvee.
+## Un temoin est juste dans SON contexte -- au milieu d'un champ de plaine -- et le guide en
+## est un autre, ou il a des voisins a quatre cases. La decoupe ment : deja mesure au dossier.
+func _audit_brinks(heights: PackedStringArray) -> int:
+	if _brinks.is_empty():
+		return 0
+	var made: Dictionary = Brink.keys(heights, 3)
+	var lost: Array[String] = []
+	for entry: Array in _brinks:
+		var at: Vector2i = entry[0]
+		var wanted: int = int(entry[1])
+		var got: bool = false
+		for storey: Dictionary in (made["storeys"] as Array[Dictionary]):
+			if storey.has(at) and int(storey[at]) == wanted:
+				got = true
+		if not got:
+			lost.append("%d en %d,%d" % [wanted, at.x, at.y])
+	if not lost.is_empty():
+		print("TEMOINS DE BORD PERDUS (%d) : %s" % [lost.size(), ", ".join(lost)])
+	return lost.size()
+
+
+
+
 ## ⚠ ON REVERIFIE CHAQUE ILOT LA OU IL EST POSE, pas seulement la ou il a ete cherche. Un
 ## temoin est juste dans SON contexte ; le guide en est un autre.
 func _audit() -> void:
@@ -433,9 +501,16 @@ func _initialize() -> void:
 		if after == band:
 			break
 		band = after
+	band = _brink_reserve(band)
 	_audit()
 	var heights: PackedStringArray = _mask()
 	var failures: int = 0
+	if band > HEIGHT:
+		failures += 1
+		print("LE CADRE EST TROP COURT : la reserve finit a %d, le guide fait %d"
+				% [band, HEIGHT])
+	if _audit_brinks(heights) > 0:
+		failures += 1
 
 	# 1. L'epaisseur, partout, tous etages.
 	var thin: Array[Vector3i] = Thickness.thin_cells(heights)

@@ -81,8 +81,8 @@ guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = éta
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
   preview.txt          le décor de l'aperçu en jeu : 24x18, une colline et une butte
-  epais.txt            LE guide livré : 104x141, 27/27, 25/25, 15/15
-  temoins.txt          104x65, jamais affiché : les dessins qu'aucun paysage ne produit
+  epais.txt            LE guide livré, et le seul : 104x229, 27/27, 25/25, 15/15,
+                       plus les dix témoins de bord — 23 dessins sur 23
 tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
@@ -101,7 +101,6 @@ tools/            outils de fabrication, jamais lus par le logiciel
   build_ample.py    trois îles, donc trois exemplaires
   bench_stroke.gd   le banc du coup de crayon : ce que coûte un point, en µs
   build_epais.gd    le guide livré, accident par accident, et qui s'auto-vérifie
-  build_temoins.gd  le guide des témoins, et qui revérifie chaque clé là où il la pose
   brink_witnesses.gd  cherche les témoins des bits de bord (`PART=i/n`, puis `--fusion`)
   closed_form_now.py  la borne haute du modèle, clé par clé
 ```
@@ -2794,9 +2793,9 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   silhouettes.** Le modèle qui *sait* ce que ses voisines tracent porte **moins** de tuiles que
   celui qui l'ignore — les bits de bord fusionnent autant de silhouettes qu'ils en séparent.
 
-- **LES TÉMOINS DES BITS DE BORD : trouvés, pas dessinés, et dans un guide À PART**
-  (`tools/brink_witnesses.gd`, `core/brink_witnesses.gd`, `tools/build_temoins.gd`,
-  `guides/temoins.txt`). Dix des 23 dessins ne naissent d'aucun accident nommé — même méthode,
+- **LES TÉMOINS DES BITS DE BORD : trouvés, pas dessinés, et dans LE guide**
+  (`tools/brink_witnesses.gd`, `core/brink_witnesses.gd`, seconde réserve d'`epais.txt`).
+  Dix des 23 dessins ne naissent d'aucun accident nommé — même méthode,
   mot pour mot, que les huit témoins de robe : *« ils ne sont pas dessinés à la main, ils sont
   TROUVÉS »*.
 
@@ -2821,18 +2820,26 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   taille de la case à l'écran.* Le guide des témoins ne s'affiche nulle part ; il entrera dans
   le guide livré le jour de la bascule, quand ces tuiles deviendront peignables.
 
-  **Mesuré** : `epais.txt` 13 dessins sur 23, `temoins.txt` 21 sur 23, **réunis 23 sur 23**.
-  Et le contour du guide des témoins est **fermé** : 0 extrémité, 0 pavé 2x2.
+  **Mesuré** : avant les témoins, `epais.txt` n'exerçait que **13 dessins sur 23**.
 
-  ⚠ **`temoins.txt` N'EST PAS DANS LE SOFT, ET IL NE LE SERA JAMAIS — règle utilisateur.**
-  *« Le but du soft est de tout avoir en face de soi en même temps ; ce que je vends, c'est la
-  simplicité et l'intuitivité. »* Aucune liste ne le propose, `core/modes.gd` ne nomme que
-  `epais.txt`, rien ne balaie le dossier : c'est un fichier de **banc**, du même statut que le
-  relief de la planche de preuve. **Le jour de la bascule, les dix témoins entrent DANS le
-  guide unique** — ils ne deviennent pas une seconde entrée dans une liste. Ce qui veut dire
-  que le guide devra être **redessiné pour les porter**, au lieu qu'on les empile en réserve
-  au sud ; et les témoins lui donnent enfin son cahier des charges complet, accident par
-  accident.
+  ⚠ **ET ILS SONT DANS LE GUIDE, PAS DANS UN FICHIER À CÔTÉ — règle utilisateur, et elle a
+  rectifié mon premier essai.** J'avais mis les témoins dans un `guides/temoins.txt` invisible
+  du soft, pour ne pas payer l'écran. *« Le but du soft est de tout avoir en face de soi en
+  même temps ; ce que je vends, c'est la simplicité et l'intuitivité »*, puis *« ce que je
+  veux, c'est le guide fini dans le soft, et la possibilité pour l'acheteur de dessiner
+  n'importe quel monde avec toute la liberté qu'on a calculée, sans erreurs »*. Les huit blocs
+  sont donc une **seconde réserve** d'`epais.txt`, exactement comme les huit témoins de rôle
+  de robe ; le fichier à part et son bâtisseur sont supprimés. **Un seul guide.**
+
+  **Le prix, dit franchement : le guide passe de 104x141 à 104x229**, donc la case rétrécit à
+  l'écran. C'est le prix de l'exhaustivité — *un outil parfait ne peut pas ne pas montrer une
+  tuile* — et c'est lui qui ouvre la question des deux **modes de disposition** (paysage /
+  damier de spécimens), demandés dans la foulée. Voir PLAN.md, section 26ter.
+
+  **Mesuré sur le guide fini** : 23 dessins sur 23, rien ne manque ; contour fermé (0
+  extrémité, 0 pavé) ; bâtisseur à 0 problème — épaisseur, 27/27 surfaces, 25/25 rôles, 15/15
+  croisements, zéro robe hors grille, tout hors plaine, et **chaque clé de bord retrouvée à la
+  case où son bloc est stampé**.
 
   ⚠ **ET LE VIDE AUTOUR N'EST PAS UNE COQUETTERIE.** Sans marge de `~`, la plaine court
   jusqu'au cadre de l'image et son propre contour s'y trouve **coupé** : deux extrémités, aux
@@ -2965,6 +2972,28 @@ Quand la monter, et je le proposerai le moment venu :
   - `CLAUDE.md`, section « Les colonnes — la seule verticalité qu'on automatise ».
 
 ## Questions ouvertes
+
+- **DEUX MODES DE DISPOSITION : paysage et damier de spécimens.** Demandé par l'utilisateur le
+  30/08/2026, et c'est la résolution de la double injonction qui déforme le guide depuis le
+  début — *« demander à un seul dessin d'être à la fois beau et exhaustif »*. Le **paysage**
+  fond les accidents dans des îles : il sert à juger le rendu. Le **damier** pose un îlot par
+  tuile, calculé depuis l'identité comme la planche de preuve : il est compact, exhaustif, et
+  chaque tuile y est obligatoire (aucune jumelle). Chacun fait une chose, et bien.
+  ⚠ **C'est l'axe du MODE, pas un réglage** — *un mode = un guide + des règles d'exportation* :
+  deux entrées dans la liste « Paysage », zéro nouveau contrôle. Et c'est **gratuit pour le
+  travail en cours** : le carnet range l'art par tuile, donc un travail commencé sur l'un se
+  recharge sur l'autre, exactement comme `minimal` se rechargeait en `ample`.
+  ⚠ **Mesuré** : la planche de preuve par case fait déjà 86x174, épaisse, 1314 cases
+  peignables — le damier est donc à portée, mais il faudra le **coucher** (plus de colonnes)
+  au lieu de reprendre les huit colonnes de la planche, qui existent pour se comparer à la
+  feuille exportée.
+
+- **DEUX STYLES DE TRAIT : `straight lines` et `ondulated lines`.** Demandé le 30/08/2026, et
+  ils existent **déjà dans le modèle** : ce sont **F1** et **F2** du contour prouvé — `depth()`
+  rend une profondeur constante à F1, une courbe le long du bord à F2. ⚠ **Et le compte de
+  dessins ne bouge pas entre les deux : 31 dans les deux cas**, mesuré. C'est donc un vrai
+  style — gratuit en vocabulaire, et c'est exactement ce que l'invariant I5 promettait. Il ne
+  reste qu'à l'exposer : deux entrées dans la liste des encres au lieu d'une.
 
 - **L'EXEMPLE, PEINT A LA MAIN.** L'angle noir est ferme -- voir la decision « LA POSE
   DERRIERE » -- et l'etape suivante du chantier est l'exemple : l'utilisateur peint
