@@ -3092,7 +3092,27 @@ Quand la monter, et je le proposerai le moment venu :
   plus au recensement, et **le vocabulaire ferme ne bouge pas**. C'est la meme raison qui rend
   les motifs carres surs -- ce qui n'a pas de bord n'a pas de raccord.
 
-  **Mais trois choses restent a payer, et il vaut mieux les savoir maintenant :**
+  ⚠ **SA BORDURE EST UN ANNEAU CARRE STRICTEMENT RESERVE -- donc un NEUF-TRANCHES, et le
+  compte est ferme : 4 coins + 4 cotes + 1 milieu = 9 TUILES, quelle que soit la taille.** Les
+  cotes se repetent quand la grotte s'elargit : une grotte 3x3 et une grotte 8x5 coutent le meme
+  vocabulaire. Le plafond est la tranche du haut, le PERRON celle du bas, les cotes les
+  colonnes -- chacun sa tuile, donc peignable comme ce qu'il est.
+
+  ⚠ **ET C'EST LE « STRICTEMENT RESERVE » QUI REND LE GESTE POSSIBLE, pas un detail de
+  rangement.** Si l'anneau partageait ses tuiles avec les corps ordinaires, un plafond peint la
+  apparaitrait sur toutes les parois du monde -- la loi du fragment, encore. Reserver l'anneau,
+  c'est exactement ce qui autorise l'artiste a peindre un plafond.
+
+  ⚠ **ET LA PLACE SE CALCULE, ELLE NE SE DEVINE PAS.** `row_for` donne `drop - 2` rangees de
+  corps pour une chute qui atterrit : une chute de 3 n'en a qu'UNE, une chute de 6 en a quatre.
+  **Il faut donc une falaise d'au moins deux etages**, et la grotte minimale est 3x3 -- anneau
+  plus un trou. En largeur, trois colonnes de la MEME face : a cheval sur deux levres elle se
+  poserait sur deux parois differentes, et c'est un refus.
+
+  ⚠ **Et les cotes qui se repetent ramenent la question des motifs carres** : une grotte large
+  repete son plafond a l'identique. C'est la meme demande, au meme endroit.
+
+  **Trois choses restent a payer, et il vaut mieux les savoir maintenant :**
 
   1. ⚠ **Ca ne se deduit pas, donc ca se DECLARE.** Rien dans une carte de hauteurs ne distingue
      « ici il y a une grotte ». Il faut un marqueur dans le monde, exactement comme `~` l'a ete
