@@ -2475,6 +2475,55 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 24 · MESURER LE PRODUIT, PAS LE BANC — ET CE QU'ON APPREND EN ESSAYANT
+
+`proof/ladder.gd` prouve un **modèle** : il peint ses propres tuiles avec son propre pinceau.
+**Rien de ce qu'il établit n'est vrai du logiciel tant qu'on ne l'a pas mesuré SUR le logiciel.**
+D'où `tools/soft_invariants.gd`, qui rend l'illustration de `render/guide_image.gd` — celle que
+l'acheteur regarde en peignant, et celle dont l'essai tire son tileset — et lui pose les deux
+questions qui ne dépendent d'aucun modèle : I1 fermeture, I2 épaisseur.
+
+⚠ **ET LA PREMIÈRE RÉPONSE EST QUE LA QUESTION NE SE POSE PAS ENCORE.** Le fil de fer du produit
+n'est **pas un tracé d'un pixel** :
+
+```
+encre WIRE_EDGE :  12 167 px,  5 616 paves de son propre 2x2   ⚠ BANDE
+encre WIRE_LIP  :  10 069 px,      1 pave
+encre WIRE_FACE :   8 410 px,      0 pave
+```
+
+`WIRE_EDGE` est une **bande de deux pixels** — le flanc de la falaise — et non un contour. Compter
+ses pavés reprocherait au dessin d'être ce qu'il est : les 5 617 pavés du premier relevé étaient
+un artefact de ma définition, **pas un défaut du produit**. L'outil déclare donc chaque encre
+avant de compter, et **refuse** quand l'une est posée en bande.
+
+**C'est le résultat utile** : le logiciel ne pourra pas être validé par ces invariants tant qu'il
+ne dessinera pas un contour d'un pixel — et c'est exactement ce que le portage du modèle apporte.
+L'instrument existe maintenant, et il dira le jour où ça bascule.
+
+⚠ **DEUX PIÈGES DE MESURE PAYÉS, TOUS DEUX SUR LA MÊME LIGNE DE CODE.**
+- `is_equal_approx` compare à 1e-5 près, or une constante écrite `0.588` ressort d'un PNG à
+  `150/255 = 0,58824` — **vingt fois l'epsilon**. Le compteur annonçait **zéro** pixel de trait sur
+  une image qui en porte trente mille ;
+- puis `Image.set_pixel` **tronque** au lieu d'arrondir — `0,588 × 255 = 149,94` devient **149** —
+  alors que le rendu du produit, qui passe par une réduction, écrit **150**. Une même couleur
+  s'écrit à un pas près selon le chemin qui la pose.
+
+La comparaison se fait donc **à un pas près**, et la tolérance est justifiée par la mesure : la
+paire la plus proche des neuf couleurs diffère de **sept** sur un canal. *Une tolérance qu'on n'a
+pas vérifiée là-dessus est un compteur de plus à qui l'on fait confiance sans raison.*
+
+⚠ **ET LA COPIE DU PRÉDICAT SE CONTRÔLE, PARCE QUE C'EN EST UNE.** `--verifier <png>` transcrit une
+image **du banc** dans la palette du produit et la fait compter par ce compteur-ci. Sur une image
+que le banc dit fermée : **0 et 0**. Sur une image que le banc disait à **4 extrémités et 19
+pavés** : **4 et 19**, aux mêmes pixels. *Deux copies d'une même règle finissent toujours par se
+contredire — sauf si on les confronte.*
+
+⚠ **ET LES DEUX FOIS OÙ LE COMPTEUR S'EST TU, C'EST LA GARDE DE NON-VACUITÉ QUI A PARLÉ.** « Aucun
+trait : la palette a changé, la mesure ne veut rien dire » — sans elle, les deux pièges ci-dessus
+auraient rendu **zéro extrémité, zéro pavé**, c'est-à-dire un logiciel déclaré parfait par un
+instrument aveugle.
+
 ### 23 · LA FORME FERMÉE, PEINTE : 125 CLÉS, **31 DESSINS**
 
 C'est le nombre qu'on cherchait depuis le début du serrage, et il se calcule en deux temps —
