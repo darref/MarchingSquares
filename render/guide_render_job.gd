@@ -13,6 +13,7 @@
 extends RefCounted
 
 const GuideImage := preload("res://render/guide_image.gd")
+const Contour := preload("res://render/contour.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
@@ -64,6 +65,9 @@ func _init(heights: PackedStringArray, tile_size: int, ink: GuideImage.Ink,
 func _prepare() -> void:
 	if _purpose == GuideImage.Purpose.EXAMPLE:
 		_prepare_example()
+		return
+	if _ink == GuideImage.Ink.CONTOUR:
+		_prepare_contour()
 		return
 	var columns: int = HeightMask.width(_heights)
 	var rows: int = HeightMask.height(_heights)
@@ -212,6 +216,34 @@ func _blit(images: Dictionary, source: int, coord: Vector2i, x: int, y: int, sid
 
 
 ## Avance d'au plus [param budget_usec] microsecondes. Rend vrai quand tout est fini.
+## LE CONTOUR PROUVE : `render/contour.gd` rend l'image entiere d'un coup.
+##
+## ⚠ ET IL NE SE DECOUPE PAS EN ETAPES, ce qui est assume. Le travail par etapes existe pour que
+## le fond peint -- cent dessins de tuile puis mille tampons -- n'immobilise pas la fenetre ;
+## `compose()` fait le guide livre en 1,3 seconde, une fois, au changement d'encre. Le decouper
+## demanderait de casser une chaine qui vient d'etre portee, pour gagner une seconde.
+##
+## ⚠ ET LES DEUX IMAGES SONT LA MEME. `_flat` existe pour retirer la lumiere portee -- les ombres
+## tombent sur des cases de plaine, qu'aucune tuile exportee ne peut porter. Le contour n'a pas
+## d'ombre : il n'y a rien a retirer, donc rien a distinguer.
+func _prepare_contour() -> void:
+	var made: Dictionary = Contour.compose(_heights, 3, 1)
+	var image: Image = made["image"]
+	# ⚠ LE GRANDISSEMENT EST AU PLUS PROCHE, ET ENTIER. Le contour est dessine a seize faux
+	# pixels par case ; la zone de travail en attend `_tile_size`. Un lissage inventerait des
+	# coutures que le dessin n'a pas -- la lecon est deja au dossier pour l'apercu en jeu et
+	# pour les voisines.
+	var scale: int = maxi(1, _tile_size / Contour.RES)
+	if scale > 1:
+		image.resize(image.get_width() * scale, image.get_height() * scale,
+				Image.INTERPOLATE_NEAREST)
+	_image = image
+	_flat = image
+	total = 1
+	done = 1
+	_finished = true
+
+
 func step(budget_usec: int) -> bool:
 	if _finished:
 		return true

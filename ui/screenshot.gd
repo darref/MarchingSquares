@@ -42,6 +42,8 @@ func _initialize() -> void:
 				_family = 1
 			"fil":
 				_ink = 1
+			"contour":
+				_ink = 2
 			"remontage":
 				_assembled = true
 			"manuel":

@@ -236,6 +236,10 @@ func _fill_inks() -> void:
 	choice.set_item_metadata(0, GuideImage.Ink.PAINTED)
 	choice.add_item("Fil de fer")
 	choice.set_item_metadata(1, GuideImage.Ink.WIREFRAME)
+	# ⚠ LE CONTOUR PROUVE N'EST PAS UN STYLE, C'EST UN AUTRE MODELE -- et il est dans la meme
+	# liste pour qu'on puisse les comparer a l'ecran, ce qu'aucun chiffre ne remplace.
+	choice.add_item("Contour prouve")
+	choice.set_item_metadata(2, GuideImage.Ink.CONTOUR)
 	choice.select(0)
 
 

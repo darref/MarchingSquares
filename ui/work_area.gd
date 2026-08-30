@@ -569,7 +569,10 @@ func _draw() -> void:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	if _background != null and not assembled:
-		var tint: Color = GUIDE_TINT_WIRE if guide_ink == GuideImage.Ink.WIREFRAME else GUIDE_TINT
+		# Un TRACE se lit presque opaque ; un aplat se laisse traverser pour qu'on voie
+		# son propre travail par-dessus.
+		var tint: Color = GUIDE_TINT_WIRE if guide_ink != GuideImage.Ink.PAINTED \
+				else GUIDE_TINT
 		var sheet: ImageTexture = _background
 		if hide_cast_light and _background_flat != null:
 			sheet = _background_flat

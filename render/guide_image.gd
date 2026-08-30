@@ -34,6 +34,12 @@ extends RefCounted
 enum Ink {
 	PAINTED,    ## Des aplats.
 	WIREFRAME,  ## Des traits.
+	## ⚠ LE CONTOUR PROUVE -- ce n'est pas un style, c'est UN AUTRE MODELE. Les deux premieres
+	## encres dessinent le vocabulaire livre aujourd'hui (27 silhouettes) ; celle-ci dessine
+	## celui que l'echelle a prouve ferme, cle par cle, bits de bord compris. On la met dans la
+	## meme liste parce que c'est la seule facon de les COMPARER a l'ecran -- et c'est
+	## exactement ce qu'on lui demande : montrer ce qui ne se voit que la.
+	CONTOUR,
 }
 
 enum Purpose {
