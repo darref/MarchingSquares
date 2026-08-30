@@ -209,15 +209,23 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
 | **L3/F2@battue1·2·3** | **✅ acquis** | **L3 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 14 · 10 · 4 extrémités |
+| **L5/F2@guide** | **✅ acquis** | 104×141 — **58 + 20 = 78 tuiles**, les six verts |
+| **L5/F2@battue1·2·3** | **✅ acquis** | **L5 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 4 · 0 · 0 extrémités et 19 · 6 · 10 pavés |
 
-⚠ **L'ÉCHELLE EST DONC VERTE SUR VINGT-DEUX COUPLES** — les douze de la planche par case à
-**78 tuiles** (58 surfaces + 20 rôles), le plus exigeant rejoué sur le **guide** à 84, les six
-des trois battues, et les **trois de la famille à cheval** sur la planche duale à 84 (64 + 20).
+⚠ **L'ÉCHELLE EST DONC VERTE SUR VINGT-SIX COUPLES** — les douze de la planche par case à
+**78 tuiles** (58 surfaces + 20 rôles), le plus exigeant rejoué sur le **guide** à 84, les six des
+trois battues, et **les sept de la famille à cheval**, sur les cinq mondes.
 
-⚠ **ET LES DEUX ÉCHELLES SONT MONTÉES JUSQU'EN HAUT, CHACUNE DANS SA FAMILLE.** Ce qui reste
-n'est plus un cran de liberté, c'est un cran de **monde** : L5 n'a été joué que sur la planche
-duale, comme L2 et L3 avant d'être clos. *Un banc qui ne connaît qu'un monde ne prouve que ce
-monde* — la clôture de L5 est donc `L5/F2@guide` et `L5/F2@battue1·2·3`.
+⚠ **TOUS LES NIVEAUX DE L'ÉCHELLE SONT CLOS.** L0 à L5, aux trois libertés, sur la planche de
+preuve de leur famille, sur le **guide**, et sur **trois battues tirées par le geste du pinceau**.
+Il ne reste aucun couple rouge.
+
+| famille à cheval, à L5/F2 | tuiles de croisement | + rôles | total |
+|---|---|---|---|
+| planche duale | 48 | 20 | **68** |
+| guide | 58 | 20 | 78 |
+| `@battue1` | 67 | 20 | 87 |
+| `@battue2` · `@battue3` | 66 | 20 | 86 |
 
 ### L4 : LES RACCORDS SE RECENSENT, ET ILS RENDENT DE LA LIBERTÉ AU LIEU D'EN PRENDRE
 
@@ -2442,6 +2450,64 @@ plus descendre par la mesure : il descendra quand un guide exercera le vocabulai
 l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'est une planche de
 spécimens, et le redessiner reste à faire »*.
 
+
+### 21 · L5 EST CLOS — CINQ MONDES, SIX INVARIANTS, ET LE RENDEZ-VOUS N'EST PLUS QU'UNE RÈGLE
+
+**Les six invariants sont verts sur les cinq mondes, aux trois libertés.** Il ne reste aucun
+couple rouge sur l'échelle.
+
+| à L5/F2 | tuiles de croisement | I1 | I2 | I3 |
+|---|---|---|---|---|
+| planche duale | 84 → **48** | ✅ | ✅ | ✅ |
+| guide | 84 → **58** | 6 → ✅ | 8 → ✅ | 42 → ✅ |
+| `@battue1` | 81 → **67** | 4 → ✅ | 19 → ✅ | 40 → ✅ |
+| `@battue2` | — → **66** | ✅ | 6 → ✅ | ✅ |
+| `@battue3` | — → **66** | ✅ | 10 → ✅ | ✅ |
+
+**1. IL N'Y A PLUS QU'UN RENDEZ-VOUS, ET IL LIT LES PIXELS AU LIEU DE LA SILHOUETTE.** Les deux
+blocs — l'original et son miroir — étaient la même règle vue de deux côtés, chacun avec sa
+condition tirée de la silhouette : `north_split` pour l'un, `south_split` pour l'autre. Le second
+laissait passer la **forme 14**, dont le pinçage creuse un **trou de 3×3 au milieu de la tuile** :
+ses deux moitiés sud sont pleines, donc `south_split` est faux, et pourtant la marche est là.
+
+**La règle juste ne parle pas de silhouette du tout** : *le pinçage remet la moitié muette sur le
+bord de case et laisse l'autre libre, donc la matière de la rangée `half - 1` surplombe le vide de
+la rangée `half`* — et un surplomb, ça se trace. On demande donc à la tuile ce qu'elle a **peint** :
+de la matière ici, du vide juste dessous. **4 extrémités sur le guide et 2 sur `@battue1`,
+fermées ; I1 et I3 verts sur les cinq mondes.**
+
+⚠ **DEUX CONDITIONS TIRÉES DE LA SILHOUETTE, DEUX FOIS FAUSSES — ET LA TROISIÈME NE LA REGARDE
+PLUS.** C'est la même leçon que l'ergot qui redérivait « qui trace de quel côté » : *ce qu'on peut
+lire dans le résultat ne se déduit pas une seconde fois de l'entrée.*
+
+**2. LE CINQUIÈME BIT : DE QUEL CÔTÉ EST LE CHAPITEAU. +3 TUILES, ET LES 26 PAVÉS TOMBENT.**
+Il restait 10 · 6 · 10 pavés sur les trois battues, tous de la même signature — la marche longe la
+**crête au ras** du chapiteau d'en dessous, une rangée plus bas. Quatre routes mesurées avant de
+payer :
+
+| tentative | I1 | I2 |
+|---|---|---|
+| la marche s'arrête une colonne plus tôt | ✅ 0 | 10 |
+| la marche seulement dans le cas miroir | **36** (planche) | ✅ 0 |
+| resserrer le pincement de la crête à cheval | **25** | 8 |
+| **le bit : le chapiteau est-il à l'EST ?** | ✅ **0** | ✅ **0** |
+
+⚠ **ET LE BIT DIT EXACTEMENT CE QUI MANQUAIT, NI PLUS.** Quand le chapiteau est à l'**est**, sa
+crête au ras couvre déjà les colonnes de la marche : le contact est direct, il n'y a **rien à
+marcher**. Quand il est à l'**ouest**, sa crête ne couvre pas ces colonnes-là et la marche doit
+aller jusqu'au bord de case toucher son coin en diagonale. Le bit de silence, lui, est un **OU**
+— une robe sur l'une **ou** l'autre — et ne pouvait pas trancher.
+
+⚠ **ET IL NE SE POSE QUE LÀ OÙ IL CHANGE QUELQUE CHOSE** : seulement quand exactement une des deux
+moitiés verticales se tait, c'est-à-dire quand le rendez-vous existe. **Prix : +3 tuiles** sur
+chacun des cinq mondes. Posé partout il aurait doublé la clé pour rien — la leçon déjà payée deux
+fois (*+5 tuiles à poser un bit en gros, +0 au bon endroit*).
+
+⚠ **ET LE RESSERREMENT DU PINCEMENT EST RÉFUTÉ, CE QUI APPREND QUELQUE CHOSE.** L'idée était juste
+sur le papier : `first = _depth(3, 0)` vaut 4, c'est la traversée de la famille **par case**, qui
+n'existe pas à L5 — donc la crête est plate sur cinq colonnes pour rien. Réduite aux deux colonnes
+du bord, `@battue1` passe de 0 extrémité à **25**. *Le plat de la crête est ce sur quoi retombent
+les bords latéraux des tuiles à cheval*, et il en porte bien plus qu'une marche.
 
 ### 20 · CLORE L5 : LA CARTE DES ROBES ÉTAIT ÉCRITE DEUX FOIS, ET LA SONDE REGARDAIT DE BIAIS
 

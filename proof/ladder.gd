@@ -326,7 +326,8 @@ const ACQUIS: Array[String] = ["L0/F0", "L0/F1", "L0/F2", "L1/F0", "L1/F1", "L1/
 		"L2/F0", "L2/F1", "L2/F2", "L3/F0", "L3/F1", "L3/F2", "L3/F2@guide",
 		"L2/F2@battue1", "L2/F2@battue2", "L2/F2@battue3",
 		"L3/F2@battue1", "L3/F2@battue2", "L3/F2@battue3",
-		"L5/F0", "L5/F1", "L5/F2"]
+		"L5/F0", "L5/F1", "L5/F2", "L5/F2@guide",
+		"L5/F2@battue1", "L5/F2@battue2", "L5/F2@battue3"]
 
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 ## La diagonale de chaque coin, dans le meme ordre : NO, NE, SE, SO.
@@ -645,6 +646,16 @@ func _run(couple: String) -> bool:
 						if _foot_above(over5, walls5) \
 								or (_backing_traces and _foot_above(over5, under5)):
 							quiet5 |= 4 << half
+					# ⚠ ET LE CINQUIEME BIT NE SE POSE QUE LA OU IL CHANGE QUELQUE CHOSE. Il
+					# ne sert qu'au rendez-vous -- savoir si le chapiteau d'en dessous est du
+					# cote EST, donc si sa crete au ras donne deja le contact -- et le
+					# rendez-vous ne se pose que quand exactement une des deux moities
+					# verticales se tait. Pose partout, il doublerait la cle pour rien : c'est
+					# la lecon deja payee deux fois (`+5 tuiles` a poser un bit en gros,
+					# `+0` a le poser au bon endroit).
+					if (quiet5 & 2) != 0 and (quiet5 & 1) == 0 \
+							and walls5.has(point + CornerIndex.OFFSETS[2]):
+						quiet5 |= 16
 					map5[point] = int(map5[point]) | (quiet5 << 4)
 			indices = {}
 			vocabulary = {}
@@ -2041,37 +2052,52 @@ func _corner_tile(index: int, freedom: int, seams: Array[int], level: int = 0,
 	# a cheval sur le bord de case. La moitie nord de la frontiere verticale n'existe que si
 	# exactement l'un des deux quadrants du haut est plein -- sinon il n'y a aucune frontiere,
 	# donc rien a raccorder, et le raccord n'est plus qu'un second trait sur le bord du voisin.
-	var north_split: bool = ((index & CornerIndex.BITS[0]) != 0) 			!= ((index & CornerIndex.BITS[1]) != 0)
-	if freedom > 0 and north_split and (quiet & 2) != 0 and (quiet & 1) == 0 \
-			and (_meet == "both" or _meet == "orig"):
-		var meet: int = half - 1
-		var axis: int = half - 1 + _corner_shift(meet, freedom, true)
-		for x3: int in range(mini(half, axis), maxi(half, axis) + 1):
-			if tile.get_pixel(x3, meet).a >= 0.5:
-				tile.set_pixel(x3, meet, OUTLINE)
-
-	# ⚠ ET LE RENDEZ-VOUS A DEUX SENS, PARCE QUE LA MATIERE PEUT ETRE DE L'UN OU DE L'AUTRE
-	# COTE DE L'AXE. Le miroir -- la moitie NORD se tait, la SUD trace -- avait ete pose puis
-	# mesure a « il ne peint aucun pixel », et le chiffre etait juste : il avait ete pose a la
-	# rangee `half`, la PREMIERE de la moitie qui trace, ou les colonnes du bord sont vides.
+	# ⚠ LE RENDEZ-VOUS : LA MARCHE QUE LE PINCAGE CREE, ET IL N'Y EN A QU'UN.
 	#
-	# ⚠ LA MARCHE EST TOUJOURS A LA MEME RANGEE, ET C'EST UN THEOREME PLUTOT QU'UNE
-	# COINCIDENCE. Le deplacement de l'axe est vers l'est ; la matiere de l'ouest est donc plus
-	# LARGE au-dessus de la marche, et celle de l'est plus ETROITE en dessous. Dans les deux cas
-	# le surplomb -- la matiere qui n'a plus rien sous elle -- est a la rangee `half - 1`, et
-	# c'est sur elle que le trait se pose : on trace le bord de la matiere, jamais le vide.
-	var south_split: bool = ((index & CornerIndex.BITS[3]) != 0) \
-			!= ((index & CornerIndex.BITS[2]) != 0)
-	if freedom > 0 and south_split and (quiet & 1) != 0 and (quiet & 2) == 0 \
-			and (_meet == "both" or _meet == "miroir"):
-		# ⚠ ET L'AXE SE LIT SUR LA PREMIERE RANGEE DE LA MOITIE LIBRE, pas sur la derniere de la
-		# moitie muette : c'est la moitie libre qui s'est ecartee du bord de case, et c'est son
-		# ecart que la marche doit franchir.
-		var meet2: int = half - 1
-		var axis2: int = half - 1 + _corner_shift(half, freedom, true)
-		for x4: int in range(mini(half, axis2), maxi(half, axis2) + 1):
-			if tile.get_pixel(x4, meet2).a >= 0.5:
-				tile.set_pixel(x4, meet2, OUTLINE)
+	# Le pincage remet la moitie MUETTE sur le bord de case et laisse l'autre libre : entre les
+	# deux, l'axe fait une marche, donc la matiere de la rangee `half - 1` surplombe le vide de
+	# la rangee `half`. Ce surplomb est un vrai bord du dessin -- c'est la tuile qui l'a cree,
+	# c'est a elle de le tracer -- et sans lui le trait vertical de la moitie libre n'a rien a
+	# rejoindre.
+	#
+	# ⚠ ET LA MARCHE EST TOUJOURS A LA RANGEE `half - 1`, C'EST UN THEOREME. Le deplacement de
+	# l'axe est SIGNE -- vers l'est, toujours -- donc la matiere de l'ouest est plus LARGE
+	# au-dessus de la marche et celle de l'est plus ETROITE en dessous : dans les deux cas le
+	# surplomb est au-dessus. On trace le bord de la matiere, jamais le vide.
+	#
+	# ⚠ ET IL SE LIT DANS LES PIXELS, PAS DANS LA SILHOUETTE. Trois conditions successives ont
+	# ete essayees -- `north_split`, puis `south_split` pour le miroir -- et la seconde laissait
+	# passer la forme 14, dont le pincage creuse un TROU de 3x3 au milieu de la tuile : ses deux
+	# moities sud sont pleines, donc `south_split` est faux, et pourtant la marche est la. On
+	# demande donc a la tuile ce qu'elle a peint : de la matiere ici, du vide juste dessous.
+	# Mesure : 4 extremites sur le guide, 2 sur `@battue1`, toutes de cette espece.
+	#
+	# ⚠ ET IL S'ARRETE UNE COLONNE AVANT LE BORD DE CASE. Le chapiteau d'en dessous trace sa
+	# crete AU RAS aux colonnes qui bordent la case -- `_wall_depth` s'y pince a zero -- et deux
+	# traits rangee contre rangee font un pave. Le contact en diagonale avec le coin du
+	# chapiteau suffit : 14 -> 10 paves sur `@battue1`, planche inchangee.
+	var steps: bool = ((quiet & 1) != 0) != ((quiet & 2) != 0)
+	if _meet == "none":
+		steps = false
+	elif _meet == "miroir":
+		steps = steps and (quiet & 1) != 0
+	elif _meet == "orig":
+		steps = steps and (quiet & 2) != 0
+	if freedom > 0 and steps:
+		var meet: int = half - 1
+		# La moitie LIBRE est celle qui ne se tait pas ; c'est son ecart que la marche franchit.
+		var free: int = half if (quiet & 1) != 0 else meet
+		var axis: int = half - 1 + _corner_shift(free, freedom, true)
+		# ⚠ ET IL NE MARCHE PAS SUR LA CRETE. Quand le chapiteau d'en dessous est a l'EST, sa
+		# crete est AU RAS sur ses premieres colonnes -- `_wall_depth` s'y pince jusqu'a
+		# `_depth(3, 0)` -- et la marche, une rangee plus haut, la longe : un pave par colonne.
+		# Or ce ras-la donne deja le contact a l'axe : il n'y a rien a marcher. Quand le
+		# chapiteau est a l'OUEST, sa crete ne couvre pas ces colonnes et la marche doit aller
+		# jusqu'au bord de case pour toucher son coin en diagonale.
+		var floor3: int = half + _depth(3, 0, freedom) + 1 if (quiet & 16) != 0 else half
+		for x3: int in range(mini(floor3, axis), maxi(floor3, axis) + 1):
+			if tile.get_pixel(x3, meet).a >= 0.5 and tile.get_pixel(x3, meet + 1).a < 0.5:
+				tile.set_pixel(x3, meet, OUTLINE)
 
 	# ⚠ RACCORDER L'AXE DEPLACE AU BORD DE CASE : DEUX ESSAIS, DEUX FOIS PIRE.
 	#
@@ -2362,6 +2388,13 @@ func _wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 	else:
 		first = _depth(0, 0, freedom)
 		last = RES - 1 - _depth(2, 0, freedom)
+	# ⚠ ET RESSERRER LE PINCEMENT A CHEVAL EST REFUTE, MESURE. Les traversees ci-dessus sont
+	# celles de la famille PAR CASE -- `_depth(3, 0)` vaut 4 -- qui n'existe pas a L5 : la crete
+	# s'y retrouve plate sur cinq colonnes, exactement celles ou le rendez-vous d'une tuile a
+	# cheval pose sa marche, d'ou dix paves. Reduit aux deux colonnes du bord -- le minimum qui
+	# fasse se rejoindre deux cretes voisines -- `@battue1` passe de 0 extremite et 10 paves a
+	# **25 extremites et 8 paves** : le plat de la crete est ce sur quoi retombent les bords
+	# lateraux des tuiles a cheval, et il en porte bien plus qu'une marche.
 	# ⚠ ET LE PINCEMENT SE FAIT A ZERO, ESSAYE AUTREMENT ET MESURE. Pincer a la profondeur
 	# canonique -- pour que la face retrouve la surface -- fait sauter le contour a 186
 	# extremites : la face y perd le contact avec les perpendiculaires DE SA PROPRE FAMILLE,
