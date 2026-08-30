@@ -220,12 +220,16 @@ trois battues, et **les sept de la famille à cheval**, sur les cinq mondes.
 preuve de leur famille, sur le **guide**, et sur **trois battues tirées par le geste du pinceau**.
 Il ne reste aucun couple rouge.
 
-| famille à cheval, à L5/F2 | tuiles de croisement | + rôles | total |
+| famille à cheval, à L5/F2 | clés | **dessins distincts** | + rôles |
 |---|---|---|---|
-| planche duale | 48 | 20 | **68** |
-| guide | 58 | 20 | 78 |
-| `@battue1` | 67 | 20 | 87 |
-| `@battue2` · `@battue3` | 66 | 20 | 86 |
+| planche duale | 40 | **31** | 20 |
+| guide | 50 | **40** | 20 |
+| `@battue1` | 59 | **44** | 20 |
+| `@battue2` · `@battue3` | — | **46 · 44** | 20 |
+
+⚠ **ET « CLÉ » N'EST PAS « DESSIN ».** Deux clés qui peignent la même image sont une seule tuile :
+le peintre la dessine une fois, la planche en porte une case. C'est le compte de droite qui est le
+vocabulaire — voir la section 22.
 
 ### L4 : LES RACCORDS SE RECENSENT, ET ILS RENDENT DE LA LIBERTÉ AU LIEU D'EN PRENDRE
 
@@ -2466,6 +2470,70 @@ plus descendre par la mesure : il descendra quand un guide exercera le vocabulai
 l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'est une planche de
 spécimens, et le redessiner reste à faire »*.
 
+
+### 22 · « POSÉE » N'EST PAS « DISTINCTE » — LE COMPTE ANNONCÉ TOMBE ENCORE D'UN TIERS
+
+Le plan avait déjà corrigé un compteur une fois : *« `vocabulary` est nourri à chaque passe, et
+rien ne l'y retire — 59 peintes pour 45 posées »*. Il en restait un cran : **deux clés qui peignent
+la même image sont une seule tuile.** Le peintre la dessine une fois, la planche en porte une case.
+
+⚠ **ET ON COMPARE LES PIXELS, PAS LES BITS.** Chercher les bits inertes demanderait de redémontrer,
+bit par bit, quand la précondition tient — c'est-à-dire de redériver le calcul qu'on contrôle. Le
+banc rend les images et les compare, comme tout le reste.
+
+| monde | peintes | posées | **dessins** |
+|---|---|---|---|
+| **par case** (L3/F2) | | | |
+| planche | 49 | 45 | **19** |
+| guide | 57 | 51 | **24** |
+| `@battue1` · `2` · `3` | 42 · 45 · 37 | 40 · 41 · 36 | **18 · 16 · 14** |
+| **à cheval** (L5/F2) | | | |
+| planche duale | 40 | 40 | **31** |
+| guide | 50 | 50 | **40** |
+| `@battue1` · `2` · `3` | 59 · — · — | 59 | **44 · 46 · 44** |
+
+⚠ **ET C'EST LE NOMBRE LE PLUS CITÉ DU PROJET QUI BOUGE.** « 58 surfaces + 20 rôles » est un compte
+de **clés** ; le compte de **dessins** est 24 au plus haut sur les cinq mondes. Le facteur n'est pas
+un détail de comptage : c'est la différence entre ce que la planche porte et ce que le modèle
+distingue.
+
+⚠ **ET LA SONDE A ÉTÉ FAUSSE DEUX FOIS AVANT D'ÊTRE JUSTE**, ce qui vaut d'être écrit :
+- elle accusait **tous** les bits d'une paire, alors que trois bits qui se compensent ne prouvent
+  rien sur chacun — seule une paire qui ne diffère **que** par un bit le prouve ;
+- puis elle comparait les clés **sans la silhouette**, et annonçait « le bit 2 ne distingue rien »
+  sur la paire `255 / 543` — deux silhouettes différentes. Le fait est vrai et intéressant (*une
+  silhouette dont on tait le seul côté ouvert devient la tuile pleine*), mais ce n'est pas un bit
+  inerte : c'est une **collision**, et les confondre envoie retirer un bit qui sert.
+
+### CE QUI EST RÉDUCTIBLE, ET OÙ LA DÉMONSTRATION S'ARRÊTE
+
+**Acquis, et démontré : l'aplat.** Une tuile à cheval dont les quatre quadrants sont pleins est un
+carré de matière — aucun pixel n'y a de voisin vide, il n'y a pas un trait, et ni l'axe ni les
+silences n'y changent quoi que ce soit. Les garder dans la clé fabriquait **jusqu'à trente-deux
+tuiles pour un seul aplat**. **48 → 40 clés sur la planche, 58 → 50 sur le guide, 67 → 59 sur la
+battue**, les six invariants verts.
+
+**Refusé, et c'est la mesure qui a tranché : l'étendue asymétrique.** `vx >= half - 1` et
+`hy >= half - 1` toujours, donc les colonnes `0..half-1` sont **toujours** à l'ouest et les rangées
+`0..half-1` **toujours** au nord — d'où, *pour la matière* : bit 1 inerte si NO == NE, bit 4 si
+NO == SO, les deux autres sous les deux conditions. **40 → 34 clés sur la planche, dessins
+inchangés… et I2 passe de 0 à 9 pavés.**
+
+⚠ **LA RAISON BORNE TOUTE RÉDUCTION FUTURE : un bit ne décide pas que la matière, il décide aussi
+SI LE RENDEZ-VOUS EXISTE.** `steps` vaut *« exactement une des deux moitiés se tait »* : retirer un
+bit inerte pour la matière fait **apparaître** une marche là où il n'y en avait pas. **Un bit n'est
+retirable que s'il est inerte pour TOUT ce que la tuile en fait** — et l'aplat est le seul cas où
+on sait le démontrer.
+
+⚠ **ET UN MASQUAGE ENCORE PLUS NAÏF — « un silence ne se pose que là où SA demi-frontière
+existe » — est pire** : 48 → 31 clés, mais **37 extrémités et 35 pavés**. C'est exactement
+l'étendue que le raisonnement oubliait.
+
+⚠ **ET J'AI MESURÉ DEUX FOIS LE MÊME CODE.** Le correctif de l'étendue a échoué sur une assertion
+de son script de pose, et j'ai lu les chiffres d'avant en croyant lire ceux d'après — *« un
+correctif qui ne change RIEN n'est pas un correctif faible, c'est un correctif qui n'a pas été
+appliqué »*, la ligne était au dossier depuis la veille. Ce qui l'a attrapé est la relecture du
+fichier, pas la lecture du chiffre.
 
 ### 21 · L5 EST CLOS — CINQ MONDES, SIX INVARIANTS, ET LE RENDEZ-VOUS N'EST PLUS QU'UNE RÈGLE
 

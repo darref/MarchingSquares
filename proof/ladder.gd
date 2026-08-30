@@ -284,6 +284,7 @@ static var _clause: String = ""
 static var _astride: String = ""
 static var _meet: String = "both"
 static var _half_axis: bool = false
+static var _idle_pairs: PackedStringArray = PackedStringArray()
 static var _backing_traces: bool = false
 
 ## Combien de bords ouverts une surface porte, et combien ne donnent PAS sur une face.
@@ -628,6 +629,7 @@ func _run(couple: String) -> bool:
 					# flanc rentre CHEZ ELLE. A l'ouest il recule l'axe, a l'est il l'avance --
 					# un bit qui dit « l'une ou l'autre » ne permet pas de choisir le signe, et
 					# les deux essais a un seul bit ont mesure 123 et 77 extremites contre 43.
+					var forme5: int = int(map5[point]) & 0xf
 					for half: int in range(2):
 						var a: Vector2i = point + CornerIndex.OFFSETS[0 if half == 0 else 3]
 						var b: Vector2i = point + CornerIndex.OFFSETS[1 if half == 0 else 2]
@@ -646,6 +648,36 @@ func _run(couple: String) -> bool:
 						if _foot_above(over5, walls5) \
 								or (_backing_traces and _foot_above(over5, under5)):
 							quiet5 |= 4 << half
+					# ⚠ ET SUR LE CARRE PLEIN, AUCUN SILENCE NE DISTINGUE RIEN -- DEMONTRE, PAS
+					# MESURE. La forme 15 a ses quatre quadrants pleins : tout pixel y est de la
+					# matiere, aucun n'a de voisin vide, la tuile est un aplat sans un trait, et
+					# ni l'axe ni les silences n'y changent un pixel. Les garder dans la cle
+					# fabrique jusqu'a trente-deux tuiles pour un seul aplat.
+					#
+					# ⚠ ET LE MASQUAGE PLUS LARGE -- « un silence ne se pose que la ou sa
+					# demi-frontiere existe » -- EST REFUTE PAR LA MESURE : 48 -> 31 cles sur la
+					# planche, mais I1 passe de 0 a 37 extremites et I2 de 0 a 35 paves. La
+					# raison est nette et vaut d'etre gardee : le bit ne fait pas que TAIRE un
+					# trait, il PINCE L'AXE -- et l'axe vertical gouverne aussi la frontiere
+					# HORIZONTALE, dont les quadrants dependent des deux axes a la fois. Un bit
+					# sans frontiere a taire n'est donc pas sans effet.
+					# ⚠ ET L'ETENDUE ASYMETRIQUE A ETE ESSAYEE PUIS REFUTEE, ce qui apprend ou s'arrete
+					# la demonstration. `vx >= half - 1` et `hy >= half - 1` toujours : les colonnes 0 a
+					# `half - 1` sont donc toujours a l'ouest et les rangees 0 a `half - 1` toujours au
+					# nord, d'ou -- pour la MATIERE -- `bit 1 inerte si NO == NE`, `bit 4 si NO == SO`,
+					# et les deux autres sous les deux conditions. Mesure : 40 -> 34 cles sur la planche,
+					# 59 -> 49 sur `@battue1`, les dessins inchanges... et I2 passe de 0 a 9 paves.
+					#
+					# ⚠ LA RAISON, ET ELLE BORNE TOUTE REDUCTION FUTURE : le bit ne decide pas que la
+					# MATIERE, il decide aussi SI LE RENDEZ-VOUS EXISTE -- `steps` vaut « exactement une
+					# des deux moities se tait ». Retirer un bit inerte pour la matiere fait donc
+					# APPARAITRE une marche la ou il n'y en avait pas. Un bit n'est retirable que s'il
+					# est inerte pour TOUT ce que la tuile en fait, et l'aplat est le seul cas ou on
+					# sait le demontrer.
+					if forme5 == 15:
+						quiet5 = 0
+					# ⚠ ET LE CINQUIEME BIT SE LIT APRES LE MASQUAGE, jamais avant : il ne sert qu'au
+					# rendez-vous, et le rendez-vous n'existe que si le silence vertical a survecu.
 					# ⚠ ET LE CINQUIEME BIT NE SE POSE QUE LA OU IL CHANGE QUELQUE CHOSE. Il
 					# ne sert qu'au rendez-vous -- savoir si le chapiteau d'en dessous est du
 					# cote EST, donc si sa crete au ras donne deja le contact -- et le
@@ -1129,8 +1161,59 @@ func _run(couple: String) -> bool:
 	for key6: Variant in tiles.keys():
 		if not posed.has(int(key6)):
 			ghost += 1
-	print("  A PEINDRE : %d tuiles de surface   (%d posees, %d JAMAIS POSEE(S))"
-			% [tiles.size(), posed.size(), ghost])
+	# ⚠ ET « POSEE » N'EST PAS ENCORE « DISTINCTE ». Deux cles qui peignent LA MEME IMAGE sont
+	# une seule tuile : le peintre la dessine une fois, la planche en porte une case. Une cle de
+	# plus qui ne change pas un pixel est exactement ce que le critere 3 du plan interdit --
+	# *aucune tuile de la planche n'est la pour rien* -- et c'est la signature d'un bit dont la
+	# precondition ne tient pas : il est pose, il change la cle, et il ne distingue RIEN.
+	#
+	# ⚠ ET ON COMPARE LES PIXELS, PAS LES BITS. Chercher les bits inertes demanderait de
+	# redemontrer, bit par bit, quand la precondition tient -- c'est-a-dire de rederiver le
+	# calcul qu'on controle. On rend les images et on les compare, comme le reste du banc.
+	var drawings: Dictionary = {}
+	for key8: Variant in posed.keys():
+		var image8: Image = tiles[int(key8)] as Image
+		var print8: String = image8.get_data().hex_encode()
+		if not drawings.has(print8):
+			drawings[print8] = []
+		(drawings[print8] as Array).append(int(key8))
+	# ⚠ ET ON DIT QUELS BITS NE DISTINGUENT RIEN, PAS SEULEMENT COMBIEN. « 48 cles pour 31
+	# dessins » range le defaut ; il ne dit pas lequel des bits est de trop. Deux cles du meme
+	# dessin ne different que par des bits INERTES : on les accumule, et le compte par bit dit
+	# ou la precondition ne tient pas.
+	# ⚠ ET ON N'ACCUSE QU'UN BIT ISOLE. Deux cles qui different par TROIS bits et peignent la
+	# meme image ne prouvent rien sur chacun d'eux -- ils peuvent se compenser. Ce qui prouve
+	# qu'un bit ne distingue rien, c'est une paire qui ne differe QUE par lui. Premiere version
+	# comptee sur tous les bits differents : elle accusait les cinq a la fois, ce qui envoie
+	# corriger au hasard.
+	var idle: Dictionary = {}
+	for print9: Variant in drawings.keys():
+		var group9: Array = drawings[print9]
+		for a9: int in range(group9.size()):
+			for b9: int in range(a9 + 1, group9.size()):
+				# ⚠ ET LA CLE ENTIERE, SILHOUETTE COMPRISE. Comparee sur les seuls bits de bord,
+				# la sonde accusait « le bit 2 ne distingue rien » sur la paire 255 / 543 --
+				# deux SILHOUETTES differentes (255 pleine, 31 dont l'ouest est ouvert puis
+				# tu). Le fait est vrai et interessant : une silhouette dont on tait le seul
+				# cote ouvert devient la tuile pleine. Mais ce n'est pas un bit inerte, c'est
+				# une COLLISION -- et les confondre envoie retirer un bit qui sert.
+				var diff9: int = int(group9[a9]) ^ int(group9[b9])
+				if diff9 != 0 and (diff9 & (diff9 - 1)) == 0:
+					idle[diff9] = int(idle.get(diff9, 0)) + 1
+					if _idle_pairs.size() < 8:
+						_idle_pairs.append("bit %d : %d = %d" % [diff9,
+								int(group9[a9]), int(group9[b9])])
+	print("  A PEINDRE : %d tuiles de surface   (%d posees, %d JAMAIS POSEE(S), %d DESSINS)"
+			% [tiles.size(), posed.size(), ghost, drawings.size()])
+	if not idle.is_empty():
+		var bits9: Array[int] = []
+		bits9.assign(idle.keys())
+		bits9.sort()
+		var said9: PackedStringArray = PackedStringArray()
+		for bit10: int in bits9:
+			said9.append("%d x%d" % [bit10, int(idle[bit10])])
+		print("  -- bits qui ne distinguent RIEN : %s" % ", ".join(said9))
+		print("     exemples : %s" % " ; ".join(_idle_pairs))
 	if not OS.get_environment("LADDER_VOCAB").is_empty():
 		var listing: Array[int] = []
 		listing.assign(tiles.keys())
