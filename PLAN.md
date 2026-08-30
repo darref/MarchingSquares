@@ -2546,6 +2546,106 @@ lisait même pas comme un ras — elle se lisait comme une constante anodine.
 là que *straight* et *ondulated* doivent se séparer pour les falaises — bosse plate d'un côté,
 bosse qui serpente de l'autre. À faire avec les styles, et noté aux questions ouvertes.
 
+### 28 · LE RECENSEMENT DES FRONTIERES — ET L'ARÊTE INTERNE, QU'AUCUN INVARIANT NE RÉCLAME
+
+*Né d'une question de méthode de l'utilisateur : « on ne risque pas de devoir refaire des
+choses qui demanderont à leur tour de refaire des choses ? »* La réponse était **oui**, et elle
+était en train de se produire sous mes doigts.
+
+**Le cliquet, chiffré au moment où il repartait :**
+
+| | tuiles de surface | dessins | I1 |
+|---|---|---|---|
+| crête au chapiteau | 64 | 36 | **0 extrémité** |
+| crête transférée + bande de roche + 1 bit | **74** | **44** | **241 extrémités** |
+
+Chaque déplacement de propriété créait une orpheline qu'on découvrait **une par une**, et
+chacune se payait en tuiles. ⚠ **Deux tâtonnements ne se valent pas** : le ras et l'amplitude ne
+déplacent **aucune propriété** — tâtonner là est réversible et ça a rendu un théorème plus une
+liberté gratuite. Déplacer *qui trace* ne se tâtonne pas.
+
+**D'où `tools/border_census.gd`** : pour chaque espèce de frontière que le modèle pose, combien
+de tuiles la revendiquent.
+
+⚠ **ET SON PREMIER RÉSULTAT EST DANS L'INSTRUMENT, PAS DANS LE DESSIN.** `_claims` fait
+`continue` dès qu'une robe est en jeu, et son commentaire l'assume : *« tant que le banc ne sait
+pas nommer les frontières d'une face, on n'y juge que le doublement »*. **Les 1 274 frontières
+que I3 compte excluent toutes celles qui touchent une falaise** — exactement la famille qu'on
+cherchait à réattribuer. C'est pour ça qu'il restait vert pendant que I1 explosait : il ne
+regardait pas là.
+
+⚠ **UNE ADJACENCE N'EST PAS UNE FRONTIÈRE**, et la première table le prouve par l'absurde :
+elle comptait 788 « muettes » entre deux chapiteaux voisins, là où la roche est **continue** et
+où zéro trait est la bonne réponse. On lit donc la **matière** sur l'image, au milieu du côté,
+là où la sonde regarde. Une arête intérieure veut **zéro**, une frontière veut **un**.
+
+### 28bis · L'ARÊTE INTERNE : 248 occurrences, 0 tracée, et tous les invariants verts
+
+*Imposée à l'ordre du jour par l'utilisateur avant qu'on fixe quoi que ce soit : « il faut tout
+de suite penser au tracé de l'arête interne qui descend des sommets, qui est moins formelle que
+les autres et qui sera responsable de donner l'impression de relief ».*
+
+Deux cases de face côte à côte qui ne pendent **pas de la même lèvre** ont de la roche des deux
+côtés. Le recensement les nomme, et le compte est net :
+
+```
+  ARETE INTERNE : 25 especes, 248 occurrences, 0 TRACEE
+  meme levre    : 16 especes, 6107 occurrences   (roche continue, rien a tracer)
+```
+
+⚠ **C'EST LA SEULE ESPÈCE QU'AUCUN INVARIANT NE RÉCLAMERA JAMAIS.** I1 ne voit pas de trou, I3
+pas de frontière, I2 pas de pavé. **Tous verts, et le relief absent.** Les 34 autres espèces se
+jugent seules ; celle-là ne peut être décidée qu'à l'œil — donc **avant** de figer, sans quoi on
+la découvre à la fin et le cliquet repart.
+
+⚠ **ET SANS ELLE, L'ARTISTE NE PEUT PAS LA DESSINER — pas « mal », pas du tout.** Une tuile de
+robe est posée à des dizaines d'endroits : si le modèle ne distingue pas « j'ai une autre face à
+ma droite » de « ma roche continue », l'arête qu'il trace apparaît **partout**, y compris au
+milieu d'une paroi seule. C'est la loi du fragment, appliquée à lui.
+
+**Qui porte l'angle — mesuré, pas supposé.** *« La face devant n'est-elle pas celle dont la
+lèvre est à l'étage le plus haut ? »* Non :
+
+```
+  meme etage, levres decalees          190   52 %   l etage ne dit RIEN
+  sud CONTRE haut                       81   22 %   les deux criteres se CONTREDISENT
+  sud ET haut d accord                  26    7 %
+  meme rangee, etages differents        66   18 %   la rangee ne dit RIEN
+```
+
+Là où les deux se prononcent, **ils se contredisent trois fois sur quatre**. Ce qui sépare est
+la **rangée de la lèvre** : celle qui est plus au sud avance vers le regard, son bloc saille.
+C'est déjà ce que disait la 9.0.0 — *« c'est la plus haute qu'on voit, dont la lèvre est plus au
+nord : elle est en retrait, je suis devant »*.
+
+⚠ **ET À ÉGALITÉ DE RANGÉE, C'EST LE PLUS HAUT — décision utilisateur, et elle corrige un
+premier choix pris à l'écran.** Vu sur deux rendus, `personne` semblait mieux ; le raisonnement
+a tranché autrement : *même rangée et étage différent, ce sont deux hauteurs 3D différentes,
+donc il faut marquer l'arête à celle du haut.* L'image ne montrait pas la marche, elle existe.
+Les deux conventions coûtent **exactement 44 rôles** — le choix est de lecture, jamais de prix.
+
+⚠ **« PAS DE DOUBLE ARÊTE » EST UN INVARIANT, PAS UN GOÛT.** Faire tracer les deux voisines
+donnerait un trait de deux pixels — ce que I2 compte comme pavé. Un seul trace, et c'est celui
+qui avance.
+
+⚠ **ET UNE DISTINCTION QUE L'ARTISTE NE VOIT PAS DANS SA TUILE N'EST PAS DESSINABLE.** J'avais
+proposé une arête « au ras » qui aurait rendu le même dessin qu'un flanc `arrêt` : refusée par
+l'utilisateur, et à raison — il les aurait peintes identiques, et la différence serait devenue
+un mensonge. L'arête **ne coupe donc pas la matière, elle la marque** : la roche continue chez
+la voisine et je pose seulement mon angle. Les deux se distinguent dans la tuile.
+
+**Le prix, assumé : 20 → 44 rôles de robe**, sur 45 possibles. Et la famille cesse d'être
+**fermée par construction** — le bit dit « ma voisine est en retrait », que je ne peux pas
+déduire seul, donc c'est le modèle qui le pose et le vocabulaire redevient *cherché*, gardé par
+la battue.
+
+⚠ **Trois pièges payés, tous de la même espèce : une clé qui change de type.** Le banc
+construisait encore la clé d'une robe à l'ancienne et demandait une tuile inexistante
+(`get_width` sur null) ; `node()` faisait `Vector2i(key)` sur un `Vector3i` — **170 erreurs non
+fatales, l'échelle verte quand même**, le genre de rouge qu'on apprend à ignorer ; et le nom
+d'un nœud de raccord **doit porter l'arête**, un nœud désignant *un côté de tuile* et deux
+tuiles qui ne diffèrent que par leur angle n'ayant pas le même bord là.
+
 ### 26 · L'ÉPAISSEUR CONTRAINT AUSSI LE DEHORS — LA BORNE HAUTE TOMBE DE 31 À 23
 
 *Le cahier des charges du redessin nommait dix-huit dessins que le guide n'exerce pas. Huit

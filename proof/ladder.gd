@@ -310,6 +310,9 @@ func _initialize() -> void:
 	Contour.meet = OS.get_environment("LADDER_MEET")
 	Contour.half_axis = OS.get_environment("LADDER_HALF") == "axe"
 	Contour.wall_free = OS.get_environment("LADDER_WALLFREE")
+	var asked: String = OS.get_environment("LADDER_RIDGE")
+	if not asked.is_empty():
+		Contour.wall_ridge = "" if asked == "aucune" else asked
 	if not OS.get_environment("LADDER_WALLREACH").is_empty():
 		Contour.wall_reach = int(OS.get_environment("LADDER_WALLREACH"))
 	_backing_traces = OS.get_environment("LADDER_UNDERFOOT") == "trace"
@@ -806,6 +809,8 @@ func _run(couple: String) -> bool:
 	# peindre avant, c'est peindre une liste a laquelle il manque des cles -- et l'assemblage
 	# tombe alors sur une tuile nulle, sans rien dire de plus utile que « get_width sur null ».
 	var roles: Dictionary = {}
+	## Les robes POSEES : la meme carte, mais keyee par la cle de tuile -- arete comprise.
+	var posted: Dictionary = {}
 	var role_tiles: Dictionary = {}
 	# ⚠ UN SEUL ASSEMBLAGE POUR LES DEUX CARTES, ET IL SE DECLARE ICI. `visible()` et
 	# `visible_underfoot()` refaisaient chacune le parcours complet du relief, pour deux
@@ -1095,9 +1100,17 @@ func _run(couple: String) -> bool:
 			for quoi: String in raisons:
 				print("     %5d  %s" % [int(Brink.stub_why[quoi]), quoi])
 			Brink.stub_why.clear()
+		# ⚠ ET L'ARETE INTERNE ENTRE DANS LA CLE DE LA ROBE. Une tuile posee avec et sans son
+		# angle serait la meme tuile dans deux situations differentes -- exactement ce qu'une
+		# tuile partagee ne peut pas faire. La cle passe donc de (pan, rangee) a
+		# (pan, rangee, arete), et c'est `Compose.wall_key` qui la fabrique, une seule fois.
+		var lip_rows: Dictionary = (seen.get("lips", {}) as Dictionary)
+		for cell: Vector2i in roles.keys():
+			posted[cell] = Compose.wall_key(roles[cell],
+					Compose.ridge_bits(cell, roles, lip_rows))
 		var kinds2: Dictionary = {}
 		for cell: Vector2i in roles.keys():
-			kinds2[roles[cell]] = true
+			kinds2[posted[cell]] = true
 		# ⚠ ET LES ROLES REPOSES AUSSI. Une pose arriere n'ajoute aucune tuile au vocabulaire,
 		# mais elle peut etre la SEULE occurrence d'un role sur ce monde-la : sans sa cle, le
 		# dictionnaire des tuiles n'a rien a rendre et l'assemblage tombe sur un nul, qui ne
@@ -1139,7 +1152,7 @@ func _run(couple: String) -> bool:
 		backing_tiles = {}
 		for key: Variant in role_tiles.keys():
 			backing_tiles[key] = Compose.muted(role_tiles[key] as Image)
-	var image: Image = Compose.assemble(world, storeys, tiles, roles, role_tiles, under_by_level,
+	var image: Image = Compose.assemble(world, storeys, tiles, posted, role_tiles, under_by_level,
 			backing_tiles, level >= 5)
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
@@ -1149,7 +1162,7 @@ func _run(couple: String) -> bool:
 		var none: Array[Dictionary] = []
 		for storey: int in range(storeys.size()):
 			none.append({})
-		bare = Compose.assemble(world, storeys, tiles, roles, role_tiles, none, backing_tiles,
+		bare = Compose.assemble(world, storeys, tiles, posted, role_tiles, none, backing_tiles,
 				level >= 5)
 		# ⚠ ET LA COUVERTURE SE LIT SUR UNE ASSEMBLEE DES SURFACES SEULES, PAS SUR UNE TUILE.
 		# I6 demandait « la tuile qui couvre cette case » -- une question qui n'a plus de

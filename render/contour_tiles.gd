@@ -51,6 +51,35 @@ static var wall_free: String = ""
 ## 24 sur le guide. C'etait la seule liberte encore disponible une fois le ras des intervalles
 ## demontre -- et elle ne coute rien. `LADDER_WALLREACH` la fait varier.
 static var wall_reach: int = 6
+
+## L'ARETE INTERNE : le trait qui descend entre deux faces voisines qui ne pendent pas de la
+## meme levre. C'est elle qui donne le relief, et sans elle deux falaises accolees se lisent
+## comme UNE SEULE masse de roche.
+##
+## ⚠ ET AUCUN INVARIANT NE LA RECLAMERA JAMAIS. La matiere y est continue des deux cotes :
+## I1 ne voit pas de trou, I3 pas de frontiere, I2 pas de pave. Tous verts, et le relief
+## absent. C'est la seule espece du recensement qui veuille UN trait la ou le modele n'a AUCUN
+## bord -- donc la seule qui se decide a l'oeil, et il fallait la decider avant de figer.
+##
+## ⚠ ELLE NE COUPE PAS LA MATIERE, ELLE LA MARQUE. Un flanc `arret` coupe -- au-dela il n'y a
+## rien -- alors qu'ici la roche continue chez la voisine et je pose seulement mon angle. Les
+## deux se distinguent donc a l'oeil DANS la tuile, ce qui est la condition pour qu'un artiste
+## puisse les peindre : une distinction qu'il ne voit pas dans sa tuile n'est pas dessinable.
+##
+## ⚠ ET « PAS DE DOUBLE ARETE » EST UN INVARIANT, PAS UN GOUT. Faire tracer les deux voisines
+## donnerait un trait de deux pixels -- exactement ce que I2 compte comme pave. Un seul trace,
+## et c'est celui qui AVANCE : sa levre est plus au SUD, donc son bloc saille vers le regard.
+##
+## ⚠ ET A EGALITE DE RANGEE, C'EST LE PLUS HAUT QUI PORTE L'ANGLE. Deux levres sur la MEME
+## rangee mais a des etages differents, ce sont deux hauteurs 3D differentes : il y a bien une
+## marche entre les deux blocs, et c'est celui du dessus qui la porte. Decision utilisateur, et
+## elle corrige un premier choix pris a l'ecran (`personne`) : l'image ne montrait pas la
+## marche, le raisonnement l'a retrouvee. Les deux conventions coutent EXACTEMENT 44 roles --
+## le choix est donc de lecture, jamais de prix.
+##
+## `haut` : la regle. `personne` : la route refusee, gardee joignable. Vide : aucune arete,
+## l'etat d'avant -- deux falaises accolees se lisent alors comme une seule masse de roche.
+static var wall_ridge: String = "haut"
 ## La regle de l'ergot, par la DIAGONALE ; `false` rejoue l'ancienne, par la voisine.
 static var ergot_diag: bool = true
 ## Le rendez-vous : `both` (la regle), `none`, `orig`, `miroir`.
@@ -403,10 +432,12 @@ static func wall_open(key: Variant) -> Array[bool]:
 	# trace de toute facon -- son axe tombe exactement sur le bord de case -- alors le flanc
 	# d'une robe est un second traceur, et c'est lui qu'on peut retirer. Le PAN ne sert plus a
 	# rien : les vingt roles tombent aux cinq rangees. On mesure si ca ferme.
+	# LE TRANSFERT DE LA CRETE : quand la surface prend son sud, le chapiteau se tait.
+	var crown: bool = role.y == Walls.ROW_CROWN and not Brink.crest_on_surface
 	if astride == "face":
-		return [role.y == Walls.ROW_CROWN, false,
+		return [crown, false,
 				role.y == Walls.ROW_FOOT and (give & 4) == 0, false]
-	return [role.y == Walls.ROW_CROWN,
+	return [crown,
 			Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
 			role.y == Walls.ROW_FOOT and (give & 4) == 0,
 			Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0]
@@ -537,9 +568,22 @@ static func wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> in
 	return int(round(reach * sin(PI * float(along - lo) / float(hi - lo))))
 
 
+## `lip` : LA TUILE DE SURFACE PORTE LE HAUT DE SA PROPRE FACE.
+##
+## ⚠ ET SA MATIERE N'EST PAS COUPEE AU SUD, ELLE CHANGE DE MATIERE. C'est toute la difference
+## avec « rendre le sud », essaye et refute : la ou celui-la ouvrait le bord -- donc coupait la
+## matiere et laissait un trou entre la surface et la roche d'en dessous, 6 263 pixels vus a
+## travers la transparence -- ici la tuile continue en ROCHE jusqu'a son bord bas, et c'est la
+## frontiere HERBE/ROCHE, a l'interieur de la tuile, qui porte le trait.
+##
+## La licence est un theoreme du dossier : une case dont le sud est vide est une LEVRE, sa face
+## couvre la case d'en dessous TOUJOURS. Constant, donc peignable dans la tuile -- mot pour mot
+## l'argument de l'epaule.
+##
+## ⚠ ET LE CHAPITEAU SE TAIT ALORS, sinon deux traits pour une frontiere. C'est un ECHANGE.
 static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 		quiet: int = 0, flat_north: bool = false, wall: bool = false,
-		seams: Array[int] = []) -> Image:
+		seams: Array[int] = [], lip: bool = false, alone: int = 0) -> Image:
 	while seams.size() < 4:
 		seams.append(0)
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
@@ -591,6 +635,17 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 				solid[y] = line2
 				needled = true
 
+	# LA ROCHE DE LA LEVRE : sous le profil sud, la face qui continue. Elle ne coupe rien --
+	# elle change la MATIERE, et c'est leur frontiere qui portera le trait.
+	var stone: Array[PackedByteArray] = []
+	for y: int in range(RES):
+		var band: PackedByteArray = PackedByteArray()
+		band.resize(RES)
+		if lip:
+			for x: int in range(RES):
+				band[x] = 1 if y > RES - 1 - depth(2, x, freedom, seams[2]) else 0
+		stone.append(band)
+
 	for y: int in range(RES):
 		for x: int in range(RES):
 			if solid[y][x] == 0:
@@ -604,7 +659,24 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 					continue
 				if solid[probe.y][probe.x] == 0:
 					edge = true
-			tile.set_pixel(x, y, OUTLINE if edge else body)
+				# ⚠ ET UN CHANGEMENT DE MATIERE EST UN BORD -- MAIS D'UN SEUL COTE. Trace des
+				# deux, il fait deux pixels d'epaisseur : 5 734 paves, mesure. C'est la meme
+				# regle que pour la matiere et le vide, ou seul le PLEIN porte le trait ; ici
+				# c'est l'HERBE qui le porte, et la roche reste nette pour continuer chez la
+				# robe d'en dessous sans un pixel de plus.
+				elif stone[probe.y][probe.x] != 0 and stone[y][x] == 0:
+					edge = true
+			# LE TRAIT AU BORD DE CASE, SANS COUPER LA MATIERE. Deux usages, une mecanique :
+			# la LEVRE SEULE (ma roche touche l'herbe de ma voisine) et l'ARETE INTERNE (ma
+			# face avance sur celle d'a cote). Dans les deux cas c'est moi qui trace : ma
+			# voisine ne sait rien de moi.
+			if stone[y][x] != 0 or wall:
+				if x == RES - 1 and (alone & 1) != 0:
+					edge = true
+				if x == 0 and (alone & 2) != 0:
+					edge = true
+			tile.set_pixel(x, y, OUTLINE if edge
+					else (ROCK if stone[y][x] != 0 else body))
 	if freedom > 0 and index >= 0:
 		reentrant(tile, index, freedom, quiet, level)
 	return tile

@@ -57,6 +57,25 @@ const BELOW_QUIET_EAST: int = 32768
 const BELOW_QUIET_WEST: int = 65536
 
 
+## ⚠ LA LEVRE CONTRE UNE NON-LEVRE : le seul bord que le transfert de la crete laisse orphelin.
+## Ma tuile porte le haut de ma face -- de la ROCHE dans sa bande basse -- et ma voisine
+## laterale, si elle n'est pas une levre, y a de l'HERBE. Changement de matiere au bord de
+## case, et aucune des deux ne le trace : 328 extremites, toutes en `0,y` et `15,y`.
+##
+## ⚠ ET LE RAS EST IMPOSSIBLE ICI, contrairement au cas du coin. Faire mourir la bande de roche
+## a ses bouts lateraux mettrait de l'HERBE juste au-dessus de la roche de la robe : on
+## deplacerait le changement de matiere d'un cran, sans personne pour le tracer non plus. La
+## matiere doit rester continue vers le bas -- donc c'est un BIT, et il se paie.
+##
+## ⚠ ET IL SE POSE DU COTE DE LA LEVRE, PAS DE LA VOISINE. Sept silhouettes sur vingt-sept ont
+## le sud vide ; vingt ne l'ont pas. Le meme fait coute donc trois fois moins cher enonce du
+## bon cote.
+const LIP_ALONE_EAST: int = 131072
+
+
+const LIP_ALONE_WEST: int = 262144
+
+
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 
 
@@ -112,6 +131,28 @@ static func surface_open(key: int, level: int) -> Array[bool]:
 ## reproduire n'est plus un chiffre. Le produit les laisse a leur defaut.
 static var j2_on_face: bool = false
 static var ergot_diag: bool = true
+
+
+## LE TRANSFERT DE LA CRETE : QUI TRACE LA FRONTIERE LEVRE / FALAISE.
+##
+## Faux (le regime mesure jusqu'ici) : c'est le CHAPITEAU. La surface ne trace jamais son sud,
+## « lui seul sait de quelle face il s'agit ».
+##
+## Vrai : c'est la TUILE DE SURFACE A BORD SUD, et le chapiteau se tait. La licence est un
+## theoreme deja au dossier -- « une case dont le sud est vide est une LEVRE, sa propre face
+## couvre la case d'en dessous, TOUJOURS » -- donc c'est constant, donc c'est peignable dans la
+## tuile de surface : mot pour mot l'argument qui autorise l'epaule, qui vit deja la.
+##
+## ⚠ ET CE N'EST PAS « RENDRE LE SUD », QUI A DEJA ETE ESSAYE ET REFUTE (222 -> 669 extremites,
+## 11 388 parasites). Celui-la etait une ADDITION : la surface rouvrait son sud pendant que la
+## crete continuait de tracer, donc deux traits pour une frontiere. Ici c'est un ECHANGE.
+##
+## ⚠ ET L'ENJEU EST LA LIBERTE DE LA FACE. Le bord d'une robe est plat sur dix pixels sur seize
+## parce qu'il doit rencontrer un bord de surface qui serpente entre 4 et 7 sans qu'il sache ou
+## -- et « ou le trait de ma voisine est passe » n'est pas exprimable en un bit fini, donc le
+## ras est force. Si la surface possede la frontiere, personne ne devine : celui qui trace est
+## celui qui sait.
+static var crest_on_surface: bool = false
 
 
 static func foot_above(cell: Vector2i, roles: Dictionary) -> bool:
@@ -422,6 +463,21 @@ static func mark(world: PackedStringArray, storeys: Array[Dictionary], indices: 
 						more |= ABOVE_QUIET_EAST
 					if surface_open(full, level)[3] and (up & 2) != 0:
 						more |= ABOVE_QUIET_WEST
+				# ⚠ LA LEVRE SEULE : ma bande de roche bute sur l'herbe de ma voisine. Le bit
+				# ne se pose que si la voisine EXISTE a mon etage -- si mon cardinal est
+				# vide, mon bord est deja ouvert et le contour de la matiere trace tout
+				# seul.
+				if crest_on_surface and is_lip(shape, level):
+					for way2: int in range(2):
+						var toward2: int = 1 if way2 == 0 else 3
+						if (shape & CARDINALS[toward2]) == 0:
+							continue
+						var next_to: Vector2i = here2 + STEPS[toward2]
+						if not map3.has(next_to):
+							continue
+						if is_lip(int(map3[next_to]) & 0xff, level):
+							continue
+						more |= LIP_ALONE_EAST if way2 == 0 else LIP_ALONE_WEST
 				more &= ~drop
 				if more == full >> 8:
 					continue
@@ -481,3 +537,10 @@ static func keys(world: PackedStringArray, level: int) -> Dictionary:
 		roles = mark(world, storeys, indices, vocabulary, seen["roles"], level)
 	return {"storeys": storeys, "indices": indices, "vocabulaire": vocabulary,
 			"roles": roles, "seen": seen}
+
+
+## LA CASE EST-ELLE UNE LEVRE ? Sud vide dans sa silhouette, donc sa propre face commence juste
+## dessous -- theoreme du dossier, et c'est lui qui rend la chose CONSTANTE, donc peignable dans
+## la tuile de surface. Meme licence que l'epaule, qui vit deja la.
+static func is_lip(key: int, level: int) -> bool:
+	return level >= 2 and (key & BlobIndex.S) == 0

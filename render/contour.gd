@@ -44,7 +44,13 @@ static func paint(vocabulary: Dictionary, freedom: int, level: int,
 		var seams: Array[int] = []
 		for side: int in range(4):
 			seams.append(int(seed_of.get(node("S", int(key), side), 0)))
-		tiles[int(key)] = Contour.shape(open, freedom, GRASS, index, brink, false, false, seams)
+		var alone: int = 0
+		if (brink & Brink.LIP_ALONE_EAST) != 0:
+			alone |= 1
+		if (brink & Brink.LIP_ALONE_WEST) != 0:
+			alone |= 2
+		tiles[int(key)] = Contour.shape(open, freedom, GRASS, index, brink, false, false, seams,
+				Brink.crest_on_surface and Brink.is_lip(index, level), alone)
 	return tiles
 
 
@@ -62,8 +68,43 @@ static func paint(vocabulary: Dictionary, freedom: int, level: int,
 ## (pan, rangee) quand c'est la surface qui se tait, (pan, rangee, cession) quand c'est la
 ## face. Une pose arriere est cachee sous une surface -- elle ne cede son trait a personne,
 ## d'ou zero.
-static func wall_key(role: Vector2i) -> Variant:
-	return Vector3i(role.x, role.y, 0) if Brink.j2_on_face else role
+static func wall_key(role: Vector2i, ridge: int = 0) -> Variant:
+	if Brink.j2_on_face:
+		return Vector3i(role.x, role.y, 0)
+	# ⚠ L'ARETE ENTRE DANS LA CLE, sinon la meme tuile serait posee avec et sans son angle --
+	# et c'est exactement ce qu'une tuile partagee ne peut pas faire.
+	return Vector3i(role.x, role.y, ridge) if not Tiles.wall_ridge.is_empty() else role
+
+
+## LA LEVRE DONT PEND UNE CASE DE ROBE : on remonte jusqu'a la premiere case sans robe.
+static func lip_of(cell: Vector2i, roles: Dictionary, lips: Dictionary) -> Vector2i:
+	var up: Vector2i = cell
+	var guard: int = 0
+	while roles.has(up + Vector2i.UP) and guard < 64:
+		up += Vector2i.UP
+		guard += 1
+	return Vector2i(up.y - 1, int(lips.get(cell, -1)))
+
+
+## QUI PORTE L'ANGLE : la levre la plus au SUD avance vers le regard, donc son bloc saille.
+## A egalite de rangee, `haut` donne l'angle au plus haut etage, `personne` a aucun des deux.
+static func ridge_bits(cell: Vector2i, roles: Dictionary, lips: Dictionary) -> int:
+	var out: int = 0
+	for way: int in range(2):
+		var side: int = 1 if way == 0 else 3
+		var probe: Vector2i = cell + STEPS[side]
+		if not roles.has(probe):
+			continue
+		var mine: Vector2i = lip_of(cell, roles, lips)
+		var theirs: Vector2i = lip_of(probe, roles, lips)
+		if mine == theirs:
+			continue
+		var ahead: bool = mine.x > theirs.x
+		if mine.x == theirs.x:
+			ahead = Tiles.wall_ridge == "haut" and mine.y > theirs.y
+		if ahead:
+			out |= 1 if way == 0 else 2
+	return out
 
 
 ## LE PAN DONT LES DEUX FLANCS CONTINUENT -- calcule, jamais ecrit en dur : c'est le seul
@@ -123,11 +164,18 @@ static func muted_but(tile: Image, keep_vertical: bool) -> Image:
 static func wall_tiles(roles: Dictionary, freedom: int, seed_of: Dictionary) -> Dictionary:
 	var tiles: Dictionary = {}
 	for key: Variant in roles.keys():
-		var open: Array[bool] = Contour.wall_open(key)
+		var ridge: int = 0
+		var plain: Variant = key
+		if not Tiles.wall_ridge.is_empty() and not Brink.j2_on_face:
+			var wide: Vector3i = key as Vector3i
+			ridge = wide.z
+			plain = Vector2i(wide.x, wide.y)
+		var open: Array[bool] = Contour.wall_open(plain)
 		var seams: Array[int] = []
 		for side: int in range(4):
 			seams.append(int(seed_of.get(node("W", key, side), 0)))
-		tiles[key] = Contour.shape(open, freedom, ROCK, -1, 0, false, true, seams)
+		tiles[key] = Contour.shape(open, freedom, ROCK, -1, 0, false, true, seams, false,
+				ridge)
 	return tiles
 
 
@@ -233,9 +281,16 @@ static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 static func node(kind: String, key: Variant, side: int) -> String:
 	if kind == "S":
 		return "S%d/%d" % [int(key), side]
-	var role: Vector2i = Vector2i(key) if not Brink.j2_on_face else Vector2i((key as Vector3i).x,
-			(key as Vector3i).y)
-	return "W%d.%d/%d" % [role.x, role.y, side]
+	# ⚠ LE NOM PORTE LA CLE ENTIERE, ARETE COMPRISE. Un noeud designe un COTE DE TUILE, et
+	# deux tuiles qui ne different que par leur angle n'ont pas le meme bord a cet endroit :
+	# les confondre reviendrait a exiger que le trait de l'une soit celui de l'autre.
+	var role: Vector3i = Vector3i.ZERO
+	if key is Vector3i:
+		role = key as Vector3i
+	else:
+		var flat: Vector2i = key as Vector2i
+		role = Vector3i(flat.x, flat.y, 0)
+	return "W%d.%d.%d/%d" % [role.x, role.y, role.z, side]
 
 
 static func root(parent: Dictionary, node: String) -> String:
@@ -422,12 +477,16 @@ static func compose(world: PackedStringArray, level: int, freedom: int) -> Dicti
 	var seams: Dictionary = seam_classes(storeys, roles, level, false)
 	var tiles: Dictionary = paint(vocabulary, freedom, level, seams["graine"])
 	var kinds: Dictionary = {}
+	var lips: Dictionary = (seen.get("lips", {}) as Dictionary)
+	var ridges: Dictionary = {}
 	for cell: Vector2i in roles.keys():
-		kinds[wall_key(roles[cell])] = true
+		ridges[cell] = ridge_bits(cell, roles, lips) if not Tiles.wall_ridge.is_empty() else 0
+	for cell: Vector2i in roles.keys():
+		kinds[wall_key(roles[cell], int(ridges[cell]))] = true
 	var role_tiles: Dictionary = wall_tiles(kinds, freedom, seams["graine"])
 	var posed_roles: Dictionary = {}
 	for cell: Vector2i in roles.keys():
-		posed_roles[cell] = wall_key(roles[cell])
+		posed_roles[cell] = wall_key(roles[cell], int(ridges[cell]))
 	# LA POSE ARRIERE EST MUETTE : sa matiere SANS son contour. C'est I6 qui l'a tranche --
 	# la roche pleine inventait jusqu'a 1 506 pixels que le modele n'a pas.
 	var backing_tiles: Dictionary = {}
@@ -436,4 +495,4 @@ static func compose(world: PackedStringArray, level: int, freedom: int) -> Dicti
 	var image: Image = assemble(world, storeys, tiles, posed_roles, role_tiles,
 			under_by_level, backing_tiles, false)
 	return {"image": image, "storeys": storeys, "indices": indices, "roles": posed_roles,
-			"tiles": tiles, "vocabulaire": vocabulary}
+			"tiles": tiles, "vocabulaire": vocabulary, "seen": seen}

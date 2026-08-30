@@ -2897,6 +2897,81 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   aussi là que les deux styles devront se séparer : bosse plate d'un côté, bosse qui serpente de
   l'autre.
 
+- **L'ARÊTE INTERNE : 248 frontières que le modèle pose, zéro tracée, et tous les invariants
+  verts.** Imposée à l'ordre du jour par l'utilisateur *avant* qu'on fixe quoi que ce soit :
+  *« il faut tout de suite penser au tracé de l'arête interne qui descend des sommets, qui est
+  moins formelle que les autres et qui sera responsable de donner l'impression de relief »*.
+
+  Deux cases de face côte à côte qui ne pendent **pas de la même lèvre** ont de la roche des deux
+  côtés. `tools/border_census.gd` les nomme : **25 espèces, 248 occurrences, 0 tracée** — contre
+  6 107 occurrences « même lèvre », où la roche est continue et où zéro trait est juste.
+
+  ⚠ **C'EST LA SEULE ESPÈCE QU'AUCUN INVARIANT NE RÉCLAMERA JAMAIS.** I1 ne voit pas de trou, I3
+  pas de frontière, I2 pas de pavé. Tous verts, et le relief absent. Elle ne peut donc être
+  décidée qu'à l'œil, et **avant** de figer — sinon on la découvre à la fin, et tout est à
+  refaire.
+
+  ⚠ **ET SANS ELLE L'ARTISTE NE PEUT PAS LA DESSINER — pas « mal », pas du tout.** Une tuile de
+  robe est posée à des dizaines d'endroits : si le modèle ne distingue pas « j'ai une autre face
+  à ma droite » de « ma roche continue », l'arête qu'il trace apparaît **partout**, y compris au
+  milieu d'une paroi seule.
+
+  **Qui porte l'angle, mesuré et non supposé.** Ce n'est **pas** l'étage le plus haut :
+
+  ```
+    meme etage, levres decalees      190   52 %   l etage ne dit RIEN
+    sud CONTRE haut                   81   22 %   les deux criteres se CONTREDISENT
+    sud ET haut d accord              26    7 %
+    meme rangee, etages differents    66   18 %   la rangee ne dit RIEN
+  ```
+
+  Ce qui sépare est la **rangée de la lèvre** : celle qui est plus au sud avance vers le regard,
+  son bloc saille. ⚠ **Et à égalité de rangée, c'est le plus haut — décision utilisateur, qui
+  corrige un premier choix pris à l'écran** : *même rangée et étage différent, ce sont deux
+  hauteurs 3D différentes, donc il faut marquer l'arête à celle du haut.* L'image ne montrait pas
+  la marche ; elle existe. Les deux conventions coûtent **exactement 44 rôles** — le choix est de
+  lecture, jamais de prix.
+
+  ⚠ **« PAS DE DOUBLE ARÊTE » EST UN INVARIANT, PAS UN GOÛT** : deux traçants au même bord font
+  un trait de deux pixels, ce que I2 compte comme pavé. Un seul trace, celui qui avance.
+
+  ⚠ **ET UNE DISTINCTION QUE L'ARTISTE NE VOIT PAS DANS SA TUILE N'EST PAS DESSINABLE.** J'avais
+  proposé une arête « au ras », qui aurait rendu le même dessin qu'un flanc `arrêt` : refusée, et
+  à raison — il les aurait peintes identiques et la différence serait devenue un mensonge.
+  L'arête **ne coupe donc pas la matière, elle la marque**.
+
+  **Prix assumé : 20 → 44 rôles de robe**, sur 45 possibles. Et la famille cesse d'être **fermée
+  par construction** : le bit dit « ma voisine est en retrait », ce que je ne peux pas déduire
+  seul, donc le modèle le pose et le vocabulaire redevient *cherché*, gardé par la battue.
+
+- **LE RECENSEMENT DES FRONTIÈRES, ET CE QU'IL A TROUVÉ DANS L'INSTRUMENT**
+  (`tools/border_census.gd`). Né d'une question de méthode : *« on ne risque pas de devoir
+  refaire des choses qui demanderont à leur tour de refaire des choses ? »* — oui, et ça se
+  produisait : le transfert de la crête faisait **64 → 74 tuiles pour 241 extrémités**, chaque
+  orpheline découverte une par une et payée en tuiles.
+
+  ⚠ **DEUX TÂTONNEMENTS NE SE VALENT PAS.** Le ras et l'amplitude ne déplacent **aucune
+  propriété** — tâtonner là est réversible, et ça a rendu un théorème plus une liberté gratuite.
+  Déplacer **qui trace** ne se tâtonne pas : ça se décide sur une table.
+
+  ⚠ **ET I3 NE SAIT PAS NOMMER LES FRONTIÈRES D'UNE FACE — son propre commentaire l'assume.**
+  `_claims` fait `continue` dès qu'une robe est en jeu : **les 1 274 frontières qu'il compte
+  excluent toutes celles qui touchent une falaise**, c'est-à-dire exactement la famille qu'on
+  cherchait à réattribuer. C'est pour ça qu'il restait vert pendant que I1 explosait.
+
+  ⚠ **UNE ADJACENCE N'EST PAS UNE FRONTIÈRE**, et la première table le prouve par l'absurde :
+  788 « muettes » entre deux chapiteaux voisins, là où la roche est continue et où zéro trait est
+  la bonne réponse. On lit donc la **matière** sur l'image, au milieu du côté, là où la sonde
+  regarde : une arête intérieure veut **zéro**, une frontière veut **un**.
+
+  ⚠ **ET « CINQ MONDES SUFFISENT-ILS ? » N'A PAS DE RÉPONSE PAR ÉCHANTILLONNAGE.** Il y a trois
+  forces d'argument, et il faut dire laquelle on emploie : **exhaustif sur la fenêtre de la
+  tuile** (les 512, un théorème, aucun monde nécessaire) · **exhaustif sur une famille bornée de
+  mondes** (les 19 683 alignés, qui saturent à 20 %) · **échantillonnage** (prouve la présence,
+  jamais l'absence). Mesuré au passage : la famille alignée ne produit **aucun** des dix dessins
+  qui manquaient au guide — il faut des poses décalées, donc le domaine énuméré n'est pas le
+  domaine.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
@@ -3008,6 +3083,70 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
+- **L'ENTREE DE GROTTE : un specimen quelconque, place sur une face la ou il y a la place.**
+  Demande utilisateur du 31/08/2026. Un bloc de N x M tuiles, peint une fois, pose par le level
+  designer sur une paroi -- pas deduit du relief.
+
+  ⚠ **ET « AUCUN CALCUL » EST PRESQUE VRAI, CE QUI EST DEJA BEAUCOUP.** Pose dans l'INTERIEUR PUR
+  d'une face, son pourtour ne borde que de la roche : aucune frontiere nouvelle, aucune espece de
+  plus au recensement, et **le vocabulaire ferme ne bouge pas**. C'est la meme raison qui rend
+  les motifs carres surs -- ce qui n'a pas de bord n'a pas de raccord.
+
+  **Mais trois choses restent a payer, et il vaut mieux les savoir maintenant :**
+
+  1. ⚠ **Ca ne se deduit pas, donc ca se DECLARE.** Rien dans une carte de hauteurs ne distingue
+     « ici il y a une grotte ». Il faut un marqueur dans le monde, exactement comme `~` l'a ete
+     pour le vide en 4.0.0 -- avec sa clause au contrat et sa copie dans les DEUX lecteurs.
+  2. **Le pourtour rejoint les classes de raccord du CORPS.** Ses tuiles de bord touchent des
+     rangees de corps ordinaires : leur profil doit etre celui de ces bords-la, sinon la roche
+     saute au contact. La propagation le fait toute seule -- a condition de les declarer dans la
+     bonne classe.
+  3. **« Assez de place » est un REFUS, pas un calcul** -- meme famille que le pinceau qui refuse
+     une case fine. Il faut M rangees de CORPS consecutives : une chute de trois n'en a qu'une
+     (chapiteau, corps, pied), donc elle ne peut pas porter une grotte de deux rangees. Le refus
+     se dit au relachement, jamais tu.
+
+  ⚠ **Et il ouvre une question qu'il ne faut pas confondre avec lui : ce qu'on VOIT dedans.** Un
+  trou noir est gratuit ; un interieur qui laisse voir quelque chose est une matiere bordee, donc
+  la fiche des matieres, donc un autre chantier.
+
+- **LES TUILES ANIMEES, PAR FRAMES.** Demande utilisateur du 31/08/2026, pour quand tout le
+  reste sera vert. Une tuile gagne un axe de TEMPS : plusieurs images, jouees en boucle.
+
+  ⚠ **ET CE N'EST PAS LE SYSTEME DE VARIANTES QUI A ETE TUE, c'est un autre axe.** Les variantes
+  proposaient un CHOIX entre plusieurs dessins d'une meme tuile -- ce qui obligeait le lecteur a
+  decider, et ce que la clause `sheet fixed_size one_drawing_per_tile no_variants` interdit. Une
+  animation ne choisit rien : les images se suivent, toutes posees. La clause reste vraie a
+  condition de l'ecrire ainsi -- une tuile, un dessin, mais un dessin peut avoir N frames.
+
+  **Ou ca touche** : la planche exportee gagne une dimension (ou une seconde planche par frame),
+  le manifeste doit porter le nombre de frames et la cadence, les DEUX lecteurs de moteur
+  doivent l'appliquer pareil (`AnimatedTexture` / `TileSetAtlasSource.set_tile_animation_*` cote
+  Godot), et la version du manifeste monte. A concevoir une fois, liste complete en main --
+  lecon des variantes.
+
+- **LES MOTIFS CARRES, DE DIMENSION REGLABLE, POUR L'INTERIEUR PUR.** Demande utilisateur du
+  31/08/2026. Aujourd'hui l'interieur d'une surface pleine et le corps d'une face **se repetent a
+  l'identique**, case apres case : c'est la ou la repetition se voit le plus, et c'est justement
+  la ou le dessin est le plus libre -- aucun bord a raccorder.
+
+  L'idee : l'artiste peint un motif de **N x N cases**, et la tuile posee depend de
+  `(x mod N, y mod N)`.
+
+  ⚠ **CE N'EST PAS UNE VARIANTE NON PLUS, ET C'EST CE QUI LE REND SUR.** Une variante demande de
+  CHOISIR ; ici la position decide, donc deux lecteurs posent la meme chose sans se concerter --
+  exactement la propriete qui manquait aux variantes et qui les a fait retirer.
+
+  ⚠ **ET CA NE COUTE QUE SUR L'INTERIEUR PUR.** Une tuile dont un cote est ouvert porte un bord,
+  donc un raccord ; la multiplier par N x N multiplierait aussi ses contraintes de raccord. Les
+  tuiles concernees sont celles qui n'ont AUCUN bord : la surface pleine (l'index 255) et les
+  rangees de corps a flancs muets. Le prix est donc `N x N` fois quelques tuiles, pas fois tout
+  le vocabulaire -- a chiffrer exactement le jour ou on le fait.
+
+  ⚠ **Et `N` est un REGLAGE, ce que la charte interdit d'ordinaire (regle 1).** Il faudra donc
+  qu'il soit choisi **avec le mode**, une fois, avant de dessiner -- comme la taille des faux
+  pixels et la famille -- et jamais un curseur au milieu du travail.
+
 - **DEUX MODES DE DISPOSITION : paysage et damier de spécimens.** Demandé par l'utilisateur le
   30/08/2026, et c'est la résolution de la double injonction qui déforme le guide depuis le
   début — *« demander à un seul dessin d'être à la fois beau et exhaustif »*. Le **paysage**
@@ -3022,6 +3161,21 @@ Quand la monter, et je le proposerai le moment venu :
   peignables — le damier est donc à portée, mais il faudra le **coucher** (plus de colonnes)
   au lieu de reprendre les huit colonnes de la planche, qui existent pour se comparer à la
   feuille exportée.
+
+- **L'ARBRE DES FONDS DE GUIDE, DEMANDE EN ENTIER — decision utilisateur du 31/08/2026.** Ca ne
+  concerne QUE le dessin du fond, mais il est nomme d'avance pour qu'on ne le refasse pas :
+
+  ```
+  Technique = computed | example
+     example   -> l'exemple, peint a la main par l'utilisateur, et rien d'autre
+     computed  -> wireframe | painted
+                    painted -> straight | ondulated
+  ```
+
+  ⚠ **ET TOUT DOIT UTILISER LA LIBERTE DE VAGABONDAGE LATERAL DES QU'ELLE EST DISPONIBLE**, pour
+  que l'acheteur ait **tout de suite sous les yeux** ou il a de la liberte et ou il n'en a pas,
+  de maniere evidente. Le fond n'est pas une decoration : c'est la specification, et une liberte
+  qu'on ne montre pas est une liberte que personne n'utilisera.
 
 - **DEUX STYLES DE TRAIT : `straight lines` et `ondulated lines`.** Demandé le 30/08/2026, et
   ils existent **déjà dans le modèle** : ce sont **F1** et **F2** du contour prouvé — `depth()`
