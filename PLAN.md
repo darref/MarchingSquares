@@ -2475,6 +2475,77 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 27 · LA FACE ÉTAIT COLLÉE AU BORD — UNE MOITIÉ EST UN THÉORÈME, L'AUTRE ÉTAIT UN OUBLI
+
+*Trouvé par l'utilisateur, en regardant l'écran : « les robes ne sont pas libres, elles sont
+collées au bord et c'est leur seule manière d'être ». Mesuré aussitôt, et il avait raison deux
+fois.*
+
+```
+                 bord d'une face, 16 pixels              au ras
+  avant        : 0 0 0 0 0 1 2 3 3 3 2 1 0 0 0 0         36/64  (56 %)
+  une surface  : 4 4 5 5 6 6 7 7 7 7 7 6 6 5 5 4          0/64
+```
+
+⚠ **ET UN SECOND FAIT, PIRE QUE LE PREMIER : `wall_depth` NE LIT `freedom` QUE POUR LE TEST
+`== 0`.** F1 et F2 rendaient donc **exactement le même bord de falaise**. Le style *ondulated*
+annoncé comme gratuit n'aurait rien changé aux robes.
+
+**LA LOI DU MOINDRE RAS EXIGEAIT LA MESURE, ET PERSONNE NE L'AVAIT FAITE.** Le théorème parle
+de **deux traversées** — deux *points* — et le code aplatit **deux intervalles entiers**. Le
+dossier note bien un essai voisin (réduire le pincement aux colonnes du bord, qui casse L5),
+mais entre « deux points » et « dix colonnes plates » l'entre-deux n'avait jamais été mesuré.
+
+**Essayé — liberté rendue partout sauf aux quatre points (deux coins, deux traversées) :**
+
+```
+  apres        : 0 2 3 2 0 1 2 3 3 3 2 1 0 3 3 0         18/64  (28 %)
+
+  I1 fermeture  ECHEC 13 extremites   I2 ECHEC 555 paves
+  I1 fermeture  ECHEC 35 extremites   I2 ECHEC   1 pave
+  I1 fermeture  ECHEC 21 extremites   I2 ECHEC   2 paves
+```
+
+⚠ **REFUSÉ — ET LES COORDONNÉES DISENT POURQUOI, ce qui vaut mieux que le compte.** Elles
+tombent aux **coins** (`0,0` · `15,0` · `0,15` · `15,15`) et aux **traversées** (`4,15` ·
+`12,15` · `0,4`), et les tuiles nommées sont des **surfaces** (`7`, `193`, `540`, `112`) : ce
+qui casse est la jonction **face ↔ surface**. Le bord d'une surface arrive **n'importe où dans
+`[4, 7]`** selon sa propre liberté — il serpente. La face doit donc être plate sur **tout
+l'intervalle où une perpendiculaire peut se présenter**, pas au seul point canonique.
+
+**« Collées au bord » est donc un THÉORÈME, plus une négligence** — et c'est ce que la mesure
+apporte : le dossier avait une supposition à cet endroit, il a maintenant une démonstration.
+Route refusée gardée joignable : `LADDER_WALLFREE=points`.
+
+### 27bis · MAIS L'AMPLITUDE, ELLE, N'AVAIT JAMAIS ÉTÉ INTERROGÉE — 3 → 6, GRATUIT
+
+Le ras des intervalles démontré, il restait **un** axe de liberté à la face : la **profondeur**
+de sa bosse entre les deux traversées. Elle valait `1 + graine % 3` — **trois pixels** sur une
+portée libre de sept — quand une surface en prend **quatre à sept**. Personne ne l'avait
+mesurée ; c'était un chiffre posé, pas un chiffre trouvé.
+
+```
+  amplitude <= 3 : 0 0 0 0 0 1 2 3 3 3 2 1 0 0 0 0
+  amplitude <= 6 : 0 0 0 0 0 2 4 6 6 6 4 2 0 0 0 0
+
+                          reference   amplitude 6
+  profils de face          12      ->     24
+  (mondes les plus riches)  8      ->     22
+                           10      ->     24
+```
+
+**Les six invariants restent verts sur les vingt-six couples.** La liberté est rendue, elle ne
+coûte **ni une tuile, ni une extrémité, ni un pavé**. `LADDER_WALLREACH` la fait varier, pour
+que le chiffre reste reproductible.
+
+⚠ **ET C'EST EXACTEMENT CE QUE LA LOI DU MOINDRE RAS EXISTE POUR ATTRAPER**, une fois de plus :
+*« le ras n'est pas une simplicité, c'est une liberté confisquée »*. Ici la confiscation ne se
+lisait même pas comme un ras — elle se lisait comme une constante anodine.
+
+⚠ **ET LE LEVIER DES DEUX STYLES EST TROUVÉ EN CHEMIN.** `wall_depth` ignore `freedom` : c'est
+là que *straight* et *ondulated* doivent se séparer pour les falaises — bosse plate d'un côté,
+bosse qui serpente de l'autre. À faire avec les styles, et noté aux questions ouvertes.
+
 ### 26 · L'ÉPAISSEUR CONTRAINT AUSSI LE DEHORS — LA BORNE HAUTE TOMBE DE 31 À 23
 
 *Le cahier des charges du redessin nommait dix-huit dessins que le guide n'exerce pas. Huit

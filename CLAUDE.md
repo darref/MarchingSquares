@@ -2862,6 +2862,41 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   Variant)` existe déjà ; en redéfinir la signature est une **erreur d'analyse**, et le script
   ne charge plus du tout.
 
+- **LA FACE ÉTAIT COLLÉE AU BORD : une moitié est un théorème, l'autre était un oubli.**
+  Trouvé par l'utilisateur en regardant l'écran — *« les robes ne sont pas libres, elles sont
+  collées au bord et c'est leur seule manière d'être »* — et mesuré aussitôt :
+
+  ```
+                   bord d'une face, 16 pixels          au ras
+    avant        : 0 0 0 0 0 1 2 3 3 3 2 1 0 0 0 0     36/64  (56 %)
+    une surface  : 4 4 5 5 6 6 7 7 7 7 7 6 6 5 5 4      0/64
+  ```
+
+  ⚠ **ET LE RAS DES INTERVALLES EST JUSTE — DÉMONTRÉ, PLUS SUPPOSÉ.** La loi du moindre ras
+  exigeait qu'on essaie : le théorème parle de **deux traversées**, deux *points*, et le code
+  aplatit **deux intervalles**. Liberté rendue partout sauf aux quatre points (deux coins, deux
+  traversées) : **13 à 35 extrémités et jusqu'à 555 pavés**, sur trois mondes. Et les
+  coordonnées disent pourquoi — elles tombent aux **coins** et aux **traversées**, et les tuiles
+  nommées sont des **surfaces** : le bord d'une surface arrive **n'importe où dans `[4, 7]`**
+  selon sa propre liberté, donc la face doit être plate sur **tout l'intervalle où une
+  perpendiculaire peut se présenter**. Route refusée joignable : `LADDER_WALLFREE=points`.
+
+  ⚠ **MAIS L'AMPLITUDE N'AVAIT JAMAIS ÉTÉ INTERROGÉE : 3 → 6, ET C'EST GRATUIT.** Une face
+  respirait de **trois** pixels là où une surface en prend quatre à sept — un chiffre posé, pas
+  un chiffre trouvé. Portée à six, **les six invariants restent verts sur les vingt-six
+  couples**, et les profils de face **doublent** : 12 → 24, 8 → 22, 10 → 24 selon les mondes.
+  Ni une tuile, ni une extrémité, ni un pavé de plus. `LADDER_WALLREACH` la fait varier.
+
+  ⚠ **ET LA CONFISCATION NE SE LISAIT MÊME PAS COMME UN RAS**, elle se lisait comme une
+  constante anodine — c'est ce qui la rendait invisible. *Le ras n'est pas une simplicité, c'est
+  une liberté confisquée*, et I5 est là pour compter ce qu'on confisque.
+
+  ⚠ **SECOND DÉFAUT TROUVÉ AU PASSAGE, ET IL EST À MOI : `wall_depth` ne lit `freedom` que pour
+  le test `== 0`.** F1 et F2 rendent aujourd'hui **exactement le même bord de falaise** — le
+  style *ondulated* que j'avais annoncé comme gratuit n'aurait rien changé aux robes. C'est
+  aussi là que les deux styles devront se séparer : bosse plate d'un côté, bosse qui serpente de
+  l'autre.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :
@@ -2992,8 +3027,12 @@ Quand la monter, et je le proposerai le moment venu :
   ils existent **déjà dans le modèle** : ce sont **F1** et **F2** du contour prouvé — `depth()`
   rend une profondeur constante à F1, une courbe le long du bord à F2. ⚠ **Et le compte de
   dessins ne bouge pas entre les deux : 31 dans les deux cas**, mesuré. C'est donc un vrai
-  style — gratuit en vocabulaire, et c'est exactement ce que l'invariant I5 promettait. Il ne
-  reste qu'à l'exposer : deux entrées dans la liste des encres au lieu d'une.
+  style — gratuit en vocabulaire, et c'est exactement ce que l'invariant I5 promettait.
+  ⚠ **MAIS PAS POUR LES FALAISES, ET C'EST MESURÉ** : `wall_depth` ne lit `freedom` que pour le
+  test `== 0`, donc F1 et F2 rendent **le même bord de face**. Exposer les deux encres sans
+  toucher à ça livrerait un style qui ne change rien aux robes. Le levier est trouvé — bosse
+  plate contre bosse qui serpente, à la même amplitude — mais il reste à mesurer sur les
+  vingt-six couples, comme le reste.
 
 - **L'EXEMPLE, PEINT A LA MAIN.** L'angle noir est ferme -- voir la decision « LA POSE
   DERRIERE » -- et l'etape suivante du chantier est l'exemple : l'utilisateur peint

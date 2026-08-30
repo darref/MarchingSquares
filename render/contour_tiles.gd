@@ -36,6 +36,21 @@ const Walls := preload("res://core/walls.gd")
 ## L'etage du monde en cours de dessin : plusieurs regles ne valent qu'a partir de L2 -- rien au
 ## sud, les deux coins sud muets -- et le dessin doit savoir lequel il sert.
 static var level: int = 0
+
+## LA LIBERTE DU BORD D'UNE FACE. Vide : le bord est plat de part et d'autre des deux
+## traversees et serpente entre elles -- ce que la mesure impose. `points` rejoue la route
+## refusee, qui ne pincait qu'aux quatre points ; gardee joignable comme les autres, parce
+## qu'un chiffre qu'on ne peut plus reproduire n'est plus un chiffre.
+static var wall_free: String = ""
+
+## L'AMPLITUDE MAXIMALE DE LA BOSSE D'UN BORD DE FACE, en pixels de tuile.
+##
+## ⚠ SIX, ET C'EST MESURE. Elle valait TROIS, sans que personne l'ait interrogee : une face
+## respirait de trois pixels la ou une surface en prend quatre a sept. Portee a six, les six
+## invariants restent verts sur les VINGT-SIX couples, et les profils de face passent de 12 a
+## 24 sur le guide. C'etait la seule liberte encore disponible une fois le ras des intervalles
+## demontre -- et elle ne coute rien. `LADDER_WALLREACH` la fait varier.
+static var wall_reach: int = 6
 ## La regle de l'ergot, par la DIAGONALE ; `false` rejoue l'ancienne, par la voisine.
 static var ergot_diag: bool = true
 ## Le rendez-vous : `both` (la regle), `none`, `orig`, `miroir`.
@@ -481,12 +496,45 @@ static func wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> in
 	# extremites : la face y perd le contact avec les perpendiculaires DE SA PROPRE FAMILLE,
 	# qui se rejoignent au coin de la case. Chaque famille a sa traversee ; c'est LEUR
 	# rencontre qui doit se regler, pas l'une des deux qui doit ceder.
-	if along <= first or along >= last or last <= first:
+	if last <= first:
 		return 0
 	var seed: int = absi((side + 1 + 7 * seam) * 19349663)
-	var reach: float = float(1 + seed % 3)
-	var t: float = float(along - first) / float(last - first)
-	return int(round(reach * sin(PI * t)))
+	# ⚠ L'AMPLITUDE EST LE SEUL AXE DE LIBERTE QUI RESTE A LA FACE, une fois le ras des
+	# intervalles demontre. Elle vaut `WALL_REACH` au plus ; le banc la fait varier par
+	# `LADDER_WALLREACH` pour qu'on puisse dire ou elle casse, et pourquoi.
+	var reach: float = float(1 + seed % maxi(1, wall_reach))
+	# ⚠ « AUX DEUX TRAVERSEES » NE VEUT PAS DIRE « DEUX POINTS » -- ESSAYE, MESURE, REFUSE.
+	# La loi du moindre ras exige qu'on demontre le ras avant de le poser : le theoreme parle
+	# de deux traversees, et le code aplatit deux INTERVALLES entiers, soit dix pixels de bord
+	# sur seize. Rendre la liberte partout sauf aux quatre points (les deux coins, les deux
+	# traversees) fait passer le ras de 56 % a 28 % -- et casse l'echelle : 13 a 35 extremites
+	# et jusqu'a 555 paves, sur trois mondes.
+	#
+	# ⚠ ET LES COORDONNEES DISENT POURQUOI, ce qui vaut mieux que le compte. Elles tombent aux
+	# COINS (0,0 · 15,0 · 0,15 · 15,15) et aux TRAVERSEES (4,15 · 12,15 · 0,4), et les tuiles
+	# nommees sont des SURFACES : ce qui casse est la jonction face-surface. Le bord d'une
+	# surface arrive n'importe ou dans `[4, 7]` selon SA propre liberte -- il serpente -- donc
+	# la face doit etre plate sur TOUT l'intervalle ou une perpendiculaire peut se presenter,
+	# pas au seul point canonique. « Collees au bord » est donc un theoreme, pas un accident.
+	#
+	# La route refusee reste joignable par `LADDER_WALLFREE=points`.
+	if wall_free != "points":
+		if along <= first or along >= last:
+			return 0
+		return int(round(reach * sin(PI * float(along - first) / float(last - first))))
+	if along == 0 or along == RES - 1 or along == first or along == last:
+		return 0
+	var lo: int = first
+	var hi: int = last
+	if along < first:
+		lo = 0
+		hi = first
+	elif along > last:
+		lo = last
+		hi = RES - 1
+	if hi <= lo:
+		return 0
+	return int(round(reach * sin(PI * float(along - lo) / float(hi - lo))))
 
 
 static func shape(open: Array[bool], freedom: int, body: Color, index: int,

@@ -309,6 +309,9 @@ func _initialize() -> void:
 	# le savoir avant de l'accuser ou de le defendre.
 	Contour.meet = OS.get_environment("LADDER_MEET")
 	Contour.half_axis = OS.get_environment("LADDER_HALF") == "axe"
+	Contour.wall_free = OS.get_environment("LADDER_WALLFREE")
+	if not OS.get_environment("LADDER_WALLREACH").is_empty():
+		Contour.wall_reach = int(OS.get_environment("LADDER_WALLREACH"))
 	_backing_traces = OS.get_environment("LADDER_UNDERFOOT") == "trace"
 	if Contour.meet.is_empty():
 		Contour.meet = "both"
