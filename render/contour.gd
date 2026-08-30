@@ -399,36 +399,14 @@ static func seam_classes(storeys: Array[Dictionary], roles: Dictionary, level: i
 ## les confronte, et c'est la seule chose qui rende la copie sure.
 static func compose(world: PackedStringArray, level: int, freedom: int) -> Dictionary:
 	Tiles.level = level
-	var top: int = 0
-	for y: int in range(HeightMask.height(world)):
-		for x: int in range(HeightMask.width(world)):
-			top = maxi(top, HeightMask.level_at(world, x, y))
-	var storeys: Array[Dictionary] = []
-	for storey: int in range(top + 1):
-		var mask: PackedStringArray = HeightMask.silhouette(world, storey)
-		var map: Dictionary = {}
-		for y: int in range(HeightMask.height(mask)):
-			for x: int in range(HeightMask.width(mask)):
-				if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
-					continue
-				map[Vector2i(x, y)] = Coverage.index_at(mask, x, y)
-		storeys.append(map)
-	var indices: Dictionary = {}
-	for y: int in range(HeightMask.height(world)):
-		for x: int in range(HeightMask.width(world)):
-			var here: int = HeightMask.level_at(world, x, y)
-			if here < 0:
-				continue
-			indices[Vector2i(x, y)] = int((storeys[here] as Dictionary)[Vector2i(x, y)])
-	var vocabulary: Dictionary = {}
-	for storey: int in range(storeys.size()):
-		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
-			vocabulary[int((storeys[storey] as Dictionary)[cell])] = true
-	var roles: Dictionary = {}
-	var seen: Dictionary = {}
-	if level >= 2:
-		seen = Walls.visible_all(world)
-		roles = Brink.mark(world, storeys, indices, vocabulary, seen["roles"], level)
+	# ⚠ LES CLES VIENNENT DU MODELE, ELLES NE SE REFONT PAS ICI. Silhouettes par etage, carte
+	# visible, vocabulaire, robes fermees : c'est `core/brink.gd` qui les tient, une fois.
+	var made: Dictionary = Brink.keys(world, level)
+	var storeys: Array[Dictionary] = made["storeys"]
+	var indices: Dictionary = made["indices"]
+	var vocabulary: Dictionary = made["vocabulaire"]
+	var roles: Dictionary = made["roles"]
+	var seen: Dictionary = made["seen"]
 	# LES POSES ARRIERE, rangees par etage d'atterrissage : elles passent JUSTE AVANT la surface
 	# de leur etage, donc sous elle, et visibles par ses coins decoupes.
 	var under_by_level: Array[Dictionary] = []

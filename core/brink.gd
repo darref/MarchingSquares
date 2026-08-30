@@ -17,6 +17,7 @@ extends RefCounted
 const BlobIndex := preload("res://core/blob_index.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
+const Coverage := preload("res://core/coverage.gd")
 
 
 ## LES BITS DU BORD, au-dessus des huit de silhouette.
@@ -433,3 +434,50 @@ static func mark(world: PackedStringArray, storeys: Array[Dictionary], indices: 
 			indices[cell3] = int((storeys[HeightMask.level_at(world, cell3.x, cell3.y)]
 					as Dictionary)[cell3])
 	return roles
+
+
+## LES CLES D'UN RELIEF, SANS RIEN DESSINER -- les silhouettes par etage, la carte visible,
+## le vocabulaire, et les robes fermees.
+##
+## ⚠ ELLE N'AJOUTE RIEN AU MODELE, ELLE EN RETIRE UNE COPIE. Ce bloc vivait en entier dans
+## `Contour.compose`, qui n'en avait besoin que pour appeler `mark()` ; tout outil qui voulait
+## les cles d'un relief devait donc soit le recopier, soit DESSINER l'image entiere pour lire
+## un dictionnaire. Deux copies d'une meme regle finissent toujours par se contredire -- la
+## lecon est deja au dossier, payee sur `_check_wall_seams` et sur les deux vocabulaires de
+## surface avant `core/families.gd`.
+##
+## ⚠ ET `seen` SORT AVEC, parce que la pose arriere en depend et qu'il serait absurde de
+## refaire `Walls.visible_all` derriere.
+static func keys(world: PackedStringArray, level: int) -> Dictionary:
+	var top: int = 0
+	for y: int in range(HeightMask.height(world)):
+		for x: int in range(HeightMask.width(world)):
+			top = maxi(top, HeightMask.level_at(world, x, y))
+	var storeys: Array[Dictionary] = []
+	for storey: int in range(top + 1):
+		var mask: PackedStringArray = HeightMask.silhouette(world, storey)
+		var map: Dictionary = {}
+		for y: int in range(HeightMask.height(mask)):
+			for x: int in range(HeightMask.width(mask)):
+				if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
+					continue
+				map[Vector2i(x, y)] = Coverage.index_at(mask, x, y)
+		storeys.append(map)
+	var indices: Dictionary = {}
+	for y: int in range(HeightMask.height(world)):
+		for x: int in range(HeightMask.width(world)):
+			var here: int = HeightMask.level_at(world, x, y)
+			if here < 0:
+				continue
+			indices[Vector2i(x, y)] = int((storeys[here] as Dictionary)[Vector2i(x, y)])
+	var vocabulary: Dictionary = {}
+	for storey: int in range(storeys.size()):
+		for cell: Vector2i in (storeys[storey] as Dictionary).keys():
+			vocabulary[int((storeys[storey] as Dictionary)[cell])] = true
+	var roles: Dictionary = {}
+	var seen: Dictionary = {}
+	if level >= 2:
+		seen = Walls.visible_all(world)
+		roles = mark(world, storeys, indices, vocabulary, seen["roles"], level)
+	return {"storeys": storeys, "indices": indices, "vocabulaire": vocabulary,
+			"roles": roles, "seen": seen}

@@ -2475,6 +2475,151 @@ l'effleurer. Le plan le note déjà — *« le guide n'est plus un paysage, c'es
 spécimens, et le redessiner reste à faire »*.
 
 
+### 26 · L'ÉPAISSEUR CONTRAINT AUSSI LE DEHORS — LA BORNE HAUTE TOMBE DE 31 À 23
+
+*Le cahier des charges du redessin nommait dix-huit dessins que le guide n'exerce pas. Huit
+d'entre eux ne sont pas un manque du guide : ce sont des tuiles que le monde **ne peut pas
+produire**. Trouvé en cherchant leurs témoins, pas en relisant.*
+
+⚠ **LA PRÉMISSE DE `closed_form_now.py` ÉTAIT FAUSSE, ET ELLE ÉTAIT ÉCRITE EN TOUTES LETTRES**
+dans son en-tête : *« l'extérieur étant libre sur un plan non borné, les deux valeurs sont
+réalisables dès que la précondition tient »*. Vrai d'un plan quelconque. **Faux sous min
+trois**, où l'épaisseur contraint aussi le dehors de la fenêtre.
+
+**L'argument tient en trois pas, et il ne vaut qu'aux diagonales NORD :**
+
+1. `NE` vide — donc, la canonicalisation l'enregistrant, `N` **et** `E` pleins — oblige la
+   course de la rangée du nord à s'étendre vers l'**ouest**, faute de pouvoir aller à l'est.
+   Donc **`NO` est plein** ;
+2. un `NO` plein au-dessus d'un ouest **vide** est une **lèvre** : sa face couvre mon ouest ;
+3. donc **`BORD_W` vaut un, toujours**. Et `ABOVE_W` comme `BELOW_W` exigent que je trace
+   vraiment ce côté-là — ils tombent avec.
+
+Le miroir vaut à l'est. ⚠ **Et aucun autre coin ne force** : une diagonale **sud** pleine ne
+met aucune lèvre au-dessus de ma cardinale vide — une robe se pose *sous* une lèvre, jamais
+au-dessus. La clause ne touche donc que quatre silhouettes : `s5` et `s29` à l'ouest, `s65` et
+`s113` à l'est.
+
+```
+                                   avant     apres
+  cles enumerees (borne haute)       125  ->   101
+  DESSINS distincts                   31  ->    23
+  ce que le guide n'exerce pas         18  ->    10
+```
+
+⚠ **ET C'EST CONTRÔLÉ DANS LE BON SENS, comme l'en-tête de l'outil l'exige.** Les **55 clés
+réellement posées** par les cinq mondes — guide, planche, trois battues — tombent **toutes**
+dans la forme resserrée : **0 hors**. *Une seule dehors, et c'est la transcription qui est
+fausse, pas le monde.*
+
+**Les huit qui tombent, nommés** : `s5,b0` · `s65,b0` · `s5,ABOVE_W` · `s65,ABOVE_E` ·
+`s29,BELOW_W` · `s29,BELOW_W+ABOVE_W` · `s113,BELOW_E` · `s113,BELOW_E+ABOVE_E`.
+
+⚠ **ET LA RECHERCHE SEULE N'AURAIT PAS SUFFI À LES RETIRER.** Quatre parts de battue ne les
+ont jamais rencontrés — mais *une battue qui ne rencontre pas une tuile prouve qu'elle est
+rare, jamais qu'elle est impossible*, et le dossier l'a déjà payé. Ce qui les retire est
+l'**argument** ; la battue ne fait que le corroborer.
+
+⚠ **UN DESSIN N'EST PAS UNE CLÉ, C'EST UN GROUPE DE CLÉS — et c'est ce qui décide.** Le
+représentant affiché est la plus **petite** clé du groupe, pas la plus facile à produire :
+conclure « impossible » sur lui seul condamnerait un dessin que l'une de ses autres clés rend
+banal. Mesuré : `6291548` se lit `s92` — pour lequel `FLUSH_W` est impossible — mais son
+groupe contient `s124`, où il ne l'est pas. Les huit retirés sont ceux dont **tout** le
+groupe tombe.
+
+**C'est le critère 3 du plan qui mord pour la première fois**, et par le bout qu'on n'avait
+jamais fait bouger : *« il converge par les deux bouts — la borne basse monte quand on ajoute
+des mondes, la haute descend quand on retire une fausse liberté »*. Jusqu'ici seule la basse
+avait bougé.
+
+⚠ **ET LE VOCABULAIRE PROUVÉ DEVIENT PLUS PETIT QUE CELUI QU'ON LIVRE : 23 dessins contre 27
+silhouettes.** Le modèle qui *sait* ce que ses voisines tracent porte **moins** de tuiles que
+celui qui l'ignore — parce que les bits de bord **fusionnent** autant de silhouettes qu'ils
+en séparent (les trois bits sud, `8`, `16`, `32`, ne distinguent rien : 22, 6 et 22 fois).
+
+### 26bis · LES TÉMOINS DE BORD : TROUVÉS, PAS DESSINÉS
+
+Les dix qui restent ne naissent d'aucun accident nommé. `tools/brink_witnesses.gd` les
+cherche, les découpe, et les **revérifie au milieu d'un champ de plaine** — le contexte où ils
+seront posés, pas le vide où on les a coupés.
+
+⚠ **LA FAMILLE ALIGNÉE NE LES PRODUIT PAS, ET C'EST MESURÉ : ses 19 683 reliefs, parcourus en
+entier, n'en rendent AUCUN.** La raison est géométrique : ce qui manque demande une banquette
+qui s'arrête **une** rangée au-dessus d'un bord, et un monde aligné sur trois ne s'arrête
+qu'aux multiples de trois. **Les poses décalées sont indispensables** — le pinceau les pose,
+donc elles sont du domaine — et ce sont elles, et elles seules, qui rendent les témoins.
+
+⚠ **ET LA BATTUE DENSE DU BANC NE VAUT RIEN ICI.** Quatre cents gestes sur un cadre de vide
+font un monde où presque tout est couvert par une robe : les bits de bord y sont partout, et
+aucun agencement **net** n'y survit. Trois battues denses : **un** témoin sur dix-huit. Des
+**terrasses** — des rectangles de trois à douze, posés sur de la plaine, l'étage zéro creusant
+les ravins — les rendent par poignées.
+
+⚠ **ET UN PROCESSUS N'UTILISE QU'UN CŒUR.** `PART=i/n`, comme `LADDER_SHARD` au banc : chaque
+part cherche *les mêmes* dessins dans *sa* tranche de graines, une passe de fusion relit tous
+les blocs, **recalcule ce qu'ils portent** — on ne croit pas une part sur parole — et fait le
+recouvrement. Cinq parts sur six cœurs.
+
+**Résultat : huit blocs portent les dix dessins**, le plus petit fait 8x23, le plus grand
+20x26.
+
+```
+  res://guides/epais.txt   : 13 dessin(s) sur 23
+  res://guides/temoins.txt : 21 dessin(s) sur 23
+  REUNIS                   : 23 dessin(s) sur 23   -- RIEN NE MANQUE
+```
+
+### 26ter · UN GUIDE À PART, ET C'EST UN ARBITRAGE D'ÉCRAN — décision utilisateur
+
+Les huit blocs tiennent dans **104x65**. Posés au sud d'`epais.txt`, ils l'auraient fait passer
+de **141 à 215 rangées** — la case tombe de vingt-six à **dix-sept pixels d'écran** — et cela
+pour des tuiles **que le produit n'exporte pas encore** : il livre toujours les 27 silhouettes
+et les 20 rôles, pas les 23 dessins.
+
+Or *« ce qui compte n'est pas le nombre de cases, c'est la taille de la case à l'écran »* est
+au dossier, mesuré. On ne paie pas cet écran aujourd'hui : `guides/temoins.txt` est un guide à
+part, bâti et vérifié par `tools/build_temoins.gd`, qui **ne s'affiche nulle part**. Il entrera
+dans le guide livré le jour de la bascule, quand ces tuiles deviendront peignables.
+
+⚠ **ET IL N'EST PAS DANS LE SOFT, IL NE LE SERA JAMAIS — règle utilisateur.** *« Le but du
+soft est de tout avoir en face de soi en même temps ; ce que je vends, c'est la simplicité et
+l'intuitivité. »* Aucune liste ne le propose, `core/modes.gd` ne nomme que `epais.txt`. **Le
+jour de la bascule, les dix témoins entrent DANS le guide unique** — pas dans une seconde
+entrée d'une liste. Le guide devra donc être **redessiné pour les porter**, et c'est
+exactement le travail que ce plan garde ouvert : les témoins lui donnent enfin son cahier des
+charges, accident par accident.
+
+⚠ **ET IL N'EST PAS UN PAYSAGE, IL NE PRÉTEND PAS L'ÊTRE** — même statut, mot pour mot, que la
+réserve d'`epais.txt` : *« le paysage sert à juger le rendu ; la réserve sert à ce qu'aucune
+tuile ne manque. Confondre les deux, c'était demander à un seul dessin d'être à la fois beau
+et exhaustif. »*
+
+⚠ **ET IL SE VÉRIFIE EN S'ÉCRIVANT, LÀ OÙ IL POSE.** Épaisseur partout, et **chaque clé
+déclarée retrouvée à la case où son bloc a été stampé** : un témoin découpé est juste dans
+*son* contexte — au milieu d'un champ de plaine — et la planche en est un autre, où il a des
+voisins à quatre cases. *La découpe ment* : on revérifie. 0 problème.
+
+**La chaîne, de bout en bout :**
+
+```
+python tools/closed_form_now.py --liste > forme.txt
+PART=i/5 godot --headless --path . --script res://tools/brink_witnesses.gd -- forme.txt 15000 blocs_i.txt
+godot ... res://tools/brink_witnesses.gd -- --fusion forme.txt blocs_0.txt ...   # -> core/brink_witnesses.gd
+godot ... res://tools/build_temoins.gd                                          # -> guides/temoins.txt
+godot ... res://tools/brink_witnesses.gd -- --couverture forme.txt res://guides/epais.txt res://guides/temoins.txt
+```
+
+⚠ **ET `Brink.keys()` EST NÉ DE CE CHANTIER, EN RETIRANT UNE COPIE.** Les silhouettes par
+étage, la carte visible, le vocabulaire et les robes fermées vivaient **en entier** dans
+`Contour.compose`, qui n'en avait besoin que pour appeler `mark()` : tout outil voulant les
+clés d'un relief devait soit recopier le bloc, soit **dessiner l'image entière** pour lire un
+dictionnaire. Le modèle les tient désormais, une fois. Suite du produit : **665 vérifications,
+0 échec**, avant et après.
+
+⚠ **PIÈGE DE LANGAGE PAYÉ : ne pas nommer une méthode `_set`.** `Object._set(StringName,
+Variant)` existe déjà ; en redéfinir la signature est une **erreur d'analyse**, et le script
+ne charge plus du tout.
+
 ### 25 · LE PORTAGE : LE BANC REND SON MODÈLE ET SON PINCEAU AU PRODUIT
 
 Deux déplacements, aucun changement de pixel — c'est même la définition de l'opération, et le

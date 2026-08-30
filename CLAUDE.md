@@ -54,12 +54,17 @@ core/         logique pure, zéro dépendance UI, utilisable en headless
   work_io.gd      lecture / ecriture du travail en cours (.solutiles)
   plugin_install.gd  copier SoluPaint dans un projet Godot
   modes.gd        catalogue des modes (guide + règles d'exportation)
+  thickness.gd    la barre du mode épais : rien de moins de trois
+  brink.gd        les bits de bord : ce qu'une tuile doit SAVOIR de ses voisines
+  brink_witnesses.gd  les blocs trouvés qui portent les dessins qu'aucun paysage ne produit
 render/       illustration du guide -- présentation, pas logique
   guide_image.gd  dessine le relief en Image (headless, sans nœud)
   satyron_tiles.gd  lit le tileset de Satyron chez lui, pour le banc d'essai
   guide_render_job.gd  le même dessin, par étapes, pour pouvoir le regarder avancer
   assembly.gd     le paysage rebâti avec les tuiles peintes, par deux chemins
   preview.gd      écrit l'illustration sur disque
+  contour_tiles.gd  le contour prouvé : comment une tuile se DESSINE
+  contour.gd      le contour prouvé : l'assemblage, d'un relief à une image
 ui/           l'éditeur
   editor.tscn     la fenêtre : bandeau, barre d'outils, zone de travail
   editor.gd       câblage ; aucune règle de produit ne vit ici
@@ -76,6 +81,8 @@ guides/       guides au format texte ('.' plaine, '1'..'9' plateaux ; '#' = éta
   minimal_preview.png  son illustration, régénérable à tout moment
   candidate_01.txt     brouillon plat dessiné à la main, 28/47, conservé comme trace
   preview.txt          le décor de l'aperçu en jeu : 24x18, une colline et une butte
+  epais.txt            LE guide livré : 104x141, 27/27, 25/25, 15/15
+  temoins.txt          104x65, jamais affiché : les dessins qu'aucun paysage ne produit
 tests/        tests headless
   run.gd          runner, code de sortie non nul en cas d'échec
 exporters/
@@ -93,6 +100,10 @@ tools/            outils de fabrication, jamais lus par le logiciel
   build_minimal.py  une île qui porte tout, un exemplaire de chaque accident
   build_ample.py    trois îles, donc trois exemplaires
   bench_stroke.gd   le banc du coup de crayon : ce que coûte un point, en µs
+  build_epais.gd    le guide livré, accident par accident, et qui s'auto-vérifie
+  build_temoins.gd  le guide des témoins, et qui revérifie chaque clé là où il la pose
+  brink_witnesses.gd  cherche les témoins des bits de bord (`PART=i/n`, puis `--fusion`)
+  closed_form_now.py  la borne haute du modèle, clé par clé
 ```
 
 ## Conventions
@@ -2748,6 +2759,101 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   coïncider. Vérifié à moitié : forcer le même profil sur toutes les surfaces fait tomber le
   compte de 1145 à 841 — et le reste tient à ce que les silhouettes n'ouvrent pas les mêmes
   cardinaux, ce qu'aucun style ne rattrape.
+
+- **L'ÉPAISSEUR CONTRAINT AUSSI LE DEHORS — la borne haute du contour prouvé tombe de 31 à
+  23 dessins.** `tools/closed_form_now.py` énumérait sur la prémisse écrite dans son en-tête :
+  *« l'extérieur étant libre sur un plan non borné, les deux valeurs sont réalisables dès que
+  la précondition tient »*. Vrai d'un plan quelconque, **faux sous min trois**.
+
+  **L'argument, et il ne vaut qu'aux diagonales NORD :** `NE` vide — donc, la canonicalisation
+  l'enregistrant, `N` **et** `E` pleins — oblige la course de la rangée du nord à s'étendre
+  vers l'**ouest**, faute de pouvoir aller à l'est ; donc le **NO est plein** ; un NO plein
+  au-dessus d'un ouest **vide** est une **lèvre**, sa face couvre mon ouest, donc **`BORD_W`
+  vaut un, toujours** — et `ABOVE_W` comme `BELOW_W`, qui exigent que je trace vraiment ce
+  côté-là, tombent avec. Miroir à l'est. Quatre silhouettes concernées : `s5`, `s29` à
+  l'ouest, `s65`, `s113` à l'est.
+
+  ⚠ **AUCUN AUTRE COIN NE FORCE** : une diagonale **sud** pleine ne met aucune lèvre au-dessus
+  de ma cardinale vide — une robe se pose *sous* une lèvre, jamais au-dessus.
+
+  ⚠ **ET C'EST CONTRÔLÉ DANS LE BON SENS**, comme l'en-tête de l'outil l'exige : les **55 clés
+  réellement posées** par les cinq mondes tombent toutes dans la forme resserrée, **0 hors**.
+  *Une seule dehors, et c'est la transcription qui est fausse, pas le monde.*
+
+  ⚠ **ET LA RECHERCHE SEULE N'AURAIT PAS SUFFI À RETIRER CES HUIT DESSINS.** Quatre parts de
+  battue ne les ont jamais rencontrés — mais *une battue qui ne rencontre pas une tuile prouve
+  qu'elle est rare, jamais qu'elle est impossible*, déjà payé au dossier. Ce qui les retire est
+  l'**argument** ; la battue le corrobore.
+
+  ⚠ **UN DESSIN N'EST PAS UNE CLÉ, C'EST UN GROUPE DE CLÉS** — et c'est ce qui décide de sa
+  réalisabilité. Le représentant est la plus **petite** clé du groupe, pas la plus facile à
+  produire : `6291548` se lit `s92`, pour qui `FLUSH_W` est impossible, mais son groupe
+  contient `s124`, où il ne l'est pas. On ne retire que les groupes qui tombent **en entier**.
+
+  ⚠ **ET LE VOCABULAIRE PROUVÉ DEVIENT PLUS PETIT QUE CELUI QU'ON LIVRE : 23 dessins contre 27
+  silhouettes.** Le modèle qui *sait* ce que ses voisines tracent porte **moins** de tuiles que
+  celui qui l'ignore — les bits de bord fusionnent autant de silhouettes qu'ils en séparent.
+
+- **LES TÉMOINS DES BITS DE BORD : trouvés, pas dessinés, et dans un guide À PART**
+  (`tools/brink_witnesses.gd`, `core/brink_witnesses.gd`, `tools/build_temoins.gd`,
+  `guides/temoins.txt`). Dix des 23 dessins ne naissent d'aucun accident nommé — même méthode,
+  mot pour mot, que les huit témoins de robe : *« ils ne sont pas dessinés à la main, ils sont
+  TROUVÉS »*.
+
+  ⚠ **LA FAMILLE ALIGNÉE NE LES PRODUIT PAS, ET C'EST MESURÉ** : ses 19 683 reliefs, parcourus
+  en entier, n'en rendent **aucun**. Ce qui manque demande une banquette qui s'arrête **une**
+  rangée au-dessus d'un bord, et un monde aligné sur trois ne s'arrête qu'aux multiples de
+  trois. **Les poses décalées sont indispensables** — le pinceau les pose, donc elles sont du
+  domaine.
+
+  ⚠ **ET LA BATTUE DENSE DU BANC NE VAUT RIEN ICI** : quatre cents gestes sur un cadre de vide
+  font un monde où tout est couvert par une robe, donc où aucun agencement net ne survit — un
+  témoin sur dix-huit. Des **terrasses** posées sur de la plaine les rendent par poignées.
+
+  ⚠ **ON NE COUPE JAMAIS SANS REVÉRIFIER, ET DANS LE CONTEXTE OÙ LE TÉMOIN SERA POSÉ** — au
+  milieu d'un champ de plaine, pas seul au monde. *La découpe ment* : onze tuiles sur
+  cinquante et une avaient disparu au découpage, déjà au dossier.
+
+  ⚠ **ET LE GUIDE LIVRÉ NE BOUGE PAS — décision utilisateur, prise sur la mesure.** Les huit
+  blocs tiennent dans 104x65 ; posés au sud d'`epais.txt` ils l'auraient fait passer de 141 à
+  215 rangées, donc la case de **vingt-six à dix-sept pixels d'écran**, pour des tuiles que le
+  produit **n'exporte pas encore**. *Ce qui compte n'est pas le nombre de cases, c'est la
+  taille de la case à l'écran.* Le guide des témoins ne s'affiche nulle part ; il entrera dans
+  le guide livré le jour de la bascule, quand ces tuiles deviendront peignables.
+
+  **Mesuré** : `epais.txt` 13 dessins sur 23, `temoins.txt` 21 sur 23, **réunis 23 sur 23**.
+  Et le contour du guide des témoins est **fermé** : 0 extrémité, 0 pavé 2x2.
+
+  ⚠ **`temoins.txt` N'EST PAS DANS LE SOFT, ET IL NE LE SERA JAMAIS — règle utilisateur.**
+  *« Le but du soft est de tout avoir en face de soi en même temps ; ce que je vends, c'est la
+  simplicité et l'intuitivité. »* Aucune liste ne le propose, `core/modes.gd` ne nomme que
+  `epais.txt`, rien ne balaie le dossier : c'est un fichier de **banc**, du même statut que le
+  relief de la planche de preuve. **Le jour de la bascule, les dix témoins entrent DANS le
+  guide unique** — ils ne deviennent pas une seconde entrée dans une liste. Ce qui veut dire
+  que le guide devra être **redessiné pour les porter**, au lieu qu'on les empile en réserve
+  au sud ; et les témoins lui donnent enfin son cahier des charges complet, accident par
+  accident.
+
+  ⚠ **ET LE VIDE AUTOUR N'EST PAS UNE COQUETTERIE.** Sans marge de `~`, la plaine court
+  jusqu'au cadre de l'image et son propre contour s'y trouve **coupé** : deux extrémités, aux
+  deux coins du bas, qui n'accusent que le cadre. *Chaque relief doit déclarer son bord* —
+  déjà au dossier depuis la 4.0.0, repayé ici.
+
+  ⚠ **ET UN PROCESSUS N'UTILISE QU'UN CŒUR.** `PART=i/n`, comme `LADDER_SHARD` au banc : cinq
+  parts cherchent *les mêmes* dessins dans *leur* tranche de graines, puis une fusion relit
+  tous les blocs, **recalcule ce qu'ils portent** — on ne croit pas une part sur parole — et
+  fait le recouvrement. ⚠ Et `TaskStop` tue le shell, **pas le Godot dessous** : une part
+  orpheline a mangé un cœur pendant vingt minutes.
+
+  ⚠ **`Brink.keys()` EST NÉ DE CE CHANTIER, EN RETIRANT UNE COPIE.** Les silhouettes par
+  étage, la carte visible, le vocabulaire et les robes fermées vivaient en entier dans
+  `Contour.compose` : tout outil voulant les clés d'un relief devait soit recopier le bloc,
+  soit **dessiner l'image entière** pour lire un dictionnaire. Le modèle les tient désormais,
+  une fois.
+
+  ⚠ **PIÈGE DE LANGAGE : ne pas nommer une méthode `_set`.** `Object._set(StringName,
+  Variant)` existe déjà ; en redéfinir la signature est une **erreur d'analyse**, et le script
+  ne charge plus du tout.
 
 ## Version
 

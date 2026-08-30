@@ -34,11 +34,41 @@ RETIRES = 0
 DIAG_ERGOT = True   # la regle ; `--ergot=voisine` rejoue l'ancienne
 
 
+def forces(sil):
+    """LES BITS QUE L'EPAISSEUR REND OBLIGATOIRES -- pas libres, pas absents : FORCES.
+
+    ⚠ ET C'EST LA PREMISSE DE CE FICHIER QUI ETAIT FAUSSE. « L'exterieur etant libre sur un
+    plan non borne, les deux valeurs sont realisables des que la precondition tient » : vrai
+    d'un plan quelconque, FAUX sous min trois, ou l'epaisseur contraint aussi le dehors.
+
+    L'argument, en trois pas, et il ne tient qu'aux diagonales NORD :
+      1. NE vide -- enregistre, donc N et E pleins -- oblige la course de la rangee du nord a
+         s'etendre vers l'OUEST, faute de pouvoir aller a l'est. Donc NO est PLEIN ;
+      2. NO plein au-dessus d'un ouest VIDE, c'est une levre : sa face couvre mon ouest ;
+      3. donc `BORD_W` vaut un, toujours. Et comme `ABOVE_W` et `BELOW_W` exigent que je
+         trace vraiment ce cote-la, ils tombent avec.
+
+    Le miroir vaut a l'est. Aucun autre coin ne force : une diagonale SUD pleine ne met
+    aucune levre au-dessus de ma cardinale vide -- une robe se pose sous une levre, jamais
+    au-dessus.
+
+    Mesure : la borne haute passe de 125 cles / 31 dessins a ce que dit `--liste`, et les
+    huit dessins qui tombent sont exactement ceux qu'aucun monde n'a jamais poses.
+    """
+    out = 0
+    if sil & N and sil & E and not sil & NE and not sil & W:
+        out |= BORD_W
+    if sil & N and sil & W and not sil & NW and not sil & E:
+        out |= BORD_E
+    return out
+
+
 def libres(sil):
     """Les bits dont la precondition ne depend que de la silhouette."""
     out = []
-    if not sil & E: out.append(BORD_E)
-    if not sil & W: out.append(BORD_W)
+    tenus = forces(sil)
+    if not sil & E and not tenus & BORD_E: out.append(BORD_E)
+    if not sil & W and not tenus & BORD_W: out.append(BORD_W)
     if not sil & N: out.append(NORTH_QUIET)
     for coin in range(4):
         a, b = coin, (coin + 3) % 4
@@ -89,7 +119,7 @@ def forme():
         base = libres(sil)
         vus = set()
         for n in range(1 << len(base)):
-            bits = 0
+            bits = forces(sil)
             for i, b in enumerate(base):
                 if n >> i & 1: bits |= b
             for extra in range(16):
@@ -118,7 +148,7 @@ def toutes():
         base = libres(sil)
         vus = set()
         for n in range(1 << len(base)):
-            bits = 0
+            bits = forces(sil)
             for i, b in enumerate(base):
                 if n >> i & 1: bits |= b
             for extra in range(16):
@@ -167,8 +197,11 @@ def main():
                 dehors.append((k, "silhouette hors des 27")); continue
             if not valide(sil, bits):
                 dehors.append((k, "bits impossibles")); continue
+            if bits & forces(sil) != forces(sil):
+                dehors.append((k, "bit force par l'epaisseur, absent")); continue
             for b in [1 << i for i in range(17)]:
-                if bits & b and b not in libres(sil) and b not in (FLUSH_E, FLUSH_W, BELOW_E, BELOW_W):
+                if (bits & b and b not in libres(sil) and not b & forces(sil)
+                        and b not in (FLUSH_E, FLUSH_W, BELOW_E, BELOW_W)):
                     dehors.append((k, "bit %d sans precondition" % b)); break
         print("  CONTROLE : %d tuiles rencontrees, %d HORS de la forme" % (len(vues), len(dehors)))
         for k, quoi in dehors[:8]:
