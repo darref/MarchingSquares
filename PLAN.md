@@ -2546,6 +2546,93 @@ lisait même pas comme un ras — elle se lisait comme une constante anodine.
 là que *straight* et *ondulated* doivent se séparer pour les falaises — bosse plate d'un côté,
 bosse qui serpente de l'autre. À faire avec les styles, et noté aux questions ouvertes.
 
+### 30 · LE TRANSFERT DE LA CRÊTE DEVIENT LA SPÉCIFICATION — et ce qu'il en coûte
+
+*Décision utilisateur, prise en connaissance du prix : « on change de modèle, tant pis si on a
+fait tout ça pour rien, continue de réutiliser tout ce que tu peux, c'est maintenant la vraie
+spécification ».*
+
+**La règle, en une phrase :** la frontière lèvre / falaise appartient à la **tuile de surface à
+bord sud**, qui porte le haut de sa propre face ; le chapiteau se tait.
+
+⚠ **ET LA LICENCE EST UN THÉORÈME DÉJÀ AU DOSSIER** : *« une case dont le sud est vide est une
+LÈVRE, sa propre face couvre la case d'en dessous, TOUJOURS »*. Constant, donc peignable dans la
+tuile — mot pour mot l'argument de l'épaule.
+
+⚠ **CE N'EST PAS « RENDRE LE SUD », REFUSÉ EN SON TEMPS (222 → 669 extrémités).** Celui-là était
+une **addition** — la surface rouvrait son sud pendant que la crête traçait encore. Ici c'est un
+**échange**, et I3 le confirme : 0 double, 0 muette, 0 parasite.
+
+**Ce que le modèle a réutilisé : tout.** Les 27 silhouettes, les bits de bord, les classes de
+raccord, les 44 rôles avec l'arête interne, le guide, l'échelle, le recensement. Le transfert ne
+remplace rien — il **déplace un propriétaire**. Une seule chose est jetée : la crête du
+chapiteau.
+
+**Trois formulations ont remplacé autant de rustines :**
+
+1. ⚠ **« Sous une lèvre, ce qui est en dessous de la tuile EST la face. »** Une seule règle à
+   toutes les libertés. À **F0** le bandeau a une profondeur nulle : l'herbe touche la face et
+   son trait tombe sur la rangée du bas. À F1/F2 le bandeau est là, la roche continue chez la
+   robe, rien ne se trace. J'avais commencé à écrire deux cas — c'était le signe que je n'avais
+   pas la bonne règle, et F0 est le **témoin** : sans lui le modèle n'a plus de plancher.
+2. ⚠ **Le transfert ne vaut que pour la famille PAR CASE.** À cheval, une tuile de surface est
+   posée sur le **croisement de quatre cases** : elle chevauche la lèvre *et* sa face, donc le
+   bandeau tomberait en son milieu. Le chapiteau y garde sa crête, et L5 repasse au vert.
+3. ⚠ **C'est la RANGÉE qui décide où la coupe latérale s'arrête, pas la colonne.** Le bandeau
+   varie par colonne, la coupe par rangée : entrelacés, ils laissaient un **îlot de roche de
+   deux pixels**, détaché donc cerné donc épais.
+
+**Le compte :**
+
+```
+                      avant      apres
+  extremites (I1)       0          0     partout, F0 et L5 compris
+  tuiles de surface    64         74
+  dessins              36         44
+  roles de robe        44         44
+  couples rouges       0          9      tous I2, 35 paves
+```
+
+### 30bis · CE QUI RESTE, ET C'EST UNE CLASSE NOUVELLE
+
+⚠ **LE BANDEAU DOIT DÉBORDER, ET C'EST FORCÉ.** La face en dessous occupe **toute la colonne**,
+et son flanc est pincé à zéro au coin — mesuré et démontré à la 8.x. Le bandeau doit donc
+atteindre le bord de case, alors que la surface, elle, est coupée à sa propre profondeur (4 à
+7). Son bord haut borde donc du transparent — et dans l'image assemblée, **ce transparent laisse
+voir l'étage enterré, qui y a son propre trait**. Les deux se touchent : un pavé.
+
+```
+   13   ....############   la surface est coupee a x<4, l herbe tracee (roche dessous)
+   14   ####rrrrrrrrrrrr   le bandeau DEBORDE, et son bord haut se trace
+```
+
+⚠ **C'EST UNE COLLISION ENTRE DEUX COUCHES, PAS ENTRE DEUX CÔTÉS D'UNE TUILE.** I3 ne peut pas
+la voir — il ne juge que les frontières d'une même case. I2 la voit sans pouvoir dire entre qui.
+C'est le prix d'un modèle qui met de la **face dans une tuile de surface** : les couches se
+rencontrent désormais **à l'intérieur** d'une case, et aucun invariant n'a été conçu pour ça.
+
+⚠ **ET L'AMPLITUDE 6 N'Y SURVIT PAS.** Gratuite dans l'ancien modèle — *0 pavé* — elle creuse
+dans le nouveau jusqu'à découvrir la couche du dessous : **22 pavés**. Ramenée à 3, il en reste
+**3**. Une liberté gagnée la veille se repaie le lendemain, et c'est exactement ce qu'un
+changement de modèle révèle.
+
+```
+  sans transfert, amplitude 6 :  0 pave
+  avec transfert, amplitude 6 : 22 paves
+  avec transfert, amplitude 3 :  3 paves
+```
+
+**État livré : le transfert vit derrière `LADDER_CREST=surface`, l'échelle par défaut reste
+verte sur les vingt-six couples.** On ne met pas un modèle rouge par défaut, même quand c'est
+lui la cible — la règle du dépôt tient : *ce qui n'est pas garanti est interdit*.
+
+**Le reste à faire, nommé** : décider **qui trace le haut du débord** — le bandeau, ou l'étage
+enterré qu'on voit à travers. C'est la même question que partout, à un endroit que le modèle
+n'avait jamais eu : entre deux **couches** d'une même case.
+
+⚠ **Et il faudra un septième regard**, ou étendre I3 : tant qu'aucun invariant ne sait nommer
+une frontière **entre couches**, ce défaut-là se compte mais ne se diagnostique pas.
+
 ### 29 · LE RECENSEMENT NETTOYÉ — ET IL DÉSIGNE UNE SEULE MUETTE STRUCTURELLE
 
 Le premier relevé portait **quinze espèces mal étiquetées**. La cause est instructive : je

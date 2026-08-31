@@ -50,7 +50,7 @@ static func paint(vocabulary: Dictionary, freedom: int, level: int,
 		if (brink & Brink.LIP_ALONE_WEST) != 0:
 			alone |= 2
 		tiles[int(key)] = Contour.shape(open, freedom, GRASS, index, brink, false, false, seams,
-				Brink.crest_on_surface and Brink.is_lip(index, level), alone)
+				Brink.crest_on_surface and level < 5 and Brink.is_lip(index, level), alone)
 	return tiles
 
 

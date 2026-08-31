@@ -433,7 +433,12 @@ static func wall_open(key: Variant) -> Array[bool]:
 	# d'une robe est un second traceur, et c'est lui qu'on peut retirer. Le PAN ne sert plus a
 	# rien : les vingt roles tombent aux cinq rangees. On mesure si ca ferme.
 	# LE TRANSFERT DE LA CRETE : quand la surface prend son sud, le chapiteau se tait.
-	var crown: bool = role.y == Walls.ROW_CROWN and not Brink.crest_on_surface
+	# ⚠ ET LE TRANSFERT NE VAUT QUE POUR LA FAMILLE PAR CASE. A cheval, une tuile de surface
+	# est posee sur le CROISEMENT de quatre cases : elle chevauche la levre ET sa face, donc
+	# le bandeau tomberait en son milieu. Le chapiteau y garde sa crete tant que la famille
+	# duale n'a pas sa propre reponse -- et `compose()` ne sert de toute facon que la famille
+	# par case, celle que le logiciel livre.
+	var crown: bool = role.y == Walls.ROW_CROWN 			and not (Brink.crest_on_surface and level < 5)
 	if astride == "face":
 		return [crown, false,
 				role.y == Walls.ROW_FOOT and (give & 4) == 0, false]
@@ -587,6 +592,11 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 	while seams.size() < 4:
 		seams.append(0)
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	# LA RANGEE LA PLUS HAUTE QUE LE BANDEAU DE LEVRE ATTEIGNE.
+	var band: int = 0
+	if lip:
+		for x0: int in range(RES):
+			band = maxi(band, depth(2, x0, freedom, seams[2]))
 	var solid: Array[PackedByteArray] = []
 	for y: int in range(RES):
 		var line: PackedByteArray = PackedByteArray()
@@ -596,13 +606,25 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 			if open[0] and y < (wall_depth(0, x, freedom, seams[0]) if wall
 					else (0 if flat_north else north_depth(x, freedom, quiet, seams[0]))):
 				inside = false
-			if open[1] and x > RES - 1 - (wall_depth(1, y, freedom, seams[1]) if wall
-					else side_depth(1, y, freedom, quiet, seams[1])):
+			# ⚠ LE BANDEAU DE ROCHE APPARTIENT A LA FACE, DONC IL SUIT SES REGLES DE BORD.
+			# Coupe a la profondeur d'une SURFACE (4 a 7) alors que la face juste dessous
+			# coupe a la sienne (pincee a zero au coin), il ne la rejoint pas au bord de
+			# case : 202 extremites, toutes a cette jonction. La profondeur se lit donc en
+			# distance au BAS de la tuile, pour valoir zero la ou la face commence.
+			# ⚠ ET C'EST LA RANGEE QUI DECIDE, PAS LA COLONNE. Le bandeau varie par COLONNE
+			# -- 2 ou 3 de profondeur -- et la coupe laterale par RANGEE : entrelaces, ils
+			# laissent un ILOT de roche de deux pixels, detache, donc cerne de tous cotes,
+			# donc epais. Mesure : 4 paves, et trois hypotheses fausses avant de regarder
+			# les pixels. La coupe s'arrete donc a la rangee la plus HAUTE que le bandeau
+			# atteigne, et le bandeau ne decide plus que de la matiere.
+			var stony: bool = lip and y > RES - 1 - band
+			if open[1] and not stony and x > RES - 1 - (wall_depth(1, y, freedom, seams[1])
+					if wall else side_depth(1, y, freedom, quiet, seams[1])):
 				inside = false
 			if open[2] and y > RES - 1 - (wall_depth(2, x, freedom, seams[2]) if wall
 					else depth(2, x, freedom, seams[2])):
 				inside = false
-			if open[3] and x < (wall_depth(3, y, freedom, seams[3]) if wall
+			if open[3] and not stony and x < (wall_depth(3, y, freedom, seams[3]) if wall
 					else side_depth(3, y, freedom, quiet, seams[3])):
 				inside = false
 			line[x] = 1 if inside else 0
@@ -639,12 +661,12 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 	# elle change la MATIERE, et c'est leur frontiere qui portera le trait.
 	var stone: Array[PackedByteArray] = []
 	for y: int in range(RES):
-		var band: PackedByteArray = PackedByteArray()
-		band.resize(RES)
+		var strip: PackedByteArray = PackedByteArray()
+		strip.resize(RES)
 		if lip:
 			for x: int in range(RES):
-				band[x] = 1 if y > RES - 1 - depth(2, x, freedom, seams[2]) else 0
-		stone.append(band)
+				strip[x] = 1 if y > RES - 1 - depth(2, x, freedom, seams[2]) else 0
+		stone.append(strip)
 
 	for y: int in range(RES):
 		for x: int in range(RES):
@@ -656,6 +678,16 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 				if probe.x < 0 or probe.y < 0 or probe.x >= RES or probe.y >= RES:
 					if open[side]:
 						edge = true
+					# ⚠ SOUS UNE LEVRE, CE QUI EST EN DESSOUS DE LA TUILE **EST** LA FACE.
+					# C'est un theoreme du dossier -- « une case dont le sud est vide est une
+					# levre, sa propre face couvre la case d'en dessous, TOUJOURS » -- et
+					# c'est lui qui rend la regle uniforme a toutes les libertes. A F0 le
+					# bandeau a une profondeur NULLE : l'herbe touche donc la face, et son
+					# trait tombe sur la rangee du bas. A F1 et F2 le bandeau est la, la
+					# roche continue chez la robe, et rien ne se trace. Une seule regle, pas
+					# deux -- sans quoi F0, qui est le TEMOIN, n'aurait plus de dessin.
+					elif lip and side == 2 and stone[y][x] == 0:
+						edge = true
 					continue
 				if solid[probe.y][probe.x] == 0:
 					edge = true
@@ -664,7 +696,12 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 				# regle que pour la matiere et le vide, ou seul le PLEIN porte le trait ; ici
 				# c'est l'HERBE qui le porte, et la roche reste nette pour continuer chez la
 				# robe d'en dessous sans un pixel de plus.
-				elif stone[probe.y][probe.x] != 0 and stone[y][x] == 0:
+				# ⚠ ET ELLE EST HORIZONTALE PAR NATURE : c'est le HAUT de la face. Tracee
+				# aussi lateralement -- la ou sa profondeur change d'une colonne a
+				# l'autre -- elle double le trait du bord : 4 paves, mesures. La marche
+				# d'une colonne a la suivante est portee par le pixel du DESSUS, comme
+				# toute marche d'un trait horizontal.
+				elif side != 1 and side != 3 and stone[probe.y][probe.x] != 0 						and stone[y][x] == 0:
 					edge = true
 			# LE TRAIT AU BORD DE CASE, SANS COUPER LA MATIERE. Deux usages, une mecanique :
 			# la LEVRE SEULE (ma roche touche l'herbe de ma voisine) et l'ARETE INTERNE (ma

@@ -2972,6 +2972,61 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   qui manquaient au guide — il faut des poses décalées, donc le domaine énuméré n'est pas le
   domaine.
 
+- **LE TRANSFERT DE LA CRETE DEVIENT LA SPECIFICATION -- decision utilisateur, prise en
+  connaissance du prix.** *« On change de modele, tant pis si on a fait tout ca pour rien,
+  continue de reutiliser tout ce que tu peux, c'est maintenant la vraie specification. »*
+
+  **La regle, en une phrase** : la frontiere levre / falaise appartient a la **tuile de surface
+  a bord sud**, qui porte le haut de sa propre face ; le chapiteau se tait.
+
+  ⚠ **LA LICENCE EST UN THEOREME DEJA AU DOSSIER** -- *« une case dont le sud est vide est une
+  LEVRE, sa propre face couvre la case d'en dessous, TOUJOURS »*. Constant, donc peignable dans
+  la tuile : mot pour mot l'argument de l'epaule.
+
+  ⚠ **ET CE N'EST PAS « RENDRE LE SUD », REFUSE EN SON TEMPS (222 -> 669 extremites).**
+  Celui-la etait une **addition** -- la surface rouvrait son sud pendant que la crete tracait
+  encore. Ici c'est un **echange**, et I3 le confirme : 0 double, 0 muette, 0 parasite.
+
+  ⚠ **ET LE MODELE REUTILISE TOUT.** Les 27 silhouettes, les bits de bord, les classes de
+  raccord, les 44 roles avec l'arete interne, le guide, l'echelle, le recensement. Le transfert
+  ne remplace rien : il **deplace un proprietaire**. Une seule chose est jetee -- la crete.
+
+  **Trois formulations, chacune meilleure que la rustine qu'elle remplace :**
+  - ⚠ **« Sous une levre, ce qui est en dessous de la tuile EST la face. »** Une seule regle a
+    toutes les libertes : a **F0** le bandeau a une profondeur nulle, l'herbe touche la face et
+    son trait tombe sur la rangee du bas ; a F1/F2 la roche continue et rien ne se trace.
+    J'avais commence a ecrire **deux cas** -- le signe que je n'avais pas la bonne regle, et F0
+    est le temoin : sans lui le modele n'a plus de plancher.
+  - ⚠ **Le transfert ne vaut que pour la famille PAR CASE.** A cheval, la tuile est posee sur le
+    **croisement de quatre cases** : elle chevauche la levre *et* sa face, le bandeau tomberait
+    en son milieu. Le chapiteau y garde sa crete, et L5 repasse au vert.
+  - ⚠ **C'est la RANGEE qui decide ou la coupe laterale s'arrete, pas la colonne.** Entrelaces,
+    les deux laissaient un **ilot de roche de deux pixels**, detache donc cerne donc epais.
+
+  ```
+                        avant      apres
+    extremites (I1)       0          0     partout, F0 et L5 compris
+    tuiles de surface    64         74
+    dessins              36         44
+    couples rouges        0          9     tous I2, 35 paves
+  ```
+
+  ⚠ **CE QUI RESTE EST UNE CLASSE QUE LE MODELE N'AVAIT JAMAIS EUE.** Le bandeau **doit**
+  deborder : la face en dessous occupe toute la colonne et son flanc est pince a zero au coin,
+  alors que la surface est coupee a sa propre profondeur. Son bord haut borde donc du
+  transparent -- et dans l'image assemblee, **ce transparent laisse voir l'etage enterre, qui y
+  a son propre trait**. Une collision **entre deux couches**, pas entre deux cotes d'une tuile :
+  I3 ne peut pas la voir, I2 la compte sans dire entre qui. Mettre de la face **dans** une tuile
+  de surface fait se rencontrer les couches **a l'interieur** d'une case.
+
+  ⚠ **ET L'AMPLITUDE 6 N'Y SURVIT PAS** : gratuite dans l'ancien modele (0 pave), elle creuse
+  dans le nouveau jusqu'a decouvrir la couche du dessous (22 paves ; 3 a l'amplitude 3). Une
+  liberte gagnee la veille se repaie le lendemain -- c'est ce qu'un changement de modele revele.
+
+  **Livre derriere `LADDER_CREST=surface`, l'echelle par defaut restant verte sur les vingt-six
+  couples.** On ne met pas un modele rouge par defaut, meme quand c'est lui la cible : *ce qui
+  n'est pas garanti est interdit*.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :

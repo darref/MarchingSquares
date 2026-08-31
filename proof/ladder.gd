@@ -310,6 +310,9 @@ func _initialize() -> void:
 	Contour.meet = OS.get_environment("LADDER_MEET")
 	Contour.half_axis = OS.get_environment("LADDER_HALF") == "axe"
 	Contour.wall_free = OS.get_environment("LADDER_WALLFREE")
+	# LE TRANSFERT DE LA CRETE : la surface de levre prend le haut de sa face, le
+	# chapiteau se tait. Voir `Brink.crest_on_surface`.
+	Brink.crest_on_surface = OS.get_environment("LADDER_CREST") == "surface"
 	var asked: String = OS.get_environment("LADDER_RIDGE")
 	if not asked.is_empty():
 		Contour.wall_ridge = "" if asked == "aucune" else asked
