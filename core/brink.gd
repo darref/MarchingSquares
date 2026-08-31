@@ -18,6 +18,7 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
 const Coverage := preload("res://core/coverage.gd")
+const Thickness := preload("res://core/thickness.gd")
 
 
 ## LES BITS DU BORD, au-dessus des huit de silhouette.
@@ -580,7 +581,7 @@ static func keys(world: PackedStringArray, level: int) -> Dictionary:
 			for x: int in range(HeightMask.width(mask)):
 				if Coverage.index_at(mask, x, y) == Coverage.NO_INDEX:
 					continue
-				map[Vector2i(x, y)] = Coverage.index_at(mask, x, y)
+				map[Vector2i(x, y)] = shave(Coverage.index_at(mask, x, y), level)
 		storeys.append(map)
 	var indices: Dictionary = {}
 	for y: int in range(HeightMask.height(world)):
@@ -600,6 +601,40 @@ static func keys(world: PackedStringArray, level: int) -> Dictionary:
 		roles = mark(world, storeys, indices, vocabulary, seen["roles"], level)
 	return {"storeys": storeys, "indices": indices, "vocabulaire": vocabulary,
 			"roles": roles, "seen": seen}
+
+
+## LES DIAGONALES SUD SONT INERTES DES QU'IL Y A DES FACES, ET C'EST UN THEOREME.
+##
+## Une diagonale n'est enregistree que si ses deux cardinaux sont pleins : pour `SE`, cela veut
+## dire `S` PLEIN. Or *des L2 le sud ne se trace jamais* -- c'est le theoreme de la levre, deja
+## au dossier. Mon bord sud n'est pas dessine, mon bord est non plus (`E` plein), donc le coin
+## entre les deux n'existe pas dans mon trace : `SE` ne peut rien y changer. Miroir au sud-ouest.
+##
+## ⚠ ET CA NE VAUT QU'A PARTIR DE L2. Sans faces le sud SE TRACE, et les diagonales sud comptent.
+## Le serrage est donc une propriete du NIVEAU, pas de `BlobIndex` -- la canonicalisation des 47
+## et le theoreme des 27 ne bougent pas d'un pouce.
+##
+## ⚠ ET C'EST LE DETECTEUR QUI L'A DESIGNE, PAS UN RAISONNEMENT : « bits qui ne distinguent
+## RIEN : 8 x22, 32 x22 », a F1 comme a F2, sur la forme fermee peinte. L'argument est venu
+## apres, pour dire POURQUOI -- et une explication inventee apres la mesure ne vaut que si elle
+## se verifie ensuite, ce que le banc fait.
+static func shave(index: int, level: int) -> int:
+	if level < 2:
+		return index
+	return index & ~(BlobIndex.SE | BlobIndex.SW)
+
+
+## LES SILHOUETTES QU'UN MONDE DOIT EXERCER A CE NIVEAU -- 27 sans faces, 17 des qu'il y en a.
+##
+## ⚠ ET ELLE SE CALCULE DEPUIS `Thickness`, elle ne se recopie pas. Le compte attendu vivait en
+## dur dans le banc (`Thickness.SURFACE_INDICES.size()`) : le serrage des diagonales sud l'a
+## rendu faux d'un coup, et sept couples ont echoue sur une exigence perimee -- pas sur un
+## defaut. Un nombre attendu qui ne suit pas la regle qu'il controle est un endroit ou mentir.
+static func silhouettes(level: int) -> Dictionary:
+	var out: Dictionary = {}
+	for index: int in Thickness.SURFACE_INDICES:
+		out[shave(index, level)] = true
+	return out
 
 
 ## LA CASE EST-ELLE UNE LEVRE ? Sud vide dans sa silhouette, donc sa propre face commence juste

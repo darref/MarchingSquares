@@ -631,7 +631,12 @@ func _run(couple: String) -> bool:
 				# Mesure : 51 voisinages bruts realisables en epais, 27 silhouettes -- et les
 				# cinq invariants restent verts a l'identique avec 27 tuiles au lieu de 45.
 				# La liberte laterale ne coute AUCUNE tuile.
-				map[Vector2i(x, y)] = Coverage.index_at(mask, x, y)
+				#
+				# ⚠ ET DES L2 LES DIAGONALES SUD TOMBENT -- theoreme, voir `Brink.shave`. Le
+				# banc le demande au modele, il ne le refait pas : c'est la troisieme fois de
+				# la session qu'une regle posee d'un cote n'a rien change parce que l'autre
+				# cote avait sa copie.
+				map[Vector2i(x, y)] = Brink.shave(Coverage.index_at(mask, x, y), level)
 		storeys.append(map)
 
 	# La carte VISIBLE : chaque case porte la tuile de SON etage, celle qu'on voit de dessus.
@@ -802,7 +807,7 @@ func _run(couple: String) -> bool:
 	var canonical: Dictionary = {}
 	for cell: Vector2i in indices.keys():
 		canonical[BlobIndex.canonicalize(int(indices[cell]) & 0xff)] = true
-	var expected: int = Thickness.SURFACE_INDICES.size()
+	var expected: int = Brink.silhouettes(level).size()
 	var complete: bool = canonical.size() == expected
 	if level >= 5:
 		# ⚠ ET ON COMPTE LES QUINZE SILHOUETTES, PAS LES TUILES. Les bits de bord multiplient

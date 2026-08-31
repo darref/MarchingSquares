@@ -31,8 +31,14 @@ BELOW_E, BELOW_W = 32768, 65536
 # drapeau : la forme fermee annoncait donc une borne d'un modele qui n'etait plus le modele.
 LIP_ALONE_E, LIP_ALONE_W = 131072, 262144
 
-SILHOUETTES = [5,7,20,23,28,29,31,65,71,80,92,112,113,116,119,124,127,193,197,199,209,221,
-               223,241,247,253,255]
+# ⚠ ET LES DIAGONALES SUD SONT RETIREES -- theoreme, voir `Brink.shave`. Une diagonale n'est
+# enregistree que si ses deux cardinaux sont pleins ; pour `SE` cela veut dire `S` PLEIN, et
+# des L2 le sud ne se trace jamais. Le coin entre deux bords qu'on ne trace pas n'existe pas
+# dans le trace : `SE` ne peut rien y changer, ni `SO`. Mesure : les 27 tombent a 17, la forme
+# de 126 a 82 cles, et les DESSINS ne bougent pas -- 43 avant, 43 apres.
+LES_27 = [5,7,20,23,28,29,31,65,71,80,92,112,113,116,119,124,127,193,197,199,209,221,
+          223,241,247,253,255]
+SILHOUETTES = sorted({s & ~(SE | SW) for s in LES_27})
 
 
 RETIRES = 0
