@@ -195,26 +195,110 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 | **L1/F0** | **✅ acquis** | monde 86×174, **4 étages**, 13 200 cases visibles · 0 extrémité · 0 pavé 2×2 · **1 595 frontières, pile max 3**, 0 double, 0 muette, 0 parasite · 0 trou · **27 tuiles** |
 | **L1/F1** | **✅ acquis** | 4 étages · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · 27 tuiles |
 | **L1/F2** | **✅ acquis** | 4 étages, trait libre à l'intérieur · 0 extrémité · 0 pavé 2×2 · 1 595 frontières, pile max 3, 0 double · 0 trou · **10 profils dont 25 qui serpentent** · 27 tuiles |
-| **L2/F0** | **✅ acquis** | **57 + 20 = 77 tuiles** · les six verts |
+| **L2/F0** | **✅ acquis** | **46 + 44 = 90 tuiles** · les six verts |
 | **L2/F1** | **✅ acquis** | **0 extrémité** — les deux derniers pixels sont fermés · les six verts |
 | **L2/F2** | **✅ acquis** | idem, **7 profils dont 34 qui serpentent** |
 | **L3/F0** | **✅ acquis, et aveugle** | l'image est **identique au bit près** à L2/F0 — I6 y regarde une fenêtre de **0 pixel** |
 | **L3/F1** | **✅ acquis** | `mute` **tranché par I6** · 0 extrémité · **I6 ✅ à travers 5 648 pixels de transparence** |
 | **L3/F2** | **✅ acquis** | idem, 7 profils dont 34 qui serpentent · **I6 ✅ à travers 8 191 pixels** |
 
-| **L5/F0** | **✅ acquis** | sur la **planche duale**, 15/15 formes, les six verts — **64 tuiles à cheval + 20 rôles** |
-| **L5/F1** | **✅ acquis** | **0 extrémité** — parti de 43 · 1 profil plat déplacé · **64 + 20 = 84 tuiles**, inchangées |
+| **L5/F0** | **✅ acquis** | sur la **planche duale**, 15/15 formes, les six verts — **40 tuiles à cheval + 44 rôles** |
+| **L5/F1** | **✅ acquis** | **0 extrémité** — parti de 43 · 1 profil plat déplacé · **40 + 44 = 84 tuiles**, inchangées |
 | **L5/F2** | **✅ acquis** | **0 extrémité** — parti de 91 · 6 profils dont 29 qui serpentent · I6 ✅ à travers 35 pixels |
 | **L4** | **✅ acquis, à tous les niveaux** | les raccords se recensent depuis le monde **et contraignent le dessin** — 51 bords → **36 classes** à L2/L3, les six verts, et I5 passe de **7 à 22 profils distincts** |
-| **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×141 — 64 + 20 = **84 tuiles**, 55 bords → 35 classes, les six verts |
+| **L3/F2@guide** | **✅ acquis** | **un second monde**, 104×229 — 63 + 44 = **107 tuiles**, **43 dessins**, les six verts |
 | **L2/F2@battue1·2·3** | **✅ acquis** | **L2 est CLOS : les six invariants verts sur les CINQ mondes** |
 | **L3/F2@battue1·2·3** | **✅ acquis** | **L3 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 14 · 10 · 4 extrémités |
-| **L5/F2@guide** | **✅ acquis** | 104×141 — **58 + 20 = 78 tuiles**, les six verts |
+| **L5/F2@guide** | **✅ acquis** | 104×229 — **55 + 44 = 99 tuiles**, **43 dessins**, les six verts |
 | **L5/F2@battue1·2·3** | **✅ acquis** | **L5 est CLOS : les six invariants verts sur les CINQ mondes** — partis de 4 · 0 · 0 extrémités et 19 · 6 · 10 pavés |
 
 ⚠ **L'ÉCHELLE EST DONC VERTE SUR VINGT-SIX COUPLES** — les douze de la planche par case à
-**78 tuiles** (58 surfaces + 20 rôles), le plus exigeant rejoué sur le **guide** à 84, les six des
+**90 tuiles** (46 surfaces + 44 rôles), le plus exigeant rejoué sur le **guide** à 107, les six des
 trois battues, et **les sept de la famille à cheval**, sur les cinq mondes.
+
+### 32 · LE TRANSFERT DE LA CRÊTE EST LE MODÈLE — et les deux défauts qui le bloquaient
+
+Il vivait derrière `LADDER_CREST=surface` depuis qu'il a été décidé, pour une raison écrite le
+jour même : *on ne met pas un modèle rouge par défaut, même quand c'est lui la cible*. Il laissait
+**35 pavés sur 9 couples**. Il n'en laisse plus aucun, et il est devenu le défaut ;
+`LADDER_CREST=crete` rend l'ancien pour les comparer.
+
+⚠ **LE PREMIER CORRECTIF NE TOURNAIT PAS, ET LA MESURE DISAIT « ZÉRO GAGNÉ ».** La variante
+enterrée — *une lèvre cachée sous un étage plus haut ne montre pas sa face* — était dérivée chez
+**un** appelant, qui la passait en paramètre. Le banc appelle `assemble()` en direct, trois fois,
+et ne la passait pas : le paramètre valait `{}`. **Un mécanisme qui dort rend le chiffre d'avant,
+exactement comme un mécanisme qui échoue** — les deux se lisent pareil dans un tableau. Deuxième
+fois de la session, après le drapeau mangé par une édition.
+
+⚠ **D'OÙ LA RÈGLE : UNE POSE SE DÉRIVE LÀ OÙ ELLE SE POSE.** `assemble()` est le seul endroit qui
+sache ce qui est enterré ; un appelant qui le recalcule serait une seconde copie d'une même règle.
+`level` remplace `buried` dans la signature — quatre appelants, tous obligés de le dire.
+
+⚠ **UNE COUCHE ENTERRÉE PORTE SA MATIÈRE, JAMAIS SON TRAIT.** Effacer le bandeau ferme les pavés,
+et I6 le refuse : **219 pixels de fond** dans une case que le modèle dit pleine — parce que *toute*
+la pile s'efface et que la dernière ne laisse rien derrière elle. On le **tait** : son trait
+devient sa roche. Zéro matière perdue par construction, et c'est mot pour mot la règle de la pose
+arrière — *sa matière sans son contour* — une couche plus haut.
+
+**LE SECOND DÉFAUT : `LIP_ALONE` LISAIT LA SILHOUETTE LÀ OÙ IL FALLAIT LIRE LA SURFACE VISIBLE.**
+Le bit dit *ma bande de roche bute sur l'herbe de ma voisine, donc je trace*, et il cherchait cette
+voisine **dans ma propre silhouette**. Deux fois faux :
+
+- **une robe la couvre** — ce n'est pas son herbe qu'on voit, c'est de la **roche**, et cette roche
+  est une face pleine dont le flanc trace déjà. *La face pleine trace, le liseré se tait* : même
+  arbitrage que l'arête interne, où le bloc qui avance porte l'angle ;
+- **elle est enterrée sous une lèvre plus haute** — c'est **son** bandeau qu'on voit, de la face
+  comme le mien, et un bandeau ne se creuse pas latéralement : il touche la frontière et la trace.
+
+⚠ **ET LE SECOND CRITÈRE N'EST PAS « ELLE EST PLUS HAUTE ».** Se taire dès que la voisine est
+enterrée rouvre **20 extrémités, toutes noyées** : une surface ordinaire **creuse** son bord
+latéral, son trait n'atteint jamais la frontière, et le mien y était le seul à la fermer. `is_lip`
+sépare exactement les deux cas. Essayé aussi et refusé parce qu'il ne séparait rien : demander à
+`draws_side` — elle répond pour tout le côté, sans savoir à quelles rangées.
+
+⚠ **TROISIÈME FOIS DE LA SESSION QU'UNE RÈGLE LIT LA SILHOUETTE AU LIEU DE LA SURFACE VISIBLE.**
+*On ne voit que le sommet* est au dossier depuis la couverture ; elle vaut aussi pour **qui trace**.
+
+⚠ **ET L'ATTRIBUTION PAR COUCHE A NOMMÉ LES DEUX FAMILLES EN UNE LIGNE.** I2 dit désormais, pour
+chacun des quatre pixels d'un pavé, **quelle couche l'a posé** — `surface étage 2 | robe`,
+`surface étage 1 | surface étage 3`. Sans elle je raisonnais sur des coordonnées : *trois
+hypothèses raisonnées, trois fois faux*, déjà au dossier pour les extrémités.
+
+```
+                          avant      apres
+  paves (I2)                35          0
+  couples rouges             9          0
+  tuiles de surface         74         63     (le guide)
+  dessins                   44         43
+```
+
+### 32bis · DIX TUILES QUE LE PEINTRE DEVAIT FAIRE ET QU'AUCUN MONDE NE POSE
+
+Le banc les comptait depuis le début — *10 JAMAIS POSÉE(S)* sur le guide, 8 sur la planche — sans
+qu'on lui demande d'où elles venaient. C'est le **critère 3** en plein : *aucune tuile de la
+planche n'est là pour rien*.
+
+**La cause.** Les bits de bord se posent en **plusieurs passes** — l'ergot demande à sa voisine un
+bord qu'on vient de lui poser, et l'ordre de calcul compte, ce qui est écrit six fois au dossier.
+Chaque état traversé s'inscrivait au vocabulaire **au passage** : une case écrite `s65`, puis
+corrigée en `s65 | BORD_E`, laissait `s65` derrière elle.
+
+⚠ **ET C'EST LA MÊME LIGNE QUE `indices`, TROIS LIGNES PLUS HAUT DANS LE MÊME FICHIER** — *la carte
+visible se refait depuis les silhouettes, jamais l'inverse ; la garder à jour à la main serait une
+seconde source, donc un endroit où mentir*. La règle était écrite, elle n'était appliquée qu'à
+moitié.
+
+⚠ **LES FANTÔMES NE COÛTAIENT AUCUN DESSIN** — ils peignaient la même image qu'une clé voisine, et
+ne gonflaient que le compte annoncé. C'est précisément pour ça qu'ils pouvaient rester sans se
+voir : rien n'était faux à l'écran.
+
+```
+                    guide    planche
+  annoncees          73        54
+  posees             63        46
+  fantomes           10 -> 0    8 -> 0
+  dessins            43        27      inchanges
+```
 
 ⚠ **TOUS LES NIVEAUX DE L'ÉCHELLE SONT CLOS.** L0 à L5, aux trois libertés, sur la planche de
 preuve de leur famille, sur le **guide**, et sur **trois battues tirées par le geste du pinceau**.
