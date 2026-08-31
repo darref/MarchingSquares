@@ -535,6 +535,23 @@ static func mark(world: PackedStringArray, storeys: Array[Dictionary], indices: 
 		for cell3: Vector2i in indices.keys():
 			indices[cell3] = int((storeys[HeightMask.level_at(world, cell3.x, cell3.y)]
 					as Dictionary)[cell3])
+	# ⚠ ET LE VOCABULAIRE SE REFAIT DEPUIS LES CARTES FINALES, JAMAIS EN CHEMIN. Les bits se
+	# posent en PLUSIEURS PASSES -- l'ergot demande a sa voisine un bord qu'on vient de lui
+	# poser -- et chaque etat traverse s'inscrivait au passage. Une case ecrite `s65` puis
+	# `s65 | BORD_E` laissait donc `s65` derriere elle : une tuile que le peintre doit faire et
+	# qu'AUCUN MONDE NE POSE JAMAIS.
+	#
+	# ⚠ C'EST LE CRITERE 3 DU PLAN EN PLEIN -- *aucune tuile de la planche n'est la pour rien*.
+	# Mesure : 10 fantomes sur le guide, 8 sur la planche, et ce sont exactement les
+	# silhouettes nues dont une seconde passe change la cle.
+	#
+	# ⚠ ET C'EST LA MEME LIGNE QUE `indices`, JUSTE AU-DESSUS : « la carte visible se refait
+	# depuis les silhouettes, jamais l'inverse -- la garder a jour a la main serait une seconde
+	# source, donc un endroit ou mentir ».
+	vocabulary.clear()
+	for storey4: int in range(storeys.size()):
+		for cell4: Vector2i in (storeys[storey4] as Dictionary).keys():
+			vocabulary[int((storeys[storey4] as Dictionary)[cell4])] = true
 	return roles
 
 
