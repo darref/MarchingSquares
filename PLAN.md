@@ -216,6 +216,69 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 **90 tuiles** (46 surfaces + 44 rôles), le plus exigeant rejoué sur le **guide** à 107, les six des
 trois battues, et **les sept de la famille à cheval**, sur les cinq mondes.
 
+### 34 · LE CRAN 3 : TAIRE UN CÔTÉ, C'EST DESSINER COMME SI LA MATIÈRE Y ÉTAIT
+
+Le critère 3 s'était arrêté sur un mur nommé au dossier : *« il reste 39 clés redondantes après le
+serrage, et **aucune paire ne diffère d'un seul bit** : le détecteur ne peut donc pas les
+accuser »*. Il est franchi, et la clé du serrage n'était pas un retrait.
+
+```
+  69 cles enumerees  ->  36 DESSINS distincts
+  CANONISEES : 69 cles distinctes  (0 retirees)      <- aucun bit ne part SEUL
+  ECHANGEES  : 36 cles distinctes, 0 qui ne rendent PAS le meme dessin
+  APRES L'ECHANGE : 36 dessins pour 36 cles, 0 groupe encore confondu
+```
+
+**LE DÉTECTEUR AVAIT RAISON ET NE POUVAIT PAS CONCLURE.** Aucun bit ne se retire seul — mesuré,
+zéro sur soixante-neuf — et pourtant quinze groupes se confondaient. Le motif se lit dans le
+premier, et il se lit en entier :
+
+```
+199(s199)   449(s193+bordE)   519(s7+bordW)   1095(s71+ergot0)
+1345(s65+bordE+ergot0)   2245(s197+ergot1)   2565(s5+bordW+ergot1)
+```
+
+**Ce ne sont pas des bits inertes : c'est la même tuile écrite de sept façons.** Un silence dit
+*« la voisine trace ce côté »* ; du point de vue du **dessin**, c'est exactement ce que dit un
+cardinal plein. La réduction n'est donc pas un **retrait** mais un **échange** :
+
+| le bit | ce qui le remplace |
+|---|---|
+| bord est | le cardinal `E`, plus `NE` si le nord est plein, `SE` si le sud l'est |
+| bord ouest | idem à l'ouest |
+| nord muet | le cardinal `N`, plus les diagonales des coins qu'il complète |
+| ergot d'un coin | la **diagonale** de ce coin |
+
+Les autres bits ne s'échangent pas : ils ne disent pas *« la voisine trace »*, ils changent la
+**profondeur** du trait. Rien de plein ne les remplace.
+
+⚠ **ET ON NE REMPLIT PAS TOUTES LES DIAGONALES.** Une silhouette nue dont un coin a ses deux
+cardinaux pleins et sa diagonale vide porte un **ergot**, et c'est une tuile à part entière. Seules
+les diagonales des coins **silencieux** se remplissent — sans quoi l'échange ferait naître un ergot
+que l'original n'avait pas.
+
+⚠ **ET PAS LES DIAGONALES SUD, CE QUI A COÛTÉ HUIT CLÉS.** Ma première version remplissait `SE` et
+`SO` comme les autres, et l'échange s'arrêtait à **44 clés pour 36 dessins**. Les six groupes
+restants ne différaient que par ces deux bits-là — c'est-à-dire par ce que `§33bis` avait déjà
+démontré **inerte dès L2**. L'échange fabriquait donc des silhouettes que la forme ne contient
+pas. **44 → 36 en cessant de les remplir.**
+
+⚠ **VÉRIFIÉ DANS LES DEUX SENS, ET C'EST CE QUI EN FAIT UNE RÈGLE.** Chacune des 69 clés est
+peinte, échangée, repeinte : **zéro ne change de dessin**. Et les 36 clés échangées sont **une par
+dessin** : zéro collision. La bijection est exacte, à F1 comme à F2.
+
+⚠ **CE QUE ÇA FERME, ET CE QUE ÇA NE FERME PAS.** *Aucune tuile de la planche n'est là pour rien* :
+la clé et le dessin sont en bijection, il n'y a plus une seule écriture redondante. Mais le compte
+**rencontré** sur le guide est de 43, pas 36 — l'écart est celui, déjà écrit à la section 23, des
+**classes de raccord** : la forme est peinte à graine nulle, et un monde qui met deux clés dans
+deux classes leur impose deux bords. 36 est le vocabulaire de **formes** ; ce que la planche
+portera se compte avec les raccords.
+
+⚠ **ET LA MÉTHODE VAUT D'ÊTRE GARDÉE : ON PEINT LA VARIANTE MÊME SI ELLE N'EST PAS DANS LA FORME.**
+Le détecteur ne comparait que des paires **déjà énumérées** ; quand une précondition exclut la
+variante, la paire n'existe pas et le bit passe inaperçu. La question n'est pas *« ce monde
+la produit-il ? »* mais *« ce bit change-t-il le dessin ? »*.
+
 ### 33 · LE COMPTE DU PRODUIT EST FAUX, ET LA CIBLE EST 43 DESSINS
 
 Trouvé à l'écran par l'utilisateur : la barre de progression annonce **47 tuiles** (27 surfaces

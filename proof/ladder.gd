@@ -440,6 +440,51 @@ func _initialize() -> void:
 ## fermee est une propriete du MODELE. On peint donc a graine nulle : deux cles qui rendent la
 ## meme image ici peuvent differer dans un monde qui les met dans deux classes. Le compte est
 ## donc le vocabulaire de FORMES, pas le nombre de cases d'une planche donnee.
+## L'ECHANGE : un silence devient la matiere qu'il fait taire.
+##
+##   bord est   -> le cardinal EST se remplit, plus NE si le nord est plein, SE si le sud l'est
+##   bord ouest -> idem a l'ouest
+##   nord muet  -> le cardinal NORD, plus NE si l'est est plein, NO si l'ouest l'est
+##   ergot d'un coin -> la DIAGONALE de ce coin
+##
+## Les autres bits ne s'echangent pas : ils ne disent pas « la voisine trace », ils changent
+## la PROFONDEUR du trait. Rien de plein ne les remplace.
+static func _swap(key: int) -> int:
+	var sil: int = key & 0xff
+	var bits: int = key >> 8
+	var fill: Array[int] = []
+	if (bits & 1) != 0:
+		fill.append(BlobIndex.E)
+		bits &= ~1
+	if (bits & 2) != 0:
+		fill.append(BlobIndex.W)
+		bits &= ~2
+	if (bits & Brink.NORTH_QUIET) != 0:
+		fill.append(BlobIndex.N)
+		bits &= ~Brink.NORTH_QUIET
+	for corner: int in range(4):
+		if (bits & (4 << corner)) != 0:
+			sil |= DIAGONALS[corner]
+			bits &= ~(4 << corner)
+	for card: int in fill:
+		sil |= card
+	# LES DIAGONALES QUE LES CARDINAUX NEUFS VIENNENT DE COMPLETER.
+	for corner: int in range(4):
+		var a: int = corner
+		var b: int = (corner + 3) % 4
+		if (sil & CARDINALS[a]) == 0 or (sil & CARDINALS[b]) == 0:
+			continue
+		if fill.has(CARDINALS[a]) or fill.has(CARDINALS[b]):
+			sil |= DIAGONALS[corner]
+	# ⚠ ET PAS LES DIAGONALES SUD, DES QU'IL Y A DES FACES. Une diagonale sud n'est enregistree
+	# que si `S` est plein, or a partir de L2 le sud ne se trace jamais -- theoreme de la levre.
+	# Elle ne peut donc rien changer au dessin, et la remplir fabrique une silhouette qui n'est
+	# pas dans la forme. Mesure : c'est cet oubli, et lui seul, qui laissait huit cles de trop.
+	if Contour.level >= 2:
+		sil &= ~(BlobIndex.SE | BlobIndex.SW)
+	return sil | (bits << 8)
+
+
 func _closed_form(path: String) -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var level: int = int(String(args[0]).substr(1)) if args.size() > 0 else 3
@@ -461,6 +506,123 @@ func _closed_form(path: String) -> void:
 		(groups[mark] as Array).append(int(key))
 	print("=== LA FORME FERMEE, PEINTE A L%d/F%d ===" % [level, freedom])
 	print("  %d cles enumerees  ->  %d DESSINS distincts" % [vocab.size(), groups.size()])
+	# ⚠ LA CANONISATION : ON RETIRE D'UNE CLE TOUT BIT DONT LE RETRAIT NE CHANGE PAS UN PIXEL.
+	#
+	# Le detecteur de bits inertes ne compare que des paires DEJA ENUMEREES, et il ne conclut
+	# que sur une paire qui ne differe QUE par un bit. Quand la forme ne contient pas la
+	# variante -- parce qu'une precondition l'exclut -- la paire n'existe pas, et le bit passe
+	# inapercu : c'est exactement le mur ou le critere 3 s'etait arrete, 82 cles pour 43
+	# dessins et pas une paire a un bit.
+	#
+	# ⚠ ON PEINT DONC LA VARIANTE MEME SI ELLE N'EST PAS DANS LA FORME. La question n'est pas
+	# « ce monde la produit-il ? » mais « ce bit change-t-il le dessin ? » -- et un bit qui n'en
+	# change aucun n'a pas a figurer dans la cle, quelle que soit la raison de sa presence.
+	#
+	# ⚠ ET LE RETRAIT EST GLOUTON, DU BIT DE POIDS FAIBLE AU FORT. Deux bits peuvent etre
+	# redondants ENSEMBLE sans l'etre separement ; l'ordre decide alors lequel des deux part.
+	# Le compte, lui, ne depend pas de l'ordre : c'est le nombre de cles qui restent.
+	var canon: Dictionary = {}
+	var families: Dictionary = {}
+	for key9: Variant in vocab.keys():
+		var start: int = int(key9)
+		var want: String = (tiles[start] as Image).get_data().hex_encode()
+		var kept: int = start
+		for bit9: int in range(24):
+			var without: int = kept & ~(1 << bit9)
+			if without == kept:
+				continue
+			var one: Dictionary = {}
+			one[without] = true
+			var made: Dictionary = Compose.paint(one, freedom, level, {})
+			if (made[without] as Image).get_data().hex_encode() == want:
+				kept = without
+		canon[start] = kept
+		if not families.has(kept):
+			families[kept] = []
+		(families[kept] as Array).append(start)
+	print("  CANONISEES : %d cles distinctes  (%d retirees)"
+			% [families.size(), vocab.size() - families.size()])
+	# ⚠ LA SUBSTITUTION : TAIRE UN COTE, C'EST DESSINER COMME SI LA MATIERE Y ETAIT.
+	#
+	# Aucun bit ne se retire SEUL -- 0 sur 69 -- et pourtant quinze groupes se confondent. Le
+	# motif se lit dans le premier : `s199 sans bit`, `s193 + bordE`, `s7 + bordW`,
+	# `s71 + ergot0`, `s65 + bordE + ergot0`... Ce ne sont pas des bits inertes, c'est **la
+	# meme tuile ecrite de sept facons**. Un silence dit « la voisine trace ce cote » ; du
+	# point de vue du DESSIN, c'est exactement ce que dit un cardinal plein.
+	#
+	# La reduction n'est donc pas un retrait mais un ECHANGE : on remplit le cardinal que le
+	# bit fait taire, et la diagonale des coins que ce cardinal vient de completer -- sans
+	# quoi on ferait naitre un ergot que l'original n'avait pas.
+	#
+	# ⚠ ET ON NE REMPLIT PAS TOUTES LES DIAGONALES. Une silhouette nue dont un coin a ses deux
+	# cardinaux pleins et sa diagonale vide porte un ERGOT, et c'est une tuile a part entiere.
+	# Seules les diagonales des coins SILENCIEUX se remplissent.
+	var swapped: Dictionary = {}
+	var wrong: Array[String] = []
+	for key10: Variant in vocab.keys():
+		var from: int = int(key10)
+		var into: int = _swap(from)
+		swapped[into] = true
+		var one2: Dictionary = {}
+		one2[into] = true
+		if (Compose.paint(one2, freedom, level, {})[into] as Image).get_data().hex_encode() \
+				!= (tiles[from] as Image).get_data().hex_encode():
+			if wrong.size() < 10:
+				wrong.append("%d -> %d" % [from, into])
+	print("  ECHANGEES : %d cles distinctes, %d qui ne rendent PAS le meme dessin  %s"
+			% [swapped.size(), wrong.size(), str(wrong)])
+	# ⚠ ET CE QUI SE CONFOND ENCORE APRES L'ECHANGE EST LE VRAI RESTE DU CRITERE 3. On les
+	# nomme : c'est la seule facon de savoir si c'est une regle de plus ou une coincidence.
+	var after: Dictionary = {}
+	for kept3: Variant in swapped.keys():
+		var one3: Dictionary = {}
+		one3[int(kept3)] = true
+		var mark5: String = (Compose.paint(one3, freedom, level,
+				{})[int(kept3)] as Image).get_data().hex_encode()
+		if not after.has(mark5):
+			after[mark5] = []
+		(after[mark5] as Array).append(int(kept3))
+	var left: Array[String] = []
+	for mark6: Variant in after.keys():
+		var lot2: Array = after[mark6]
+		if lot2.size() < 2:
+			continue
+		lot2.sort()
+		var said4: PackedStringArray = PackedStringArray()
+		for k4: int in lot2:
+			said4.append("%d(s%d,b%d)" % [k4, k4 & 0xff, k4 >> 8])
+		left.append("[%s]" % " ".join(said4))
+	left.sort()
+	print("  APRES L'ECHANGE : %d dessins pour %d cles, %d groupe(s) encore confondu(s)"
+			% [after.size(), swapped.size(), left.size()])
+	for at3: int in range(left.size()):
+		print("     %s" % left[at3])
+	if families.size() != groups.size():
+		# ⚠ ET SI LES DEUX COMPTES DIFFERENT, LA REDONDANCE QUI RESTE N'EST PAS UN BIT : deux
+		# cles canoniques qui peignent la MEME image ne different par aucun bit retirable une
+		# a une. On les nomme, parce que c'est la qu'il faudra regarder.
+		var by_mark: Dictionary = {}
+		for kept2: Variant in families.keys():
+			var mark3: String = (Compose.paint({int(kept2): true}, freedom, level,
+					{})[int(kept2)] as Image).get_data().hex_encode()
+			if not by_mark.has(mark3):
+				by_mark[mark3] = []
+			(by_mark[mark3] as Array).append(int(kept2))
+		var stuck: Array[String] = []
+		for mark4: Variant in by_mark.keys():
+			var lot: Array = by_mark[mark4]
+			if lot.size() < 2:
+				continue
+			lot.sort()
+			var said3: PackedStringArray = PackedStringArray()
+			for k3: int in lot:
+				said3.append("%d(s%d,b%d)" % [k3, k3 & 0xff, k3 >> 8])
+			stuck.append("[%s]" % " ".join(said3))
+		stuck.sort()
+		print("  IRREDUCTIBLES A DEUX : %d groupe(s) que le retrait d'un bit ne fusionne pas"
+				% stuck.size())
+		for at2: int in range(mini(10, stuck.size())):
+			print("     %s" % stuck[at2])
 	# ⚠ ET ON DIT QUELLES CLES SE CONFONDENT, pas seulement combien. Un compte range le
 	# constat ; la liste designe le bit qui ne sert a rien.
 	var fused: Array[String] = []
