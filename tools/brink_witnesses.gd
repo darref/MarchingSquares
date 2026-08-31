@@ -194,6 +194,31 @@ func _store(found: Array[Dictionary], path: String) -> void:
 	print("  %d bloc(s) ecrit(s) : %s" % [found.size(), path])
 
 
+## LES BLOCS DEJA ECRITS, relus depuis `core/brink_witnesses.gd`.
+##
+## ⚠ ON LES RELIT COMME DES DONNEES, PAS COMME DU CODE. Le fichier est du GDScript, mais on
+## n'a besoin que de ses lignes de bloc : les extraire au motif evite de le precharger, donc
+## d'avoir a le regenerer avant de pouvoir le lire.
+func _kept_blocks() -> Array[PackedStringArray]:
+	var out: Array[PackedStringArray] = []
+	var text: String = FileAccess.get_file_as_string(OUT_PATH)
+	if text.is_empty():
+		return out
+	var rows: PackedStringArray = PackedStringArray()
+	for line: String in text.split("
+"):
+		var trimmed: String = line.strip_edges()
+		if trimmed.begins_with("\"") and trimmed.ends_with("\","):
+			rows.append(trimmed.substr(1, trimmed.length() - 3))
+			continue
+		if not rows.is_empty():
+			out.append(rows)
+			rows = PackedStringArray()
+	if not rows.is_empty():
+		out.append(rows)
+	return out
+
+
 ## LA FUSION : toutes les parts, un seul recouvrement.
 ##
 ## ⚠ ET ON RECALCULE CE QUE CHAQUE BLOC PORTE, on ne le croit pas sur parole. Une part
@@ -209,6 +234,26 @@ func _merge(args: PackedStringArray) -> void:
 		return
 	var missing: Dictionary = _missing()
 	var found: Array[Dictionary] = []
+	# ⚠ LA FUSION EST ADDITIVE, JAMAIS SOUSTRACTIVE -- et elle ne l'etait pas. Elle mesure ce
+	# qui manque AU GUIDE, lequel contient deja sa reserve : les blocs qui la remplissent
+	# paraissent donc inutiles, elle ne les retient pas, et le guide rebati les perd. Mesure :
+	# deux fois de suite, le fichier des temoins est tombe de huit blocs a trois puis a ZERO,
+	# et le guide de complet a onze manquants.
+	#
+	# ⚠ ET C'EST LA MEME ESPECE QUE LA REGLE DU DOSSIER SUR LES GARDE-FOUS : un outil qui
+	# mesure « ce qui manque » sur un etat qui contient deja sa propre reponse ne mesure rien.
+	# On relit donc ce qu'on a deja ecrit et on le garde -- la reserve ne peut que croitre.
+	# ⚠ ET LE BUT AUSSI EST ADDITIF, PAS SEULEMENT LA LISTE DES CANDIDATS. Relire les anciens
+	# blocs ne suffisait pas : le recouvrement ne visait que ce qui manque AU GUIDE, et le
+	# guide contient deja la reserve -- donc les anciens ne couvraient « rien a faire » et
+	# tombaient quand meme. Le but est donc `manque ∪ ce que la reserve porte deja`, ce qui
+	# revient a mesurer sur le PAYSAGE SEUL sans avoir a le rebatir.
+	for old_rows: PackedStringArray in _kept_blocks():
+		var carried: Dictionary = _carried(old_rows)
+		found.append({"rows": old_rows, "carries": carried})
+		for mark4: Variant in carried.keys():
+			if _rep.has(mark4):
+				missing[mark4] = true
 	for at: int in range(2, args.size()):
 		var text: String = FileAccess.get_file_as_string(args[at])
 		var rows: PackedStringArray = PackedStringArray()
@@ -243,12 +288,18 @@ func _forms(path: String) -> bool:
 	var vocabulary: Dictionary = {}
 	for piece: String in text.strip_edges().split(",", false):
 		vocabulary[int(piece.strip_edges())] = true
-	var painted: Dictionary = Compose.paint(vocabulary, FREEDOM, LEVEL, {})
-	for key: Variant in painted.keys():
-		var mark: String = (painted[key] as Image).get_data().hex_encode()
-		_drawing[int(key)] = mark
-		if not _rep.has(mark) or int(key) < int(_rep[mark]):
-			_rep[mark] = int(key)
+	# ⚠ ON CHASSE DES CLES, PLUS DES DESSINS -- et c'est le modele qui a change, pas l'envie.
+	# La premisse de cet outil etait « peintes, ces cles tombent en un nombre fini de DESSINS,
+	# c'est ce nombre-la qu'une planche doit porter ». Elle est fausse depuis que la planche est
+	# KEYEE : deux cles peuvent tomber dans deux classes de raccord differentes, donc exiger
+	# deux bords differents, et une seule image ne peut pas satisfaire les deux. Mesure qui
+	# tranche : les DESSINS de robe varient de 8 a 17 selon le monde, parce qu'ils dependent des
+	# graines de classe -- ce n'est pas une constante du modele, donc pas une taille de planche.
+	#
+	# ⚠ ET CA REND L'OUTIL BEAUCOUP PLUS RAPIDE : plus rien a peindre pour savoir ce qui manque.
+	for key: Variant in vocabulary.keys():
+		_drawing[int(key)] = str(int(key))
+		_rep[str(int(key))] = int(key)
 	return true
 
 
