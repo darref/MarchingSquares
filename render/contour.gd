@@ -561,11 +561,16 @@ static func seam_classes(storeys: Array[Dictionary], roles: Dictionary, level: i
 ## ⚠ ET LE BANC DOIT RENDRE LA MEME IMAGE, AU BIT PRES. Deux orchestrations d'une meme
 ## chaine finissent toujours par diverger -- `tools/soft_invariants.gd --contre <png du banc>`
 ## les confronte, et c'est la seule chose qui rende la copie sure.
-static func compose(world: PackedStringArray, level: int, freedom: int) -> Dictionary:
+static func compose(world: PackedStringArray, level: int, freedom: int,
+		known: Dictionary = {}) -> Dictionary:
 	Tiles.level = level
 	# ⚠ LES CLES VIENNENT DU MODELE, ELLES NE SE REFONT PAS ICI. Silhouettes par etage, carte
 	# visible, vocabulaire, robes fermees : c'est `core/brink.gd` qui les tient, une fois.
-	var made: Dictionary = Brink.keys(world, level)
+	#
+	# ⚠ ET UN APPELANT QUI LES A DEJA LES PASSE. La barre de chargement a besoin du NOMBRE de
+	# tuiles avant de les dessiner -- sinon elle annonce un compte faux. Les recalculer pour
+	# ca serait parcourir le relief deux fois pour la meme reponse.
+	var made: Dictionary = known if not known.is_empty() else Brink.keys(world, level)
 	var storeys: Array[Dictionary] = made["storeys"]
 	var indices: Dictionary = made["indices"]
 	var vocabulary: Dictionary = made["vocabulaire"]

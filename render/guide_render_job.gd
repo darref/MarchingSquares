@@ -18,6 +18,7 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Coverage := preload("res://core/coverage.gd")
 const Walls := preload("res://core/walls.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
+const Brink := preload("res://core/brink.gd")
 
 ## Nombre de tuiles a dessiner, plus une etape pour le tamponnage.
 var total: int = 1
@@ -48,6 +49,9 @@ var _under_by_level: Dictionary = {}
 var _feet: Array[Vector2i] = []
 var _contacts: Array[Vector2i] = []
 var _finished: bool = false
+
+## Les cles du contour, gardees entre le comptage et le dessin.
+var _contour_keys: Dictionary = {}
 
 
 func _init(heights: PackedStringArray, tile_size: int, ink: GuideImage.Ink,
@@ -227,7 +231,27 @@ func _blit(images: Dictionary, source: int, coord: Vector2i, x: int, y: int, sid
 ## tombent sur des cases de plaine, qu'aucune tuile exportee ne peut porter. Le contour n'a pas
 ## d'ombre : il n'y a rien a retirer, donc rien a distinguer.
 func _prepare_contour() -> void:
-	var made: Dictionary = Contour.compose(_heights, 3, 1)
+	# ⚠ LES CLES D'ABORD, LE DESSIN ENSUITE -- POUR QUE LE COMPTE SOIT VRAI. Ce chemin
+	# annoncait `total = 1` : la barre disait « 0 / 1 tuiles » pour un guide qui en compose
+	# plus de cent. C'est exactement ce que l'en-tete de ce fichier interdit -- *la valeur
+	# affichee est reelle, l'unite est la tuile distincte dessinee*. Une barre qui ment sur
+	# son unite est pire qu'une barre absente : elle donne l'air d'une mesure.
+	#
+	# ⚠ ET LES CLES SE PASSENT A `compose`, ELLES NE SE REFONT PAS. Les recalculer pour
+	# afficher un nombre parcourrait le relief deux fois pour la meme reponse.
+	# ⚠ ET LE COMPTE SE POSE AVANT LE DESSIN, pas apres. Annonce a la fin, il serait juste et
+	# ne servirait a rien : la barre a besoin de son total AU DEBUT.
+	_contour_keys = Brink.keys(_heights, 3)
+	var roles: Dictionary = {}
+	for cell: Variant in (_contour_keys["roles"] as Dictionary).keys():
+		roles[(_contour_keys["roles"] as Dictionary)[cell]] = true
+	total = (_contour_keys["vocabulaire"] as Dictionary).size() + roles.size() + 1
+	done = 0
+
+
+## Le dessin du contour, en un bloc -- voir `_prepare_contour` pour le pourquoi.
+func _draw_contour() -> void:
+	var made: Dictionary = Contour.compose(_heights, 3, 1, _contour_keys)
 	var image: Image = made["image"]
 	# ⚠ LE GRANDISSEMENT EST AU PLUS PROCHE, ET ENTIER. Le contour est dessine a seize faux
 	# pixels par case ; la zone de travail en attend `_tile_size`. Un lissage inventerait des
@@ -239,13 +263,16 @@ func _prepare_contour() -> void:
 				Image.INTERPOLATE_NEAREST)
 	_image = image
 	_flat = image
-	total = 1
-	done = 1
+	_contour_keys = {}
+	done = total
 	_finished = true
 
 
 func step(budget_usec: int) -> bool:
 	if _finished:
+		return true
+	if not _contour_keys.is_empty():
+		_draw_contour()
 		return true
 	var deadline: int = Time.get_ticks_usec() + budget_usec
 	while not _top_queue.is_empty():
