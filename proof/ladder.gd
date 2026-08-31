@@ -1132,8 +1132,17 @@ func _run(couple: String) -> bool:
 		if _backing == "full":
 			kinds2[Compose.wall_key(Vector2i(Compose.solid_pan(), Walls.ROW_CROWN + 1))] = true
 		role_tiles = Compose.wall_tiles(kinds2, freedom, seams["graine"])
-		print("  A PEINDRE : %d roles de robe   -- TOTAL %d"
-				% [role_tiles.size(), tiles.size() + role_tiles.size()])
+		# ⚠ ET « ROLE » N'EST PAS « DESSIN » NON PLUS. La regle est deja ecrite pour les
+		# surfaces -- *deux cles qui peignent la meme image sont une seule tuile, le peintre la
+		# dessine une fois* -- et elle n'avait jamais ete appliquee aux robes. Le banc annoncait
+		# donc un total qui melangeait des dessins d'un cote et des cles de l'autre : le seul
+		# chiffre qui compte pour l'acheteur est ce qu'il aura a peindre.
+		var wall_prints: Dictionary = {}
+		for key10: Variant in role_tiles.keys():
+			wall_prints[(role_tiles[key10] as Image).get_data().hex_encode()] = true
+		print("  A PEINDRE : %d roles de robe, %d DESSINS   -- TOTAL %d dessins"
+				% [role_tiles.size(), wall_prints.size(),
+				tiles.size() + wall_prints.size()])
 		# ⚠ ET ON MESURE LA LIBERTE RENDUE AUX FACES, au lieu de la supposer. Le pincement aux
 		# deux traversees doit leur laisser un profil qui serpente ; s'il n'en laisse aucun,
 		# c'est qu'on a paye la complication sans rien gagner.

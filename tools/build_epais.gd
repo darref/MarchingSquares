@@ -33,7 +33,11 @@ const WIDTH: int = 104
 ## la case retrecit. Le paysage occupe le nord, les temoins puis la reserve le sud.
 ## Un outil parfait ne peut pas ne pas montrer une tuile : le game dev qui construit
 ## precisement ce cas-la ne doit pas se retrouver bloque. Voir `_witnesses` et `_reserve`.
-const HEIGHT: int = 229
+## ⚠ ET LA MARGE BASSE N'EST PAS UNE COQUETTERIE : la plaine borde le vide, donc elle a sa
+## falaise, et une robe hors du cadre est une tuile impeignable. Sept rangees -- une chute de
+## trois, plus le liseré de vide que chaque relief doit declarer.
+const FOOTER: int = 7
+const HEIGHT: int = 162
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
@@ -509,6 +513,15 @@ func _initialize() -> void:
 		failures += 1
 		print("LE CADRE EST TROP COURT : la reserve finit a %d, le guide fait %d"
 				% [band, HEIGHT])
+	# ⚠ ET TROP LONG EST UN DEFAUT AUSSI -- un garde-fou qui ne regarde que d'un cote ne garde
+	# rien, deja paye sur la version du manifeste. Des rangees vides ne cassent aucun invariant
+	# et ne se voient dans aucun test : elles se voient A L'ECRAN, ou elles retrecissent la
+	# case. « Ce qui compte n'est pas le nombre de cases, c'est la taille de la case a
+	# l'ecran » -- et c'est la mesure qui decide de la hauteur, pas une constante ecrite.
+	elif band + FOOTER < HEIGHT:
+		failures += 1
+		print("LE CADRE EST TROP LONG : la reserve finit a %d, le guide fait %d -- %d rangee(s)"
+				% [band, HEIGHT, HEIGHT - band - FOOTER])
 	if _audit_brinks(heights) > 0:
 		failures += 1
 
