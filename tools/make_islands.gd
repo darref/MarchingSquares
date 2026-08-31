@@ -45,7 +45,10 @@ func _initialize() -> void:
 			pairs.append(Vector2i(ox, oy))
 	var solved: Dictionary = {}
 	var lost: Array[int] = []
-	for tile: int in Thickness.SURFACE_INDICES:
+	# ⚠ ON CHERCHE UN ILOT PAR TUILE, DONC PAR CLE -- pas par silhouette. Une tuile de surface
+	# est le couple (silhouette, bord) : chercher les dix-sept silhouettes laisserait la planche
+	# de preuve muette sur cinquante-deux tuiles que le modele distingue.
+	for tile: int in Families.surface_indices(Families.BY_CELL):
 		var relief: PackedStringArray = _search(tile, spots, pairs)
 		if relief.is_empty():
 			lost.append(tile)

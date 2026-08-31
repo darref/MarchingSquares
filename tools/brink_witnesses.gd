@@ -33,6 +33,7 @@ const Walls := preload("res://core/walls.gd")
 const Compose := preload("res://render/contour.gd")
 const Tiles := preload("res://render/contour_tiles.gd")
 const Modes := preload("res://core/modes.gd")
+const Families := preload("res://core/families.gd")
 
 ## L3 : le monde complet -- etages empiles, falaises, poses arriere. C'est celui que le
 ## logiciel livre ; L5, la famille a cheval, reste au banc.
@@ -305,11 +306,21 @@ func _forms(path: String) -> bool:
 
 ## Les cles qu'un relief POSE, et ou : tous les etages, enterres compris.
 func _posed(world: PackedStringArray) -> Dictionary:
-	var made: Dictionary = Brink.keys(world, LEVEL)
+	# ⚠ ET « POSEE » VEUT DIRE PEIGNABLE, PAS SEULEMENT PRESENTE. Une cle qu'un relief ne pose
+	# que sur la PLAINE, ou sous une robe, n'est portee par PERSONNE : l'etage 0 est du decor,
+	# une case de robe porte la robe. Un temoin qui ne la rend que la fait croire au guide
+	# qu'il l'exerce, et l'export resterait ferme pour toujours sans qu'on sache pourquoi.
+	#
+	# ⚠ LA LECON EST DEJA AU DOSSIER, PAYEE SUR LES ILOTS DE PREUVE : « la reserve comptait sur
+	# la carte brute, le controle final hors plaine et hors robe -- deux tuiles se croyaient
+	# deja la, portees par une case de plaine, c'est-a-dire par personne ». On lit donc
+	# `Families.paintable_map`, LA MEME CARTE QUE L'EDITEUR.
+	#
+	# Mesure : trois cles etaient reputees exercees et n'avaient aucune case a peindre.
 	var out: Dictionary = {}
-	for storey: Dictionary in (made["storeys"] as Array[Dictionary]):
-		for cell: Vector2i in storey.keys():
-			out[int(storey[cell])] = cell
+	var paintable: Dictionary = Families.paintable_map(Families.BY_CELL, world)
+	for cell: Vector2i in paintable.keys():
+		out[int(paintable[cell])] = cell
 	return out
 
 

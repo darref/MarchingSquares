@@ -37,7 +37,7 @@ const WIDTH: int = 152
 ## falaise, et une robe hors du cadre est une tuile impeignable. Sept rangees -- une chute de
 ## trois, plus le liseré de vide que chaque relief doit declarer.
 const FOOTER: int = 7
-const HEIGHT: int = 171
+const HEIGHT: int = 170
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
@@ -532,7 +532,12 @@ func _initialize() -> void:
 		print("FIN : %d case(s) fine(s), par exemple %s" % [thin.size(),
 				str(thin.slice(0, 6))])
 
-	# 2. Les 27 surfaces, HORS de la plaine.
+	# 2. LES TUILES DE SURFACE, HORS DE LA PLAINE -- et ce sont des CLES, pas des silhouettes.
+	# Une tuile est le couple (silhouette, bord) : compter les dix-sept silhouettes ne dirait
+	# plus si le guide porte le vocabulaire, seulement s'il porte ses formes.
+	var vocabulary: Dictionary = {}
+	for key: int in Families.surface_indices(Families.BY_CELL):
+		vocabulary[key] = true
 	var indices: Dictionary = Families.surface_map(Families.BY_CELL, heights)
 	var seen_indices: Dictionary = {}
 	for at: Vector2i in indices.keys():
@@ -540,11 +545,11 @@ func _initialize() -> void:
 			seen_indices[int(indices[at])] = true
 	var missing_indices: Array = []
 	var extra_indices: Array = []
-	for index: int in Thickness.SURFACE_INDICES:
-		if not seen_indices.has(index):
-			missing_indices.append(index)
+	for key2: Variant in vocabulary.keys():
+		if not seen_indices.has(int(key2)):
+			missing_indices.append(int(key2))
 	for index: int in seen_indices.keys():
-		if not (index in Thickness.SURFACE_INDICES):
+		if not vocabulary.has(index):
 			extra_indices.append(index)
 	if not missing_indices.is_empty():
 		failures += 1

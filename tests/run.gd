@@ -3955,6 +3955,18 @@ func _test_thickness() -> void:
 	var seen_indices: Dictionary = {}
 	var seen_roles: Dictionary = {}
 	var sampled: int = 0
+	# ⚠ ET LE VOCABULAIRE EST CELUI DES CLES, PAS DES SILHOUETTES. Une tuile de surface est un
+	# couple (silhouette, bord) : comparer ce que le relief POSE aux dix-sept silhouettes ne
+	# controle plus rien depuis que la cle porte les deux. C'est aussi, du coup, le controle de
+	# la FORME FERMEE sur des reliefs tires au sort -- « toute tuile reellement rencontree doit
+	# tomber dans la forme calculee ; une seule dehors, et c'est la forme qui est fausse ».
+	var vocabulary: Dictionary = {}
+	for key: int in Families.surface_indices(Families.BY_CELL):
+		vocabulary[key] = true
+	# ⚠ ET ON NE CRIE QU'UNE FOIS PAR CLE FAUTIVE. Premiere version : un `_check` par
+	# OCCURRENCE -- 38 126 lignes identiques pour une poignee de cles, et le vrai reste des
+	# echecs devenait introuvable dans le flot.
+	var strays: Dictionary = {}
 	for _trial: int in range(400):
 		var relief: PackedStringArray = _random_thick_relief(rng)
 		if relief.is_empty():
@@ -3963,15 +3975,19 @@ func _test_thickness() -> void:
 		var indices: Dictionary = Families.surface_map(Families.BY_CELL, relief)
 		for at: Vector2i in indices.keys():
 			seen_indices[int(indices[at])] = true
-			if not (int(indices[at]) in Thickness.SURFACE_INDICES):
-				_check(false, "index %d visible sur un relief epais mais hors vocabulaire"
-						% int(indices[at]))
+			if not vocabulary.has(int(indices[at])):
+				strays[int(indices[at])] = true
 		var roles: Dictionary = Walls.visible(relief)["roles"]
 		for cell: Vector2i in roles.keys():
 			seen_roles[roles[cell]] = true
 			if not Thickness.role_survives(roles[cell]):
 				_check(false, "role (%d,%d) visible sur un relief epais mais hors vocabulaire"
 						% [(roles[cell] as Vector2i).x, (roles[cell] as Vector2i).y])
+	var named: Array[int] = []
+	named.assign(strays.keys())
+	named.sort()
+	_check(strays.is_empty(), "tout ce qu un relief epais POSE tombe dans la forme fermee (%d hors : %s)"
+			% [named.size(), str(named.slice(0, 8))])
 	_check(sampled >= 200, "la battue a echantillonne assez de reliefs (%d)" % sampled)
 	_check(seen_indices.size() >= 15, "la battue a rencontre des surfaces variees (%d)"
 			% seen_indices.size())
