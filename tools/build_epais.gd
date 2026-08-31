@@ -28,7 +28,7 @@ const Coverage := preload("res://core/coverage.gd")
 const Brink := preload("res://core/brink.gd")
 const BrinkWitnesses := preload("res://core/brink_witnesses.gd")
 
-const WIDTH: int = 104
+const WIDTH: int = 152
 ## ⚠ LE GUIDE S'ALLONGE POUR SA RESERVE, et c'est un prix a l'ecran qu'il faut assumer :
 ## la case retrecit. Le paysage occupe le nord, les temoins puis la reserve le sud.
 ## Un outil parfait ne peut pas ne pas montrer une tuile : le game dev qui construit
@@ -37,7 +37,7 @@ const WIDTH: int = 104
 ## falaise, et une robe hors du cadre est une tuile impeignable. Sept rangees -- une chute de
 ## trois, plus le liseré de vide que chaque relief doit declarer.
 const FOOTER: int = 7
-const HEIGHT: int = 162
+const HEIGHT: int = 106
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
@@ -83,7 +83,7 @@ func _compose() -> void:
 		_levels.append(line)
 
 	# LA PLAINE : le socle, avec sa cote qui ondule par ajouts -- jamais par retraits.
-	_fill(2, 4, 101, HEIGHT - 7, 0)
+	_fill(2, 4, WIDTH - 3, HEIGHT - 7, 0)
 	_fill(12, 2, 17, 3, 0)
 	_fill(52, 2, 57, 3, 0)
 	_fill(8, 38, 23, 39, 0)
