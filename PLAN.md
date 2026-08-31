@@ -2546,6 +2546,69 @@ lisait même pas comme un ras — elle se lisait comme une constante anodine.
 là que *straight* et *ondulated* doivent se séparer pour les falaises — bosse plate d'un côté,
 bosse qui serpente de l'autre. À faire avec les styles, et noté aux questions ouvertes.
 
+### 29 · LE RECENSEMENT NETTOYÉ — ET IL DÉSIGNE UNE SEULE MUETTE STRUCTURELLE
+
+Le premier relevé portait **quinze espèces mal étiquetées**. La cause est instructive : je
+décidais « frontière ou arête intérieure » en **lisant la matière sur l'image**, des deux côtés.
+
+⚠ **ET L'IMAGE EST ASSEMBLÉE, DONC ELLE MENT SUR CE QUI EST À MOI.** Là où une tuile est
+coupée, on voit **la couche du dessous** : de part et d'autre d'une frontière sommet/face, le
+pixel visible au bord est la même herbe enterrée. La matière ne peut donc pas trancher — c'est
+au **modèle** de dire où le monde a un bord. Quatre cas, et ils suffisent :
+
+```
+  robe | robe    la roche est continue -> interieur   (sauf levres differentes : ARETE)
+  robe | sommet  la roche s arrete      -> FRONTIERE
+  sommet|sommet  frontiere si les etages different, interieur sinon
+  quoi que ce soit | vide                -> FRONTIERE
+```
+
+**Résultat : 54 espèces de frontière, 18 intérieures, zéro fausse étiquette, et ZÉRO arête
+intérieure portant un trait sur 147 994 occurrences.**
+
+⚠ **ET LA SONDE A ÉTÉ ÉLARGIE PUIS REFUSÉE, PAR SA PROPRE MESURE.** Le banc sonde au **milieu**
+du côté, et son commentaire dit pourquoi : le trait du nord traverse la tuile de part en part,
+donc une sonde qui longe le bord ouest le prend pour une revendication de l'ouest. Essayé quand
+même :
+
+| sonde | muettes | dont la lèvre | ailleurs | fausses sur intérieures |
+|---|---|---|---|---|
+| milieu seul | 1 728 | 1 571 | **157** | **0** |
+| milieu ± 1 | 1 696 | 1 539 | **157** | 3 144 |
+| aux quarts | 1 570 | 1 413 | **157** | 12 050 |
+
+⚠ **LES 157 NE BOUGENT D'AUCUNE DES TROIS.** Élargir n'en récupère aucune — ça ne déplace que
+des occurrences de la lèvre, précisément celles que le trait perpendiculaire contamine. **Les
+157 ne sont donc pas un artefact de sonde : ce sont de vraies frontières que personne ne
+trace.** Et la sonde reste au milieu seul, celle du banc, pour sa raison.
+
+### 29bis · UNE SEULE MUETTE STRUCTURELLE, ET C'EST LA LÈVRE
+
+```
+  sommet sud face:chapiteau  ->  1 571 muettes sur 3 060   (51 %)
+```
+
+**La lèvre au-dessus de sa propre falaise est muette une fois sur deux.** C'est la seule espèce
+dont la muette soit structurelle, et c'est **exactement la frontière dont l'utilisateur avait
+proposé le transfert** — *« la fermeture nord des robes se retrouve dans les tuiles de bord sud
+des surfaces »*. Le recensement valide l'intuition par un chiffre : ce n'était pas une
+préférence de dessin, c'était le seul défaut de propriété du modèle.
+
+**Le reste, rangé et nommé :**
+
+```
+  LES 157 MUETTES HORS DE LA LEVRE
+    32 / 2654   sommet est vide                   1,2 %
+    48 / 3317   sommet contre sommet, marche      1,4 %
+    71 / 3196   sommet contre face, laterale      2,2 %
+     6 /   77   arete interne                     7,8 %
+```
+
+⚠ **Aucune espèce n'est muette PAR NATURE** — chacune est tracée dans 92 à 99 % de ses
+occurrences. Ce ne sont donc pas des trous de conception mais des **cas particuliers à
+l'intérieur d'espèces saines** : la forme d'un défaut qu'on trouve au pixel, pas à la règle. Ça
+vaut mieux que l'inverse, et ça se traite séparément de la lèvre.
+
 ### 28 · LE RECENSEMENT DES FRONTIERES — ET L'ARÊTE INTERNE, QU'AUCUN INVARIANT NE RÉCLAME
 
 *Né d'une question de méthode de l'utilisateur : « on ne risque pas de devoir refaire des

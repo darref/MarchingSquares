@@ -68,7 +68,11 @@ func _initialize() -> void:
 ## couvre. C'est le piege deja paye au dossier ; ici on demande d'abord `roles`.
 func _face(cell: Vector2i, world: PackedStringArray, roles: Dictionary) -> String:
 	if roles.has(cell):
-		return "face:%s" % Walls.ROW_NAMES[(roles[cell] as Vector2i).y]
+		# ⚠ LA CLE D'UNE ROBE PORTE MAINTENANT SON ARETE, donc elle est en Vector3i. La lire
+		# en Vector2i rendait une chaine VIDE, et toutes les especes de face se sont mises a
+		# s'appeler « » -- une etiquette fausse qui ne ressemble meme pas a une erreur.
+		var row: int = (roles[cell] as Vector3i).y if roles[cell] is Vector3i 				else (roles[cell] as Vector2i).y
+		return "face:%s" % Walls.ROW_NAMES[row]
 	var level: int = -1
 	if cell.x >= 0 and cell.y >= 0 and cell.x < HeightMask.width(world) 			and cell.y < HeightMask.height(world):
 		level = HeightMask.level_at(world, cell.x, cell.y)
@@ -122,43 +126,42 @@ func _walk(name: String, world: PackedStringArray, freedom: int) -> void:
 				if mine.begins_with("sommet") and theirs.begins_with("sommet"):
 					step = "=" if mine_level == their_level else (
 							">" if mine_level > their_level else "<")
-				# ⚠ UNE ADJACENCE N'EST PAS UNE FRONTIERE. Deux cases de roche cote a cote
-				# dans la meme face n'ont AUCUN bord entre elles : la matiere y est
-				# continue, et zero trait est la bonne reponse. La premiere version les
-				# comptait toutes muettes -- 788 pour le seul couple chapiteau/chapiteau.
+				# ⚠ UNE ADJACENCE N'EST PAS UNE FRONTIERE, ET LA MATIERE NE PEUT PAS EN
+				# DECIDER. Premiere version : lire la couleur au bord, des deux cotes, et
+				# conclure « meme matiere -> interieur ». Faux, et de la pire facon -- elle
+				# rendait 15 especes mal etiquetees, dont sommet/face. L'image est ASSEMBLEE :
+				# la ou une tuile est coupee on voit LA COUCHE DU DESSOUS, donc de part et
+				# d'autre d'une frontiere sommet/face le pixel visible est la meme herbe
+				# enterree. La matiere ment ; c'est au MODELE de dire ou le monde a un bord.
 				#
-				# On lit donc la MATIERE sur l'image, au milieu du cote, la ou la sonde
-				# regarde : meme matiere des deux cotes -> interieur ; matiere qui change
-				# ou qui s'arrete -> frontiere, et il faut exactement un tracant.
-				var mine_stuff: String = _stuff(image, cell, side)
-				var their_stuff: String = _stuff(image, probe, (side + 2) % 4)
-				if mine_stuff == "rien" and their_stuff == "rien":
-					continue
-				var inner: bool = mine_stuff == their_stuff and mine_stuff != "rien"
-				# ⚠ DEUX FACES COTE A COTE NE SONT PAS FORCEMENT LA MEME FACE. Si elles
-				# pendent de levres differentes, il y a une ARETE entre elles -- celle qui
-				# donne le relief -- et aucun invariant ne la reclame.
-				if mine.begins_with("face") and theirs.begins_with("face"):
+				# La regle, et elle tient en quatre cas :
+				#   robe | robe   -> la roche est continue ; ce n'est pas une frontiere de
+				#                    matiere. L'arete interne est traitee a part, plus haut.
+				#   robe | sommet -> la roche s'arrete, le sommet commence : FRONTIERE.
+				#   sommet|sommet -> frontiere si les etages different, interieur sinon.
+				#   quoi que ce soit | vide -> frontiere.
+				var wall_a: bool = mine.begins_with("face")
+				var wall_b: bool = theirs.begins_with("face")
+				var inner: bool = false
+				if wall_a and wall_b:
+					# ⚠ ET DEUX FACES NE SONT PAS FORCEMENT LA MEME FACE. Meme levre : la
+					# roche est continue, zero trait est juste. Levres differentes : c'est
+					# l'ARETE INTERNE, et depuis qu'elle est adoptee elle VEUT son trait --
+					# la declarer interieure reprocherait au dessin de la porter.
 					var a: Vector2i = _lip_of(cell, roles, lips)
 					var b: Vector2i = _lip_of(probe, roles, lips)
-					# ⚠ QUI EST DEVANT ? Deux criteres possibles, et il faut savoir s'ils
-					# coincident : la levre la plus au SUD (plus pres du regard) ou l'etage
-					# le plus HAUT. `a.x` est la rangee de la levre, `a.y` son etage.
-					if a == b:
-						step = "meme levre"
-					elif a.x == b.x:
-						step = "ARETE meme rangee, etages %d/%d" % [a.y, b.y]
-					elif a.y == b.y:
-						step = "ARETE meme etage, rangees decalees"
-					elif (a.x > b.x) == (a.y > b.y):
-						step = "ARETE sud ET haut d'accord"
-					else:
-						step = "ARETE sud CONTRE haut"
+					inner = a == b
+					step = "meme levre" if inner else "ARETE INTERNE"
+				elif mine == "vide" or theirs == "vide":
+					inner = false
+				elif wall_a != wall_b:
+					inner = false
+				else:
+					inner = mine_level == their_level
 				var kind: String = "%s %s %s %s" % [mine, SIDE_NAMES[side], theirs, step]
 				if inner:
 					kind = "INTERIEUR " + kind
-				var claims: int = _draws(image, cell, side) + _draws(image, probe,
-						(side + 2) % 4)
+				var claims: int = _claims(image, cell, probe, side)
 				_note(kind, claims, "%s %d,%d" % [name, x, y])
 	_pans(world, roles, lips)
 	if _kinds.size() > before:
@@ -178,41 +181,51 @@ func _note(kind: String, claims: int, where: String) -> void:
 		(box["ou"] as Array).append("%s (%d)" % [where, claims])
 
 
-## LA MATIERE QUE CE COTE PRESENTE, au milieu -- la ou la sonde regarde. On saute le trait
-## lui-meme : ce qu'on veut savoir est ce qu'il y a DERRIERE, herbe ou roche ou rien.
-func _stuff(image: Image, cell: Vector2i, side: int) -> String:
-	var middle: int = RES / 2
-	for d: int in range(middle):
-		var at: Vector2i = Vector2i.ZERO
-		match side:
-			0: at = Vector2i(cell.x * RES + middle, cell.y * RES + d)
-			1: at = Vector2i(cell.x * RES + RES - 1 - d, cell.y * RES + middle)
-			2: at = Vector2i(cell.x * RES + middle, cell.y * RES + RES - 1 - d)
-			_: at = Vector2i(cell.x * RES + d, cell.y * RES + middle)
-		if at.x < 0 or at.y < 0 or at.x >= image.get_width() or at.y >= image.get_height():
-			return "rien"
-		var here: Color = image.get_pixel(at.x, at.y)
-		if here.a < 0.5:
-			return "rien"
-		if here.is_equal_approx(OUTLINE):
-			continue
-		return "roche" if here.is_equal_approx(Tiles.ROCK) else "herbe"
-	return "rien"
+## LA SONDE, RESSERREE : trois positions au lieu d'une, et on garde la plus informee.
+##
+## ⚠ UNE SEULE LIGNE AU MILIEU LAISSE PASSER DES FRONTIERES COURTES. Le trait d'un bord peut
+## rentrer, serpenter, ou ne border qu'une partie du cote : sonde au seul milieu, il echappe, et
+## la frontiere se declare muette alors qu'elle est tracee deux pixels plus loin. Mesure : 157
+## occurrences eparpillees sur vingt especes, toutes de cette espece-la.
+##
+## ⚠ MAIS ON NE BALAIE PAS TOUTE LA BANDE POUR AUTANT, et c'est la lecon du banc, REPAYEE ICI :
+## le trait du NORD traverse la tuile de part en part, donc une sonde qui longe le bord OUEST le
+## rencontre et le prend pour une revendication de l'ouest. Essaye aux QUARTS -- `RES/4` et
+## `3*RES/4` -- ca recupere 158 muettes et fabrique **12 050 fausses revendications sur des
+## aretes interieures**. Refute par sa propre mesure.
+##
+## ⚠ ET MEME A UN PIXEL PRES C'EST TROP : `RES/2 +/- 1` fabrique encore **3 144 fausses
+## revendications**. La sonde reste donc au MILIEU SEUL -- celle du banc, et pour sa raison.
+##
+## ⚠ ET C'EST LA MESURE QUI L'A TRANCHE, PAS LE RAISONNEMENT. Les trois sondes donnent
+## EXACTEMENT les memes 157 muettes hors de la levre : elargir n'en recupere aucune, ca ne
+## deplace que des occurrences de la levre -- lesquelles sont justement celles que le trait
+## perpendiculaire contamine. Les 157 ne sont donc pas un artefact de sonde ; ce sont de vraies
+## frontieres que personne ne trace.
+##
+## La fonction garde sa forme a plusieurs positions : c'est la trace de l'essai, et un chiffre
+## qu'on ne peut plus reproduire n'est plus un chiffre.
+func _claims(image: Image, cell: Vector2i, probe: Vector2i, side: int) -> int:
+	var best: int = 0
+	for at: int in [RES / 2]:
+		best = maxi(best, _draws(image, cell, side, at)
+				+ _draws(image, probe, (side + 2) % 4, at))
+	return best
 
 
 ## LA SONDE : combien de traits ce cote porte-t-il. Copie de celle du banc -- on part du bord
 ## vers le milieu, au MILIEU du cote, et on compte les passages de fond a trait.
-func _draws(image: Image, cell: Vector2i, side: int) -> int:
+func _draws(image: Image, cell: Vector2i, side: int, along: int = RES / 2) -> int:
 	var middle: int = RES / 2
 	var runs: int = 0
 	var inside: bool = false
 	for d: int in range(middle):
 		var at: Vector2i = Vector2i.ZERO
 		match side:
-			0: at = Vector2i(cell.x * RES + middle, cell.y * RES + d)
-			1: at = Vector2i(cell.x * RES + RES - 1 - d, cell.y * RES + middle)
-			2: at = Vector2i(cell.x * RES + middle, cell.y * RES + RES - 1 - d)
-			_: at = Vector2i(cell.x * RES + d, cell.y * RES + middle)
+			0: at = Vector2i(cell.x * RES + along, cell.y * RES + d)
+			1: at = Vector2i(cell.x * RES + RES - 1 - d, cell.y * RES + along)
+			2: at = Vector2i(cell.x * RES + along, cell.y * RES + RES - 1 - d)
+			_: at = Vector2i(cell.x * RES + d, cell.y * RES + along)
 		if at.x < 0 or at.y < 0 or at.x >= image.get_width() or at.y >= image.get_height():
 			inside = false
 			continue
