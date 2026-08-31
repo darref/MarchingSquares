@@ -3027,6 +3027,51 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   couples.** On ne met pas un modele rouge par defaut, meme quand c'est lui la cible : *ce qui
   n'est pas garanti est interdit*.
 
+- **UN FLANC QUI S'ARRETE NE SE CREUSE PAS, IL SE TRAIT -- la loi rendue au contour.** Elle
+  etait au dossier depuis le recensement des peaux, mesuree sur l'illustration : *« la roche va
+  jusqu'au bord de sa case et l'artiste marque sa fin d'un trait »*, 34 contours et zero tiret
+  contre des chaines d'ovales. **Le modele du CONTOUR ne l'appliquait pas** : `shape` creusait
+  le flanc d'une robe.
+
+  ⚠ **ET CREUSER LE FLANC RETIRE DE LA MATIERE QUE LE MODELE AFFIRME.** La roche d'une face
+  remplit sa case ; le creux decouvre la couche du dessous, qui y trace son propre bord, et les
+  deux traits se collent.
+
+  ```
+    18  robe + surface etage 0      <- 82 % des paves
+     1  robe + surface etage 1
+     3  surface etage 2 + surface etage 3
+       4,8 de la case 3,12          colonne 4, rangee 8 : le MILIEU du flanc
+  ```
+
+  ⚠ **TROIS CHEMINS INDEPENDANTS POINTAIENT AU MEME ENDROIT**, et c'est le meilleur signe qu'une
+  regle est juste : la loi ecrite au dossier · la mesure « le bout d'un flanc vaut zero quelle
+  que soit la traversee », qui n'etait que la moitie visible de la meme regle · et la geometrie.
+
+  **Le prix, mesure et non cache :**
+
+  ```
+                            avant       apres
+    profils de face          33          17
+    qui serpentent           78          39
+  ```
+
+  ⚠ **L'AMPLITUDE DOUBLEE LA VEILLE EST PERDUE -- et c'etait une liberte que le modele n'avait
+  pas a donner.** Elle n'a ete gratuite que tant que rien ne regardait sous la robe ; des que I3
+  a su nommer les couches, elle s'est revelee creuser dans la roche que le modele affirme.
+  **Seconde fois de la session qu'une liberte gagnee la veille se repaie le lendemain.**
+
+  **Mesure** : modele livre, les cinq parts vertes, suite 665/0. Avec le transfert de la crete,
+  le **guide passe entierement vert** -- six invariants, zero pave -- et les paves tombent de 22
+  a 3 sur `L2/F1`.
+
+  ⚠ **ET CE QUI RESTE N'EST PLUS LA MEME QUESTION.** 35 paves ailleurs, attribues
+  `surface etage N + surface etage N+1`. Ne PAS tracer le bord haut du bandeau casse la
+  fermeture -- **94 extremites, essaye et refute** -- donc ce bord EST une vraie frontiere, et
+  le pave vient de ce que **deux couches la revendiquent**. C'est « qui trace » a un endroit que
+  le modele n'avait jamais eu : **entre deux couches d'une meme case**. Une regle de propriete,
+  pas un correctif de dessin.
+
 ## Version
 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** :

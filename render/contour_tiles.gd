@@ -683,14 +683,21 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 			# les pixels. La coupe s'arrete donc a la rangee la plus HAUTE que le bandeau
 			# atteigne, et le bandeau ne decide plus que de la matiere.
 			var stony: bool = lip and y > RES - 1 - band
-			if open[1] and not stony and x > RES - 1 - (wall_depth(1, y, freedom, seams[1])
-					if wall else side_depth(1, y, freedom, quiet, seams[1])):
+			# ⚠ UN FLANC QUI S'ARRETE NE SE CREUSE PAS, IL SE TRAIT -- loi deja au dossier, que
+			# le modele du contour n'appliquait pas. La roche d'une face remplit SA CASE ;
+			# creuser son flanc, c'est retirer de la matiere que le modele affirme, et
+			# decouvrir la couche du dessous -- laquelle y trace son propre bord. Mesure :
+			# 18 paves sur 22 sont `robe + surface etage 0`, au MILIEU du flanc, la ou la
+			# bosse creuse le plus.
+			#
+			# ⚠ ET CA CONVERGE AVEC LA MESURE DU BOUT. « Le bout d'un flanc vaut zero » etait
+			# la moitie visible de cette loi-la : c'est le flanc ENTIER qui est au bord.
+			if open[1] and not stony and not wall 					and x > RES - 1 - side_depth(1, y, freedom, quiet, seams[1]):
 				inside = false
 			if open[2] and y > RES - 1 - (wall_depth(2, x, freedom, seams[2]) if wall
 					else depth(2, x, freedom, seams[2])):
 				inside = false
-			if open[3] and not stony and x < (wall_depth(3, y, freedom, seams[3]) if wall
-					else side_depth(3, y, freedom, quiet, seams[3])):
+			if open[3] and not stony and not wall 					and x < side_depth(3, y, freedom, quiet, seams[3]):
 				inside = false
 			line[x] = 1 if inside else 0
 		solid.append(line)
