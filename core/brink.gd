@@ -76,6 +76,15 @@ const LIP_ALONE_EAST: int = 131072
 const LIP_ALONE_WEST: int = 262144
 
 
+## ⚠ ET « JE SUIS ENTERRE » N'EST PAS UN BIT DE TUILE, C'EST UNE POSE -- essaye, chiffre,
+## retire. Un etage plus haut qui occupe ma case n'est pas une propriete de MA case vue de
+## dessus : c'est une propriete de l'EMPILEMENT, que l'assemblage connait deja. Mesure du bit :
+## il ferme cinq couples sur neuf et coute 74 -> 121 tuiles de surface pour UN dessin de plus.
+## C'est payer quarante-sept tuiles ce que la pose sait faire gratuitement -- meme lecon que la
+## pose arriere : « zero dessin de plus : on ne fait que ne pas poser ce que le modele ne met
+## pas la ».
+
+
 const CARDINALS: Array[int] = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]
 
 
@@ -476,6 +485,43 @@ static func mark(world: PackedStringArray, storeys: Array[Dictionary], indices: 
 						if not map3.has(next_to):
 							continue
 						if is_lip(int(map3[next_to]) & 0xff, level):
+							continue
+						# ⚠ ET PAS SI UNE ROBE COUVRE CETTE VOISINE -- « ma bande bute sur
+						# son HERBE » est alors faux : elle montre de la ROCHE, et cette
+						# roche est une face pleine, dont le flanc trace deja. Deux
+						# tracants pour une frontiere : 10 paves, tous
+						# `surface etage N | robe`, et ils ont survecu a la variante
+						# enterree parce qu'ils n'ont rien a voir avec l'empilement.
+						#
+						# ⚠ C'EST LA FACE PLEINE QUI TRACE, LE LISERE SE TAIT. Le bandeau
+						# n'est qu'un lisere de MA face vue de trois quarts ; en face, la
+						# robe EST la face. Entre les deux, celui qui sait le plus trace --
+						# meme arbitrage que l'arete interne, ou le bloc qui avance porte
+						# l'angle.
+						if roles.has(next_to):
+							continue
+						# ⚠ NI SI ELLE EST ENTERREE SOUS UN ETAGE PLUS HAUT -- meme faute,
+						# meme forme : ce qu'on voit a cote n'est alors pas son herbe, c'est
+						# la COUPE de l'etage qui la recouvre, et cette coupe trace son
+						# propre bord ouest. La regle se dit d'une phrase : le bit parle de
+						# ce qu'on VOIT a cote, jamais de ce que ma silhouette y trouve.
+						#
+						# ⚠ C'EST LA TROISIEME FOIS DE LA SESSION QU'UNE REGLE LIT LA
+						# SILHOUETTE LA OU IL FALLAIT LIRE LA SURFACE VISIBLE. « On ne voit
+						# que le sommet » est au dossier depuis la couverture ; elle vaut
+						# aussi pour qui trace.
+						# ⚠ NI SI CE QU'ON VOIT A COTE EST UNE LEVRE D'UN AUTRE ETAGE. Alors ce
+						# n'est pas de l'herbe qui est en face, c'est SON bandeau -- de la
+						# face, comme le mien -- et un bandeau ne se creuse pas
+						# lateralement : il touche la frontiere et la trace. Deux liseres
+						# de face pour une frontiere, c'est le doublement.
+						#
+						# ⚠ ET SE TAIRE DES QUE LA VOISINE EST ENTERREE, SANS REGARDER CE
+						# QU'ON VOIT, A ETE ESSAYE ET REFUTE : 20 extremites, toutes noyees.
+						# Une surface ordinaire, elle, CREUSE son bord lateral -- son trait
+						# n'atteint jamais la frontiere, et le mien y etait le seul.
+						# `is_lip` est exactement ce qui separe les deux.
+						if HeightMask.level_at(world, next_to.x, next_to.y) != storey3 								and indices.has(next_to) 								and is_lip(int(indices[next_to]) & 0xff, level):
 							continue
 						more |= LIP_ALONE_EAST if way2 == 0 else LIP_ALONE_WEST
 				more &= ~drop

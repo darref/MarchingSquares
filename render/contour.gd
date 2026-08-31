@@ -52,6 +52,9 @@ static func paint(vocabulary: Dictionary, freedom: int, level: int,
 		# LES BANDEAUX : le sud par theoreme, les cotes par le bit `bord`.
 		var bands: int = 0
 		if Brink.crest_on_surface and level < 5:
+			# ⚠ SEULE LA LEVRE DU DESSUS DESSINE SON BANDEAU. Celle d'en dessous a bien une
+			# face, mais elle est cachee derriere celle du dessus -- « on ne voit que le
+			# sommet », deja la regle des robes.
 			if Brink.is_lip(index, level):
 				bands |= 1
 			if (brink & 1) != 0:
@@ -276,9 +279,21 @@ static func _stamp_who(who: Image, tile: Image, at: Vector2i, id: int) -> void:
 static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
 		under_by_level: Array[Dictionary], backing_tiles: Dictionary,
-		astride: bool = false, who: Image = null) -> Image:
+		astride: bool = false, who: Image = null, level: int = -1) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
+	# LES VARIANTES ENTERREES SE DERIVENT ICI, ET NULLE PART AILLEURS.
+	#
+	# ⚠ UNE POSE SE DERIVE LA OU ELLE SE POSE. Elle a d'abord ete calculee chez UN appelant,
+	# qui la passait en parametre : le banc, lui, appelle `assemble` en direct et ne la passait
+	# pas. Le mecanisme n'a donc JAMAIS TOURNE SOUS LA MESURE -- la mesure disait « zero pave
+	# gagne », c'est-a-dire exactement ce que dit un code qui ne s'execute pas. Meme espece que
+	# le drapeau mange par une edition : un mecanisme qui ne se signale pas quand il dort.
+	var buried: Dictionary = {}
+	if Brink.crest_on_surface and not astride and level >= 2:
+		for key2: Variant in tiles.keys():
+			if Brink.is_lip(int(key2), level):
+				buried[int(key2)] = muted_band(tiles[key2] as Image)
 	for storey: int in range(storeys.size()):
 		# ⚠ LA POSE ARRIERE PASSE JUSTE AVANT LA SURFACE DE SON ETAGE D'ATTERRISSAGE. Sous
 		# celle-ci, donc invisible partout ou la surface est opaque -- et visible par ses
@@ -314,6 +329,10 @@ static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		var shift: Vector2i = Vector2i(RES / 2, RES / 2) if astride else Vector2i.ZERO
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
+			# ⚠ UN ETAGE ENTERRE POSE SA TUILE SANS SON BANDEAU. C'est ici que l'empilement se
+			# connait -- la tuile, elle, n'a pas a le savoir.
+			if buried.has(int(map[cell])) and not astride 					and storey < HeightMask.level_at(world, cell.x, cell.y):
+				tile = buried[int(map[cell])]
 			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES - shift)
 			_stamp_who(who, tile, cell * RES - shift, LAYER_SURFACE + storey * 2)
 	for cell: Vector2i in roles.keys():
@@ -321,6 +340,49 @@ static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
 		_stamp_who(who, rock, cell * RES, LAYER_WALL)
 	return canvas
+
+
+## LA TUILE D'UN ETAGE ENTERRE : la meme, SANS SON BANDEAU.
+##
+## ⚠ SEULE LA LEVRE DU DESSUS MONTRE SA FACE -- « on ne voit que le sommet », deja la regle des
+## robes (`Walls._topmost`). Deux etages peuvent tous deux etre des levres a la meme case ;
+## leurs deux faces existent, mais celle du dessous est CACHEE derriere celle du dessus. Elle
+## garde donc SA MATIERE et perd SON TRAIT : le trait dirait une frontiere que l'etage du
+## dessus trace deja, une rangee plus bas, et les deux se collent.
+##
+## ⚠ ET C'EST EXACTEMENT LA REGLE DE LA POSE ARRIERE, D'UNE COUCHE PLUS HAUT -- « la pose
+## arriere est MUETTE : sa matiere SANS son contour ». Une couche enterree porte sa matiere,
+## jamais son trait.
+##
+## ⚠ EFFACER LE BANDEAU AU LIEU DE LE TAIRE A ETE ESSAYE, ET I6 L'A REFUSE : 219 pixels de
+## fond a travers une case que le modele dit pleine. La raison est que TOUTE la pile s'efface,
+## pas seulement la couche juste sous le sommet -- et la derniere ne laisse rien derriere elle.
+## Taire ne perd aucune matiere, par construction.
+##
+## ⚠ ET C'EST UNE POSE, PAS UNE TUILE : zero dessin de plus. Le bit qui disait « je suis
+## enterre » a ete essaye et chiffre : il ferme cinq couples sur neuf et coute 74 -> 121 tuiles
+## de surface pour UN dessin. On ne paie pas quarante-sept tuiles ce que la pose sait faire
+## pour rien.
+static func muted_band(tile: Image) -> Image:
+	var out: Image = tile.duplicate()
+	var found: bool = false
+	for y: int in range(RES - 1, -1, -1):
+		var stony: bool = false
+		for x: int in range(RES):
+			if out.get_pixel(x, y).is_equal_approx(ROCK):
+				stony = true
+		if not stony:
+			# La rangee qui borde le bandeau porte son trait : elle se tait avec lui.
+			if found:
+				for x2: int in range(RES):
+					if out.get_pixel(x2, y).is_equal_approx(OUTLINE):
+						out.set_pixel(x2, y, ROCK)
+			break
+		found = true
+		for x3: int in range(RES):
+			if out.get_pixel(x3, y).is_equal_approx(OUTLINE):
+				out.set_pixel(x3, y, ROCK)
+	return out
 
 
 ## LE NOM D'UN BORD : une famille, une tuile, un cote. C'est l'unite dont on cherche les
@@ -540,6 +602,6 @@ static func compose(world: PackedStringArray, level: int, freedom: int) -> Dicti
 	for key: Variant in role_tiles.keys():
 		backing_tiles[key] = muted(role_tiles[key] as Image)
 	var image: Image = assemble(world, storeys, tiles, posed_roles, role_tiles,
-			under_by_level, backing_tiles, false)
+			under_by_level, backing_tiles, false, null, level)
 	return {"image": image, "storeys": storeys, "indices": indices, "roles": posed_roles,
 			"tiles": tiles, "vocabulaire": vocabulary, "seen": seen}

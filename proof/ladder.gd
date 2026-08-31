@@ -1167,7 +1167,7 @@ func _run(couple: String) -> bool:
 	var who: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	var image: Image = Compose.assemble(world, storeys, tiles, posted, role_tiles, under_by_level,
-			backing_tiles, level >= 5, who)
+			backing_tiles, level >= 5, who, level)
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
 	var bare: Image = null
@@ -1177,14 +1177,14 @@ func _run(couple: String) -> bool:
 		for storey: int in range(storeys.size()):
 			none.append({})
 		bare = Compose.assemble(world, storeys, tiles, posted, role_tiles, none, backing_tiles,
-				level >= 5)
+				level >= 5, null, level)
 		# ⚠ ET LA COUVERTURE SE LIT SUR UNE ASSEMBLEE DES SURFACES SEULES, PAS SUR UNE TUILE.
 		# I6 demandait « la tuile qui couvre cette case » -- une question qui n'a plus de
 		# reponse des que les surfaces sont DECALEES D'UN DEMI-PAS : une case y est couverte
 		# par QUATRE tuiles a cheval. Une assemblee sans robes ni poses arriere repond pour
 		# toutes les familles, et sans rien redemander au modele.
 		cover = Compose.assemble(world, storeys, tiles, {}, role_tiles, none, backing_tiles,
-				level >= 5)
+				level >= 5, null, level)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under,
 			role_tiles, bare, cover, level, who)
@@ -1989,7 +1989,16 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 			thick += 1
 			var at: Vector2i = Vector2i(x / RES, y / RES)
 			if thick_where.size() < 10:
-				thick_where.append("%d,%d de la case %d,%d" % [x % RES, y % RES, at.x, at.y])
+				var said2: String = "%d,%d de la case %d,%d" % [x % RES, y % RES, at.x, at.y]
+				# ⚠ ET ON DIT QUELLE COUCHE POSE CHACUN DES QUATRE PIXELS. « Trois hypotheses
+				# raisonnees, trois fois faux » : un pave se lit, il ne se devine pas.
+				if who != null:
+					var four: Array[String] = []
+					for d: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1),
+							Vector2i(1, 1)]:
+						four.append(Compose.layer_name(who.get_pixel(x + d.x, y + d.y).r8))
+					said2 += " [" + ", ".join(four) + "]"
+				thick_where.append(said2)
 			var mine: String = "robe" if roles.has(at) else "surface"
 			var below: String = "rien dessous"
 			if under.has(at):
