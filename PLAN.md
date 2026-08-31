@@ -2546,6 +2546,131 @@ lisait même pas comme un ras — elle se lisait comme une constante anodine.
 là que *straight* et *ondulated* doivent se séparer pour les falaises — bosse plate d'un côté,
 bosse qui serpente de l'autre. À faire avec les styles, et noté aux questions ouvertes.
 
+### 31 · LA DÉRIVATION : ce que la liberté des SURFACES laisse aux FACES
+
+*Question de l'utilisateur, et c'est elle qui a débloqué la nuit : « maintenant qu'on a un guide
+fermé, tout le reste est du calcul de jumelage en fonction des libertés possibles des
+silhouettes — dérouler l'algo de la main de l'artiste est-il bien la manière de chercher le
+formalisme ? »* Oui, et ça explique pourquoi les heures précédentes ont pataugé : **je résolvais
+dans le mauvais ordre.**
+
+⚠ **LA DÉPENDANCE EST ORIENTÉE, SANS RETOUR : `silhouettes → surfaces → faces`.** Mesuré deux
+fois — la face est plate **là où le bord perpendiculaire d'une surface peut arriver**, et
+libérer la face n'a jamais rien changé aux surfaces. Traiter les deux ensemble, c'était casser
+trois choses pour en bouger une : le diagnostic d'un essai raté le montre en clair — *23 surface
+contre surface, 18 robe contre robe, 5 surface contre robe*.
+
+**D'où `core/border_rules.gd` : les contraintes d'un bord de face, ÉCRITES ET NOMMÉES** au lieu
+d'un profil codé à la main. Il ne dessine pas, il contraint — un autre dessin pourrait en
+fabriquer un autre, du moment qu'il passe par les mêmes points.
+
+### 31bis · LES TROIS ALIGNEMENTS, ET POURQUOI ILS NE PEUVENT PAS L'ÊTRE
+
+*« Les coins de surface, les jonctions en T et les coins de falaise sont-ils alignés
+verticalement ? »* Mesuré :
+
+```
+  coin de surface  (4, 4)   constante, MEME a F2
+  jonction en T     4       le bord d une surface atteint son bord de case a 4
+  coin de falaise   0       au ras  <- le seul desaligne
+```
+
+⚠ **ET LES ALIGNER NE FERME PAS : 1 702 DOUBLEMENTS.** Le désalignement n'est pas un oubli, c'est
+ce qui garde **un seul traçant par frontière**. Deux surfaces voisines décrivent **deux
+frontières distinctes** qui se relaient bout à bout — d'où le rendez-vous à 4, qui leur permet de
+se retrouver sans jamais se parler. Une face et la surface qu'elle borde décrivent **la même**
+frontière : les mettre à la même profondeur, c'est les faire se revendiquer toutes les deux.
+
+**La règle, en une phrase, et elle porte tout le reste :**
+
+> **Une frontière RELAYÉE se place où la famille veut ; une frontière PARTAGÉE est le bord
+> lui-même.**
+
+### 31ter · CE QUI DÉRIVE DU CHOIX DE L'ARTISTE, ET CE QUI N'EN DÉRIVE PAS
+
+*Correction de l'utilisateur, et elle est plus vraie que ma formulation : « pas imposés, plutôt
+dérivant des propres choix qu'il a faits ».* Le modèle n'impose **aucune valeur** — il impose une
+**cohérence**. Toutes les lignes d'une même famille sont des morceaux d'une seule frontière vus
+dans des tuiles différentes.
+
+```
+  traversee 2, 3, 4, 5, 6  ->  bout du flanc a 0 : TOUJOURS ok
+  bout du flanc a 1 ou 2   ->  TOUJOURS en echec
+```
+
+⚠ **LE 4 DE NOTRE DESSIN N'EST QU'UN TIRAGE** : la traversée marche de 2 à 6. ⚠ **MAIS LE BOUT
+D'UN FLANC VAUT ZÉRO QUOI QU'ON CHOISISSE** — et c'est la règle ci-dessus, appliquée. J'avais
+affirmé ce zéro sans preuve ; l'utilisateur l'a refusé, l'expérience isolée l'a confirmé. *Une
+explication inventée après la mesure n'est pas une dérivation.*
+
+⚠ **ET MON PREMIER ESSAI NE RÉPONDAIT À RIEN** : il changeait **trois choses à la fois** — la
+valeur des bouts, la longueur du plat et la profondeur de rencontre. Isoler la question a coûté
+une ligne et rendu la réponse en un run.
+
+### 31quater · LE TROC, CHIFFRÉ — et l'image que ça donne du modèle
+
+```
+  traversee   profondeur libre de la surface   portee libre des lignes de falaise
+      2                6 crans                          10 positions
+      4                4 crans                           6 positions
+      6                2 crans                           2 positions
+```
+
+**Chaque cran gagné sur la profondeur du cadre coûte deux positions aux lignes de falaise** —
+`RES − 2c − 2`, la zone plate s'allongeant des deux côtés. Formulation de l'utilisateur, exacte :
+*« chaque liberté prise en réduit une autre »*.
+
+⚠ **Une correction : le sud des falaises n'y échappe pas.** Le pied et le flanc suivent la même
+formule. Ce qui reste libre quoi qu'il arrive est leur **amplitude**, pas leur **portée** — deux
+libertés différentes, et seule la seconde se paie.
+
+> **L'image juste : un cadre orthogonal irrégulier — droit à ses bouts, serpentant en son
+> milieu — FLOTTANT EN ÉCHELLE. L'artiste choisit une fois à quelle profondeur son cadre
+> s'enfonce, et ce seul choix fixe les rendez-vous de toutes ses tuiles.**
+
+### 31quinquies · I3 ÉLARGI AUX COUCHES — et il accuse aussi le modèle actuel
+
+L'ancien I3 marche de case en case et juge l'arête **partagée par deux cases**. Depuis que la
+tuile de lèvre porte le haut de sa face, deux **couches** se rencontrent **dans** la même case, et
+cette frontière-là n'avait aucun juge : I2 la compte quand elle double, sans pouvoir dire entre
+qui. L'assemblage rend donc, en option, **qui a posé quel pixel** — et le banc s'en sert.
+
+```
+                          doubles entre couches
+  drapeau baisse (livre)   L2/F1  116   L3/F2@guide 153   L5/F2  64
+  avec le transfert        L2/F1  264
+```
+
+⚠ **LE DOUBLEMENT ENTRE COUCHES PRÉEXISTAIT, ET PERSONNE NE LE REGARDAIT.** Le transfert aggrave,
+il n'invente pas. Et le couple dominant est `surface | robe` — 191 sur 264 — c'est-à-dire
+exactement le débord du bandeau.
+
+⚠ **ET C'EST L'ASSEMBLAGE QUI REND LES IDENTITÉS, PAS LE BANC QUI LES REDEVINE.** Redériver
+l'ordre d'empilement dans l'instrument serait une seconde copie d'une même règle — la faute la
+plus chère du dépôt. Le paramètre est optionnel : le produit ne le passe pas, et ne paie rien.
+
+**La dette, ventilée sur le modèle LIVRÉ — c'est-à-dire sans le transfert :**
+
+```
+  surface etage 1 | robe                 68          surface etage 2 | robe                 20         |  95 des 116 : une SURFACE
+  surface etage 3 | robe                  8         |  contre une ROBE
+  surface etage 0 | robe                  7        /
+  surface etage 0 | surface etage 1       4          surface etage 2 | surface etage 3       4         |  21 : deux SURFACES
+  surface etage 1 | surface etage 3       3         |  d etages differents
+  ... et cinq autres couples a 1 ou 2              /
+```
+
+⚠ **QUATRE-VINGT-QUINZE SUR CENT SEIZE SONT `surface | robe`.** Ce n'est donc pas une poussière
+répartie : c'est **une seule jonction** — le bord d'une surface contre la roche d'une face qui
+la longe, vues à travers la transparence de l'une ou de l'autre. Le transfert la porte de 95 à
+191 parce qu'il met de la face *dans* la tuile de surface, mais il ne la crée pas.
+
+⚠ **ET ELLE EST AFFICHÉE, PAS ASSERTÉE — pour l'instant, et la raison compte.** La mettre au
+verdict rendrait les **vingt-six couples rouges d'un coup**, y compris ceux qui n'ont pas bougé
+(mesuré : 23 échecs). *Une échelle toujours rouge ne dit plus si un correctif a servi.* C'est le
+statut qu'a eu la couverture du guide tant qu'elle était un travail en cours — « affiché, pas
+asserté » — et ça redevient une assertion le jour où la dette est payée.
+
 ### 30 · LE TRANSFERT DE LA CRÊTE DEVIENT LA SPÉCIFICATION — et ce qu'il en coûte
 
 *Décision utilisateur, prise en connaissance du prix : « on change de modèle, tant pis si on a

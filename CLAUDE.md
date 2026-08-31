@@ -3138,6 +3138,56 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
+- **UN NIVEAU 0 DU MODE D'EMPLOI : L'ORDRE DE DESSIN.** Demande utilisateur du 31/08/2026, et
+  son contenu est deja etabli par la mesure -- il ne reste qu'a l'ecrire, une fois le modele
+  fige. Il vient AVANT « Prise en main » : c'est ce qu'on lit avant de poser le premier pixel.
+
+  **L'ordre ideal, et il n'est pas un gout -- il suit la dependance, orientee sans retour :**
+
+  1. **la surface pleine** (index 255) -- aucun bord, interieur pur : elle fixe la matiere ;
+  2. **les lignes de surface**, horizontales puis verticales -- les choix libres, qui
+     DETERMINENT les coins et la lateralite des jonctions en T ;
+  3. **la levre** -- elle porte le haut de sa face, donc elle depend de 2 ;
+  4. **les faces** -- flancs, puis pied.
+
+  Chaque famille ne recoit de contraintes que des precedentes : dessinee dans cet ordre, aucune
+  reprise n'est jamais necessaire. Et c'est le meme ordre qui sert a fabriquer le soft, parce
+  que c'est celui du calcul.
+
+  ⚠ **CE QUI EST PERMIS A CHAQUE ETAPE, ET C'EST LA VRAIE MATIERE DU NIVEAU 0 :**
+
+  | | |
+  |---|---|
+  | l'interieur d'une tuile | **libre**, totalement |
+  | le milieu de chaque ligne | **libre** |
+  | la forme d'un coin | **libre**, tuile par tuile -- et le trait se deduit de la matiere, donc « forme » et « dessin » sont une seule decision |
+  | un bord **lie** a un autre | **copie** : peindre l'un peint l'autre, l'ordre est indifferent |
+  | un **rendez-vous** | **derive de son propre choix**, pas impose |
+
+  ⚠ **ET « IMPOSE » EST LE MAUVAIS MOT -- correction utilisateur, et elle est plus VRAIE que ma
+  formulation.** Le modele n'impose aucune valeur : il impose une COHERENCE. Toutes les lignes
+  d'une meme famille sont des morceaux d'une seule frontiere vus dans des tuiles differentes,
+  donc elles finissent a la meme profondeur -- celle que l'artiste a choisie la premiere fois.
+  Mesure : la traversee marche a 2, 3, 4, 5 et 6. Le 4 de notre dessin n'est qu'un tirage.
+
+  ⚠ **MAIS L'ARTISTE NE PEUT PAS COMMENCER N'IMPORTE OU, ET LE CONTRE-EXEMPLE EST NET.** Le
+  jumelage est une union-find : peindre n'importe quel membre ecrit toute la classe, donc pour
+  ce qu'il couvre l'ordre est indifferent. **Il ne couvre pas les rendez-vous.** Deux surfaces
+  voisines se rejoignent BOUT A BOUT -- deux frontieres differentes, donc deux classes
+  differentes, et rien ne les relie. Finir l'une a 4 et l'autre a 6 ouvre le contour, et
+  l'artiste peut peindre tout le reste parfaitement sans que rien ne le lui dise.
+
+  ⚠ **ET UNE VALEUR NE SE DERIVE PAS DE SON CHOIX : LE BOUT D'UN FLANC VAUT ZERO, TOUJOURS.**
+  Mesure : quelle que soit la traversee -- 2 a 6 -- le bout du flanc a 1 ou 2 casse. La raison
+  se dit en une phrase, et elle vaut d'etre au mode d'emploi : **une frontiere RELAYEE se place
+  ou la famille veut ; une frontiere PARTAGEE est le bord lui-meme.** Une face et la surface
+  qu'elle borde decrivent la meme frontiere, et cette frontiere EST le bord de case.
+
+  **Le soft doit donc faire deux choses** : propager les rendez-vous comme il propage les
+  jumelles -- la premiere fois qu'un bord nord finit a 6, tous les bords nord finissent a 6 --
+  et **montrer** le peu qui n'est pas negociable. C'est deja ce que le fond « contour prouve »
+  existe pour faire voir.
+
 - **L'ENTREE DE GROTTE : un specimen quelconque, place sur une face la ou il y a la place.**
   Demande utilisateur du 31/08/2026. Un bloc de N x M tuiles, peint une fois, pose par le level
   designer sur une paroi -- pas deduit du relief.

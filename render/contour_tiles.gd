@@ -20,6 +20,7 @@ const BlobIndex := preload("res://core/blob_index.gd")
 ## L'inverse mettrait une question de modele dans un fichier de rendu, et `core/` ne
 ## doit rien devoir a `render/`.
 const Brink := preload("res://core/brink.gd")
+const BorderRules := preload("res://core/border_rules.gd")
 const NORTH_QUIET := Brink.NORTH_QUIET
 const ABOVE_QUIET_EAST := Brink.ABOVE_QUIET_EAST
 const ABOVE_QUIET_WEST := Brink.ABOVE_QUIET_WEST
@@ -52,6 +53,7 @@ static var wall_free: String = ""
 ## demontre -- et elle ne coute rien. `LADDER_WALLREACH` la fait varier.
 static var wall_reach: int = 6
 
+
 ## L'ARETE INTERNE : le trait qui descend entre deux faces voisines qui ne pendent pas de la
 ## meme levre. C'est elle qui donne le relief, et sans elle deux falaises accolees se lisent
 ## comme UNE SEULE masse de roche.
@@ -80,6 +82,10 @@ static var wall_reach: int = 6
 ## `haut` : la regle. `personne` : la route refusee, gardee joignable. Vide : aucune arete,
 ## l'etat d'avant -- deux falaises accolees se lisent alors comme une seule masse de roche.
 static var wall_ridge: String = "haut"
+
+## La traversee forcee a une valeur unique, pour mesurer ce qui en depend. Zero : le tirage
+## d'origine, une constante par cote.
+static var forced_crossing: int = 0
 ## La regle de l'ergot, par la DIAGONALE ; `false` rejoue l'ancienne, par la voisine.
 static var ergot_diag: bool = true
 ## Le rendez-vous : `both` (la regle), `none`, `orig`, `miroir`.
@@ -439,13 +445,20 @@ static func wall_open(key: Variant) -> Array[bool]:
 	# duale n'a pas sa propre reponse -- et `compose()` ne sert de toute facon que la famille
 	# par case, celle que le logiciel livre.
 	var crown: bool = role.y == Walls.ROW_CROWN 			and not (Brink.crest_on_surface and level < 5)
+	# ⚠ ET LES FLANCS SE TAISENT AVEC LA CRETE, POUR LA MEME RAISON. La jonction laterale est
+	# le miroir de la verticale : tant que c'est la FACE qui trace son flanc, elle doit etre
+	# plate partout ou le bord perpendiculaire de la surface peut arriver -- entre 4 et 7.
+	# Rendue a la surface, qui SAIT ou est son propre trait, la face n'a plus rien a deviner.
+	# ⚠ ET LES FLANCS NE SE TAISENT PAS : la surface n'a pas de lisere lateral a peindre, donc
+	# personne d'autre ne peut tracer cette frontiere. Route joignable, gardee pour le chiffre.
+	var mute_sides: bool = Brink.crest_on_surface and level < 5 			and OS.get_environment("LADDER_SIDES") == "surface"
 	if astride == "face":
 		return [crown, false,
 				role.y == Walls.ROW_FOOT and (give & 4) == 0, false]
 	return [crown,
-			Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0,
+			Walls.pan_east(role.x) == Walls.SIDE_STOP and (give & 2) == 0 and not mute_sides,
 			role.y == Walls.ROW_FOOT and (give & 4) == 0,
-			Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0]
+			Walls.pan_west(role.x) == Walls.SIDE_STOP and (give & 1) == 0 and not mute_sides]
 
 
 ## LA FABRIQUE : la matiere que les quatre profils laissent, puis son bord.
@@ -554,6 +567,49 @@ static func wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> in
 	# pas au seul point canonique. « Collees au bord » est donc un theoreme, pas un accident.
 	#
 	# La route refusee reste joignable par `LADDER_WALLFREE=points`.
+	# ⚠ LA LIBERTE DE LA FACE SE DEDUIT DE CELLE DE LA SURFACE -- proposition utilisateur, et
+	# elle nomme ce qui manquait. Le bord d'une surface n'arrive pas « n'importe ou » a une
+	# frontiere partagee : il y arrive A LA TRAVERSEE CANONIQUE, qui est une CONSTANTE du
+	# modele. Ce que la face ignorait n'etait donc pas ou la surface arrive, mais ou son
+	# PROPRE autre bord est passe -- les deux tirant des amplitudes differentes.
+	#
+	# ⚠ ET « ZERO EST LA SEULE PROFONDEUR QUE LES DEUX SAVENT SANS SE PARLER » ETAIT FAUX. Ils
+	# savent aussi une CONSTANTE : au coin, les deux bords d'une face se posent a
+	# `wall_corner` et s'y rejoignent en (c, c) -- exactement comme deux bords de surface se
+	# rejoignent en (4, 4). Route `LADDER_WALLCORNER=n`.
+	# ⚠ LA DERIVATION : les points imposes viennent du MODELE, pas d'ici. `core/border_rules.gd`
+	# les calcule depuis la seule chose que la face puisse savoir de ses voisines -- la
+	# traversee canonique des surfaces, qui est une constante. Ce fichier ne fait plus que
+	# remplir ce qui reste libre.
+	if BorderRules.CORNER > 0:
+		var imposed: Dictionary = BorderRules.imposed(RES, first)
+		if imposed.has(along):
+			return int(imposed[along])
+		# LA LIBERTE RESIDUELLE : entre deux points imposes, on interpole et on bombe.
+		var before: int = along
+		var after: int = along
+		while before > 0 and not imposed.has(before):
+			before -= 1
+		while after < RES - 1 and not imposed.has(after):
+			after += 1
+		var lo: float = float(imposed.get(before, 0))
+		var hi: float = float(imposed.get(after, 0))
+		var t: float = float(along - before) / float(maxi(1, after - before))
+		var swell: float = reach * sin(PI * t) if after - before > 2 else 0.0
+		return int(round(lo + (hi - lo) * t + swell))
+	# ⚠ L'EXPERIENCE ISOLEE : ne bouger QUE la valeur aux deux bouts. La question posee est
+	# « le bout d'un flanc doit-il valoir zero ? » -- et elle ne se repond que si on ne touche
+	# a rien d'autre : ni la longueur du plat, ni la profondeur de rencontre. Mon premier essai
+	# changeait les trois a la fois, donc il ne repondait a rien.
+	#
+	# La rampe descend de `wall_end` au bout jusqu'a ZERO a la traversee, ou le T arrive.
+	if BorderRules.CORNER > 0 and wall_free != "points":
+		if along < first:
+			return int(round(float(BorderRules.CORNER) * float(first - along) / float(first)))
+		if along > last:
+			return int(round(float(BorderRules.CORNER) * float(along - last)
+					/ float(RES - 1 - last)))
+		return int(round(reach * sin(PI * float(along - first) / float(last - first))))
 	if wall_free != "points":
 		if along <= first or along >= last:
 			return 0
@@ -588,11 +644,20 @@ static func wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> in
 ## ⚠ ET LE CHAPITEAU SE TAIT ALORS, sinon deux traits pour une frontiere. C'est un ECHANGE.
 static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 		quiet: int = 0, flat_north: bool = false, wall: bool = false,
-		seams: Array[int] = [], lip: bool = false, alone: int = 0) -> Image:
+		seams: Array[int] = [], bands: int = 0, alone: int = 0) -> Image:
 	while seams.size() < 4:
 		seams.append(0)
 	var tile: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	# LA RANGEE LA PLUS HAUTE QUE LE BANDEAU DE LEVRE ATTEIGNE.
+	# LES TROIS BANDEAUX D'UNE SURFACE, ET C'EST LA MEME IDEE TROIS FOIS : la tuile porte le
+	# morceau de face qui la borde, la ou le modele garantit qu'il y en a un.
+	#   bit 0 -- au SUD  : je suis une LEVRE, ma face est dessous, TOUJOURS (theoreme).
+	#   bit 1 -- a l'EST : le bit `bord` dit qu'une robe couvre ma voisine de l'est.
+	#   bit 2 -- a l'OUEST : idem.
+	# ⚠ ET LES DEUX LATERAUX SONT AUSSI CONSTANTS QUE LE SUD, mais pour une autre raison : le
+	# sud l'est par theoreme, les cotes le sont PARCE QU'UN BIT LE DIT. La cle porte
+	# l'information, donc la tuile a le droit de la peindre.
+	var lip: bool = (bands & 1) != 0
 	var band: int = 0
 	if lip:
 		for x0: int in range(RES):
@@ -663,6 +728,17 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 	for y: int in range(RES):
 		var strip: PackedByteArray = PackedByteArray()
 		strip.resize(RES)
+		# ⚠ ET IL N'Y A PAS DE BANDEAU LATERAL, ESSAYE ET REFUSE -- pour une raison de
+		# PROJECTION, pas de technique. Le bandeau sud existe parce que la vue est de trois
+		# quarts : le bord sud d'un plateau montre un liseré de SA PROPRE FACE, et c'est
+		# l'argument meme de l'epaule. Lateralement il n'y a aucun lisere -- la face est de
+		# l'autre cote de la frontiere, dans la case voisine. En peindre serait de la matiere
+		# INVENTEE. Mesure : 149 / 226 / 395 extremites, toutes aux coins de tuile.
+		#
+		# Consequence, et elle ferme la question : la jonction laterale NE SE TRANSFERE PAS.
+		# La face garde son flanc, donc elle reste plate la ou le bord perpendiculaire de la
+		# surface peut se presenter. Ce ras-la n'est pas une decision qui manque, c'est la
+		# geometrie de la vue.
 		if lip:
 			for x: int in range(RES):
 				strip[x] = 1 if y > RES - 1 - depth(2, x, freedom, seams[2]) else 0
@@ -707,10 +783,14 @@ static func shape(open: Array[bool], freedom: int, body: Color, index: int,
 			# la LEVRE SEULE (ma roche touche l'herbe de ma voisine) et l'ARETE INTERNE (ma
 			# face avance sur celle d'a cote). Dans les deux cas c'est moi qui trace : ma
 			# voisine ne sait rien de moi.
+			# ⚠ ET LA MARQUE SE POSE A LA PROFONDEUR DU COIN, PAS AU RAS. C'est elle qui
+			# continue le flanc de la face d'en dessous : a une autre profondeur, le trait
+			# sauterait d'un cran a la frontiere entre les deux tuiles.
+			var mark: int = BorderRules.lip_side_depth()
 			if stone[y][x] != 0 or wall:
-				if x == RES - 1 and (alone & 1) != 0:
+				if x == RES - 1 - mark and (alone & 1) != 0:
 					edge = true
-				if x == 0 and (alone & 2) != 0:
+				if x == mark and (alone & 2) != 0:
 					edge = true
 			tile.set_pixel(x, y, OUTLINE if edge
 					else (ROCK if stone[y][x] != 0 else body))
@@ -807,7 +887,12 @@ static func depth(side: int, along: int, freedom: int, seam: int = 0) -> int:
 	# ⚠ ET LA TRAVERSEE VAUT AU MOINS DEUX, essaye a zero et mesure. Au ras, la surface
 	# retrouverait la face -- qui pince a zero -- mais elle perd ses propres ergots, poses au
 	# bord : 57 paves a L2/F1. Chaque famille garde donc sa traversee.
-	var crossing: int = 2 + absi((side + 1) * 19349663) % 3
+	# ⚠ LA TRAVERSEE EST UN CHOIX D'ARTISTE, PAS UNE REGLE -- et c'est la formulation juste.
+	# Le modele n'impose aucune valeur : il impose une COHERENCE, parce que toutes les lignes
+	# d'une meme famille sont des morceaux d'une seule frontiere vus dans des tuiles
+	# differentes. Le 4 de notre dessin est le choix que NOTRE dessin a fait. `LADDER_CROSSING`
+	# le force ailleurs, pour mesurer si le reste en depend.
+	var crossing: int = forced_crossing if forced_crossing > 0 			else 2 + absi((side + 1) * 19349663) % 3
 	if freedom == 1:
 		return crossing
 	# ⚠ LA FORME D'UN BORD NE DEPEND QUE DE CE BORD-LA, jamais de la tuile qui le porte. Deux

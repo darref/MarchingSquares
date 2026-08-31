@@ -33,6 +33,7 @@ const Contour := preload("res://render/contour_tiles.gd")
 ## ⚠ ET LES BITS VIENNENT DE `core/`, PAS DU RENDU. Ce qu'une tuile doit SAVOIR est du
 ## modele ; ce qu'elle DESSINE est du rendu. Le banc lit les deux, chacun chez lui.
 const Brink := preload("res://core/brink.gd")
+const BorderRules := preload("res://core/border_rules.gd")
 ## ⚠ ET L'ASSEMBLAGE AUSSI EST CHEZ LE PRODUIT. Le banc n'a plus que ce qui lui est
 ## propre : les mondes, les six invariants, les battues et la forme fermee.
 const Compose := preload("res://render/contour.gd")
@@ -310,6 +311,10 @@ func _initialize() -> void:
 	Contour.meet = OS.get_environment("LADDER_MEET")
 	Contour.half_axis = OS.get_environment("LADDER_HALF") == "axe"
 	Contour.wall_free = OS.get_environment("LADDER_WALLFREE")
+	if not OS.get_environment("LADDER_CROSSING").is_empty():
+		Contour.forced_crossing = int(OS.get_environment("LADDER_CROSSING"))
+	if not OS.get_environment("LADDER_WALLCORNER").is_empty():
+		BorderRules.CORNER = int(OS.get_environment("LADDER_WALLCORNER"))
 	# LE TRANSFERT DE LA CRETE : la surface de levre prend le haut de sa face, le
 	# chapiteau se tait. Voir `Brink.crest_on_surface`.
 	Brink.crest_on_surface = OS.get_environment("LADDER_CREST") == "surface"
@@ -1155,8 +1160,14 @@ func _run(couple: String) -> bool:
 		backing_tiles = {}
 		for key: Variant in role_tiles.keys():
 			backing_tiles[key] = Compose.muted(role_tiles[key] as Image)
+	# ⚠ ET ON DEMANDE A L'ASSEMBLAGE QUI A POSE QUEL PIXEL. Sans ca, une frontiere ENTRE
+	# COUCHES ne se diagnostique pas : I2 compte le pave, I3 ne le voit meme pas, et personne
+	# ne peut dire entre qui. Redeviner l'ordre d'empilement ici serait une seconde copie de
+	# la regle -- la faute la plus chere du depot.
+	var who: Image = Image.create_empty(HeightMask.width(world) * RES,
+			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	var image: Image = Compose.assemble(world, storeys, tiles, posted, role_tiles, under_by_level,
-			backing_tiles, level >= 5)
+			backing_tiles, level >= 5, who)
 	# LE TEMOIN DE I6 : le meme monde, sans une seule pose arriere. Ce que la pose donne a voir
 	# est exactement ce qui differe entre les deux -- rien a classer par la couleur.
 	var bare: Image = null
@@ -1176,7 +1187,7 @@ func _run(couple: String) -> bool:
 				level >= 5)
 	_write(image, couple)
 	var report: Dictionary = _measure(image, world, indices, tiles, freedom, roles, under,
-			role_tiles, bare, cover, level)
+			role_tiles, bare, cover, level, who)
 	# ⚠ LA COMPLETUDE DU VOCABULAIRE EST UNE EXIGENCE DE SPECIMEN, PAS DE MONDE. La planche et
 	# le guide sont batis POUR porter les 27 silhouettes, et un manque y est un defaut. Une
 	# battue, elle, n'a pas a les porter : elle est la pour eprouver les RENCONTRES, et lui
@@ -1837,7 +1848,8 @@ func _junctions(world: PackedStringArray, indices: Dictionary, roles: Dictionary
 
 func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles: Dictionary,
 		freedom: int, roles: Dictionary, under: Dictionary = {}, role_tiles: Dictionary = {},
-		bare: Image = null, cover: Image = null, level: int = 0) -> Dictionary:
+		bare: Image = null, cover: Image = null, level: int = 0,
+		who: Image = null) -> Dictionary:
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 
@@ -1993,6 +2005,7 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 
 	# I3 UNICITE. Chaque frontiere du monde est tracee par EXACTEMENT une tuile.
 	var claims: Dictionary = _claims(image, world, indices, roles)
+	var stacked: Dictionary = _layer_claims(image, who) if who != null 			else {"vues": 0, "muettes": 0, "doubles": 0, "couples": {}}
 	var i3: bool = int(claims["doubles"]) == 0 and int(claims["muettes"]) == 0 \
 			and int(claims["parasites"]) == 0
 
@@ -2201,10 +2214,25 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 				+ "   (%d morceaux, %d massifs, %d trous)" % [strokes, massifs, holes]},
 		"I2": {"nom": "epaisseur", "ok": thick == 0,
 				"dit": "%d pave(s) 2x2 de trait %s" % [thick, str(thick_where)]},
+		# ⚠ ET LES FRONTIERES ENTRE COUCHES SONT AFFICHEES, PAS ASSERTEES -- pour l'instant, et
+		# la raison compte. Elles accusent une dette qui PREEXISTE a la mesure : 116
+		# doublements sur le modele livre, que personne n'avait jamais regardes parce que
+		# l'ancien I3 ne juge que les frontieres d'une meme case. Les mettre au verdict
+		# rendrait les vingt-six couples rouges d'un coup, y compris ceux qui n'ont pas bouge,
+		# et une echelle toujours rouge ne dit plus si un correctif a servi. C'est le meme
+		# statut que la couverture du guide tant qu'elle etait un travail en cours : « affiche,
+		# pas asserte » -- et ca redevient une assertion le jour ou la dette est payee.
 		"I3": {"nom": "unicite", "ok": i3,
-				"dit": "%d frontieres (pile max %d), %d doubles, %d muettes, %d parasites  %s"
+				"dit": "%d frontieres (pile max %d), %d doubles, %d muettes, %d parasites"
 				% [int(claims["frontieres"]), int(claims["pile"]), int(claims["doubles"]),
-				int(claims["muettes"]), int(claims["parasites"]), str(claims["ou"])]},
+				int(claims["muettes"]), int(claims["parasites"])]
+				# ⚠ ET LES FRONTIERES ENTRE COUCHES SE DISENT A PART, parce qu'elles ne se
+				# comptent pas dans la meme unite : les premieres sont des ARETES DE CASE,
+				# celles-ci des PAIRES DE PIXELS. Les additionner ferait un nombre qui ne
+				# veut rien dire.
+				+ "  -- entre couches : %d vues, %d doubles %s" % [int(stacked["vues"]),
+				int(stacked["doubles"]), str(stacked["couples"])]
+				+ ("  " + str(claims["ou"]) if not i3 else "")},
 		"I4": {"nom": "matiere", "ok": pierced == 0,
 				"dit": "%d pixel(s) de fond dans une case sans bord" % pierced},
 		"I5": {"nom": "liberte", "ok": i5,
@@ -2240,6 +2268,57 @@ func _measure(image: Image, world: PackedStringArray, indices: Dictionary, tiles
 ## ⚠ LA DEFINITION S'ELARGIRA A F1. Au ras du bord, « tracer » se lit sur la ligne du bord ;
 ## des que le trait a le droit de rentrer, il faudra le chercher plus loin dans la tuile. La
 ## regle, elle, ne bouge pas : exactement un revendiquant par frontiere.
+## I3, ELARGI AUX COUCHES : les frontieres qui vivent A L'INTERIEUR d'une case.
+##
+## ⚠ L'ANCIEN I3 NE POUVAIT PAS LES VOIR, et ce n'est pas un oubli : il marche de case en case,
+## et demande qui trace l'arete PARTAGEE par deux cases. Or depuis que la tuile de levre porte
+## le haut de sa propre face, deux COUCHES se rencontrent dans la meme case -- le bandeau de
+## roche par-dessus l'etage enterre -- et cette frontiere-la n'a jamais eu de juge. I2 la
+## compte quand elle double, sans pouvoir dire entre qui ; I3 l'ignorait.
+##
+## La regle ne change pas d'un mot : exactement un tracant par frontiere. Ce qui change est ou
+## on la cherche -- entre deux pixels voisins poses par des couches DIFFERENTES.
+##
+## ⚠ ET DEUX COUCHES VOISINES NE FONT PAS TOUJOURS UNE FRONTIERE. De l'herbe posee par l'etage
+## enterre a cote de l'herbe de la surface, c'est la meme matiere : rien a tracer. On exige donc
+## que la MATIERE change aussi -- herbe contre roche, ou matiere contre rien.
+func _layer_claims(image: Image, who: Image) -> Dictionary:
+	var seen: int = 0
+	var mute: int = 0
+	var double: int = 0
+	var pairs: Dictionary = {}
+	for y: int in range(image.get_height()):
+		for x: int in range(image.get_width()):
+			for side: int in [1, 2]:
+				var to: Vector2i = Vector2i(x, y) + STEPS[side]
+				if to.x >= image.get_width() or to.y >= image.get_height():
+					continue
+				var a: int = int(round(who.get_pixel(x, y).r * 255.0))
+				var b: int = int(round(who.get_pixel(to.x, to.y).r * 255.0))
+				if a == b:
+					continue
+				var pa: Color = image.get_pixel(x, y)
+				var pb: Color = image.get_pixel(to.x, to.y)
+				var ta: bool = _is_stroke(image, x, y)
+				var tb: bool = _is_stroke(image, to.x, to.y)
+				var ma: String = "rien" if pa.a < 0.5 else ("trait" if ta
+						else ("roche" if pa.is_equal_approx(Contour.ROCK) else "herbe"))
+				var mb: String = "rien" if pb.a < 0.5 else ("trait" if tb
+						else ("roche" if pb.is_equal_approx(Contour.ROCK) else "herbe"))
+				if not ta and not tb and ma == mb:
+					continue
+				seen += 1
+				var claimants: int = (1 if ta else 0) + (1 if tb else 0)
+				if claimants == 0:
+					mute += 1
+				elif claimants > 1:
+					double += 1
+					var name: String = "%s | %s" % [Compose.layer_name(mini(a, b)),
+							Compose.layer_name(maxi(a, b))]
+					pairs[name] = int(pairs.get(name, 0)) + 1
+	return {"vues": seen, "muettes": mute, "doubles": double, "couples": pairs}
+
+
 func _claims(image: Image, world: PackedStringArray, indices: Dictionary,
 		roles: Dictionary) -> Dictionary:
 	var width: int = HeightMask.width(world)

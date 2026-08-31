@@ -49,8 +49,17 @@ static func paint(vocabulary: Dictionary, freedom: int, level: int,
 			alone |= 1
 		if (brink & Brink.LIP_ALONE_WEST) != 0:
 			alone |= 2
+		# LES BANDEAUX : le sud par theoreme, les cotes par le bit `bord`.
+		var bands: int = 0
+		if Brink.crest_on_surface and level < 5:
+			if Brink.is_lip(index, level):
+				bands |= 1
+			if (brink & 1) != 0:
+				bands |= 2
+			if (brink & 2) != 0:
+				bands |= 4
 		tiles[int(key)] = Contour.shape(open, freedom, GRASS, index, brink, false, false, seams,
-				Brink.crest_on_surface and level < 5 and Brink.is_lip(index, level), alone)
+				bands, alone)
 	return tiles
 
 
@@ -229,10 +238,45 @@ static func clip_north(rock: Image, cover: Image) -> Image:
 	return out
 
 
+## LES IDENTITES DE COUCHE, pour que la mesure sache QUI a pose quel pixel.
+##
+## ⚠ ET C'EST L'ASSEMBLAGE QUI LES REND, PAS LE BANC QUI LES REDEVINE. Redériver l'ordre
+## d'empilement dans l'instrument serait une seconde copie d'une meme regle -- la faute la plus
+## chere du depot, deja payee sur `_check_wall_seams`. Le parametre est optionnel : le produit
+## ne le passe pas, et ne paie donc rien.
+const LAYER_BACKING: int = 10
+const LAYER_SURFACE: int = 11
+const LAYER_WALL: int = 200
+
+
+static func layer_name(id: int) -> String:
+	if id == 0:
+		return "rien"
+	if id == LAYER_WALL:
+		return "robe"
+	var storey: int = (id - LAYER_BACKING) / 2
+	return "%s etage %d" % ["pose arriere" if (id - LAYER_BACKING) % 2 == 0
+			else "surface", storey]
+
+
+## Marque dans `who` l'identite de la couche, partout ou la tuile est opaque.
+static func _stamp_who(who: Image, tile: Image, at: Vector2i, id: int) -> void:
+	if who == null:
+		return
+	for y: int in range(RES):
+		for x: int in range(RES):
+			if tile.get_pixel(x, y).a < 0.5:
+				continue
+			var to: Vector2i = at + Vector2i(x, y)
+			if to.x < 0 or to.y < 0 or to.x >= who.get_width() or to.y >= who.get_height():
+				continue
+			who.set_pixel(to.x, to.y, Color8(id, 0, 0, 255))
+
+
 static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		tiles: Dictionary, roles: Dictionary, role_tiles: Dictionary,
 		under_by_level: Array[Dictionary], backing_tiles: Dictionary,
-		astride: bool = false) -> Image:
+		astride: bool = false, who: Image = null) -> Image:
 	var canvas: Image = Image.create_empty(HeightMask.width(world) * RES,
 			HeightMask.height(world) * RES, false, Image.FORMAT_RGBA8)
 	for storey: int in range(storeys.size()):
@@ -263,6 +307,7 @@ static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 			elif cover.has(cell):
 				rock = clip_north(rock, tiles[int(cover[cell])] as Image)
 			canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
+			_stamp_who(who, rock, cell * RES, LAYER_BACKING + storey * 2)
 		var map: Dictionary = storeys[storey]
 		# ⚠ LE DECALAGE EST D'UN DEMI-PAS, ET C'EST TOUT CE QUE LA FAMILLE A CHEVAL CHANGE A LA
 		# POSE. La tuile d'un croisement est centree sur le coin de quatre cases.
@@ -270,9 +315,11 @@ static func assemble(world: PackedStringArray, storeys: Array[Dictionary],
 		for cell: Vector2i in map.keys():
 			var tile: Image = tiles[int(map[cell])]
 			canvas.blend_rect(tile, Rect2i(0, 0, RES, RES), cell * RES - shift)
+			_stamp_who(who, tile, cell * RES - shift, LAYER_SURFACE + storey * 2)
 	for cell: Vector2i in roles.keys():
 		var rock: Image = role_tiles[roles[cell]] as Image
 		canvas.blend_rect(rock, Rect2i(0, 0, RES, RES), cell * RES)
+		_stamp_who(who, rock, cell * RES, LAYER_WALL)
 	return canvas
 
 
