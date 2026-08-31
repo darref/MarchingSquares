@@ -216,6 +216,57 @@ C'est exactement ce qui a manqué à la montée 52 → 92.
 **90 tuiles** (46 surfaces + 44 rôles), le plus exigeant rejoué sur le **guide** à 107, les six des
 trois battues, et **les sept de la famille à cheval**, sur les cinq mondes.
 
+### 33 · LE COMPTE DU PRODUIT EST FAUX, ET LA CIBLE EST 43 DESSINS
+
+Trouvé à l'écran par l'utilisateur : la barre de progression annonce **47 tuiles** (27 surfaces
++ 20 rôles). Ce n'est pas un défaut d'affichage — c'est que **le produit identifie une tuile par
+sa silhouette seule** quand le modèle l'identifie par le couple *(silhouette, bord)*.
+
+⚠ **ET LA FORME FERMÉE ÉTAIT PÉRIMÉE, CE QUI CACHAIT L'ÉCART.** `closed_form_now.py` ignorait les
+deux bits `LIP_ALONE`, nés du transfert de la crête : elle annonçait la borne d'un modèle qui
+n'était plus le modèle. Une borne haute fausse est pire qu'aucune borne — c'est elle qui doit
+dire quand le vocabulaire enfle.
+
+```
+                        avant       apres
+  forme fermee          101 cles    126 cles
+  controle              --          70 posees, 0 HORS de la forme
+  peinte a F1 et a F2   --          43 DESSINS
+```
+
+⚠ **LES DEUX BORNES SE RENCONTRENT SUR LES DESSINS, PAS SUR LES CLÉS.** La borne haute peinte
+donne **43** ; le guide en pose **43 à 44**. C'est le nombre que la planche doit porter, et c'est
+lui que le compteur doit dire — pas 27.
+
+### 33bis · LES DIAGONALES SUD SONT INERTES, ET C'EST UN THÉORÈME
+
+Le détecteur de bits inertes désigne **8 et 32** — `SE` et `SO` — vingt-deux fois chacun, à F1
+comme à F2. Ce ne sont pas des bits de bord : ce sont des bits de **silhouette**.
+
+**L'argument tient en deux pas.** Une diagonale n'est enregistrée que si ses deux cardinaux sont
+pleins ; pour `SE`, cela veut dire **`S` plein**. Or *dès L2 le sud ne se trace jamais* — c'est le
+théorème de la lèvre, déjà au dossier. Mon bord sud n'est pas dessiné, mon bord est non plus
+(`E` plein), donc le coin entre les deux n'existe pas dans mon tracé : **`SE` ne peut rien y
+changer.** Miroir au sud-ouest.
+
+```
+  27 silhouettes  ->  17 une fois SE et SO retires
+     20 <- [20, 28]        209 <- [209, 241]
+     23 <- [23, 31]        213 <- [221, 253]
+     80 <- [80, 112]       215 <- [223, 247, 255]
+     84 <- [92, 116, 124]   87 <- [119, 127]
+  forme fermee    :  126 cles  ->  82 cles
+  peinte          :   43 dessins  ->  43 dessins   (identique)
+```
+
+⚠ **ET ÇA NE VAUT QU'À PARTIR DE L2.** Sans faces, le sud SE TRACE, et les diagonales sud
+comptent. Le serrage est donc une propriété du **niveau**, pas de `BlobIndex` : c'est
+`surface_open` qui sait que le sud se tait, et c'est lui qui doit le dire.
+
+⚠ **ET IL RESTE 39 CLÉS REDONDANTES APRÈS LE SERRAGE** — 82 clés pour 43 dessins, 18 groupes
+confondus sur 9 silhouettes, et **aucune paire ne diffère d'un seul bit** : le détecteur ne peut
+donc pas les accuser. C'est la suite du critère 3, et elle n'est pas faite.
+
 ### 32 · LE TRANSFERT DE LA CRÊTE EST LE MODÈLE — et les deux défauts qui le bloquaient
 
 Il vivait derrière `LADDER_CREST=surface` depuis qu'il a été décidé, pour une raison écrite le

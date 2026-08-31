@@ -25,6 +25,11 @@ NORTH_QUIET = 1024
 ABOVE_E, ABOVE_W = 2048, 4096
 FLUSH_E, FLUSH_W = 8192, 16384
 BELOW_E, BELOW_W = 32768, 65536
+# ⚠ LA LEVRE SEULE, NEE DU TRANSFERT DE LA CRETE. Depuis que la tuile de levre porte le haut
+# de sa propre face, son BANDEAU a un bord lateral -- et ce bord se trace ou se tait selon ce
+# qu'il y a a cote. Deux bits, absents de ce fichier tant que le transfert vivait derriere son
+# drapeau : la forme fermee annoncait donc une borne d'un modele qui n'etait plus le modele.
+LIP_ALONE_E, LIP_ALONE_W = 131072, 262144
 
 SILHOUETTES = [5,7,20,23,28,29,31,65,71,80,92,112,113,116,119,124,127,193,197,199,209,221,
                223,241,247,253,255]
@@ -96,6 +101,24 @@ def libres(sil):
     # banc a designe ce bit en peignant la forme, 7 confusions de chaque cote.
     if sil & N and not sil & E: out.append(ABOVE_E)
     if sil & N and not sil & W: out.append(ABOVE_W)
+    # ⚠ LA LEVRE SEULE : SA PRECONDITION EST TOUTE DANS LA FENETRE, sa valeur toute dehors.
+    # Le bit se pose quand je suis une LEVRE (sud vide), que ma voisine laterale EXISTE a mon
+    # etage (le cardinal est plein) et qu'elle n'est PAS elle-meme une levre -- c'est-a-dire
+    # que sa case du sud est pleine, et sa case du sud est ma DIAGONALE. Trois faits de la
+    # silhouette, donc une precondition lisible ici.
+    #
+    # Sa valeur, elle, depend de trois choses hors de la fenetre : la voisine peut etre une
+    # levre elle aussi, une robe peut la couvrir, un etage plus haut peut l'enterrer. Les
+    # trois sont libres sur un plan non borne -- donc le bit l'est aussi.
+    #
+    # ⚠ ET « SA VOISINE N'EST PAS UNE LEVRE » N'EST PAS LISIBLE DANS MA SILHOUETTE, meme si
+    # ca en a l'air : c'est le sud de ma voisine, donc ma DIAGONALE -- et la canonicalisation
+    # JETTE une diagonale dont les deux cardinaux ne sont pas tous deux pleins. Une levre a
+    # son sud vide, donc son SE et son SO sont toujours a zero : le tester ici rendrait la
+    # precondition impossible, et le bit disparaitrait de la forme alors que le monde le pose.
+    # Premiere version ecrite ainsi, mesure : 101 cles, exactement comme sans le bit.
+    if not sil & S and sil & E: out.append(LIP_ALONE_E)
+    if not sil & S and sil & W: out.append(LIP_ALONE_W)
     return [b for b in out if not b & RETIRES]
 
 
