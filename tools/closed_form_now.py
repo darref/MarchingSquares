@@ -30,6 +30,8 @@ BELOW_E, BELOW_W = 32768, 65536
 # qu'il y a a cote. Deux bits, absents de ce fichier tant que le transfert vivait derriere son
 # drapeau : la forme fermee annoncait donc une borne d'un modele qui n'etait plus le modele.
 LIP_ALONE_E, LIP_ALONE_W = 131072, 262144
+# L'ergot d'un coin NORD : « ma diagonale ne trace pas ce cote-la ». `4 << coin`, coin 0 = NO.
+ERGOT_NW, ERGOT_NE = 4, 8
 
 # ⚠ ET LES DIAGONALES SUD SONT RETIREES -- theoreme, voir `Brink.shave`. Une diagonale n'est
 # enregistree que si ses deux cardinaux sont pleins ; pour `SE` cela veut dire `S` PLEIN, et
@@ -123,8 +125,23 @@ def libres(sil):
     # son sud vide, donc son SE et son SO sont toujours a zero : le tester ici rendrait la
     # precondition impossible, et le bit disparaitrait de la forme alors que le monde le pose.
     # Premiere version ecrite ainsi, mesure : 101 cles, exactement comme sans le bit.
-    if not sil & S and sil & E: out.append(LIP_ALONE_E)
-    if not sil & S and sil & W: out.append(LIP_ALONE_W)
+    #
+    # ⚠ MAIS UNE ENCOCHE AU NORD-OUEST INTERDIT `LIP_ALONE_E`, ET C'EST UN THEOREME. Deuxieme
+    # fois que l'epaisseur contraint le DEHORS la ou ce fichier le croyait libre -- la
+    # premiere avait fait tomber la borne de 31 a 23 dessins.
+    #
+    #   1. l'encoche est ENREGISTREE, donc `N` et `O` sont pleins et (x-1, y-1) est VIDE ;
+    #   2. la course pleine de la colonne x-1 qui contient (x-1, y) ne peut donc pas MONTER :
+    #      min trois la fait descendre, et (x-1, y+1) est PLEIN ;
+    #   3. je suis une levre, donc (x, y+1) est VIDE ; sa course vide ne peut pas aller vers
+    #      l'ouest -- (x-1, y+1) est plein -- donc elle va vers l'EST : (x+1, y+1) est VIDE ;
+    #   4. la voisine de l'est a donc son sud vide : c'est une LEVRE, et le bit vaut zero.
+    #
+    # Miroir exact a l'est : une encoche au NORD-EST interdit `LIP_ALONE_W`.
+    notch_nw = sil & N and sil & W and not sil & NW
+    notch_ne = sil & N and sil & E and not sil & NE
+    if not sil & S and sil & E and not notch_nw: out.append(LIP_ALONE_E)
+    if not sil & S and sil & W and not notch_ne: out.append(LIP_ALONE_W)
     return [b for b in out if not b & RETIRES]
 
 
@@ -139,6 +156,33 @@ def valide(sil, bits):
     if bits & BELOW_W and not (sil & S and trace_w): return False
     if bits & ABOVE_E and not trace_e: return False
     if bits & ABOVE_W and not trace_w: return False
+    # ⚠ ET LES DEUX `LIP_ALONE` NE SE POSENT JAMAIS ENSEMBLE -- theoreme, et il tient en une
+    # ligne : je suis une levre, donc (x, y+1) est VIDE, et min trois veut sa course vide a
+    # trois au moins. Une course de trois qui contient x contient x-1 ou x+1 : au moins une de
+    # mes deux voisines laterales a donc son sud vide, donc est une levre, donc SON bit est a
+    # zero. Aucune levre au monde ne peut etre seule des deux cotes a la fois.
+    if bits & LIP_ALONE_E and bits & LIP_ALONE_W: return False
+    # ⚠ ET UNE LEVRE A ENCOCHE NE PEUT PAS TAIRE SON COTE SANS POSER SON ERGOT. Troisieme
+    # theoreme, et c'est la sonde qui l'a rendu -- j'avais CONSTRUIT le contre-exemple, et le
+    # modele a rendu la cle avec l'ergot en plus. Les trois routes pour eteindre le bit sont
+    # fermees, une par une :
+    #
+    #   - « ma voisine de l'ouest est une levre » : impossible. L'encoche au nord-ouest force
+    #     (x-1, y+1) a etre PLEIN -- la course pleine de sa colonne ne peut que descendre --
+    #     donc elle n'est pas une levre ;
+    #   - « elle est enterree sous un etage plus haut » : le bit ne s'eteint que si ce qu'on
+    #     VOIT a sa place est une levre ; sa colonne aurait alors du vide au-dessus (l'encoche)
+    #     ET au-dessous (sa propre face), donc une course pleine de UN. Fin, donc interdit ;
+    #   - « une face la couvre » : possible -- mais une face est une colonne CONTINUE qui
+    #     descend de sa levre, laquelle est au moins deux rangees au nord. Elle couvre donc
+    #     aussi (x-1, y-1), c'est-a-dire MON ENCOCHE, et l'ergot se pose.
+    #
+    # Miroir exact a l'est.
+    if not sil & S:
+        if sil & N and sil & W and not sil & NW:
+            if not bits & LIP_ALONE_W and not bits & ERGOT_NW: return False
+        if sil & N and sil & E and not sil & NE:
+            if not bits & LIP_ALONE_E and not bits & ERGOT_NE: return False
     return True
 
 

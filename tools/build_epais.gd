@@ -37,7 +37,7 @@ const WIDTH: int = 152
 ## falaise, et une robe hors du cadre est une tuile impeignable. Sept rangees -- une chute de
 ## trois, plus le liseré de vide que chaque relief doit declarer.
 const FOOTER: int = 7
-const HEIGHT: int = 106
+const HEIGHT: int = 140
 const OUT_PATH: String = "res://guides/epais.txt"
 
 var _levels: Array = []
