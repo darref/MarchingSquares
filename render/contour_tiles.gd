@@ -613,7 +613,21 @@ static func wall_depth(side: int, along: int, freedom: int, seam: int = 0) -> in
 	if wall_free != "points":
 		if along <= first or along >= last:
 			return 0
-		return int(round(reach * sin(PI * float(along - first) / float(last - first))))
+		# ⚠ ET LA FACE SERPENTE A F2, COMME LA SURFACE -- elle ne le faisait pas, et c'est
+		# l'utilisateur qui l'a vu a l'ecran : « le contour prouve a encore des falaises qui ne
+		# montrent pas la liberte ». `wall_depth` ne lisait `freedom` que pour le test `== 0` :
+		# F1 et F2 rendaient EXACTEMENT le meme bord de face, donc le style « ondule » ne
+		# changeait rien aux robes. Le defaut etait au dossier, mesure, et jamais corrige.
+		#
+		# ⚠ ET C'EST LE MEME LEVIER QUE POUR LES SURFACES, PAS UN AUTRE : la bosse prend le
+		# `skew` du meme tirage. A F1 elle reste symetrique -- une bosse plate ; a F2 son
+		# sommet se deplace, et deux faces voisines ne bombent plus au meme endroit. Le fond du
+		# guide montre alors OU la face est libre, ce qui est tout ce qu'on lui demande.
+		var span: float = float(along - first) / float(last - first)
+		if freedom >= 2:
+			var skew: float = 0.7 + 0.6 * float(seed % 101) / 100.0
+			return int(round(reach * sin(PI * pow(span, skew))))
+		return int(round(reach * sin(PI * span)))
 	if along == 0 or along == RES - 1 or along == first or along == last:
 		return 0
 	var lo: int = first

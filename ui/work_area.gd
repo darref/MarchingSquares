@@ -87,11 +87,6 @@ const HOVER_REFUSED: Color = Color(0.925, 0.463, 0.396, 0.90)
 ## bleu franc, etranger a la palette du terrain comme aux autres marques (blanc du survol,
 ## rouge du refus, ambre des cases seules), pour que l'oeil ne les confonde jamais.
 const LINKED_LINE: Color = Color(0.376, 0.804, 0.910, 0.85)
-## Les raccords obliges du survol : les tuiles dont un BORD entier est le meme pixel que
-## celui de la tuile survolee (Seams). Peindre au bord de l'une ecrit dans les autres --
-## l'artiste doit le voir AVANT le clic, pas le decouvrir en aller-retour. Violet : ni le
-## bleu des identiques, ni l'ambre, ni le rouge -- une quatrieme chose, dite a part.
-const SEAM_LINE: Color = Color(0.816, 0.529, 0.949, 0.85)
 ## La zone qui laisse voir derriere, hachuree legerement -- en peignant seulement. Les
 ## diagonales se posent ENTRE le socle et la tuile : la tuile les couvre la ou elle a de
 ## la matiere, elles ne restent donc visibles qu'au travers de sa transparence.
@@ -655,7 +650,6 @@ func _draw() -> void:
 		var accepted: bool = _is_paintable(_hover)
 		if accepted and not assembled:
 			_draw_linked(frame)
-			_draw_seam_links(frame)
 		draw_rect(Rect2(_cell_origin(_hover), Vector2(_tile_px, _tile_px)),
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
 
@@ -682,31 +676,15 @@ func _draw_linked(frame: Rect2i) -> void:
 			draw_rect(Rect2(_cell_origin(cell), side), LINKED_LINE, false, 2.0)
 
 
-## LES RACCORDS OBLIGES DU SURVOL : les tuiles dont un bord entier est lie a celui de la
-## robe survolee. Peindre au bord de l'une ecrit dans les autres (Seams) -- vecu comme un
-## aller-retour hante tant qu'on ne le voit pas. La liste vient de Seams.GROUPS, la table
-## meme que l'echo suit : ce qui s'allume en violet est ce que les bords obligeront.
-## Les coins seuls (un pixel partage) ne s'allument pas : un contour de case entier pour
-## un pixel crierait plus fort que l'information.
-func _draw_seam_links(frame: Rect2i) -> void:
-	if _painting == null or not _wall_roles.has(_hover):
-		return
-	var role: Vector2i = _wall_roles[_hover]
-	var mates: Dictionary = {}
-	for side_id: int in range(4):
-		for other: Vector3i in (Seams.GROUPS.get(Vector3i(role.x, role.y, side_id), []) as Array):
-			var mate: Vector2i = Vector2i(other.x, other.y)
-			if mate != role:
-				mates[mate] = true
-	var side: Vector2 = Vector2(_tile_px, _tile_px)
-	for mate: Vector2i in mates.keys():
-		for cell: Vector2i in (_by_role.get(mate, []) as Array):
-			# ⚠ Meme regle que les jumelles : aucune marque sur le decor (etage 0).
-			if cell == _hover or not _paintable.has(cell) or not _on_screen(cell, frame):
-				continue
-			draw_rect(Rect2(_cell_origin(cell), side), SEAM_LINE, false, 2.0)
-
-
+## ⚠ LE SURLIGNAGE VIOLET DES RACCORDS OBLIGES A ETE RETIRE -- decision utilisateur, prise a
+## l'ecran : « il gache tout ». Il allumait, au survol d'une robe, toutes les tuiles dont un
+## bord entier est le meme pixel (Seams.GROUPS) -- souvent une dizaine de cases d'un coup, sur
+## un fond deja charge de trois autres marques. L'information est juste ; sa forme criait plus
+## fort que le travail.
+##
+## Ce qu'il disait reste VRAI et reste APPLIQUE : peindre au bord d'une robe ecrit dans ses
+## liees, par la propagation, qu'on le montre ou non. Si le besoin revient, ce sera sous une
+## autre forme -- un liseré sur le seul BORD concerne plutot qu'un contour de case entier.
 ## De fines diagonales sur toute la case, a pas regulier. Posees entre le socle et la
 ## tuile, elles ne se voient qu'au travers de la transparence de celle-ci.
 func _draw_hatch(box: Rect2) -> void:

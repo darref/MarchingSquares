@@ -251,7 +251,11 @@ func _prepare_contour() -> void:
 
 ## Le dessin du contour, en un bloc -- voir `_prepare_contour` pour le pourquoi.
 func _draw_contour() -> void:
-	var made: Dictionary = Contour.compose(_heights, 3, 1, _contour_keys)
+	# ⚠ LE FOND SE DESSINE A F2, LA LIBERTE PLEINE -- il etait a F1, donc a bords droits. Un
+	# fond qui ne montre pas ou l'artiste est libre lui cache la moitie de la specification :
+	# « tout doit utiliser la liberte de vagabondage lateral des qu'elle est disponible, pour
+	# que l'acheteur ait TOUT DE SUITE sous les yeux ou il a de la liberte et ou il n'en a pas ».
+	var made: Dictionary = Contour.compose(_heights, 3, 2, _contour_keys)
 	var image: Image = made["image"]
 	# ⚠ LE GRANDISSEMENT EST AU PLUS PROCHE, ET ENTIER. Le contour est dessine a seize faux
 	# pixels par case ; la zone de travail en attend `_tile_size`. Un lissage inventerait des
