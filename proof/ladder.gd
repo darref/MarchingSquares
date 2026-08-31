@@ -317,7 +317,11 @@ func _initialize() -> void:
 		BorderRules.CORNER = int(OS.get_environment("LADDER_WALLCORNER"))
 	# LE TRANSFERT DE LA CRETE : la surface de levre prend le haut de sa face, le
 	# chapiteau se tait. Voir `Brink.crest_on_surface`.
-	Brink.crest_on_surface = OS.get_environment("LADDER_CREST") == "surface"
+	# ⚠ LE TRANSFERT EST LE MODELE, DONC C'EST LUI LE DEFAUT. Il a vecu derriere son
+	# drapeau tant qu'il etait rouge -- « on ne met pas un modele rouge par defaut, meme
+	# quand c'est lui la cible ». Il est vert sur les 26 couples : le drapeau change de
+	# sens, et `LADDER_CREST=crete` rend l'ancien modele pour pouvoir les comparer.
+	Brink.crest_on_surface = OS.get_environment("LADDER_CREST") != "crete"
 	var asked: String = OS.get_environment("LADDER_RIDGE")
 	if not asked.is_empty():
 		Contour.wall_ridge = "" if asked == "aucune" else asked

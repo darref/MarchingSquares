@@ -161,7 +161,7 @@ static var ergot_diag: bool = true
 ## -- et « ou le trait de ma voisine est passe » n'est pas exprimable en un bit fini, donc le
 ## ras est force. Si la surface possede la frontiere, personne ne devine : celui qui trace est
 ## celui qui sait.
-static var crest_on_surface: bool = false
+static var crest_on_surface: bool = true
 
 
 static func foot_above(cell: Vector2i, roles: Dictionary) -> bool:
