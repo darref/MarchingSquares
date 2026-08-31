@@ -590,6 +590,16 @@ disabled = true
 text = "Exporter"
 clip_text = true
 
+[node name="PackedButton" type="Button" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=902982336]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+tooltip_text = "Une seule image, serree, avec sa legende -- le format des places de marche.
+Ce n'est pas un autre tileset : ce sont les memes tuiles, rangees autrement.
+Pour poser un monde dans un moteur, c'est l'autre bouton et son manifeste."
+text = "Exporter packed"
+clip_text = true
+
 [node name="Rule" type="HSeparator" parent="Layout/Body/Toolbar/Column" unique_id=1427492152]
 layout_mode = 2
 

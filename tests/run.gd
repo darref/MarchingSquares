@@ -17,6 +17,7 @@ const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const PackedPNG := preload("res://exporters/packed_png.gd")
 const Assembly := preload("res://render/assembly.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const CornerIndex := preload("res://core/corner_index.gd")
@@ -66,6 +67,7 @@ func _initialize() -> void:
 	_test_symmetry()
 	_test_work_io()
 	_test_export()
+	_test_packed()
 	_test_assembly()
 	_test_preview_scene()
 	_test_vocabulary_is_closed()
@@ -1117,6 +1119,82 @@ func _key_colour(key: String) -> Color:
 func _pixel_is(painting: Painting, cell: Vector2i, colour: Color) -> bool:
 	var image: Image = painting.image_of(cell)
 	return image != null and image.get_pixel(0, 0).is_equal_approx(colour)
+
+
+## LA FEUILLE PACKED : les MEMES pixels, ranges autrement.
+##
+## ⚠ ET C'EST LA SEULE CHOSE QUI VAILLE D'ETRE ASSERTEE ICI. Verifier que la feuille packed
+## est « bien remplie » ne dirait rien : ce qu'elle promet, c'est d'etre le tileset moteur
+## sous une autre disposition. On compare donc case a case avec les deux planches -- si l'une
+## des deux differait, l'une des deux mentirait.
+func _test_packed() -> void:
+	print("packed : une seule feuille, les memes pixels")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var by_key: Dictionary = WorkIO.cells_by_key(heights)
+	var painting: Painting = Painting.new(16)
+	for key: String in by_key.keys():
+		if key.ends_with(":0"):
+			painting.paint(by_key[key], 0, 0, _key_colour(key))
+
+	var report: Dictionary = TilesetPNG.analyse(painting, heights)
+	var slots: Array = PackedPNG.order()
+	var columns: int = PackedPNG.columns_for(slots.size())
+	var rows: int = (slots.size() + columns - 1) / columns
+	_check_equal(slots.size(),
+			Thickness.SURFACE_INDICES.size() + Thickness.wall_roles().size(),
+			"la feuille packed porte le vocabulaire entier, surfaces et robes")
+	_check(columns * rows >= slots.size(), "la grille contient toutes les tuiles")
+	# ⚠ LA CARRURE EST LA REGLE, ET ELLE S ASSERTE : une bande d une seule colonne passerait
+	# tous les autres controles. Premiere version ecrite a l envers -- 1 x 47 pour 47 tuiles.
+	_check(maxf(float(columns) / float(rows), float(rows) / float(columns)) <= 1.5,
+			"la feuille reste a peu pres carree")
+	_check(columns * rows - slots.size() < columns, "et elle ne laisse pas une rangee vide")
+
+	var sheet: Image = PackedPNG.compose(painting, heights, report)
+	_check_equal(sheet.get_width(), columns * 16, "la feuille fait sa grille de large")
+	_check_equal(sheet.get_height(), rows * 16, "et sa grille de haut")
+
+	var surface_sheet: Image = TilesetPNG.compose(painting, heights, report, false)
+	var wall_sheet: Image = TilesetPNG.compose(painting, heights, report, true)
+	var astray: int = 0
+	for at: int in range(slots.size()):
+		var slot: Array = slots[at]
+		var here: Vector2i = Vector2i(at % columns, at / columns) * 16
+		var there: Vector2i
+		var source: Image
+		if String(slot[0]) == "W":
+			source = wall_sheet
+			there = TilesetPNG.wall_slot(slot[1] as Vector2i) * 16
+		else:
+			source = surface_sheet
+			there = TilesetPNG.surface_slot(int(slot[1])) * 16
+		for y: int in range(16):
+			for x: int in range(16):
+				if not sheet.get_pixel(here.x + x, here.y + y).is_equal_approx(
+						source.get_pixel(there.x + x, there.y + y)):
+					astray += 1
+	_check_equal(astray, 0,
+			"chaque pixel de la feuille packed est celui de la planche moteur")
+
+	var legend: String = PackedPNG.legend(painting, Modes.MINIMAL, "essai", report)
+	var listed: int = 0
+	for line: String in legend.split("
+"):
+		if line.begins_with("case "):
+			listed += 1
+	_check_equal(listed, slots.size(), "la legende nomme chaque case de la feuille")
+	_check(legend.contains("grille %d %d" % [columns, rows]), "et elle dit sa grille")
+	# ⚠ ELLE NE PORTE AUCUNE REGLE DE POSE, et c est asserte : un acheteur qui croirait
+	# pouvoir poser un monde avec elle fabriquerait un monde faux.
+	_check(not legend.contains("canonicalise"), "la legende n est pas un manifeste")
+
+	# LE REFUS, PAR LE MEME CHEMIN QUE L EXPORT MOTEUR.
+	var partial: Painting = Painting.new(16)
+	var refused: Dictionary = PackedPNG.write("user://packed_test", "essai", partial,
+			heights, Modes.MINIMAL)
+	_check_equal(int(refused["error"]), ERR_UNAVAILABLE,
+			"une feuille incomplete ne part pas chez un acheteur")
+	_check(PackedStringArray(refused["written"]).is_empty(), "et rien n est ecrit")
 
 
 func _test_export() -> void:

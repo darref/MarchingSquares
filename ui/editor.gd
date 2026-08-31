@@ -21,6 +21,7 @@ const Families := preload("res://core/families.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const PackedPNG := preload("res://exporters/packed_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
 const MANUAL := preload("res://ui/manual.gd")
@@ -68,6 +69,7 @@ var _open_dialog: FileDialog = null
 var _manual: Control = null
 var _save_dialog: FileDialog = null
 var _export_dialog: FileDialog = null
+var _packed_dialog: FileDialog = null
 var _plugin_dialog: FileDialog = null
 var _trial_dialog: FileDialog = null
 var _promise: int = 0
@@ -133,6 +135,7 @@ func _ready() -> void:
 	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	work.painting_changed.connect((%NeighboursPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
+	(%PackedButton as Button).pressed.connect(_on_packed_pressed)
 	(%OpenButton as Button).pressed.connect(_on_open_pressed)
 	(%SaveButton as Button).pressed.connect(_on_save_pressed)
 	(%InstallPluginButton as Button).pressed.connect(_on_install_plugin_pressed)
@@ -578,6 +581,9 @@ func _build_dialogs() -> void:
 	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Exporter le tileset",
 			PackedStringArray())
 	_export_dialog.dir_selected.connect(_on_export_chosen)
+	_packed_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
+			"Exporter la feuille packed", PackedStringArray())
+	_packed_dialog.dir_selected.connect(_on_packed_chosen)
 	_plugin_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
 			"Choisir un projet Godot", PackedStringArray())
 	_plugin_dialog.dir_selected.connect(_on_plugin_folder_chosen)
@@ -675,6 +681,32 @@ func _on_export_chosen(folder: String) -> void:
 		_announce("Export impossible dans ce dossier.")
 		return
 	_announce("Exporte dans %s : deux planches et leur manifeste." % folder.get_file())
+
+
+## ⚠ LA FEUILLE PACKED EST POUR LA VENTE, PAS POUR LE MOTEUR, et le bouton doit le dire.
+## L'export moteur livre un CONTRAT -- deux planches et la regle de pose ; celui-ci livre une
+## seule image serree et sa legende, ce qu'attend une place de marche. Les deux sortent des
+## MEMES pixels : si l'un des deux differait, l'un des deux mentirait.
+func _on_packed_pressed() -> void:
+	_packed_dialog.popup_centered_ratio(0.6)
+
+
+func _on_packed_chosen(folder: String) -> void:
+	if _painting == null:
+		return
+	var basename: String = _work_path.get_file().get_basename()
+	if basename == "":
+		basename = String(_current_mode())
+	var report: Dictionary = PackedPNG.write(folder, basename, _painting, _heights,
+			_current_mode(), _current_family())
+	if int(report["error"]) == ERR_UNAVAILABLE:
+		var left2: int = report["missing_surface"].size() + report["missing_wall"].size()
+		_announce("Il manque %d tuiles : rien n'est ecrit." % left2)
+		return
+	if int(report["error"]) != OK:
+		_announce("Export impossible dans ce dossier.")
+		return
+	_announce("Feuille packed ecrite dans %s, avec sa legende." % folder.get_file())
 
 
 # --- Installer le plugin moteur ---------------------------------------------
@@ -823,6 +855,9 @@ func _refresh_counters() -> void:
 	var complete: bool = bool(surface["is_exportable"]) and bool(walls["is_exportable"])
 	var export_button: Button = %ExportButton
 	export_button.disabled = not complete
+	# ⚠ MEME REFUS POUR LES DEUX BOUTONS. Une feuille packed a moitie peinte serait pire
+	# qu'un export moteur a moitie peint : elle part chez un acheteur.
+	(%PackedButton as Button).disabled = not complete
 	var left: int = (surface_total - surface_done) + (wall_total - wall_done)
 	(%RemainingLabel as Label).text = "pret a exporter" if complete else "%d tuiles a peindre" % left
 
