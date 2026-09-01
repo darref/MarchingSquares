@@ -155,8 +155,14 @@ func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int
 	var ox: int = bx + 3
 	var oy: int = by + 3
 	if flush:
+		# ⚠ ET LE SOCLE S'ARRETE NET AU BORD OUEST DE L'ILOT -- c'est ce qui fait le
+		# CHEVAUCHEMENT. Un socle qui entoure l'ilot en fait un massif « entierement entoure »,
+		# donc LIBRE : les vingt-six tuiles au ras cessaient d'exister dans le guide sans que
+		# rien ne le dise. En laissant l'ilot affleurer la frontiere du porteur, son contour
+		# longe celle du massif du dessous -- une partie dedans, une partie dehors -- et il n'a
+		# plus, par principe, d'autre rendez-vous que la bordure de tuile.
 		for y: int in range(-BASE_SIDE, ISLE_H + Massifs.FALL + BASE_SOUTH):
-			for x: int in range(-BASE_SIDE, ISLE_W + BASE_SIDE):
+			for x: int in range(0, ISLE_W + BASE_SIDE):
 				_put(grid, ox + x, oy + y, 1)
 	for x2: int in range(ISLE_W):
 		for y2: int in range(ISLE_H):

@@ -102,13 +102,47 @@ static func of(world: PackedStringArray) -> Dictionary:
 				groups.append(cells)
 				levels.append(level)
 
-	# QUI RECOUVRE QUOI : je recouvre un massif s'il en existe un sous moi, c'est-a-dire si mon
-	# etage est au moins deux -- la plaine ne comptant pas. C'est une propriete DU MASSIF, pas
-	# de la case : un seul de mes points suffit a mettre tout mon contour au ras.
+	# QUI EST AU RAS, ET C'EST LE CHEVAUCHEMENT QUI LE DIT -- PAS L'ETAGE.
+	#
+	# ⚠ UN MASSIF ENTIEREMENT ENTOURE PAR CELUI QUI LE PORTE N'A AUCUNE RAISON D'ETRE AU RAS.
+	# Son contour ne longe que de la matiere ; ce qu'il decouvre en vagabondant, c'est la surface
+	# du porteur, qui est la de toute facon. Il garde donc toute sa liberte. Premiere version :
+	# « etage >= 2 => au ras », ce qui plaquait au bord de tuile des massifs qui n'avaient rien a
+	# rejoindre.
+	#
+	# ⚠ CE QUI FORCE LE RAS, C'EST LE CHEVAUCHEMENT : une partie dedans, une partie dehors. La,
+	# le contour du massif du dessus longe la FRONTIERE du massif du dessous, et les deux
+	# decrivent le meme endroit sans pouvoir se concerter -- une tuile ne repond que d'elle-meme.
+	# Le seul point de rendez-vous qu'ils partagent tous les deux est la bordure de tuile : ils
+	# n'ont, par principe, aucun autre choix.
+	#
+	# ⚠ ET C'EST UNE PROPRIETE DU MASSIF, PAS DE LA CASE. Un seul point de chevauchement met tout
+	# le contour au ras : sans quoi le trace changerait de regle en cours de route, et deux
+	# occurrences d'une meme tuile ne diraient plus la meme chose.
 	var covers: Array[bool] = []
 	covers.resize(groups.size())
 	for mark2: int in range(groups.size()):
-		covers[mark2] = levels[mark2] >= 2
+		covers[mark2] = false
+	for mark3: int in range(groups.size()):
+		if levels[mark3] < 1:
+			continue
+		var mine: Dictionary = footprint(groups[mark3] as Array)
+		# Le massif qui me porte : celui de l'etage juste en dessous qui contient mes cases.
+		var below: int = int(of_cell.get(Vector3i((groups[mark3] as Array)[0].x,
+				(groups[mark3] as Array)[0].y, levels[mark3] - 1), -1))
+		if below < 0:
+			covers[mark3] = true
+			continue
+		var host: Dictionary = footprint(groups[below] as Array)
+		for cell: Vector2i in mine.keys():
+			if covers[mark3]:
+				break
+			for step: Vector2i in STEPS:
+				var near: Vector2i = cell + step
+				if mine.has(near) or host.has(near):
+					continue
+				covers[mark3] = true
+				break
 	return {"of_cell": of_cell, "level": levels, "covers": covers, "cells": groups}
 
 
