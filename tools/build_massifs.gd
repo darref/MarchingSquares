@@ -48,7 +48,10 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var out: String = args[0] if not args.is_empty() else "res://guides/massifs.txt"
 	var whole: Array[int] = MassifForm.vocabulary()
-	var wits: Dictionary = MassifForm.witnesses()
+	# ⚠ DEUX TABLES, PARCE QU'UNE TUILE AU RAS N'A PAS LA MEME PROVENANCE QU'UNE LIBRE : la cle
+	# du dessin ne remonte pas a un couple unique.
+	var wits: Dictionary = MassifForm.sources(false)
+	var wits_ras: Dictionary = MassifForm.sources(true)
 	# ⚠ ON NE BATIT QUE CE QU'ON SAIT PORTER, ET ON DIT CE QU'ON LAISSE. La forme close est une
 	# BORNE HAUTE : elle enonce ce que le modele peut produire, pas ce qu'on sait mettre sous le
 	# crayon. Une tuile sans ilot est une tuile que personne ne pourra peindre -- donc un trou
@@ -58,7 +61,7 @@ func _initialize() -> void:
 	var wanted: Array[int] = []
 	var out_of_reach: Array[int] = []
 	for tile: int in whole:
-		if _choose(tile, wits) >= 0 or blocks.has(tile):
+		if _choose(tile, wits_ras if Massifs.flush_of(tile) else wits) >= 0 or blocks.has(tile):
 			wanted.append(tile)
 		else:
 			out_of_reach.append(tile)
@@ -91,7 +94,8 @@ func _initialize() -> void:
 	for at: int in range(wanted.size()):
 		var bx: int = RIM + (at % COLUMNS) * BLOCK_W
 		var by: int = RIM + (at / COLUMNS) * BLOCK_H
-		var bits: int = _choose(wanted[at], wits)
+		var bits: int = _choose(wanted[at],
+				wits_ras if Massifs.flush_of(wanted[at]) else wits)
 		chosen.append(bits)
 		if bits >= 0:
 			_stamp(grid, wanted[at], bits, bx, by)
@@ -179,7 +183,7 @@ func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int
 ## et le compte global, lui, restait content. On essaie donc toutes les fenetres du couple, on
 ## BATIT l'ilot, et on lit ce que la case porte vraiment.
 func _choose(tile: int, wits: Dictionary) -> int:
-	for bits: int in (wits[tile & 0xffff] as Array[int]):
+	for bits: int in (wits[tile] as Array[int]):
 		var mini: PackedStringArray = _alone(tile, bits)
 		var paint: Dictionary = Massifs.paintable(mini)
 		var centre: Vector2i = Vector2i(RIM + BASE_SIDE + PAD + MassifForm.CX,

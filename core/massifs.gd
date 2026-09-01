@@ -273,8 +273,28 @@ static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
 ## deux carnets, deux compteurs, deux planches et deux facons de se contredire. Ici la surface et
 ## la falaise ne different que par leur BANDE : une seule table, un seul compteur, une seule
 ## planche.
+## ⚠ ET LA CLE EST CELLE DU DESSIN, PAS DE LA SITUATION. Ce qu'on peint, c'est une image :
+## deux situations qui rendent la meme image sont UNE tuile, sinon on fait peindre deux fois la
+## meme chose et la planche exportee porte deux cases identiques.
+##
+## ⚠ AU RAS, LES DIAGONALES NE VEULENT PLUS RIEN DIRE. La profondeur y est nulle, donc rien ne
+## se creuse -- ni les bords, ni les COINS RENTRANTS, dont le creusement se prend a la meme
+## profondeur. Une tuile au ras est donc toujours pleine, avec un trait sur ses bords ouverts, et
+## elle ne depend que de ses quatre cardinaux. Mesure : 55 tuiles ne rendaient que 42 dessins,
+## et les treize doublons etaient tous de cette espece.
+##
+## ⚠ ET SI AUCUN BORD N'EST OUVERT, IL N'Y A MEME PLUS DE TRAIT : c'est la tuile PLEINE, la meme
+## que la silhouette 255 en liberte. On ne la compte pas deux fois.
+const CARDINALS: int = 0x55
+
+
 static func key(band: int, sil: int, flush: bool) -> int:
-	return (COVERS if flush else 0) | (band << 8) | sil
+	if not flush:
+		return (band << 8) | sil
+	var bare: int = sil & CARDINALS
+	if bare == CARDINALS:
+		return (band << 8) | 255
+	return COVERS | (band << 8) | bare
 
 
 static func key_of(pose: Dictionary) -> int:

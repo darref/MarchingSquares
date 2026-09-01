@@ -13,7 +13,8 @@ extends SceneTree
 ## Trois invariants, et ce sont ceux qui ont attrape TOUS les defauts de l'ancien modele :
 ##   I1 FERMETURE   le contour n'a aucune extremite ouverte -- rien ne pend dans le vide ;
 ##   I2 EPAISSEUR   aucun pave 2x2 entierement de trait -- deux traits ne se collent jamais ;
-##   I6 VERITE      aucun pixel de fond la ou le monde a de la matiere.
+##   I6 VERITE      aucun pixel de fond la ou le monde a de la matiere ;
+##   I7 UNICITE     deux tuiles ne rendent jamais la meme image.
 ##
 ## ⚠ ET I6 NE REGARDE QUE LES CASES INTERIEURES. Une case du BORD du monde montre le vide sur
 ## une partie de sa case, et c'est juste -- c'est le rivage. Exiger l'opacite la accuserait le
@@ -109,6 +110,32 @@ func _initialize() -> void:
 	for name2: String in names:
 		print("    %-22s %d" % [name2, int(by_band[name2])])
 	print("")
+	# I7 UNICITE : deux tuiles ne rendent jamais la meme image.
+	#
+	# ⚠ ET CE CONTROLE EST NE D'UNE QUESTION, PAS D'UNE INTUITION : « es-tu sur que les
+	# specimens montrent des choses uniques ? ». Non -- 13 tuiles sur 55 rendaient une image
+	# deja rendue par une autre. Au ras la profondeur est nulle, donc rien ne se creuse, pas
+	# meme les coins rentrants : une tuile au ras ne depend que de ses quatre cardinaux. Faire
+	# peindre deux fois le meme dessin est un cout pur, et la planche exportee en portait deux
+	# cases identiques.
+	var drawings: Dictionary = {}
+	var twins: Array[String] = []
+	for tile: int in vocabulary.keys():
+		for freedom2: int in [0, 1, 2]:
+			var one: Image = MassifTiles.shape(Massifs.sil_of(tile), Massifs.band_of(tile),
+					Massifs.flush_of(tile), freedom2)
+			var mark: String = "%d/%s" % [freedom2, Marshalls.raw_to_base64(one.get_data())]
+			if drawings.has(mark):
+				twins.append("F%d : %s == %s" % [freedom2, Massifs.describe(tile),
+						drawings[mark]])
+			else:
+				drawings[mark] = Massifs.describe(tile)
+	green = green and twins.is_empty()
+	print("I7 unicite : %s (%d tuiles, %d dessins)"
+			% ["VERT" if twins.is_empty() else "ROUGE", vocabulary.size(),
+			drawings.size() / 3])
+	for one2: String in twins:
+		print("      %s" % one2)
 	print("VERDICT : %s" % ("VERT" if green else "ROUGE"))
 	quit(0 if green else 1)
 

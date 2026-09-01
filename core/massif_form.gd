@@ -84,18 +84,37 @@ static func stretched(bits: int, pad: int = 2) -> Array[PackedByteArray]:
 ## LE VOCABULAIRE COMPLET : chaque couple, une fois s'il se dessine pareil au ras et en liberte,
 ## deux fois sinon. La cle est `(ras << 16) | (bande << 8) | silhouette`.
 static func vocabulary() -> Array[int]:
-	var out: Array[int] = []
+	var found: Dictionary = {}
 	for couple: int in couples():
-		out.append(couple)
-		if varies(couple & 0xff):
-			out.append(Massifs.COVERS | couple)
+		var band: int = (couple >> 8) & 0xff
+		found[Massifs.key(band, couple & 0xff, false)] = true
+		found[Massifs.key(band, couple & 0xff, true)] = true
+	var out: Array[int] = []
+	out.assign(found.keys())
 	out.sort()
 	return out
 
 
-## Une tuile se dessine-t-elle autrement au ras qu'en liberte ? Oui des qu'un bord est ouvert --
-## il rentre -- et oui aussi pour un COIN RENTRANT, qui se creuse a la meme profondeur que les
-## bords alors que ses deux cardinaux sont pleins.
+## LES FENETRES D'UNE TUILE, une fois le dessin canonicalise.
+##
+## ⚠ ET UNE TUILE PEUT VENIR DE PLUSIEURS COUPLES. Au ras, cinq silhouettes rendent le meme
+## dessin : remonter d'une tuile vers « son » couple n'a plus de sens, il faut LES couples. Sans
+## cette table, chercher l'ilot d'une tuile au ras cherchait une cle qui n'existe pas.
+static func sources(flush: bool) -> Dictionary:
+	var wits: Dictionary = witnesses()
+	var out: Dictionary = {}
+	for couple: int in wits.keys():
+		var tile: int = Massifs.key((couple >> 8) & 0xff, couple & 0xff, flush)
+		if not out.has(tile):
+			out[tile] = [] as Array[int]
+		for bits: int in (wits[couple] as Array[int]):
+			(out[tile] as Array[int]).append(bits)
+	return out
+
+
+## ⚠ GARDE COMME TRACE, ET FAUSSE : elle repondait « oui » pour un coin rentrant, alors qu'AU
+## RAS un coin rentrant ne se creuse pas plus qu'un bord -- la profondeur y est nulle. C'est
+## `Massifs.key` qui tranche desormais, en canonicalisant le dessin.
 static func varies(sil: int) -> bool:
 	for card: int in [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W]:
 		if (sil & card) == 0:
