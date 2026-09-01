@@ -26,6 +26,7 @@ extends RefCounted
 
 const BlobIndex := preload("res://core/blob_index.gd")
 const Massifs := preload("res://core/massifs.gd")
+const Witnesses := preload("res://core/massif_witnesses.gd")
 
 const COLS: int = 3
 const ROWS: int = 6
@@ -83,8 +84,20 @@ static func stretched(bits: int, pad: int = 2) -> Array[PackedByteArray]:
 
 ## LE VOCABULAIRE COMPLET : chaque couple, une fois s'il se dessine pareil au ras et en liberte,
 ## deux fois sinon. La cle est `(ras << 16) | (bande << 8) | silhouette`.
+## ⚠ ET LA FORME EST L'UNION DE L'ENUMERATION ET DES TEMOINS TROUVES. La fenetre de six rangees
+## suffisait tant qu'une jupe faisait trois rangees ; depuis que la chute va jusqu'au sol qu'elle
+## atteint, une chute de six ou neuf a sa LEVRE HORS DE LA FENETRE, et l'enumeration ne voit plus
+## ses derniers corps. L'enumerer demanderait une fenetre de douze rangees -- 2^36 -- ou de
+## traiter les chutes deja en cours, ce qui coute des centaines de millions de combinaisons.
+##
+## On ferme donc la boucle par l'autre bout : ce que la BATTUE a trouve et qu'un temoin porte
+## entre dans la forme. Ce n'est pas circulaire -- une tuile posee qui n'est ni enumeree ni
+## portee par un temoin fait rougir I8, et la reponse est alors d'aller lui chercher un temoin,
+## pas de baisser la barre. La forme reste ce qu'on sait PEINDRE.
 static func vocabulary() -> Array[int]:
 	var found: Dictionary = {}
+	for tile: int in Witnesses.blocks().keys():
+		found[int(tile)] = true
 	for couple: int in couples():
 		var band: int = (couple >> 8) & 0xff
 		found[Massifs.key(band, couple & 0xff, false)] = true
@@ -176,7 +189,7 @@ static func _couples_of(surface: Array[PackedByteArray], out: Dictionary) -> voi
 	if int(surface[CX][CY]) == 1:
 		mine = int(mark[CX][CY])
 	else:
-		for step: int in range(1, Massifs.FALL + 1):
+		for step: int in range(1, ROWS):
 			var at: int = CY - step
 			if at < 0:
 				break
@@ -188,43 +201,61 @@ static func _couples_of(surface: Array[PackedByteArray], out: Dictionary) -> voi
 	var others: Array[int] = []
 	for x: int in range(COLS):
 		for y: int in range(ROWS):
-			if int(surface[x][y]) == 1 and int(mark[x][y]) != mine \
-					and not others.has(int(mark[x][y])):
+			if int(surface[x][y]) == 1 and int(mark[x][y]) != mine 					and not others.has(int(mark[x][y])):
 				others.append(int(mark[x][y]))
 	for choice: int in range(1 << others.size()):
 		var joined: Dictionary = {mine: true}
 		for at2: int in range(others.size()):
 			if (choice & (1 << at2)) != 0:
 				joined[others[at2]] = true
-		var band_of: Dictionary = _footprint(surface, mark, joined)
-		if not band_of.has(Vector2i(CX, CY)):
-			continue
-		var raw: int = 0
-		for bit: int in range(8):
-			if band_of.has(Vector2i(CX, CY) + BlobIndex.OFFSETS[bit]):
-				raw |= 1 << bit
-		out[(int(band_of[Vector2i(CX, CY)]) << 8) | BlobIndex.canonicalize(raw)] = true
+		var lips: Array[Vector2i] = []
+		for x2: int in range(COLS):
+			for y2: int in range(ROWS):
+				if int(surface[x2][y2]) == 0 or not joined.has(int(mark[x2][y2])):
+					continue
+				if y2 + 1 < ROWS and int(surface[x2][y2 + 1]) == 1 						and joined.has(int(mark[x2][y2 + 1])):
+					continue
+				lips.append(Vector2i(x2, y2))
+		# ⚠ ET CHAQUE LEVRE PEUT TOMBER DE TROIS, SIX OU NEUF -- ET ATTERRIR OU NON. La chute
+		# n'est plus forfaitaire : un massif porte qui deborde tombe jusqu'au sol qu'il atteint,
+		# et une chute qui ne trouve rien NE POSE PAS SON PIED. Ce qui reste une BORNE HAUTE :
+		# certaines combinaisons ne sont pas realisables, et c'est l'autre sens du controle qui
+		# le dira.
+		var plans: int = 1
+		for _one: Vector2i in lips:
+			plans *= 6
+		for plan: int in range(plans):
+			var band_of: Dictionary = _footprint(surface, mark, joined, lips, plan)
+			if not band_of.has(Vector2i(CX, CY)):
+				continue
+			var raw: int = 0
+			for bit: int in range(8):
+				if band_of.has(Vector2i(CX, CY) + BlobIndex.OFFSETS[bit]):
+					raw |= 1 << bit
+			out[(int(band_of[Vector2i(CX, CY)]) << 8) | BlobIndex.canonicalize(raw)] = true
 
 
 static func _footprint(surface: Array[PackedByteArray], mark: Array[PackedByteArray],
-		joined: Dictionary) -> Dictionary:
+		joined: Dictionary, lips: Array[Vector2i], plan: int) -> Dictionary:
 	var out: Dictionary = {}
 	for x: int in range(COLS):
-		for y: int in range(CY - 1, CY + 2):
-			if y < 0 or y >= ROWS:
-				continue
+		for y: int in range(ROWS):
 			if int(surface[x][y]) == 1 and joined.has(int(mark[x][y])):
 				out[Vector2i(x, y)] = Massifs.SURFACE
+	var rest: int = plan
+	for lip: Vector2i in lips:
+		var choice: int = rest % 6
+		rest /= 6
+		var fall: int = Massifs.FALL * (1 + choice / 2)
+		var landed: bool = (choice % 2) == 0
+		for step: int in range(1, fall + 1):
+			var below: Vector2i = lip + Vector2i(0, step)
+			if below.y >= ROWS:
+				break
+			if out.has(below):
 				continue
-			for step: int in range(1, Massifs.FALL + 1):
-				var at: int = y - step
-				if at < 0:
-					break
-				if int(surface[x][at]) == 1 and joined.has(int(mark[x][at])) \
-						and (at + 1 >= ROWS or int(surface[x][at + 1]) == 0
-						or not joined.has(int(mark[x][at + 1]))):
-					out[Vector2i(x, y)] = step
-					break
+			out[below] = Massifs.CHAPITEAU if step == 1 else (
+					Massifs.PIED if (landed and step == fall) else Massifs.CORPS)
 	return out
 
 

@@ -126,14 +126,14 @@ static func of(world: PackedStringArray) -> Dictionary:
 	for mark3: int in range(groups.size()):
 		if levels[mark3] < 1:
 			continue
-		var mine: Dictionary = footprint(groups[mark3] as Array)
+		var mine: Dictionary = footprint(world, groups[mark3] as Array, levels[mark3])
 		# Le massif qui me porte : celui de l'etage juste en dessous qui contient mes cases.
 		var below: int = int(of_cell.get(Vector3i((groups[mark3] as Array)[0].x,
 				(groups[mark3] as Array)[0].y, levels[mark3] - 1), -1))
 		if below < 0:
 			covers[mark3] = true
 			continue
-		var host: Dictionary = footprint(groups[below] as Array)
+		var host: Dictionary = footprint(world, groups[below] as Array, levels[below])
 		for cell: Vector2i in mine.keys():
 			if covers[mark3]:
 				break
@@ -181,9 +181,24 @@ const FALL: int = 3
 ## ⚠ ET C'EST SUR L'EMPREINTE QUE LA SILHOUETTE SE LIT, PAS SUR LA SURFACE. Une case de falaise
 ## a des voisines de falaise ; lire son voisinage dans la surface la dirait isolee.
 ##
+## ⚠ LA CHUTE N'EST PAS FORFAITAIRE : ELLE VA JUSQU'AU SOL QU'ELLE ATTEINT. Un massif porte qui
+## DEBORDE de son porteur est plus haut que ce qui le borde -- c'est meme la definition d'etre
+## porte -- donc la ou il sort du porteur, sa face doit descendre jusqu'a la plaine. Trois
+## rangees forfaitaires dessinaient une falaise d'un etage la ou le relief en compte deux : le
+## dessin mentait sur la hauteur, et c'est une question de 3D, pas de gout.
+##
+## La regle : un etage vaut TROIS rangees, donc la face cherche le premier palier `j` tel que le
+## sol, `3j` rangees plus bas, soit exactement `j` etages sous la levre. Si elle n'en trouve
+## aucun, elle tombe dans le vide et NE POSE PAS SON PIED -- on ne touche pas le fond d'un
+## gouffre.
+##
+## ⚠ ET LA SONDE REGARDE SOUS LE PIED, JAMAIS LES RANGEES TRAVERSEES. Une terrasse posee sur le
+## trajet n'arrete pas la chute : c'est le palier qui compte. Piege deja paye dans l'ancien
+## modele, garde ici tel quel.
+##
 ## ⚠ LE BORD SUD SE LIT PAR COLONNE, ET UN MASSIF PEUT EN AVOIR PLUSIEURS. Une encoche ouverte
-## au sud donne deux bords sud dans la meme colonne, et chacun porte sa falaise.
-static func footprint(cells: Array) -> Dictionary:
+## au sud donne deux bords sud dans la meme colonne, et chacune porte sa falaise.
+static func footprint(world: PackedStringArray, cells: Array, level: int) -> Dictionary:
 	var out: Dictionary = {}
 	var surface: Dictionary = {}
 	for cell: Variant in cells:
@@ -193,12 +208,21 @@ static func footprint(cells: Array) -> Dictionary:
 		var at: Vector2i = cell2 as Vector2i
 		if surface.has(at + Vector2i.DOWN):
 			continue
-		for step: int in range(1, FALL + 1):
+		var fall: int = FALL * (level + 1)
+		var landed: bool = false
+		for j: int in range(1, level + 1):
+			if HeightMask.level_at(world, at.x, at.y + FALL * j) == level - j:
+				fall = FALL * j
+				landed = true
+				break
+		for step: int in range(1, fall + 1):
 			var below: Vector2i = at + Vector2i(0, step)
 			# La surface l'emporte : une falaise qui retombe sur la surface du MEME massif est
 			# cachee par elle.
-			if not out.has(below):
-				out[below] = step
+			if out.has(below):
+				continue
+			out[below] = CHAPITEAU if step == 1 else (
+					PIED if (landed and step == fall) else CORPS)
 	return out
 
 
@@ -222,7 +246,7 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 	var covers: Array[bool] = made["covers"]
 	var out: Array[Dictionary] = []
 	for mark: int in range(groups.size()):
-		var print_of: Dictionary = footprint(groups[mark] as Array)
+		var print_of: Dictionary = footprint(world, groups[mark] as Array, levels[mark])
 		for cell: Vector2i in print_of.keys():
 			var raw: int = 0
 			for bit: int in range(8):

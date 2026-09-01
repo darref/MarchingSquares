@@ -14,18 +14,20 @@ extends SceneTree
 ##   I1 FERMETURE   le contour n'a aucune extremite ouverte -- rien ne pend dans le vide ;
 ##   I2 EPAISSEUR   aucun pave 2x2 entierement de trait -- deux traits ne se collent jamais ;
 ##   I6 VERITE      aucun pixel de fond la ou le monde a de la matiere ;
-##   I7 UNICITE     deux tuiles ne rendent jamais la meme image.
+##   I7 UNICITE     deux tuiles ne rendent jamais la meme image ;
+##   I8 FORME       toute tuile posee est dans la forme close.
 ##
 ## ⚠ ET I6 NE REGARDE QUE LES CASES INTERIEURES. Une case du BORD du monde montre le vide sur
 ## une partie de sa case, et c'est juste -- c'est le rivage. Exiger l'opacite la accuserait le
-## dessin d'etre fidele : on ne controle donc que les cases dont les quatre voisines cardinales
-## sont, elles aussi, de la matiere.
+## dessin d'etre fidele : on ne controle donc que les cases dont les HUIT voisines sont, elles
+## aussi, de la matiere -- les huit, parce qu'un coin rentrant se creuse et montre la diagonale.
 
 const HeightMask := preload("res://core/height_mask.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
 const Scene := preload("res://render/massif_scene.gd")
 const Thickness := preload("res://core/thickness.gd")
+const MassifForm := preload("res://core/massif_form.gd")
 
 const RES: int = MassifTiles.RES
 const OUTLINE: Color = MassifTiles.OUTLINE
@@ -136,6 +138,23 @@ func _initialize() -> void:
 			drawings.size() / 3])
 	for one2: String in twins:
 		print("      %s" % one2)
+	# I8 LA FORME CLOSE DIT-ELLE VRAI ? On compare dans les DEUX SENS : toute tuile POSEE doit
+	# etre dans la forme. Une tuile posee hors de la forme n'est pas une curiosite -- c'est une
+	# tuile que le guide ne portera pas, donc un trou dans le jeu, et une forme qui se croit
+	# close alors qu'elle ne l'est pas. Un garde-fou qui ne regarde que d'un cote ne garde rien.
+	var closed: Dictionary = {}
+	for tile2: int in MassifForm.vocabulary():
+		closed[tile2] = true
+	var stray: Array[String] = []
+	for tile3: int in vocabulary.keys():
+		if not closed.has(tile3):
+			stray.append(Massifs.describe(tile3))
+	green = green and stray.is_empty()
+	print("I8 forme close : %s (%d enumerees, %d posees, %d hors forme)"
+			% ["VERT" if stray.is_empty() else "ROUGE", closed.size(), vocabulary.size(),
+			stray.size()])
+	for one3: String in stray:
+		print("      %s" % one3)
 	print("VERDICT : %s" % ("VERT" if green else "ROUGE"))
 	quit(0 if green else 1)
 
@@ -187,6 +206,10 @@ func _measure(image: Image, world: PackedStringArray, species: Dictionary,
 			if around > 1 or not breathes:
 				continue
 			ends += 1
+			if not top.is_empty():
+				var owner: Vector2i = Vector2i(x2 / RES, y2 / RES)
+				var kind: String = "extremite de %s, au pixel %d,%d de sa case" 						% [_say(top.get(owner, {})), x2 % RES, y2 % RES]
+				species[kind] = int(species.get(kind, 0)) + 1
 			if where.is_empty():
 				where = "extremite au pixel %d,%d (case %d,%d)" \
 						% [x2, y2, x2 / RES, y2 / RES]
@@ -219,10 +242,15 @@ func _measure(image: Image, world: PackedStringArray, species: Dictionary,
 		for cx: int in range(wide):
 			if HeightMask.level_at(world, cx, cy) < 0:
 				continue
+			# ⚠ SUR LES HUIT VOISINES, PAS LES QUATRE. Un COIN RENTRANT se creuse, donc il
+			# montre ce qui est en DIAGONALE : une case de plaine dont le coin touche le vide
+			# laisse legitimement voir le vide a cet endroit. En ne regardant que les cardinales,
+			# I6 accusait le dessin d'etre fidele.
 			var inner: bool = true
-			for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
-				if HeightMask.level_at(world, cx + step.x, cy + step.y) < 0:
-					inner = false
+			for dy2: int in range(-1, 2):
+				for dx2: int in range(-1, 2):
+					if HeightMask.level_at(world, cx + dx2, cy + dy2) < 0:
+						inner = false
 			if not inner:
 				continue
 			var pierced: bool = false

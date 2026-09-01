@@ -138,13 +138,20 @@ func _put(grid: Array[PackedByteArray], x: int, y: int, level: int) -> void:
 
 
 ## POSE UN BLOC DE TEMOIN, tel quel : ses etages sont ceux qu'on a mesures, pas un maximum.
+## ⚠ ET LE VIDE DU BLOC EST DU VIDE, PAS DE LA PLAINE. Sept temoins sont des CORPS de chute qui
+## N'ATTERRIT PAS : leur falaise tombe dans le vide, c'est-a-dire au bord du monde. En comblant
+## leur vide de plaine, la chute retrouvait un sol, se raccourcissait, et la case ne portait plus
+## rien du tout. Un bloc se pose tel qu'il a ete mesure -- niveaux ET vide -- ou il ne prouve
+## rien.
 func _place(grid: Array[PackedByteArray], block: PackedStringArray, ox: int, oy: int) -> void:
 	for y: int in range(block.size()):
 		for x: int in range(block[y].length()):
-			var here: String = block[y].substr(x, 1)
-			if here == "~":
+			if oy + y < 0 or oy + y >= grid.size():
 				continue
-			_put(grid, ox + x, oy + y, here.to_int())
+			if ox + x < 0 or ox + x >= grid[0].size():
+				continue
+			var here: String = block[y].substr(x, 1)
+			grid[oy + y][ox + x] = 0 if here == "~" else here.to_int() + 1
 
 
 ## POSE L'ILOT D'UNE TUILE, et rend la fenetre retenue.
@@ -183,6 +190,8 @@ func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int
 ## et le compte global, lui, restait content. On essaie donc toutes les fenetres du couple, on
 ## BATIT l'ilot, et on lit ce que la case porte vraiment.
 func _choose(tile: int, wits: Dictionary) -> int:
+	if not wits.has(tile):
+		return -1
 	for bits: int in (wits[tile] as Array[int]):
 		var mini: PackedStringArray = _alone(tile, bits)
 		var paint: Dictionary = Massifs.paintable(mini)

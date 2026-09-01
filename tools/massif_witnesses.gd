@@ -56,8 +56,11 @@ func _initialize() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x5749544E + part * 7919
 	var seen: int = 0
-	for run: int in range(draws):
-		var world: PackedStringArray = _draw(rng)
+	# ⚠ ET LE GUIDE EST UN MONDE COMME UN AUTRE. Il porte des situations que le hasard ne
+	# fabrique pas -- c'est meme sa raison d'etre -- donc le laisser hors de la battue revenait a
+	# chercher partout sauf la ou on avait deja regarde.
+	for run: int in range(draws + 1):
+		var world: PackedStringArray = HeightMask.read("res://guides/massifs.txt") if run == 0 				else _draw(rng)
 		if world.is_empty():
 			continue
 		seen += 1
@@ -66,9 +69,15 @@ func _initialize() -> void:
 			var tile: int = int(paint[cell])
 			if found.has(tile):
 				continue
-			var block: PackedStringArray = _cut(world, cell)
+			# ⚠ ON ESSAIE LA DECOUPE ETIREE **ET** LA DECOUPE BRUTE. L'etirement garantit
+			# l'epaisseur, mais il replique les bords -- et la ou la tuile tient a un vide ou a
+			# une chute qui s'arrete, repliquer la detruit. Deux lectures, on garde celle qui
+			# porte vraiment.
+			var block: PackedStringArray = _cut(world, cell, PAD)
 			if not _carries(block, tile):
-				continue
+				block = _cut(world, cell, 0)
+				if not _carries(block, tile):
+					continue
 			found[tile] = block
 		if found.size() >= wanted.size():
 			break
@@ -158,15 +167,15 @@ func _framed(block: PackedStringArray) -> PackedStringArray:
 ## LA DECOUPE, ETIREE. Chaque case du pourtour prend l'etat de la case la plus proche vers le
 ## centre : toute course s'y prolonge d'au moins deux, ce qui garantit l'epaisseur sans une seule
 ## boucle de reparation. C'est le meme argument que l'ilot etire de la planche de preuve.
-func _cut(world: PackedStringArray, cell: Vector2i) -> PackedStringArray:
-	var ox: int = cell.x - CUT_W / 2
-	var oy: int = cell.y - CUT_H / 2
+func _cut(world: PackedStringArray, cell: Vector2i, pad: int) -> PackedStringArray:
+	var ox: int = cell.x - CUT_W / 2 - (PAD - pad)
+	var oy: int = cell.y - CUT_H / 2 - (PAD - pad)
 	var out: PackedStringArray = PackedStringArray()
 	for y: int in range(BLOCK_H):
 		var line: String = ""
 		for x: int in range(BLOCK_W):
-			var sx: int = ox + clampi(x - PAD, 0, CUT_W - 1)
-			var sy: int = oy + clampi(y - PAD, 0, CUT_H - 1)
+			var sx: int = ox + (clampi(x - pad, 0, CUT_W + 2 * (PAD - pad) - 1) if pad > 0 else x)
+			var sy: int = oy + (clampi(y - pad, 0, CUT_H + 2 * (PAD - pad) - 1) if pad > 0 else y)
 			var level: int = HeightMask.level_at(world, sx, sy)
 			line += "~" if level < 0 else str(level)
 		out.append(line)

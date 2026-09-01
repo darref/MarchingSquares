@@ -55,13 +55,33 @@ const SWELL: float = 3.0
 ## bordure de tuile AU RENDEZ-VOUS -- pour que n'importe quelle voisine puisse la rejoindre --
 ## pas qu'elle est plaquee sur toute sa longueur.
 static func depth_of(along: int, freedom: int, flush: bool) -> int:
-	if flush:
-		return 0 if freedom < 2 else int(round(SWELL * sin(PI * float(along) / float(RES - 1))))
-	var meet: float = 1.0 if freedom <= 0 else float(RES) / 2.0
+	# ⚠ ET LE RENDEZ-VOUS LIBRE N'EST PAS PILE A LA MOITIE. A `RES / 2`, la coupe d'un cote
+	# ouvert et le creusement d'un COIN RENTRANT se completent EXACTEMENT : `CORPS 23` rendait
+	# alors la meme image que `CORPS 7`, alors que les deux situations different -- l'une a de la
+	# roche sous elle, l'autre non. Une degenerescence d'arrondi, pas une verite du modele. Un
+	# pixel plus haut, et les deux se distinguent.
+	#
+	# ⚠ ET DEUX PIXELS NE SUFFISENT PAS : IL EN FAUT TROIS. Une jupe d'UNE colonne -- l'escalier
+	# d'un bord sud -- donne une tuile dont l'est ET l'ouest sont ouverts. A `RES / 2` elle
+	# disparait entierement ; a `RES / 2 - 1` il lui reste deux pixels, tous deux de bord, donc
+	# deux traits colles que I2 compte. C'est la meme barre que min trois, un cran plus bas :
+	# bord, centre, bord.
+	var meet: float = 0.0 if flush else (1.0 if freedom <= 0 else float(RES) / 2.0 - 2.0)
 	if freedom < 2:
 		return int(round(meet))
-	var t: float = float(along) / float(RES - 1)
-	return int(round(meet + SWELL * sin(PI * t)))
+	return int(round(meet + SWELL * _swell(along)))
+
+
+## ⚠ LE RENDEZ-VOUS EST UN SEGMENT PLAT, PAS UN POINT -- et c'est la discretisation qui l'exige,
+## pas le gout. La ou deux cardinaux ouverts se rencontrent, la coupe de l'ouest se prend a
+## `depth_of(y)` et celle du sud a `depth_of(x)` : avec une ondulation qui vaut zero PILE au coin
+## et un juste a cote, le pixel du coin reste seul -- ses deux voisins sont coupes, lui non. Un
+## pixel de trait isole est une extremite, et I1 la comptait. Deux pixels plats a chaque bout, et
+## la question ne se pose plus.
+static func _swell(along: int) -> float:
+	if along < 2 or along > RES - 3:
+		return 0.0
+	return sin(PI * float(along) / float(RES - 1))
 
 
 ## LA TUILE. `backdrop` n'est peint que pour une PLANCHE de specimens : isolee, une tuile a
