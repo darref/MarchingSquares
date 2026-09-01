@@ -43,7 +43,12 @@ const HeightMask := preload("res://core/height_mask.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 
 ## Le bit, et il n'y en a qu'un.
-const COVERS: int = 256
+##
+## ⚠ IL SE RANGE AU-DESSUS DE LA BANDE, PAS A 256. Premier essai : `COVERS = 256`, c'est-a-dire
+## exactement `CHAPITEAU << 8`. Le bit de contexte et la bande se melangeaient dans la meme cle,
+## et le rapport annoncait deux fois « PIED 23 au ras » pour deux tuiles differentes. Un compteur
+## qui ne mesure pas ce qu'il pretend mesurer est pire que pas de compteur.
+const COVERS: int = 1 << 16
 
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 
@@ -225,3 +230,107 @@ static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
 		if (int(bands_at.get(cell2 + Vector2i.DOWN, 0)) & (1 << CHAPITEAU)) != 0:
 			out.append(cell2)
 	return out
+
+
+## LA CLE D'UNE TUILE : le bit RECOUVRANT, la BANDE, la SILHOUETTE de l'empreinte.
+##
+## ⚠ UNE SEULE FAMILLE DE TUILES, ET C'EST LA SIMPLIFICATION QUI PORTE LE RESTE. L'ancien
+## modele en avait deux -- les index de surface d'un cote, les roles de robe de l'autre -- avec
+## deux carnets, deux compteurs, deux planches et deux facons de se contredire. Ici la surface et
+## la falaise ne different que par leur BANDE : une seule table, un seul compteur, une seule
+## planche.
+static func key(band: int, sil: int, flush: bool) -> int:
+	return (COVERS if flush else 0) | (band << 8) | sil
+
+
+static func key_of(pose: Dictionary) -> int:
+	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]))
+
+
+static func band_of(tile: int) -> int:
+	return (tile >> 8) & 0xff
+
+
+static func sil_of(tile: int) -> int:
+	return tile & 0xff
+
+
+static func flush_of(tile: int) -> bool:
+	return (tile & COVERS) != 0
+
+
+## Le nom d'une tuile, en clair.
+static func describe(tile: int) -> String:
+	return "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
+			"au ras" if flush_of(tile) else "libre"]
+
+
+## CE QUE CHAQUE CASE MONTRE : la tuile du massif le plus haut qui la couvre.
+##
+## ⚠ UNE CASE N'A QU'UNE POSE PAR ETAGE, ET C'EST UN THEOREME -- sans quoi « la plus haute »
+## ne designerait rien. A un etage donne, une case appartient a une seule composante ; et la
+## jupe d'un massif ne peut pas tomber sur la surface d'un AUTRE massif du meme etage, puisque
+## min trois separe deux composantes d'au moins trois rangees de vide alors que la jupe n'en
+## descend que trois : elle s'arrete juste avant.
+static func visible(world: PackedStringArray) -> Dictionary:
+	var top: Dictionary = {}
+	var level_at: Dictionary = {}
+	for pose: Dictionary in poses(world):
+		var cell: Vector2i = pose["cell"]
+		if top.has(cell) and int(level_at[cell]) > int(pose["level"]):
+			continue
+		top[cell] = key_of(pose)
+		level_at[cell] = int(pose["level"])
+	return top
+
+
+## CE QUI PREND LE CRAYON : ce que montre chaque case, hors de la plaine.
+##
+## ⚠ L'ETAGE 0 EST DU DECOR, ET IL RESTE DANS LES JUMELLES. La plaine ne se peint pas -- ni
+## crayon, ni grille -- mais peindre une tuile la remplit sous les yeux, et c'est l'argument de
+## vente : le sol du jeu sortira du meme tileset, sans rien de plus a dessiner.
+static func paintable(world: PackedStringArray) -> Dictionary:
+	var out: Dictionary = {}
+	var level_at: Dictionary = {}
+	for pose: Dictionary in poses(world):
+		var cell: Vector2i = pose["cell"]
+		if out.has(cell) and int(level_at[cell]) > int(pose["level"]):
+			continue
+		out[cell] = key_of(pose)
+		level_at[cell] = int(pose["level"])
+	for cell2: Vector2i in level_at.keys():
+		if int(level_at[cell2]) < 1:
+			out.erase(cell2)
+	return out
+
+
+## LES JUMELLES : ce qui porte la meme tuile porte le meme dessin.
+static func cells_by_key(map: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	var order: Array[Vector2i] = []
+	order.assign(map.keys())
+	# ⚠ EN ORDRE DE LECTURE, le seul qui ne depende que du monde et jamais du remplissage d'un
+	# dictionnaire. C'est lui qui donne son RANG a une occurrence, donc sa cle de sauvegarde.
+	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.y < b.y if a.y != b.y else a.x < b.x)
+	for cell: Vector2i in order:
+		var tile: int = int(map[cell])
+		if not out.has(tile):
+			out[tile] = [] as Array[Vector2i]
+		(out[tile] as Array[Vector2i]).append(cell)
+	return out
+
+
+## LE RAPPORT : ce que ce relief offre, et ce qui lui manque.
+static func analyse(world: PackedStringArray, wanted: Array[int]) -> Dictionary:
+	var groups: Dictionary = cells_by_key(paintable(world))
+	var missing: Array[int] = []
+	var least: int = -1
+	for tile: int in wanted:
+		var many: int = (groups[tile] as Array[Vector2i]).size() if groups.has(tile) else 0
+		if many == 0:
+			missing.append(tile)
+		least = many if least < 0 else mini(least, many)
+	return {"groups": groups, "missing": missing, "wanted": wanted.size(),
+			"found": wanted.size() - missing.size(), "least": maxi(least, 0),
+			"is_complete": missing.is_empty()}

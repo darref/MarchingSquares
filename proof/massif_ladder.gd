@@ -71,8 +71,7 @@ func _initialize() -> void:
 		for entry: Dictionary in worlds:
 			var world: PackedStringArray = entry["world"]
 			for pose: Dictionary in Massifs.poses(world):
-				vocabulary[(int(bool(pose["flush"])) << 16)
-						| (int(pose["band"]) << 8) | int(pose["sil"])] = true
+				vocabulary[Massifs.key_of(pose)] = true
 				poses += 1
 			var image: Image = Scene.compose(world, freedom)
 			var got: Dictionary = _measure(image, world, species, Massifs.poses(world))
@@ -99,8 +98,8 @@ func _initialize() -> void:
 
 	var by_band: Dictionary = {}
 	for key: int in vocabulary.keys():
-		var name: String = "%s %s" % [Massifs.BAND_NAMES[(key >> 8) & 0xff],
-				"au ras" if (key >> 16) != 0 else "libre"]
+		var name: String = "%s %s" % [Massifs.BAND_NAMES[Massifs.band_of(key)],
+				"au ras" if Massifs.flush_of(key) else "libre"]
 		by_band[name] = int(by_band.get(name, 0)) + 1
 	var names: Array[String] = []
 	names.assign(by_band.keys())

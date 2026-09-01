@@ -1,136 +1,113 @@
 extends SceneTree
 
-## LE GUIDE DU NOUVEAU MODELE : un massif par forme, libres et recouvrants.
+## LE GUIDE DU NOUVEAU MODELE : UN ILOT PAR TUILE, CALCULE.
 ##
 ##     godot --headless --path . --script res://tools/build_massifs.gd -- <sortie.txt>
 ##
-## ⚠ ET IL EXERCE LE VOCABULAIRE, IL NE FAIT PAS JOLI. Le guide livre actuel a ete bati pour
-## l'ancien vocabulaire : il n'empile presque jamais deux massifs, donc il ne peut montrer ni
-## un massif RECOUVRANT, ni l'inversion de profondeur que l'ordre de pose doit eviter. Un guide
-## qui ne montre pas un cas ne permet ni de le peindre ni de le juger.
+## ⚠ IL N'EST PLUS DESSINE A LA MAIN, ET C'EST LA REPONSE A « COMMENT SAIT-ON QU'ON COUVRE
+## TOUT ? ». Dix formes dessinees a la main exercaient 37 tuiles sur 88 -- et rien ne le disait.
+## Un guide ecrit a la main est une donnee a maintenir, donc un endroit ou mentir : c'est
+## exactement l'argument qui fait calculer les 47 index, la planche de preuve et les ilots de
+## bord. Ici la FORME CLOSE donne la liste, l'enumeration donne pour chaque tuile une FENETRE qui
+## la produit, et l'ilot n'est que cette fenetre ETIREE.
 ##
-## ⚠ ET CHAQUE MASSIF EST POSE DEUX FOIS : seul sur la plaine (LIBRE), puis sur un socle
-## (RECOUVRANT). C'est la seule difference que le bit porte, et elle doit se voir cote a cote.
+## ⚠ ET ON REVERIFIE DANS LE GUIDE ASSEMBLE, JAMAIS DANS SON COIN. Un temoin juste tout seul peut
+## se faire manger par sa marge ou son socle : la decoupe ment, c'est deja au dossier. Le controle
+## final lit `Massifs.analyse` sur le fichier ecrit, et il verifie en plus que CHAQUE ilot porte
+## bien la tuile qu'il annonce -- sans quoi une tuile trouvee ailleurs par accident rendrait le
+## compte vert pendant que l'ilot ment.
 
 const HeightMask := preload("res://core/height_mask.gd")
-const BlobIndex := preload("res://core/blob_index.gd")
 const Thickness := preload("res://core/thickness.gd")
 const Massifs := preload("res://core/massifs.gd")
-const Bands := preload("res://tools/bands.gd")
+const MassifForm := preload("res://core/massif_form.gd")
+const Witnesses := preload("res://core/massif_witnesses.gd")
 
-## Les formes, dessinees a la main : chacune apporte des silhouettes qu'aucune autre ne donne.
+## L'ilot : la fenetre 3x6 etiree de deux cases de chaque cote.
+const PAD: int = 2
+const ISLE_W: int = MassifForm.COLS + 2 * PAD
+const ISLE_H: int = MassifForm.ROWS + 2 * PAD
+
+## Le pave qui porte un ilot, marges comprises.
 ##
-## ⚠ ET ELLES SONT EPAISSES, min trois -- c'est ce que le pinceau laissera poser. Une forme
-## fine serait un specimen que personne ne pourra jamais reproduire.
-const SHAPES: Array = [
-	# LE BLOC : les quatre coins, les quatre bords, l'interieur.
-	["#####", "#####", "#####", "#####", "#####"],
-	# L'EQUERRE : les coins RENTRANTS, que le bloc ne donne pas.
-	["#####...", "#####...", "#####...", "########", "########", "########"],
-	# LE T : deux coins rentrants d'un coup, et un bord sud a deux decrochements.
-	["...###...", "...###...", "...###...", "#########", "#########", "#########"],
-	# L'ESCALIER : un bord sud qui decroche d'une rangee a chaque marche.
-	["#########", "#########", "#########", "######...", "######...", "###......"],
-	# LA CROIX : les quatre coins rentrants sur un seul massif.
-	["...###...", "...###...", "#########", "#########", "#########", "...###...", "...###..."],
-]
-
-## ⚠ L'ECART DOIT DEPASSER LA FALAISE, ET LARGEMENT. Deux massifs de MEME etage qui se
-## touchent FUSIONNENT -- c'est la regle, et elle est juste -- mais un guide ou tous les
-## specimens fusionnent en un seul massif ne montre plus rien. Premier essai a six : les dix
-## massifs sont devenus six, dont un enorme. La falaise fait trois rangees, le socle en ajoute
-## quatre au sud : il faut plus que la somme.
-const GAP: int = 12
-## Le socle d'un massif recouvrant : la marge autour, et les trois rangees au sud.
+## ⚠ ET C'EST LE SOCLE QUI DICTE SA LARGEUR, PAS L'ILOT. Premier essai a treize : l'ilot fait
+## sept, mais son socle en fait onze, et il ne restait que DEUX colonnes de plaine entre deux
+## paves -- une course de deux, donc fine, donc 1 368 cases refusees par l'epaisseur. On mesure
+## la marge sur ce qu'on pose vraiment, jamais sur ce qu'on croit poser.
+const BLOCK_W: int = 19
+const BLOCK_H: int = 24
+const COLUMNS: int = 8
+## La marge de vide autour du guide : la falaise du bord du monde y tombe.
+const RIM: int = 4
+## Le socle d'un ilot AU RAS : il deborde d'autant, et de quoi porter le pied.
 const BASE_SIDE: int = 2
 const BASE_SOUTH: int = 4
-## La marge de vide autour du guide : la plaine a sa falaise au bord du monde.
-const RIM: int = 4
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var out: String = args[0] if not args.is_empty() else "res://guides/massifs.txt"
-	var placed: Array[Dictionary] = []
-	var x: int = RIM + 2
-	var y: int = RIM + 2
-	var tallest: int = 0
-	# ⚠ ET UNE CASCADE DE TROIS ETAGES, qui est le seul cas ou l'ORDRE DE POSE se juge. Un
-	# massif haut mais situe au NORD ne doit pas passer devant une falaise plus au sud : la vue
-	# est de trois quarts, c'est la RANGEE qui dit qui est devant, pas l'etage. Sans ce
-	# specimen, ni l'oeil ni l'echelle ne peuvent voir l'inversion.
-	#
-	# ⚠ ET LE MASSIF DU MILIEU EST A LA FOIS PORTEUR ET PORTE -- il est deja au ras des deux
-	# titres, donc rien ne se contredit. C'etait la premiere question de l'analyse, et la
-	# cascade est ce qui la met sous les yeux.
-	# ⚠ ET CHAQUE ETAGE A **QUATRE** RANGEES DE SURFACE SOUS LUI, PAS TROIS. Mesure, pas
-	# raisonnement : a trois, le PIED du massif porte tombe exactement sur la derniere rangee de
-	# surface du porteur, donc juste au-dessus de la LEVRE de celui-ci. Les deux tracent -- le
-	# pied son bord sud, la levre son trait -- a une rangee d'ecart, et I2 compte 270 paves. Il
-	# faut une rangee de surface porteuse VISIBLE sous le pied. Trois pour la jupe, une pour
-	# respirer.
-	placed.append({"x": RIM + 2, "y": y, "rows": [
-		"##################", "##################", "##################",
-		"##################", "##################", "##################",
-		"##################", "##################", "##################",
-		"##################", "##################", "##################",
-		"##################", "##################", "##################",
-		"##################",
-	], "socle": false})
-	placed.append({"x": RIM + 5, "y": y + 2, "rows": [
-		"############", "############", "############", "############",
-		"############", "############", "############", "############",
-		"############", "############",
-	], "socle": false, "level": 2})
-	placed.append({"x": RIM + 8, "y": y + 4, "rows": [
-		"######", "######", "######", "######",
-	], "socle": false, "level": 3})
-	y += 16 + Bands.FALL + GAP
+	var whole: Array[int] = MassifForm.vocabulary()
+	var wits: Dictionary = MassifForm.witnesses()
+	# ⚠ ON NE BATIT QUE CE QU'ON SAIT PORTER, ET ON DIT CE QU'ON LAISSE. La forme close est une
+	# BORNE HAUTE : elle enonce ce que le modele peut produire, pas ce qu'on sait mettre sous le
+	# crayon. Une tuile sans ilot est une tuile que personne ne pourra peindre -- donc un trou
+	# dans le jeu -- et la charte tranche : ce qui n'est pas garanti est interdit. Les autres
+	# restent au fichier avec leurs fenetres ; elles entreront le jour ou un temoin sera trouve.
+	var blocks: Dictionary = Witnesses.blocks()
+	var wanted: Array[int] = []
+	var out_of_reach: Array[int] = []
+	for tile: int in whole:
+		if _choose(tile, wits) >= 0 or blocks.has(tile):
+			wanted.append(tile)
+		else:
+			out_of_reach.append(tile)
+	print("forme close %d tuiles ; %d portees, %d hors de portee"
+			% [whole.size(), wanted.size(), out_of_reach.size()])
+	var said0: Array[String] = []
+	for tile2: int in out_of_reach:
+		said0.append(Massifs.describe(tile2))
+	if not said0.is_empty():
+		print("  hors de portee : %s" % " | ".join(said0))
 
-	# Chaque forme deux fois : libre, puis sur son socle.
-	for socle: bool in [false, true]:
-		for shape: Variant in SHAPES:
-			var rows: Array = shape as Array
-			var w: int = String(rows[0]).length()
-			var h: int = rows.size()
-			var full_w: int = w + (2 * BASE_SIDE if socle else 0)
-			var full_h: int = h + Bands.FALL + (BASE_SIDE + BASE_SOUTH if socle else 0)
-			if x + full_w > 150:
-				x = RIM + 2
-				y += tallest + GAP
-				tallest = 0
-			placed.append({"x": x, "y": y, "rows": rows, "socle": socle})
-			x += full_w + GAP
-			tallest = maxi(tallest, full_h)
-		x = RIM + 2
-		y += tallest + GAP
-		tallest = 0
-
-	var wide: int = 0
-	var tall: int = 0
-	for one: Dictionary in placed:
-		var rows2: Array = one["rows"] as Array
-		var w2: int = String(rows2[0]).length() + (2 * BASE_SIDE if bool(one["socle"]) else 0)
-		var h2: int = rows2.size() + Bands.FALL \
-				+ (BASE_SIDE + BASE_SOUTH if bool(one["socle"]) else 0)
-		wide = maxi(wide, int(one["x"]) + w2)
-		tall = maxi(tall, int(one["y"]) + h2)
-	wide += RIM + 2
-	tall += RIM + 2
-
+	var rows: int = (wanted.size() + COLUMNS - 1) / COLUMNS
+	var wide: int = 2 * RIM + COLUMNS * BLOCK_W
+	var tall: int = 2 * RIM + rows * BLOCK_H
 	var grid: Array[PackedByteArray] = []
-	for row: int in range(tall):
+	for y: int in range(tall):
 		var line: PackedByteArray = PackedByteArray()
 		line.resize(wide)
 		line.fill(0)
 		grid.append(line)
-	# LA PLAINE, partout sauf le lisere de vide. ⚠ ETAGE ZERO -- premier essai a UN, et tout
-	# le cadre devenait un seul massif geant qui avalait tous les specimens.
-	for row2: int in range(RIM, tall - RIM):
-		for col: int in range(RIM, wide - RIM):
-			_put(grid, col, row2, 0)
-	for one2: Dictionary in placed:
-		_stamp(grid, one2)
+	# LA PLAINE, partout sauf le lisere de vide. ⚠ ETAGE ZERO -- a un, tout le cadre devient un
+	# seul massif geant qui avale les ilots.
+	for y2: int in range(RIM, tall - RIM):
+		for x2: int in range(RIM, wide - RIM):
+			_put(grid, x2, y2, 0)
+
+	var centres: Array[Vector2i] = []
+	var chosen: Array[int] = []
+	var blind: int = 0
+	for at: int in range(wanted.size()):
+		var bx: int = RIM + (at % COLUMNS) * BLOCK_W
+		var by: int = RIM + (at / COLUMNS) * BLOCK_H
+		var bits: int = _choose(wanted[at], wits)
+		chosen.append(bits)
+		if bits >= 0:
+			_stamp(grid, wanted[at], bits, bx, by)
+			centres.append(Vector2i(bx + 3 + PAD + MassifForm.CX,
+					by + 3 + PAD + MassifForm.CY))
+			continue
+		# ⚠ CE QUE LA FENETRE ETIREE NE PORTE PAS, LE TEMOIN TROUVE LE PORTE. Il n'est pas
+		# dessine a la main : `tools/massif_witnesses.gd` le cherche, puis le relit.
+		if not blocks.has(wanted[at]):
+			blind += 1
+			centres.append(Vector2i(-1, -1))
+			continue
+		_place(grid, blocks[wanted[at]] as PackedStringArray, bx + 2, by + 2)
+		centres.append(Vector2i(bx + 2, by + 2) + Witnesses.AT)
+	if blind > 0:
+		print("  ⚠ %d tuile(s) sans fenetre ETIREE ni TEMOIN" % blind)
 
 	var text: PackedStringArray = PackedStringArray()
 	for line2: PackedByteArray in grid:
@@ -141,8 +118,8 @@ func _initialize() -> void:
 	var file: FileAccess = FileAccess.open(out, FileAccess.WRITE)
 	file.store_string("\n".join(text) + "\n")
 	file.close()
-	_audit(text)
-	print("guide ecrit : %s (%dx%d), %d massifs poses" % [out, wide, tall, placed.size()])
+	print("guide ecrit : %s (%dx%d), %d ilots" % [out, wide, tall, wanted.size()])
+	_audit(text, wanted, centres, chosen)
 	quit(0)
 
 
@@ -156,72 +133,108 @@ func _put(grid: Array[PackedByteArray], x: int, y: int, level: int) -> void:
 	grid[y] = line
 
 
-## Pose un massif : sa forme a l'etage 1, ou a l'etage 2 sur un socle d'etage 1.
-func _stamp(grid: Array[PackedByteArray], one: Dictionary) -> void:
-	var rows: Array = one["rows"] as Array
-	var ox: int = int(one["x"])
-	var oy: int = int(one["y"])
-	var socle: bool = bool(one["socle"])
-	var w: int = String(rows[0]).length()
-	var h: int = rows.size()
-	if socle:
-		# ⚠ LE SOCLE DEBORDE DE TROIS AU SUD, PAS DE UN. La falaise du massif pose dessus
-		# tombe de trois rangees et doit atterrir sur la SURFACE du socle : une marge de un
-		# la ferait retomber sur la falaise du socle, et c'est la tuile composite que le
-		# modele existe pour supprimer.
-		for y: int in range(-BASE_SIDE, h + BASE_SOUTH):
-			for x: int in range(-BASE_SIDE, w + BASE_SIDE):
+## POSE UN BLOC DE TEMOIN, tel quel : ses etages sont ceux qu'on a mesures, pas un maximum.
+func _place(grid: Array[PackedByteArray], block: PackedStringArray, ox: int, oy: int) -> void:
+	for y: int in range(block.size()):
+		for x: int in range(block[y].length()):
+			var here: String = block[y].substr(x, 1)
+			if here == "~":
+				continue
+			_put(grid, ox + x, oy + y, here.to_int())
+
+
+## POSE L'ILOT D'UNE TUILE, et rend la fenetre retenue.
+##
+## ⚠ UNE TUILE AU RAS EST UN MASSIF D'ETAGE 2, ET C'EST TOUT CE QUE « AU RAS » VEUT DIRE : elle
+## en recouvre un autre. On lui donne donc un socle d'etage 1 -- qui doit porter son PIED avec une
+## rangee de rab, sans quoi la marge de pied saute.
+func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int) -> void:
+	var flush: bool = Massifs.flush_of(tile)
+	var level: int = 2 if flush else 1
+	var isle: Array[PackedByteArray] = MassifForm.stretched(bits, PAD)
+	var ox: int = bx + 3
+	var oy: int = by + 3
+	if flush:
+		for y: int in range(-BASE_SIDE, ISLE_H + Massifs.FALL + BASE_SOUTH):
+			for x: int in range(-BASE_SIDE, ISLE_W + BASE_SIDE):
 				_put(grid, ox + x, oy + y, 1)
-	var level: int = int(one.get("level", 2 if socle else 1))
-	for y2: int in range(h):
-		var line: String = String(rows[y2])
-		for x2: int in range(line.length()):
-			if line.substr(x2, 1) == "#":
+	for x2: int in range(ISLE_W):
+		for y2: int in range(ISLE_H):
+			if int(isle[x2][y2]) == 1:
 				_put(grid, ox + x2, oy + y2, level)
 
 
-## CE QUE LE GUIDE EXERCE, et ce qui lui manque.
-func _audit(world: PackedStringArray) -> void:
-	var made: Dictionary = Massifs.of(world)
-	var seen: Dictionary = {}
-	var groups: Array = made["cells"]
-	var covers: Array[bool] = made["covers"]
-	for mark: int in range(groups.size()):
-		var footprint: Dictionary = _footprint(groups[mark] as Array)
-		for cell: Vector2i in footprint.keys():
-			var raw: int = 0
-			for bit: int in range(8):
-				if footprint.has(cell + BlobIndex.OFFSETS[bit]):
-					raw |= 1 << bit
-			seen[(int(covers[mark]) << 16) | (int(footprint[cell]) << 8)
-					| BlobIndex.canonicalize(raw)] = true
-	var thin: Array[Vector3i] = Thickness.thin_cells(world)
-	print("  %d tuiles exercees ; %d case(s) fine(s)" % [seen.size(), thin.size()])
-	var by_band: Dictionary = {}
-	for key: int in seen.keys():
-		var band: int = (key >> 8) & 0xff
-		var flush: bool = (key >> 16) != 0
-		var name: String = "%s %s" % [Bands.BAND_NAMES[band], "au ras" if flush else "libre"]
-		by_band[name] = int(by_band.get(name, 0)) + 1
-	var said2: Array[String] = []
-	said2.assign(by_band.keys())
-	said2.sort()
-	for name2: String in said2:
-		print("    %-22s %d" % [name2, int(by_band[name2])])
-
-
-func _footprint(cells: Array) -> Dictionary:
-	var out: Dictionary = {}
-	var surface: Dictionary = {}
-	for cell: Variant in cells:
-		surface[cell as Vector2i] = true
-		out[cell as Vector2i] = Bands.SURFACE
-	for cell2: Variant in cells:
-		var at: Vector2i = cell2 as Vector2i
-		if surface.has(at + Vector2i.DOWN):
+## LA FENETRE QUI TIENT, et c'est la seule facon honnete de la trouver.
+##
+## ⚠ UNE FENETRE N'EST PAS UN ILOT. L'enumeration raisonne sur trois colonnes et six rangees, et
+## elle a le droit de supposer que deux composantes distinctes de la fenetre sont reliees DEHORS.
+## L'ilot, lui, est un monde fini : ce qui n'est pas relie dedans ne l'est nulle part. Prendre la
+## premiere fenetre venue donnait 53 ilots sur 88 qui portaient une AUTRE tuile que la leur --
+## et le compte global, lui, restait content. On essaie donc toutes les fenetres du couple, on
+## BATIT l'ilot, et on lit ce que la case porte vraiment.
+func _choose(tile: int, wits: Dictionary) -> int:
+	for bits: int in (wits[tile & 0xffff] as Array[int]):
+		var mini: PackedStringArray = _alone(tile, bits)
+		var paint: Dictionary = Massifs.paintable(mini)
+		var centre: Vector2i = Vector2i(RIM + BASE_SIDE + PAD + MassifForm.CX,
+				RIM + BASE_SIDE + PAD + MassifForm.CY)
+		if int(paint.get(centre, -1)) != tile:
 			continue
-		for step: int in range(1, Bands.FALL + 1):
-			var below: Vector2i = at + Vector2i(0, step)
-			if not out.has(below):
-				out[below] = step
-	return out
+		if not Thickness.thin_cells(mini).is_empty():
+			continue
+		if not Massifs.foot_faults(mini).is_empty():
+			continue
+		return bits
+	return -1
+
+
+## L'ilot seul dans son cadre, pour le juger avant de le poser.
+func _alone(tile: int, bits: int) -> PackedStringArray:
+	var wide: int = 2 * RIM + 2 * BASE_SIDE + ISLE_W
+	var tall: int = 2 * RIM + 2 * BASE_SIDE + ISLE_H + 2 * Massifs.FALL + BASE_SOUTH
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(tall):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(wide)
+		line.fill(0)
+		grid.append(line)
+	for y2: int in range(RIM, tall - RIM):
+		for x2: int in range(RIM, wide - RIM):
+			_put(grid, x2, y2, 0)
+	_stamp(grid, tile, bits, RIM - 3 + BASE_SIDE, RIM - 3 + BASE_SIDE)
+	var text: PackedStringArray = PackedStringArray()
+	for line2: PackedByteArray in grid:
+		var said: String = ""
+		for v: int in line2:
+			said += "~" if v == 0 else str(v - 1)
+		text.append(said)
+	return text
+
+
+## CE QUE LE GUIDE PORTE VRAIMENT, lu sur le fichier ecrit.
+func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2i],
+		chosen: Array[int]) -> void:
+	var got: Dictionary = Massifs.analyse(world, wanted)
+	var thin: Array[Vector3i] = Thickness.thin_cells(world)
+	var faults: Array[Vector2i] = Massifs.foot_faults(world)
+	print("  %d/%d tuiles peignables" % [int(got["found"]), int(got["wanted"])])
+	print("  %d case(s) fine(s), %d faute(s) de marge de pied" % [thin.size(), faults.size()])
+	var paint: Dictionary = Massifs.paintable(world)
+	var wrong: int = 0
+	var said: Array[String] = []
+	for at: int in range(wanted.size()):
+		var here: int = int(paint.get(centres[at], -1))
+		if here == wanted[at]:
+			continue
+		wrong += 1
+		if said.size() < 10:
+			said.append("%s : la case porte %s" % [Massifs.describe(wanted[at]),
+					"rien" if here < 0 else Massifs.describe(here)])
+	print("  %d ilot(s) qui ne portent pas leur tuile" % wrong)
+	for one: String in said:
+		print("      %s" % one)
+	var missing: Array[String] = []
+	for tile: int in (got["missing"] as Array[int]):
+		missing.append(Massifs.describe(tile))
+	if not missing.is_empty():
+		print("  manquantes : %s" % " | ".join(missing))
