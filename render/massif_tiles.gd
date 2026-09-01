@@ -1,0 +1,143 @@
+# LE DESSIN D'UNE TUILE DU NOUVEAU MODELE : le couple (silhouette d'empreinte, bande), et le
+# seul bit de contexte qui reste -- RECOUVRANT.
+#
+# ⚠ UNE TUILE NE REPOND QUE D'ELLE-MEME. Elle remplit sa case ; ce qui est a cote appartient a
+# la couche de la voisine, qui le dessine elle-meme, et l'ORDRE DE POSE tranche qui est devant.
+# C'est pour ca que le dehors d'une tuile est TRANSPARENT et jamais peint : c'est lui qui fait
+# l'occlusion, et un fond opaque cerne chaque tuile d'un halo qui supprime tout le modele.
+#
+# ⚠ ET LA LIBERTE SE MONTRE, ELLE NE SE DEDUIT PAS. Un bord dessine AU RAS dit a l'artiste « ce
+# bord ne t'appartient pas » ; dessine a mi-tuile, il dit « place-le ou tu veux ». Le fond du
+# guide est la specification, donc il doit rendre la liberte evidente au premier coup d'oeil.
+extends RefCounted
+
+const BlobIndex := preload("res://core/blob_index.gd")
+const Massifs := preload("res://core/massifs.gd")
+const Tiles := preload("res://render/contour_tiles.gd")
+
+const RES: int = Tiles.RES
+const OUTLINE: Color = Tiles.OUTLINE
+
+## LA MATIERE DE CHAQUE BANDE. L'herbe pour la surface, trois roches pour la jupe.
+const BODY: Array[Color] = [
+	Color(0.44, 0.60, 0.32),
+	Color(0.74, 0.57, 0.42),
+	Color(0.64, 0.48, 0.35),
+	Color(0.54, 0.40, 0.29),
+]
+
+## L'amplitude de l'ondulation, en pixels, a F2.
+const SWELL: float = 3.0
+
+
+## LA PROFONDEUR D'UN BORD OUVERT, le long de ce bord.
+##
+## ⚠ LE RENDEZ-VOUS EST LA SEULE CHOSE QUI SE NEGOCIE ENTRE DEUX TUILES ; ce que le trait fait
+## ENTRE deux rendez-vous n'engage personne. D'ou les trois libertes :
+##   F0  la plus petite : le rendez-vous rentre d'UN pixel, le trait est droit -- le plancher ;
+##   F1  le rendez-vous descend a MI-TUILE quand le massif est libre, le trait reste droit ;
+##   F2  le meme rendez-vous, et le trait ONDULE entre deux rendez-vous.
+##
+## ⚠ ET LA PROFONDEUR ZERO EST IMPOSSIBLE POUR UN MASSIF LIBRE -- mesure, pas gout. A zero, le
+## contour d'un massif tombe exactement sur la bordure de tuile ; deux massifs voisins ont alors
+## leur contour sur LA MEME LIGNE et le tracent tous les deux, puisqu'une tuile ne repond que
+## d'elle-meme. 186 paves, tous de cette espece : un PIED au-dessus du bord nord d'un autre
+## massif. Le seul remede serait un bit « qui trace ? » -- c'est-a-dire le cliquet dont ce modele
+## sort. On paie donc UN PIXEL : la liberte n'est pas un ornement, c'est ce qui separe deux
+## massifs voisins.
+##
+## ⚠ ET LES MASSIFS RECOUVRANTS N'ONT PAS BESOIN DE CE PIXEL : deux contours au ras ne se font
+## jamais face. Un massif d'etage N+1 est EMBOITE dans celui d'etage N, qui est donc plein le
+## long de son bord et n'y trace rien ; et deux composantes de meme etage qui se touchent sont
+## le meme massif.
+##
+## ⚠ ET UN MASSIF RECOUVRANT GARDE SON ONDULATION. « Au ras » veut dire que son arete touche la
+## bordure de tuile AU RENDEZ-VOUS -- pour que n'importe quelle voisine puisse la rejoindre --
+## pas qu'elle est plaquee sur toute sa longueur.
+static func depth_of(along: int, freedom: int, flush: bool) -> int:
+	if flush:
+		return 0 if freedom < 2 else int(round(SWELL * sin(PI * float(along) / float(RES - 1))))
+	var meet: float = 1.0 if freedom <= 0 else float(RES) / 2.0
+	if freedom < 2:
+		return int(round(meet))
+	var t: float = float(along) / float(RES - 1)
+	return int(round(meet + SWELL * sin(PI * t)))
+
+
+## LA TUILE. `backdrop` n'est peint que pour une PLANCHE de specimens : isolee, une tuile a
+## dehors transparent se lit comme un trou.
+##
+## ⚠ ET LA TEINTE SUIT L'ETAGE, sans quoi un massif RECOUVRANT est invisible sur son socle --
+## meme vert, meme matiere, on ne voit que son contour. La teinte est ce qui dit l'altitude
+## quand la vue est de dessus.
+static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
+		backdrop: Color = Color(0, 0, 0, 0), level: int = 1) -> Image:
+	var out: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	out.fill(backdrop)
+	var solid: Array[PackedByteArray] = []
+	for y: int in range(RES):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(RES)
+		for x: int in range(RES):
+			line[x] = 1 if _inside(sil, x, y, freedom, flush) else 0
+		solid.append(line)
+	for y2: int in range(RES):
+		for x2: int in range(RES):
+			if solid[y2][x2] == 0:
+				continue
+			var edge: bool = false
+			for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+				var near: Vector2i = Vector2i(x2, y2) + step
+				if near.x < 0 or near.y < 0 or near.x >= RES or near.y >= RES:
+					# ⚠ UNE TUILE AU RAS TRACE QUAND MEME SON BORD, et c'est le defaut qui
+					# rendait un massif RECOUVRANT invisible sur son socle : son contour tombe
+					# exactement sur la bordure de tuile, et un cerne qui ne regarde qu'a
+					# l'INTERIEUR ne le voit jamais. Au ras veut dire « mon arete est sur la
+					# bordure », pas « je n'ai pas d'arete ».
+					var side: int = 0 if step == Vector2i.UP else (
+							1 if step == Vector2i.RIGHT else (
+							2 if step == Vector2i.DOWN else 3))
+					if (sil & [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W][side]) == 0:
+						edge = true
+					continue
+				if solid[near.y][near.x] == 0:
+					edge = true
+			# ⚠ LE TRAIT DE LEVRE VIT DANS LA TUILE, ET IL EST CONSTANT : un CHAPITEAU a toujours
+			# de la surface au-dessus de lui -- c'est sa definition meme, il pend sous le bord sud
+			# d'une surface. La frontiere herbe/roche tombe donc a sa rangee du haut, toujours, et
+			# aucune tuile n'a besoin de savoir quoi que ce soit de sa voisine.
+			#
+			# ⚠ ET C'EST AUSSI LE TRAIT DES FALAISES INTERNES : une encoche ouverte au sud dans un
+			# massif porte sa propre falaise -- meme chapiteau, meme trait, sans un cas de plus.
+			if band == Massifs.CHAPITEAU and y2 == 0:
+				out.set_pixel(x2, y2, OUTLINE)
+				continue
+			out.set_pixel(x2, y2, OUTLINE if edge
+					else BODY[band].lightened(0.13 * float(level - 1)))
+	return out
+
+
+static func _inside(sil: int, x: int, y: int, freedom: int, flush: bool) -> bool:
+	if (sil & BlobIndex.N) == 0 and y < depth_of(x, freedom, flush):
+		return false
+	if (sil & BlobIndex.S) == 0 and y > RES - 1 - depth_of(x, freedom, flush):
+		return false
+	if (sil & BlobIndex.W) == 0 and x < depth_of(y, freedom, flush):
+		return false
+	if (sil & BlobIndex.E) == 0 and x > RES - 1 - depth_of(y, freedom, flush):
+		return false
+	# LE COIN RENTRANT : les deux cardinaux pleins, la diagonale vide. C'est une encoche, et elle
+	# se creuse a la meme profondeur que les bords -- sinon elle ne rejoindrait pas les voisines.
+	for corner: int in range(4):
+		var a: int = [BlobIndex.N, BlobIndex.E, BlobIndex.S, BlobIndex.W][corner]
+		var b: int = [BlobIndex.W, BlobIndex.N, BlobIndex.E, BlobIndex.S][corner]
+		var d: int = [BlobIndex.NW, BlobIndex.NE, BlobIndex.SE, BlobIndex.SW][corner]
+		if (sil & a) == 0 or (sil & b) == 0 or (sil & d) != 0:
+			continue
+		var near_y: bool = y < depth_of(x, freedom, flush) if corner < 2 \
+				else y > RES - 1 - depth_of(x, freedom, flush)
+		var near_x: bool = x > RES - 1 - depth_of(y, freedom, flush) \
+				if corner == 1 or corner == 2 else x < depth_of(y, freedom, flush)
+		if near_x and near_y:
+			return false
+	return true
