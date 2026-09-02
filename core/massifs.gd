@@ -198,7 +198,11 @@ const FALL: int = 3
 ##
 ## ⚠ LE BORD SUD SE LIT PAR COLONNE, ET UN MASSIF PEUT EN AVOIR PLUSIEURS. Une encoche ouverte
 ## au sud donne deux bords sud dans la meme colonne, et chacune porte sa falaise.
-static func footprint(world: PackedStringArray, cells: Array, level: int) -> Dictionary:
+## `lips`, s'il est fourni, recoit pour chaque case de falaise LA LEVRE dont elle pend. C'est la
+## seule chose qui distingue une roche continue d'une ARETE INTERNE : deux faces cote a cote qui
+## ne pendent pas de la meme levre ont de la roche des deux cotes et un vrai coin entre elles.
+static func footprint(world: PackedStringArray, cells: Array, level: int,
+		lips: Dictionary = {}) -> Dictionary:
 	var out: Dictionary = {}
 	var surface: Dictionary = {}
 	for cell: Variant in cells:
@@ -223,6 +227,7 @@ static func footprint(world: PackedStringArray, cells: Array, level: int) -> Dic
 				continue
 			out[below] = CHAPITEAU if step == 1 else (
 					PIED if (landed and step == fall) else CORPS)
+			lips[below] = at
 	return out
 
 
@@ -246,14 +251,16 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 	var covers: Array[bool] = made["covers"]
 	var out: Array[Dictionary] = []
 	for mark: int in range(groups.size()):
-		var print_of: Dictionary = footprint(world, groups[mark] as Array, levels[mark])
+		var lips: Dictionary = {}
+		var print_of: Dictionary = footprint(world, groups[mark] as Array, levels[mark], lips)
 		for cell: Vector2i in print_of.keys():
 			var raw: int = 0
 			for bit: int in range(8):
 				if print_of.has(cell + BlobIndex.OFFSETS[bit]):
 					raw |= 1 << bit
 			out.append({"cell": cell, "band": int(print_of[cell]), "level": levels[mark],
-					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark]})
+					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark],
+					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ay: int = (a["cell"] as Vector2i).y
 		var by: int = (b["cell"] as Vector2i).y

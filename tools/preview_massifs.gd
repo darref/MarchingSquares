@@ -43,14 +43,20 @@ func _initialize() -> void:
 	image.blend_rect(Scene.compose(world, freedom, ink),
 			Rect2i(0, 0, wide * RES, tall * RES), Vector2i.ZERO)
 
+	# ⚠ LA GRILLE SE REPERE, ELLE NE SE LIT PAS. Pleine et opaque, elle masquait le trait meme
+	# qu'on vient regarder. En pointille clair, elle dit ou sont les bordures de tuile sans
+	# jamais couvrir ce qui s'y passe -- c'est la meme lecon que la barre translucide de
+	# l'editeur : une aide a viser, pas un decor.
 	if OS.get_environment("GRILLE") != "":
-		var grid: Color = Color(1.0, 0.35, 0.35, 0.55)
+		var grid: Color = Color(1.0, 0.35, 0.35, 0.30)
 		for gy: int in range(tall + 1):
-			for gx: int in range(wide * RES):
-				image.set_pixel(gx, mini(gy * RES, tall * RES - 1), grid)
+			var py: int = mini(gy * RES, tall * RES - 1)
+			for gx: int in range(0, wide * RES, 3):
+				image.set_pixel(gx, py, grid)
 		for gx2: int in range(wide + 1):
-			for gy2: int in range(tall * RES):
-				image.set_pixel(mini(gx2 * RES, wide * RES - 1), gy2, grid)
+			var px: int = mini(gx2 * RES, wide * RES - 1)
+			for gy2: int in range(0, tall * RES, 3):
+				image.set_pixel(px, gy2, grid)
 	if args.size() >= 6:
 		var crop: Image = Image.create_empty(args[4].to_int() * RES, args[5].to_int() * RES,
 				false, image.get_format())

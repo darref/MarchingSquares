@@ -21,12 +21,45 @@ static func compose(world: PackedStringArray, freedom: int = 1,
 	var image: Image = Image.create_empty(wide * RES, tall * RES, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))
 	var cache: Dictionary = {}
+	var seen: Dictionary = {}
 	for one: Dictionary in Massifs.poses(world):
-		var key: int = (int(one["level"]) << 20) | (int(bool(one["flush"])) << 16) \
-				| (int(one["band"]) << 8) | int(one["sil"])
+		var key: int = (ink << 24) | (int(one["level"]) << 20) | Massifs.key_of(one)
 		if not cache.has(key):
 			cache[key] = MassifTiles.shape(int(one["sil"]), int(one["band"]),
 					bool(one["flush"]), freedom, Color(0, 0, 0, 0), int(one["level"]), ink)
 		image.blend_rect(cache[key] as Image, Rect2i(0, 0, RES, RES),
 				(one["cell"] as Vector2i) * RES)
+		# La derniere pose gagne : c'est celle qu'on voit, donc celle dont la levre compte.
+		if int(one["band"]) != Massifs.SURFACE:
+			seen[one["cell"]] = one
+		else:
+			seen.erase(one["cell"])
+	if ink == MassifTiles.CONTOUR:
+		_inner_edges(image, seen)
 	return image
+
+
+## LES ARETES INTERNES D'UNE FALAISE.
+##
+## ⚠ CE N'EST PAS LE QUADRILLAGE DES TUILES -- premiere version, et elle etait fausse. Deux cases
+## de face qui pendent de la MEME levre sont la meme paroi : la roche y est continue et tout
+## trait serait faux, c'est meme ce que les classes de raccord existent pour garantir. Une arete
+## interne, c'est le contraire : deux faces cote a cote qui ne pendent PAS de la meme levre, donc
+## de la roche des deux cotes et un vrai coin entre elles.
+##
+## ⚠ ET ELLE NE SE TRACE QUE DANS LE FOND, JAMAIS DANS LA TUILE. Une tuile ne sait rien de la
+## levre de sa voisine ; c'est le fond, qui connait le relief entier, qui peut la montrer. C'est
+## precisement ce qu'on vient regarder : ou le modele pose une frontiere qu'aucune tuile ne
+## saurait dessiner seule.
+static func _inner_edges(image: Image, seen: Dictionary) -> void:
+	for cell: Vector2i in seen.keys():
+		var mine: Dictionary = seen[cell]
+		var near: Vector2i = cell + Vector2i.RIGHT
+		if not seen.has(near):
+			continue
+		var other: Dictionary = seen[near]
+		if int(mine["massif"]) == int(other["massif"]) \
+				and (mine["lip"] as Vector2i) == (other["lip"] as Vector2i):
+			continue
+		for y: int in range(RES):
+			image.set_pixel(near.x * RES, cell.y * RES + y, MassifTiles.OUTLINE)

@@ -142,14 +142,6 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 			if band == Massifs.CHAPITEAU and y2 == 0:
 				out.set_pixel(x2, y2, OUTLINE)
 				continue
-			# ⚠ EN CONTOUR PROUVE, LES ARETES INTERNES DE LA FALAISE SE TRACENT AUSSI. Une face
-			# rendue en masse continue ne montre pas ou ses TUILES se joignent -- or c'est la
-			# que le jumelage peut mal tomber : une meme tuile posee a vingt endroits doit s'y
-			# raccorder a chaque fois. Les tracer, c'est rendre visibles les coutures que
-			# l'artiste devra faire tenir.
-			if ink == CONTOUR and band != Massifs.SURFACE 					and (x2 == 0 or y2 == 0 or x2 == RES - 1 or y2 == RES - 1):
-				out.set_pixel(x2, y2, OUTLINE)
-				continue
 			out.set_pixel(x2, y2, OUTLINE if edge else (PAPER if ink == CONTOUR
 					else BODY[band].lightened(0.13 * float(level - 1))))
 	return out
