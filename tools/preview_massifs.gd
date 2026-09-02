@@ -178,37 +178,44 @@ func _initialize() -> void:
 			var level2: int = HeightMask.level_at(world, at2.x, at2.y)
 			_badge(image, at2, level2)
 
-	# ⚠ LES ENSEMBLES SONT NUMEROTES, POUR QU'ON PUISSE LES DESIGNER. Un guide est une mosaique
-	# de mondes ; sans numero, dire « celui-la est faux » demande de decrire sa position, et on
-	# se trompe d'un. Un ensemble est une composante connexe de ce qui n'est PAS du vide -- le
-	# vide separe les mondes, c'est meme a ca qu'il sert ici.
+	# ⚠ CE SONT LES MASSIFS QU'ON NUMEROTE, PAS LES MONDES. Un monde est un cadre ; ce qu'on
+	# regarde et ce qu'on veut designer, c'est un massif -- « le 7 est faux » doit pointer une
+	# masse de terrain, pas un rectangle de la mosaique.
+	#
+	# ⚠ ET LE NUMERO SE POSE SUR CE QUI SE VOIT. Un massif entierement recouvert par un plus haut
+	# n'a aucune surface visible : son numero irait sous une autre matiere, donc nulle part. On
+	# le pose alors sur n'importe laquelle de ses cases visibles.
+	#
+	# ⚠ ET L'ORDRE EST CELUI DE LA LECTURE -- de haut en bas, de gauche a droite. Numerotes dans
+	# l'ordre ou le modele les trouve, ils sauteraient d'un bout a l'autre du guide.
 	if OS.get_environment("NUMEROS") == "":
-		var seen: Dictionary = {}
-		var corners: Array[Vector2i] = []
-		for y3: int in range(tall):
-			for x3: int in range(wide):
-				var here: Vector2i = Vector2i(x3, y3)
-				if seen.has(here) or HeightMask.level_at(world, x3, y3) < 0:
+		var top: Dictionary = {}
+		for one3: Dictionary in Massifs.poses(world):
+			var cell4: Vector2i = one3["cell"]
+			if top.has(cell4) and int((top[cell4] as Dictionary)["level"]) > int(one3["level"]):
+				continue
+			top[cell4] = one3
+		var anchor: Dictionary = {}
+		for cell5: Vector2i in top.keys():
+			var one4: Dictionary = top[cell5]
+			var mark: int = int(one4["massif"])
+			var surface: bool = int(one4["band"]) == Massifs.SURFACE
+			if anchor.has(mark):
+				var had: Dictionary = anchor[mark]
+				if bool(had["surface"]) and not surface:
 					continue
-				var corner: Vector2i = here
-				var stack: Array[Vector2i] = [here]
-				seen[here] = true
-				while not stack.is_empty():
-					var at3: Vector2i = stack.pop_back()
-					if at3.y < corner.y or (at3.y == corner.y and at3.x < corner.x):
-						corner = at3
-					for step2: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN,
-							Vector2i.LEFT]:
-						var near2: Vector2i = at3 + step2
-						if near2.x < 0 or near2.y < 0 or near2.x >= wide or near2.y >= tall:
-							continue
-						if seen.has(near2) or HeightMask.level_at(world, near2.x, near2.y) < 0:
-							continue
-						seen[near2] = true
-						stack.append(near2)
-				corners.append(corner)
-		for at4: int in range(corners.size()):
-			_label(image, corners[at4], at4 + 1)
+				var was: Vector2i = had["cell"]
+				if bool(had["surface"]) == surface 						and (cell5.y > was.y or (cell5.y == was.y and cell5.x > was.x)):
+					continue
+			anchor[mark] = {"cell": cell5, "surface": surface}
+		var order: Array[int] = []
+		order.assign(anchor.keys())
+		order.sort_custom(func(a: int, b: int) -> bool:
+			var pa: Vector2i = (anchor[a] as Dictionary)["cell"]
+			var pb: Vector2i = (anchor[b] as Dictionary)["cell"]
+			return pa.y < pb.y if pa.y != pb.y else pa.x < pb.x)
+		for at4: int in range(order.size()):
+			_label(image, (anchor[order[at4]] as Dictionary)["cell"], at4 + 1)
 
 	if OS.get_environment("GRILLE") != "":
 		var grid: Color = Color(1.0, 0.35, 0.35, 0.30)
