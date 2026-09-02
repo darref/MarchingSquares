@@ -3918,3 +3918,125 @@ guide couvrait 15/15.
 ⚠ **Et c'est la leçon de méthode de la soirée** : *le vocabulaire se réduit par la mesure, le
 guide se construit par le dessin.* Les deux moitiés du chantier ne se traitent pas avec les mêmes
 outils, et j'ai passé trois routes à essayer de mesurer ce qu'il fallait dessiner.
+
+---
+
+# LE MODÈLE DES MASSIFS — l'état au 2026-09-02, et par où reprendre
+
+⚠ **Ce qui suit remplace le modèle du contour prouvé.** Tout ce qui précède dans ce fichier reste
+vrai *comme histoire* — les six invariants, les échelles L/F, les mesures — mais le vocabulaire
+décrit plus haut (bits de bord, pans, rangées de corps, poses arrière) n'est plus celui du
+produit. Le nouveau modèle vit **à côté** de l'ancien : rien du produit n'est encore branché
+dessus, et l'ancienne suite reste verte.
+
+## Le modèle, en cinq phrases
+
+Un **MASSIF** est un blob complet et autonome : une **SURFACE** et sa **FALAISE**. Il existe
+entièrement, y compris sous ce qui le recouvre — un chevauchement n'est que de l'**occlusion par
+ordre de rendu**, donc le voisinage d'une tuile ne dépend jamais de ce qu'on pose dessus. Les
+massifs sont **emboîtés** : un massif d'étage L est une composante connexe des cases de niveau
+**au moins** L, et la plaine est le massif d'étage 0. Une tuile est le couple **(silhouette de
+l'EMPREINTE, BANDE)** — l'empreinte étant surface ∪ falaise, la bande valant SURFACE, CHAPITEAU,
+CORPS ou PIED. Et il ne reste **qu'un bit de contexte** : suis-je **AU RAS** ?
+
+## Les quatre règles qui ont coûté cher à trouver
+
+1. **AU RAS SEULEMENT EN CAS DE CHEVAUCHEMENT.** Un massif entièrement entouré par celui qui le
+   porte garde toute sa liberté — son contour ne longe que de la matière. Ce qui force le ras,
+   c'est *une partie dedans, une partie dehors* : là, deux contours décrivent le même endroit
+   sans pouvoir se concerter, et leur seul rendez-vous commun est la bordure de tuile.
+2. **LA CHUTE VA JUSQU'AU SOL QU'ELLE ATTEINT.** Un étage vaut trois rangées ; la face cherche le
+   premier palier `j` tel que le sol, `3j` rangées plus bas, soit `j` étages sous la lèvre. Sans
+   palier elle tombe dans le vide et **ne pose pas son pied**. La sonde regarde **sous** le pied,
+   jamais les rangées traversées.
+3. **LA MARGE DE PIED.** Aucun PIED ne touche par le sud un CHAPITEAU : les deux tracent à une
+   rangée d'écart et leurs traits se collent. Aucune tuile ne peut le rattraper sans un bit de
+   contexte, donc on paie en grammaire — une rangée de surface porteuse visible sous le pied.
+4. **LA PROFONDEUR ZÉRO EST IMPOSSIBLE POUR UN MASSIF LIBRE.** À zéro, deux massifs voisins ont
+   leur contour sur la même ligne et le tracent tous les deux. La liberté n'est pas un ornement,
+   c'est ce qui les sépare : F0 vaut un pixel.
+
+## Les fichiers
+
+```
+core/massifs.gd            les massifs, l empreinte, les poses, la cle d une tuile, la marge de pied
+core/massif_form.gd        la forme close : 2^18 fenetres, leurs temoins, l ilot etire
+core/massif_witnesses.gd   GENERE -- les blocs trouves pour ce que la fenetre ne porte pas
+render/massif_tiles.gd     le dessin d une tuile : (silhouette, bande, au ras) x liberte
+render/massif_scene.gd     l image d un relief -- rien a assembler, l ordre de pose fait tout
+proof/massif_ladder.gd     LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tires au sort
+tools/build_massifs.gd     LE GUIDE : un ilot par tuile, calcule, reverifie dans le guide assemble
+tools/massif_witnesses.gd  la chasse aux temoins (PART=i/n, puis --fusion)
+tools/preview_massifs.gd   l image, pour la regarder (GUIDE= F= GRILLE=)
+guides/massifs.txt         le guide, 160x176, 52 ilots
+```
+
+## Les commandes
+
+```
+godot --headless --path . --script res://proof/massif_ladder.gd -- 25
+godot --headless --path . --script res://tools/build_massifs.gd -- res://guides/massifs.txt
+GUIDE=res://guides/massifs.txt F=1 GRILLE=1 godot --headless --path . --script res://tools/preview_massifs.gd -- sortie.png 2
+PART=0/4 godot --headless --path . --script res://tools/massif_witnesses.gd -- 250
+godot --headless --path . --script res://tools/massif_witnesses.gd -- --fusion
+```
+
+## Les cinq invariants du banc
+
+| | |
+|---|---|
+| **I1 FERMETURE** | aucune extrémité ouverte — rien ne pend dans le vide |
+| **I2 ÉPAISSEUR** | aucun pavé 2×2 entièrement de trait |
+| **I6 VÉRITÉ** | aucun pixel de fond là où le monde a de la matière (cases dont les **huit** voisines sont de la matière) |
+| **I7 UNICITÉ** | deux tuiles ne rendent jamais la même image |
+| **I8 FORME** | toute tuile posée est dans la forme close |
+
+**Vert au 2026-09-02** : F0/F1/F2 à 0/0/0 sur 37 436 poses ; I7 54 tuiles pour 54 dessins ; I8
+zéro hors forme ; guide 160×176 avec **52/52 tuiles peignables**, 0 case fine, 0 faute de marge
+de pied, 0 îlot qui ne porte pas sa tuile.
+
+## CE QUI RESTE, DANS L'ORDRE — et c'est l'ordre que l'utilisateur a fixé
+
+1. **La grammaire** — chiffrer les clauses candidates avant de bâtir quoi que ce soit. Elle n'a
+   **pas** été faite : les 79 → 52 viennent de ce qu'on sait *porter*, pas d'une clause.
+   Candidate la plus prometteuse : *une jupe ne retombe jamais sur le massif qui la lance*, qui
+   tuerait une bonne part des silhouettes de PIED.
+2. **Les îlots** — fait. Le guide porte 52/52, calculé, revérifié dans le guide assemblé.
+3. **Le dessin** — l'utilisateur regarde et valide. C'est le cran où on en est.
+4. **LE PORTAGE, ET SEULEMENT APRÈS.** `Coverage`, `Families`, `Walls` (qui meurt), l'éditeur,
+   `work_io`, l'export, le manifeste v9. ⚠ **Le plugin SoluPaint seulement après que
+   l'utilisateur ait vérifié le fonctionnement dans le soft** — règle constante du projet.
+
+## Les pièges déjà payés, pour ne pas les repayer
+
+- **`COVERS` valait 256, c'est-à-dire exactement `CHAPITEAU << 8`** : le bit de contexte et la
+  bande se mélangeaient dans la même clé, et le rapport annonçait deux fois la même tuile pour
+  deux tuiles différentes.
+- **Un générateur qui jette tout relief fin ne rendait que 15 mondes sur 1 500.** On répare, on
+  ne refuse pas — comme le pinceau : 245.
+- **Une tuile EST son dessin.** Au ras la profondeur est nulle, donc rien ne se creuse, pas même
+  les coins rentrants : une tuile au ras ne dépend que de ses quatre cardinaux. 13 tuiles sur 55
+  rendaient une image déjà rendue.
+- **Le rendez-vous libre n'est pas pile à la moitié** — à `RES/2` la coupe d'un côté et le
+  creusement d'un coin rentrant se complètent exactement ; à `RES/2 − 1` une jupe d'une colonne
+  ne garde que deux pixels. Il en faut trois : bord, centre, bord.
+- **Le rendez-vous est un segment plat, pas un point**, sinon la discrétisation isole le pixel du
+  coin, et un pixel de trait isolé est une extrémité.
+- **Le vide d'un bloc témoin est du vide, pas de la plaine** : sept témoins sont des corps de
+  chute qui n'atterrit pas, et les combler leur rend un sol.
+- **`get_string_from_ascii()` s'arrête au premier octet nul** — et un pixel transparent en est
+  un. Une sonde d'unicité annonçait 27 scènes distinctes sur 42 en ne comparant qu'un préfixe
+  vide. Comparer en base64.
+- **Le socle d'un îlot au ras ne doit PAS l'entourer**, sinon l'îlot devient un massif entièrement
+  entouré — donc libre — et les tuiles au ras disparaissent du guide en silence.
+
+## Les 27 tuiles hors de portée
+
+La forme close en énumère 79 ; 52 sont portées par le guide. Les 27 autres demandent qu'un massif
+**s'entrelace avec lui-même à une colonne près** — une anse ouverte au nord rencontrant une anse
+ouverte au sud. Ni 450 reliefs épais tirés au sort, ni la construction par échine ne les
+produisent. ⚠ **« Rare » ne veut pas dire « impossible »** et on ne les jette pas sur ce motif ;
+mais la règle 5 tranche l'autre sens — une tuile sans îlot est une tuile que personne ne pourra
+peindre, donc un trou dans le jeu. Elles restent au fichier avec leurs fenêtres, refusées au
+pinceau tant qu'un témoin ne sera pas trouvé. C'est réversible ; livrer 79 tuiles dont 27
+impeignables ne le serait pas.
