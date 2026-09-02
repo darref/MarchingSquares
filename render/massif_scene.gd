@@ -14,7 +14,8 @@ const RES: int = MassifTiles.RES
 
 ## L'IMAGE. ⚠ LE FOND RESTE TRANSPARENT, ET C'EST CE QUI REND LA MESURE POSSIBLE : un trou se
 ## reconnait a son alpha, quelle que soit la regle qui a cru le boucher.
-static func compose(world: PackedStringArray, freedom: int = 1) -> Image:
+static func compose(world: PackedStringArray, freedom: int = 1,
+		ink: int = MassifTiles.PEINT) -> Image:
 	var wide: int = HeightMask.width(world)
 	var tall: int = HeightMask.height(world)
 	var image: Image = Image.create_empty(wide * RES, tall * RES, false, Image.FORMAT_RGBA8)
@@ -25,7 +26,7 @@ static func compose(world: PackedStringArray, freedom: int = 1) -> Image:
 				| (int(one["band"]) << 8) | int(one["sil"])
 		if not cache.has(key):
 			cache[key] = MassifTiles.shape(int(one["sil"]), int(one["band"]),
-					bool(one["flush"]), freedom, Color(0, 0, 0, 0), int(one["level"]))
+					bool(one["flush"]), freedom, Color(0, 0, 0, 0), int(one["level"]), ink)
 		image.blend_rect(cache[key] as Image, Rect2i(0, 0, RES, RES),
 				(one["cell"] as Vector2i) * RES)
 	return image

@@ -13,6 +13,7 @@ extends SceneTree
 const HeightMask := preload("res://core/height_mask.gd")
 const Modes := preload("res://core/modes.gd")
 const Scene := preload("res://render/massif_scene.gd")
+const MassifTiles := preload("res://render/massif_tiles.gd")
 
 const RES: int = Scene.RES
 const VOID: Color = Color(0.09, 0.09, 0.10)
@@ -28,6 +29,10 @@ func _initialize() -> void:
 	var freedom: int = 1
 	if not OS.get_environment("F").is_empty():
 		freedom = OS.get_environment("F").to_int()
+	# ⚠ L'ENCRE : `ENCRE=contour` rend le CONTOUR PROUVE -- toute la matiere d'une seule teinte,
+	# et seules restent les lignes que le modele prouve. C'est la seule vue ou l'on juge le TRACE
+	# que l'artiste aura a poser : en aplats, la couche du dessus cache les traits du dessous.
+	var ink: int = MassifTiles.CONTOUR if OS.get_environment("ENCRE") == "contour" 			else MassifTiles.PEINT
 	var world: PackedStringArray = HeightMask.read(guide)
 	var wide: int = HeightMask.width(world)
 	var tall: int = HeightMask.height(world)
@@ -35,7 +40,7 @@ func _initialize() -> void:
 	# qui rend la mesure possible -- mais un PNG a fond transparent se regarde mal.
 	var image: Image = Image.create_empty(wide * RES, tall * RES, false, Image.FORMAT_RGBA8)
 	image.fill(VOID)
-	image.blend_rect(Scene.compose(world, freedom),
+	image.blend_rect(Scene.compose(world, freedom, ink),
 			Rect2i(0, 0, wide * RES, tall * RES), Vector2i.ZERO)
 
 	if OS.get_environment("GRILLE") != "":
@@ -56,6 +61,7 @@ func _initialize() -> void:
 		image.resize(image.get_width() * zoom, image.get_height() * zoom,
 				Image.INTERPOLATE_NEAREST)
 	image.save_png(out)
-	print("guide %dx%d a F%d, ecrit : %s (%dx%d)"
-			% [wide, tall, freedom, out, image.get_width(), image.get_height()])
+	print("guide %dx%d a F%d (%s), ecrit : %s (%dx%d)"
+			% [wide, tall, freedom, "contour" if ink == MassifTiles.CONTOUR else "peint",
+			out, image.get_width(), image.get_height()])
 	quit(0)
