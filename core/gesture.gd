@@ -53,6 +53,55 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var ribbons: int = thin_cells_visible(world).size()
 	if ribbons > 0:
 		out.append("%d case(s) d'herbe visible fine" % ribbons)
+	var walls: int = thin_lips(world).size()
+	if walls > 0:
+		out.append("%d falaise(s) visible(s) fine(s)" % walls)
+	return out
+
+
+## LES FALAISES VISIBLES TROP FINES -- rend les LEVRES a corriger.
+##
+## ⚠ MIN TROIS VAUT POUR LA ROCHE COMME POUR L'HERBE, ET JE NE L'AVAIS PAS VU. Une face d'UNE
+## SEULE COLONNE est aussi fine qu'un ruban d'herbe d'une case : le peintre ne peut rien
+## supposer du cote masse de ses tuiles de bord, et a la profondeur de rendez-vous du fond elle
+## se reduit a deux pixels. 21 cases dans le guide -- exactement les points que l'utilisateur a
+## marques en rouge.
+##
+## ⚠ ET LA COURSE SE COMPTE PAR LEVRE, PAS PAR CASE. Une face est une PAROI : deux colonnes de
+## roche cote a cote ne la continuent que si elles pendent de la MEME levre. Comptees case par
+## case, deux parois distinctes qui se touchent passeraient pour une seule, epaisse.
+static func thin_lips(world: PackedStringArray) -> Array[Vector2i]:
+	var top: Dictionary = {}
+	for one: Dictionary in Massifs.poses(world):
+		var cell: Vector2i = one["cell"]
+		if top.has(cell) and int((top[cell] as Dictionary)["level"]) > int(one["level"]):
+			continue
+		top[cell] = one
+	var rock: Dictionary = {}
+	for cell2: Vector2i in top.keys():
+		var one2: Dictionary = top[cell2]
+		if int(one2["band"]) == Massifs.SURFACE:
+			continue
+		var lip: Vector2i = one2["lip"]
+		rock[cell2] = Vector3i(lip.x, lip.y, int(one2["level"]))
+	var out: Array[Vector2i] = []
+	for cell3: Vector2i in rock.keys():
+		var mine: Vector3i = rock[cell3]
+		var length: int = 1
+		for way: int in [-1, 1]:
+			for step: int in [1, 2]:
+				var near: Vector2i = cell3 + Vector2i(way * step, 0)
+				if not rock.has(near):
+					break
+				var other: Vector3i = rock[near]
+				if other.y != mine.y or other.z != mine.z:
+					break
+				length += 1
+		if length >= 3:
+			continue
+		var fix: Vector2i = Vector2i(cell3.x, mine.y)
+		if not out.has(fix):
+			out.append(fix)
 	return out
 
 
@@ -200,6 +249,12 @@ static func mend(grid: Array[PackedByteArray]) -> PackedStringArray:
 		# le geste, au contraire, appauvrissait le generateur -- 129 especes de jonction tombaient
 		# a 36 -- et le guide se serait mis a mentir par omission.
 		_flatten(grid)
+		# ⚠ ET UNE FACE D'UNE COLONNE SE DEFAIT EN ABAISSANT SA LEVRE : la saillie d'une case
+		# disparait, et avec elle la paroi impossible a peindre.
+		for lip: Vector2i in thin_lips(text(grid)):
+			if lip.y < 0 or lip.y >= tall or lip.x < 0 or lip.x >= wide:
+				continue
+			grid[lip.y][lip.x] = maxi(int(grid[lip.y][lip.x]) - 1, 1)
 	var last: PackedStringArray = text(grid)
 	return last if legal(last) else PackedStringArray()
 
