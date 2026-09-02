@@ -22,6 +22,7 @@ const Thickness := preload("res://core/thickness.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
+const Lab := preload("res://tools/relief_lab.gd")
 
 ## L'ilot : la fenetre 3x6 etiree de deux cases de chaque cote.
 const PAD: int = 2
@@ -42,21 +43,18 @@ const RIM: int = 4
 ## Le socle d'un ilot AU RAS : il deborde d'autant, et de quoi porter le pied.
 const BASE_SIDE: int = 2
 const BASE_SOUTH: int = 4
+## Le monde de couverture : un relief ENTIER, avec son lisere de vide.
+const CUT_W: int = 24
+const CUT_H: int = 30
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var out: String = args[0] if not args.is_empty() else "res://guides/massifs.txt"
+	var draws: int = args[1].to_int() if args.size() > 1 else 400
 	var whole: Array[int] = MassifForm.vocabulary()
-	# ⚠ DEUX TABLES, PARCE QU'UNE TUILE AU RAS N'A PAS LA MEME PROVENANCE QU'UNE LIBRE : la cle
-	# du dessin ne remonte pas a un couple unique.
 	var wits: Dictionary = MassifForm.sources(false)
 	var wits_ras: Dictionary = MassifForm.sources(true)
-	# ⚠ ON NE BATIT QUE CE QU'ON SAIT PORTER, ET ON DIT CE QU'ON LAISSE. La forme close est une
-	# BORNE HAUTE : elle enonce ce que le modele peut produire, pas ce qu'on sait mettre sous le
-	# crayon. Une tuile sans ilot est une tuile que personne ne pourra peindre -- donc un trou
-	# dans le jeu -- et la charte tranche : ce qui n'est pas garanti est interdit. Les autres
-	# restent au fichier avec leurs fenetres ; elles entreront le jour ou un temoin sera trouve.
 	var blocks: Dictionary = Witnesses.blocks()
 	var wanted: Array[int] = []
 	var out_of_reach: Array[int] = []
@@ -65,53 +63,104 @@ func _initialize() -> void:
 			wanted.append(tile)
 		else:
 			out_of_reach.append(tile)
-	print("forme close %d tuiles ; %d portees, %d hors de portee"
-			% [whole.size(), wanted.size(), out_of_reach.size()])
-	var said0: Array[String] = []
-	for tile2: int in out_of_reach:
-		said0.append(Massifs.describe(tile2))
-	if not said0.is_empty():
-		print("  hors de portee : %s" % " | ".join(said0))
 
-	var rows: int = (wanted.size() + COLUMNS - 1) / COLUMNS
-	var wide: int = 2 * RIM + COLUMNS * BLOCK_W
-	var tall: int = 2 * RIM + rows * BLOCK_H
+	# PHASE UN : COUVRIR LE RECENSEMENT DES JONCTIONS, PAS LA LISTE DES TUILES.
+	#
+	# ⚠ UN ILOT PAR TUILE EST UNE PROJECTION. Il garantit que chaque DESSIN est peignable et perd
+	# tout ce qui se passe ENTRE deux cases -- or c'est la que le modele decide : meme massif ?
+	# meme rangee de levre ? quel ecart d'etage ? quelle longueur de chute ? Mesure avant ce
+	# changement : le monde posait 140 especes de jonction, le guide en montrait 87. Les 53
+	# manquantes etaient exactement les defauts trouves a l'oeil, un par un, seance apres seance.
+	#
+	# ⚠ ET LE GUIDE EST UNE MOSAIQUE DE MONDES ENTIERS, PAS DE DECOUPES. Une decoupe tranche des
+	# massifs, donc elle change les jonctions qu'elle pretend capturer : il fallait la reparer,
+	# la relire encadree, et elle en rejetait le tiers. Un monde entier, lui, est legal par
+	# construction et porte son propre lisere de vide -- deux mondes voisins sont donc separes
+	# par huit cases de vide, sans qu'on ait rien a menager.
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 0x475549
+	var pool: Array[PackedStringArray] = []
+	var brings: Array[Dictionary] = []
+	var targets: Dictionary = {}
+	while pool.size() < draws:
+		var one: PackedStringArray = Lab.draw(rng, CUT_W, CUT_H)
+		if one.is_empty():
+			continue
+		var got: Dictionary = Lab.species(one)
+		pool.append(one)
+		brings.append(got)
+		for key: String in got.keys():
+			targets[key] = int(targets.get(key, 0)) + 1
+	print("le monde pose %d especes de jonction (%d mondes)" % [targets.size(), pool.size()])
+
+	# LE CHOIX GLOUTON : a chaque tour, le monde qui apporte le plus d'especes neuves.
+	var covered: Dictionary = {}
+	var pieces: Array[PackedStringArray] = []
+	while covered.size() < targets.size():
+		var best: int = -1
+		var most: int = 0
+		for at3: int in range(pool.size()):
+			var gain: int = 0
+			for key2: String in (brings[at3] as Dictionary).keys():
+				if not covered.has(key2):
+					gain += 1
+			if gain > most:
+				most = gain
+				best = at3
+		if best < 0:
+			break
+		pieces.append(pool[best])
+		for key3: String in (brings[best] as Dictionary).keys():
+			covered[key3] = true
+		brings[best] = {}
+	print("  %d mondes couvrent %d especes sur %d"
+			% [pieces.size(), covered.size(), targets.size()])
+
+	# PHASE DEUX : ce qui manque encore en TUILES, par ilot calcule.
+	var carried: Dictionary = {}
+	for piece: PackedStringArray in pieces:
+		for tile2: Variant in Massifs.paintable(piece).values():
+			carried[int(tile2)] = true
+	var todo: Array[int] = []
+	for tile3: int in wanted:
+		if not carried.has(tile3):
+			todo.append(tile3)
+	print("les mondes portent %d tuiles ; %d ilots a ajouter" % [carried.size(), todo.size()])
+
+	# LA MOSAIQUE : les mondes d'abord, les ilots ensuite, sur une meme grille de paves.
+	var per_row: int = 6
+	var cells: int = pieces.size() + (todo.size() + per_row - 1) / per_row * per_row
+	var rows: int = (pieces.size() + per_row - 1) / per_row
+	var isle_rows: int = (todo.size() + COLUMNS - 1) / COLUMNS
+	var wide: int = maxi(per_row * CUT_W, COLUMNS * BLOCK_W) + 2 * RIM
+	var tall: int = 2 * RIM + rows * CUT_H + isle_rows * BLOCK_H
 	var grid: Array[PackedByteArray] = []
 	for y: int in range(tall):
 		var line: PackedByteArray = PackedByteArray()
 		line.resize(wide)
 		line.fill(0)
 		grid.append(line)
-	# LA PLAINE, partout sauf le lisere de vide. ⚠ ETAGE ZERO -- a un, tout le cadre devient un
-	# seul massif geant qui avale les ilots.
-	for y2: int in range(RIM, tall - RIM):
+	# La plaine ne court que sous les ILOTS : les mondes portent la leur, avec leur vide.
+	for y2: int in range(RIM + rows * CUT_H, tall - RIM):
 		for x2: int in range(RIM, wide - RIM):
 			_put(grid, x2, y2, 0)
 
 	var centres: Array[Vector2i] = []
-	var chosen: Array[int] = []
-	var blind: int = 0
-	for at: int in range(wanted.size()):
-		var bx: int = RIM + (at % COLUMNS) * BLOCK_W
-		var by: int = RIM + (at / COLUMNS) * BLOCK_H
-		var bits: int = _choose(wanted[at],
-				wits_ras if Massifs.flush_of(wanted[at]) else wits)
-		chosen.append(bits)
+	var kinds: Array[int] = []
+	for at: int in range(pieces.size()):
+		_place(grid, pieces[at], RIM + (at % per_row) * CUT_W, RIM + (at / per_row) * CUT_H)
+	for at2: int in range(todo.size()):
+		var bx: int = RIM + (at2 % COLUMNS) * BLOCK_W
+		var by: int = RIM + rows * CUT_H + (at2 / COLUMNS) * BLOCK_H
+		var bits: int = _choose(todo[at2], wits_ras if Massifs.flush_of(todo[at2]) else wits)
 		if bits >= 0:
-			_stamp(grid, wanted[at], bits & 0xffffff, bx, by, bits >> 24)
+			_stamp(grid, todo[at2], bits & 0xffffff, bx, by, bits >> 24)
 			centres.append(Vector2i(bx + 3 + PAD + MassifForm.CX,
 					by + 3 + PAD + MassifForm.CY))
-			continue
-		# ⚠ CE QUE LA FENETRE ETIREE NE PORTE PAS, LE TEMOIN TROUVE LE PORTE. Il n'est pas
-		# dessine a la main : `tools/massif_witnesses.gd` le cherche, puis le relit.
-		if not blocks.has(wanted[at]):
-			blind += 1
-			centres.append(Vector2i(-1, -1))
-			continue
-		_place(grid, blocks[wanted[at]] as PackedStringArray, bx + 2, by + 2)
-		centres.append(Vector2i(bx + 2, by + 2) + Witnesses.AT)
-	if blind > 0:
-		print("  ⚠ %d tuile(s) sans fenetre ETIREE ni TEMOIN" % blind)
+		else:
+			_place(grid, blocks[todo[at2]] as PackedStringArray, bx + 2, by + 2)
+			centres.append(Vector2i(bx + 2, by + 2) + Witnesses.AT)
+		kinds.append(todo[at2])
 
 	var text: PackedStringArray = PackedStringArray()
 	for line2: PackedByteArray in grid:
@@ -122,9 +171,28 @@ func _initialize() -> void:
 	var file: FileAccess = FileAccess.open(out, FileAccess.WRITE)
 	file.store_string("\n".join(text) + "\n")
 	file.close()
-	print("guide ecrit : %s (%dx%d), %d ilots" % [out, wide, tall, wanted.size()])
-	_audit(text, wanted, centres, chosen)
+	print("guide ecrit : %s (%dx%d), %d mondes + %d ilots"
+			% [out, wide, tall, pieces.size(), todo.size()])
+	_audit(text, wanted, centres, kinds, targets, out_of_reach)
 	quit(0)
+
+
+## Le bloc, encadre de plaine puis de vide -- le contexte du guide.
+func _alone_block(block: PackedStringArray) -> PackedStringArray:
+	var wide: int = block[0].length() + 2 * RIM
+	var tall: int = block.size() + 2 * RIM
+	var out: PackedStringArray = PackedStringArray()
+	for y: int in range(tall):
+		var line: String = ""
+		for x: int in range(wide):
+			if x < 2 or y < 2 or x >= wide - 2 or y >= tall - 2:
+				line += "~"
+			elif x < RIM or y < RIM or x >= wide - RIM or y >= tall - RIM:
+				line += "0"
+			else:
+				line += block[y - RIM].substr(x - RIM, 1)
+		out.append(line)
+	return out
 
 
 func _put(grid: Array[PackedByteArray], x: int, y: int, level: int) -> void:
@@ -243,7 +311,7 @@ func _alone(tile: int, bits: int, variant: int) -> PackedStringArray:
 
 ## CE QUE LE GUIDE PORTE VRAIMENT, lu sur le fichier ecrit.
 func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2i],
-		chosen: Array[int]) -> void:
+		chosen: Array[int], targets: Dictionary, out_of_reach: Array[int]) -> void:
 	var got: Dictionary = Massifs.analyse(world, wanted)
 	var thin: Array[Vector3i] = Thickness.thin_cells(world)
 	var pinch: Array[Vector3i] = Thickness.diagonal_pinches(world)
@@ -254,19 +322,38 @@ func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2
 	var paint: Dictionary = Massifs.paintable(world)
 	var wrong: int = 0
 	var said: Array[String] = []
-	for at: int in range(wanted.size()):
+	# ⚠ ON NE CONTROLE QUE LES ILOTS : les mondes de couverture ne promettent aucune tuile a une
+	# case donnee, ils promettent des JONCTIONS. Iterer sur `wanted` lisait `centres` au-dela de
+	# sa taille -- et un audit qui plante ne mesure rien.
+	for at: int in range(chosen.size()):
 		var here: int = int(paint.get(centres[at], -1))
-		if here == wanted[at]:
+		if here == chosen[at]:
 			continue
 		wrong += 1
 		if said.size() < 10:
-			said.append("%s : la case porte %s" % [Massifs.describe(wanted[at]),
+			said.append("%s : la case porte %s" % [Massifs.describe(chosen[at]),
 					"rien" if here < 0 else Massifs.describe(here)])
 	print("  %d ilot(s) qui ne portent pas leur tuile" % wrong)
 	for one: String in said:
 		print("      %s" % one)
+	# ⚠ I9 : LA COUVERTURE DES JONCTIONS, lue sur le guide ECRIT. C'est elle qui doit faire
+	# converger : tant qu'elle se jugeait a l'oeil, chaque regard trouvait un manque de plus.
+	var shown: Dictionary = Lab.species(world)
+	var absent: int = 0
+	var lacks: Array[String] = []
+	for kind: String in targets.keys():
+		if shown.has(kind):
+			continue
+		absent += 1
+		if lacks.size() < 10:
+			lacks.append(kind)
+	print("  JONCTIONS : %d especes sur %d que le monde pose"
+			% [targets.size() - absent, targets.size()])
+	for one: String in lacks:
+		print("      manque : %s" % one)
 	var missing: Array[String] = []
 	for tile: int in (got["missing"] as Array[int]):
 		missing.append(Massifs.describe(tile))
 	if not missing.is_empty():
-		print("  manquantes : %s" % " | ".join(missing))
+		print("  tuiles manquantes : %s" % " | ".join(missing))
+	print("  (%d tuiles hors de portee, refusees au pinceau)" % out_of_reach.size())
