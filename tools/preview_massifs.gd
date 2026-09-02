@@ -14,6 +14,7 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Modes := preload("res://core/modes.gd")
 const Scene := preload("res://render/massif_scene.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
+const Massifs := preload("res://core/massifs.gd")
 
 const RES: int = Scene.RES
 ## ⚠ LE FOND NE DOIT PAS AVALER LE TRAIT. A `#171719` il etait a trois valeurs du noir du
@@ -51,6 +52,38 @@ func _initialize() -> void:
 	# qu'on vient regarder. En pointille clair, elle dit ou sont les bordures de tuile sans
 	# jamais couvrir ce qui s'y passe -- c'est la meme lecon que la barre translucide de
 	# l'editeur : une aide a viser, pas un decor.
+	# ⚠ L'OMBRE PORTEE EST UNE AIDE A LA LECTURE, ET ELLE VIT HORS DES TUILES.
+	#
+	# Sans elle, un plateau a exactement le meme vert que la plaine -- c'est la verite du
+	# tileset, une seule herbe -- donc il est invisible, et sa falaise semble flotter toute
+	# seule. Mesure : zero chapiteau sans surface au-dessus, le defaut n'etait pas dans le
+	# modele mais dans la lecture.
+	#
+	# ⚠ ET ELLE NE PEUT PAS VIVRE DANS UNE TUILE : elle tombe sur les cases VOISINES, qui
+	# appartiennent a d'autres tuiles. La teinter par etage serait pire -- ce serait la MEME
+	# tuile montree en deux tons, donc un mensonge sur ce que l'artiste peint. L'ombre, elle,
+	# ne pretend rien : elle dit « ceci est plus haut que cela », et `OMBRE=` l'eteint.
+	if OS.get_environment("OMBRE") == "":
+		var levels: Dictionary = {}
+		for one: Dictionary in Massifs.poses(world):
+			var cell: Vector2i = one["cell"]
+			levels[cell] = maxi(int(levels.get(cell, -1)), int(one["level"]))
+		for cell2: Vector2i in levels.keys():
+			var mine: int = int(levels[cell2])
+			for step: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+				var near: Vector2i = cell2 + step
+				# ⚠ ET ELLE NE SE POSE QUE SUR DE LA MATIERE. Une ombre portee sur le VIDE
+				# dessinait un liseré hors du monde -- il n'y a rien la pour la recevoir.
+				if not levels.has(near) or int(levels[near]) >= mine:
+					continue
+				for at: int in range(RES):
+					for deep: int in range(2):
+						var px: int = near.x * RES + (deep if step == Vector2i.RIGHT else at)
+						var py: int = near.y * RES + (at if step == Vector2i.RIGHT else deep)
+						if px >= wide * RES or py >= tall * RES:
+							continue
+						image.set_pixel(px, py, image.get_pixel(px, py).darkened(0.22))
+
 	if OS.get_environment("GRILLE") != "":
 		var grid: Color = Color(1.0, 0.35, 0.35, 0.30)
 		for gy: int in range(tall + 1):
