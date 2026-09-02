@@ -58,8 +58,13 @@ static func _inner_edges(image: Image, seen: Dictionary) -> void:
 		if not seen.has(near):
 			continue
 		var other: Dictionary = seen[near]
+		# ⚠ ON COMPARE LA RANGEE DE LA LEVRE, PAS LA LEVRE-CASE. La levre de la colonne x est
+		# (x, y) et celle de x+1 est (x+1, y) : comparees telles quelles, elles different
+		# TOUJOURS, et la paroi se couvrait d'un peigne -- un trait a chaque bordure de colonne.
+		# Ce qui fait la continuite d'une face, c'est que ses colonnes pendent de la MEME
+		# RANGEE ; ce qui fait l'arete, c'est que la levre y prend un virage a angle droit.
 		if int(mine["massif"]) == int(other["massif"]) \
-				and (mine["lip"] as Vector2i) == (other["lip"] as Vector2i):
+				and (mine["lip"] as Vector2i).y == (other["lip"] as Vector2i).y:
 			continue
 		for y: int in range(RES):
 			image.set_pixel(near.x * RES, cell.y * RES + y, MassifTiles.OUTLINE)
