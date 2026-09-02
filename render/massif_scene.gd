@@ -23,13 +23,15 @@ static func compose(world: PackedStringArray, freedom: int = 1,
 	var cache: Dictionary = {}
 	var seen: Dictionary = {}
 	for one: Dictionary in Massifs.poses(world):
-		var key: int = (ink << 24) | (int(one["level"]) << 20) | Massifs.key_of(one)
+		var key: int = (ink << 24) | (int(one["level"]) << 20) | Massifs.key_of(one) 				| (1 << 28 if bool(one["under"]) else 0)
 		if not cache.has(key):
-			cache[key] = MassifTiles.shape(int(one["sil"]), int(one["band"]),
+			cache[key] = MassifTiles.backing(int(one["level"])) if bool(one["under"]) 					else MassifTiles.shape(int(one["sil"]), int(one["band"]),
 					bool(one["flush"]), freedom, Color(0, 0, 0, 0), int(one["level"]), ink)
 		image.blend_rect(cache[key] as Image, Rect2i(0, 0, RES, RES),
 				(one["cell"] as Vector2i) * RES)
 		# La derniere pose gagne : c'est celle qu'on voit, donc celle dont la levre compte.
+		if bool(one["under"]):
+			continue
 		if int(one["band"]) != Massifs.SURFACE:
 			seen[one["cell"]] = one
 		else:

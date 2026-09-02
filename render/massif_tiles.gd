@@ -197,6 +197,20 @@ static func _matter(band: int, x: int, y: int, ink: int = PEINT) -> Color:
 	return tint
 
 
+## LA MATIERE DERRIERE : le sous-pied, plein, SANS TRAIT.
+##
+## ⚠ IL N'A PAS DE CONTOUR, PARCE QU'IL N'EST PAS UNE FRONTIERE. C'est la meme face qui continue
+## sous la surface d'atterrissage : on ne la voit que dans le mince decalage ou le contour de
+## cette surface vagabonde vers l'interieur. Lui laisser tracer son bord ajoutait 30 extremites
+## -- un trait qui s'arrete sous une couche, puis reapparait.
+static func backing(level: int = 1) -> Image:
+	var out: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
+	for y: int in range(RES):
+		for x: int in range(RES):
+			out.set_pixel(x, y, _matter(Massifs.PIED, x, y))
+	return out
+
+
 static func _inside(sil: int, x: int, y: int, freedom: int, flush: bool) -> bool:
 	if (sil & BlobIndex.N) == 0 and y < depth_of(x, freedom, flush):
 		return false
