@@ -16,7 +16,11 @@ const Scene := preload("res://render/massif_scene.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
 
 const RES: int = Scene.RES
-const VOID: Color = Color(0.09, 0.09, 0.10)
+## ⚠ LE FOND NE DOIT PAS AVALER LE TRAIT. A `#171719` il etait a trois valeurs du noir du
+## contour (`#0d0f12`) : les massifs qui bordent le VIDE semblaient n'avoir aucun contour, alors
+## que la mesure en trouvait zero pixel sans trait. Un fond d'aperçu n'est pas de la matiere --
+## il doit se distinguer de tout ce que le dessin porte.
+const VOID: Color = Color(0.20, 0.23, 0.28)
 
 
 func _initialize() -> void:
