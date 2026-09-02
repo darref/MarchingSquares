@@ -24,6 +24,37 @@ const RES: int = Scene.RES
 const VOID: Color = Color(0.20, 0.23, 0.28)
 
 
+## Les chiffres, en 3x5. ⚠ Ecrits ici plutot que dessines a la main dans l'image : un chiffre
+## trace au cas par cas est une donnee a maintenir de plus.
+const DIGITS: Array[String] = [
+	"111101101101111", "010110010010111", "111001111100111", "111001111001111",
+	"101101111001001", "111100111001111", "111100111101111", "111001001001001",
+	"111101111101111", "111101111001111",
+]
+const PLATE: Color = Color(0.97, 0.97, 0.94)
+const INK: Color = Color(0.10, 0.10, 0.12)
+
+
+func _badge(image: Image, cell: Vector2i, level: int) -> void:
+	if level < 0 or level > 9:
+		return
+	var ox: int = cell.x * RES + (RES - 5) / 2
+	var oy: int = cell.y * RES + (RES - 7) / 2
+	for y: int in range(7):
+		for x: int in range(5):
+			if ox + x >= image.get_width() or oy + y >= image.get_height():
+				continue
+			image.set_pixel(ox + x, oy + y, PLATE)
+	var glyph: String = DIGITS[level]
+	for y2: int in range(5):
+		for x2: int in range(3):
+			if glyph.substr(y2 * 3 + x2, 1) != "1":
+				continue
+			if ox + 1 + x2 >= image.get_width() or oy + 1 + y2 >= image.get_height():
+				continue
+			image.set_pixel(ox + 1 + x2, oy + 1 + y2, INK)
+
+
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var out: String = args[0]
@@ -83,6 +114,33 @@ func _initialize() -> void:
 						if px >= wide * RES or py >= tall * RES:
 							continue
 						image.set_pixel(px, py, image.get_pixel(px, py).darkened(0.22))
+
+	# ⚠ LA PASTILLE D'ETAGE : une fois par massif, sur sa surface visible.
+	#
+	# Elle repond a ce que l'ombre portee ne dit qu'a moitie : l'ombre dit « ceci est plus haut
+	# que cela », la pastille dit DE COMBIEN. Et elle se pose une seule fois par massif -- une
+	# par case ferait un tapis de chiffres et cacherait le dessin qu'on vient juger.
+	#
+	# ⚠ ET ELLE VIT DANS L'APERCU, JAMAIS DANS UNE TUILE. Un etage n'est pas une propriete de la
+	# tuile -- c'est la MEME tuile a tous les etages. La peindre dedans serait le mensonge que la
+	# teinte par etage etait deja.
+	if OS.get_environment("PASTILLE") == "":
+		var best: Dictionary = {}
+		for one2: Dictionary in Massifs.poses(world):
+			if int(one2["band"]) != Massifs.SURFACE:
+				continue
+			var mark: int = int(one2["massif"])
+			var cell3: Vector2i = one2["cell"]
+			# La plus au sud, puis la plus a l'est : loin des bords du nord, donc lisible.
+			if best.has(mark):
+				var had: Vector2i = best[mark]
+				if cell3.y < had.y or (cell3.y == had.y and cell3.x < had.x):
+					continue
+			best[mark] = cell3
+		for mark2: int in best.keys():
+			var at2: Vector2i = best[mark2]
+			var level2: int = HeightMask.level_at(world, at2.x, at2.y)
+			_badge(image, at2, level2)
 
 	if OS.get_environment("GRILLE") != "":
 		var grid: Color = Color(1.0, 0.35, 0.35, 0.30)
