@@ -86,7 +86,7 @@ static func depth_of(along: int, freedom: int, flush: bool) -> int:
 	# disparait entierement ; a `RES / 2 - 1` il lui reste deux pixels, tous deux de bord, donc
 	# deux traits colles que I2 compte. C'est la meme barre que min trois, un cran plus bas :
 	# bord, centre, bord.
-	var meet: float = 0.0 if flush else (1.0 if freedom <= 0 else float(RES) / 2.0 - 2.0)
+	var meet: float = 0.0 if flush else (1.0 if freedom <= 0 else float(RES) / 2.0 - 1.0)
 	if freedom < 2:
 		return int(round(meet))
 	return int(round(meet + SWELL * _swell(along)))
