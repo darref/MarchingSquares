@@ -155,7 +155,7 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 			if edge:
 				out.set_pixel(x2, y2, OUTLINE)
 				continue
-			out.set_pixel(x2, y2, PAPER if ink == CONTOUR else _matter(band, x2, y2))
+			out.set_pixel(x2, y2, _matter(band, x2, y2, ink))
 	return out
 
 
@@ -168,7 +168,13 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 ##
 ## ⚠ ET LA LEVRE EST LA SEULE MARQUE QUI TOUCHE UN BORD, parce qu'elle est CONSTANTE : un
 ## chapiteau a toujours de la surface au-dessus de lui, c'est sa definition meme.
-static func _matter(band: int, x: int, y: int) -> Color:
+## ⚠ ET EN CONTOUR, LA MATIERE EST PLATE MAIS PAS MUETTE : deux teintes, l'herbe et la roche.
+## Une empreinte toute d'une teinte ne dit pas OU la surface s'arrete et ou la face commence --
+## or c'est la premiere chose a lire dessus. Le trait dit la forme, la teinte dit la matiere, et
+## rien d'autre ne vient brouiller ni l'un ni l'autre.
+static func _matter(band: int, x: int, y: int, ink: int = PEINT) -> Color:
+	if ink == CONTOUR:
+		return GRASS if band == Massifs.SURFACE else ROCK
 	if band == Massifs.SURFACE:
 		return GRASS
 	var tint: Color = ROCK

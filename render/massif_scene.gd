@@ -34,7 +34,9 @@ static func compose(world: PackedStringArray, freedom: int = 1,
 			seen[one["cell"]] = one
 		else:
 			seen.erase(one["cell"])
-	if ink == MassifTiles.CONTOUR:
+	# ⚠ LES ARETES INTERNES ATTENDENT. Elles sont justes -- 53 sur 1 577 paires -- mais on avance
+	# par crans : d'abord lire l'empreinte, ensuite ce qui la traverse. `ARETES=1` les rallume.
+	if ink == MassifTiles.CONTOUR and OS.get_environment("ARETES") != "":
 		_inner_edges(image, seen)
 	return image
 

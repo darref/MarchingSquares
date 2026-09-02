@@ -23,6 +23,7 @@ const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
 const Lab := preload("res://tools/relief_lab.gd")
+const Brush := preload("res://core/brush_vocabulary.gd")
 
 ## L'ilot : la fenetre 3x6 etiree de deux cases de chaque cote.
 const PAD: int = 2
@@ -52,7 +53,10 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var out: String = args[0] if not args.is_empty() else "res://guides/massifs.txt"
 	var draws: int = args[1].to_int() if args.size() > 1 else 400
-	var whole: Array[int] = MassifForm.vocabulary()
+	# ⚠ ON VISE LE VOCABULAIRE DU PINCEAU, PAS LA FORME CLOSE. Une tuile que le geste ne produit
+	# jamais est une tuile que l'artiste peindrait pour rien : le modele doit prevoir ce qu'il
+	# faut au GESTE, ni plus ni moins. La forme close reste la borne haute -- elle garde I8.
+	var whole: Array[int] = Brush.tiles()
 	var wits: Dictionary = MassifForm.sources(false)
 	var wits_ras: Dictionary = MassifForm.sources(true)
 	var blocks: Dictionary = Witnesses.blocks()
