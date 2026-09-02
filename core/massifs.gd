@@ -282,16 +282,16 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 	return out
 
 
-## LA MARGE DE PIED : sous chaque PIED, au moins TROIS rangees de sol visible.
+## LA MARGE DE PIED : sous chaque PIED, au moins TROIS rangees sans roche.
 ##
 ## ⚠ ELLE VALAIT UNE RANGEE, ET C'ETAIT LE MINIMUM SYNDICAL. A un, elle empechait seulement que
-## deux traits se collent -- un pied juste au-dessus d'une levre. Mais elle laissait des RUBANS
-## D'HERBE D'UNE CASE entre la retombee d'une falaise et la levre suivante : le relief y est
-## epais, et pourtant ce qu'on VOIT ne l'est pas. 278 cases sur 6 321 dans le guide.
+## deux traits se collent -- un pied juste au-dessus d'une levre, qui tracent a une rangee
+## d'ecart. Mais elle laissait des RUBANS DE SOL D'UNE CASE entre la retombee d'une falaise et
+## la levre suivante : le relief y est epais, et pourtant ce qu'on VOIT ne l'est pas.
 ##
-## ⚠ ET C'EST EXACTEMENT LA RAISON D'ETRE DE MIN TROIS, UN CRAN PLUS LOIN. Min trois porte sur
-## le RELIEF ; il ne dit rien de ce qu'une falaise voisine recouvre. Une bande de deux n'a pas
-## d'interieur -- que ce soit dans la carte ou a l'ecran.
+## ⚠ ET AUCUNE TUILE NE PEUT LE RATTRAPER. Pour se taire, le pied devrait savoir qu'un chapiteau
+## l'attend dessous -- un bit de contexte de plus, c'est-a-dire le cliquet dont ce modele sort.
+## On paie donc en GRAMMAIRE.
 ##
 ## Rend les cases fautives, pour que le pinceau les corrige au lieu de les refuser.
 const FOOT_MARGIN: int = 3
@@ -308,9 +308,132 @@ static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
 		if (int(bands_at[cell2]) & (1 << PIED)) == 0:
 			continue
 		for step: int in range(1, FOOT_MARGIN + 1):
-			var below: Vector2i = cell2 + Vector2i(0, step)
-			if (int(bands_at.get(below, 0)) & rock) == 0:
+			if (int(bands_at.get(cell2 + Vector2i(0, step), 0)) & rock) == 0:
 				continue
 			out.append(cell2)
 			break
 	return out
+
+
+## LA CLE D'UNE TUILE : le bit RECOUVRANT, la BANDE, la SILHOUETTE de l'empreinte.
+##
+## ⚠ UNE SEULE FAMILLE DE TUILES, ET C'EST LA SIMPLIFICATION QUI PORTE LE RESTE. L'ancien
+## modele en avait deux -- les index de surface d'un cote, les roles de robe de l'autre -- avec
+## deux carnets, deux compteurs, deux planches et deux facons de se contredire. Ici la surface et
+## la falaise ne different que par leur BANDE : une seule table, un seul compteur, une seule
+## planche.
+## ⚠ ET LA CLE EST CELLE DU DESSIN, PAS DE LA SITUATION. Ce qu'on peint, c'est une image :
+## deux situations qui rendent la meme image sont UNE tuile, sinon on fait peindre deux fois la
+## meme chose et la planche exportee porte deux cases identiques.
+##
+## ⚠ AU RAS, LES DIAGONALES NE VEULENT PLUS RIEN DIRE. La profondeur y est nulle, donc rien ne
+## se creuse -- ni les bords, ni les COINS RENTRANTS, dont le creusement se prend a la meme
+## profondeur. Une tuile au ras est donc toujours pleine, avec un trait sur ses bords ouverts, et
+## elle ne depend que de ses quatre cardinaux. Mesure : 55 tuiles ne rendaient que 42 dessins,
+## et les treize doublons etaient tous de cette espece.
+##
+## ⚠ ET SI AUCUN BORD N'EST OUVERT, IL N'Y A MEME PLUS DE TRAIT : c'est la tuile PLEINE, la meme
+## que la silhouette 255 en liberte. On ne la compte pas deux fois.
+const CARDINALS: int = 0x55
+
+
+static func key(band: int, sil: int, flush: bool) -> int:
+	if not flush:
+		return (band << 8) | sil
+	var bare: int = sil & CARDINALS
+	if bare == CARDINALS:
+		return (band << 8) | 255
+	return COVERS | (band << 8) | bare
+
+
+static func key_of(pose: Dictionary) -> int:
+	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]))
+
+
+static func band_of(tile: int) -> int:
+	return (tile >> 8) & 0xff
+
+
+static func sil_of(tile: int) -> int:
+	return tile & 0xff
+
+
+static func flush_of(tile: int) -> bool:
+	return (tile & COVERS) != 0
+
+
+## Le nom d'une tuile, en clair.
+static func describe(tile: int) -> String:
+	return "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
+			"au ras" if flush_of(tile) else "libre"]
+
+
+## CE QUE CHAQUE CASE MONTRE : la tuile du massif le plus haut qui la couvre.
+##
+## ⚠ UNE CASE N'A QU'UNE POSE PAR ETAGE, ET C'EST UN THEOREME -- sans quoi « la plus haute »
+## ne designerait rien. A un etage donne, une case appartient a une seule composante ; et la
+## jupe d'un massif ne peut pas tomber sur la surface d'un AUTRE massif du meme etage, puisque
+## min trois separe deux composantes d'au moins trois rangees de vide alors que la jupe n'en
+## descend que trois : elle s'arrete juste avant.
+static func visible(world: PackedStringArray) -> Dictionary:
+	var top: Dictionary = {}
+	var level_at: Dictionary = {}
+	for pose: Dictionary in poses(world):
+		var cell: Vector2i = pose["cell"]
+		if top.has(cell) and int(level_at[cell]) > int(pose["level"]):
+			continue
+		top[cell] = key_of(pose)
+		level_at[cell] = int(pose["level"])
+	return top
+
+
+## CE QUI PREND LE CRAYON : ce que montre chaque case, hors de la plaine.
+##
+## ⚠ L'ETAGE 0 EST DU DECOR, ET IL RESTE DANS LES JUMELLES. La plaine ne se peint pas -- ni
+## crayon, ni grille -- mais peindre une tuile la remplit sous les yeux, et c'est l'argument de
+## vente : le sol du jeu sortira du meme tileset, sans rien de plus a dessiner.
+static func paintable(world: PackedStringArray) -> Dictionary:
+	var out: Dictionary = {}
+	var level_at: Dictionary = {}
+	for pose: Dictionary in poses(world):
+		var cell: Vector2i = pose["cell"]
+		if out.has(cell) and int(level_at[cell]) > int(pose["level"]):
+			continue
+		out[cell] = key_of(pose)
+		level_at[cell] = int(pose["level"])
+	for cell2: Vector2i in level_at.keys():
+		if int(level_at[cell2]) < 1:
+			out.erase(cell2)
+	return out
+
+
+## LES JUMELLES : ce qui porte la meme tuile porte le meme dessin.
+static func cells_by_key(map: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	var order: Array[Vector2i] = []
+	order.assign(map.keys())
+	# ⚠ EN ORDRE DE LECTURE, le seul qui ne depende que du monde et jamais du remplissage d'un
+	# dictionnaire. C'est lui qui donne son RANG a une occurrence, donc sa cle de sauvegarde.
+	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.y < b.y if a.y != b.y else a.x < b.x)
+	for cell: Vector2i in order:
+		var tile: int = int(map[cell])
+		if not out.has(tile):
+			out[tile] = [] as Array[Vector2i]
+		(out[tile] as Array[Vector2i]).append(cell)
+	return out
+
+
+## LE RAPPORT : ce que ce relief offre, et ce qui lui manque.
+static func analyse(world: PackedStringArray, wanted: Array[int]) -> Dictionary:
+	var groups: Dictionary = cells_by_key(paintable(world))
+	var missing: Array[int] = []
+	var least: int = -1
+	for tile: int in wanted:
+		var many: int = (groups[tile] as Array[Vector2i]).size() if groups.has(tile) else 0
+		if many == 0:
+			missing.append(tile)
+		least = many if least < 0 else mini(least, many)
+	return {"groups": groups, "missing": missing, "wanted": wanted.size(),
+			"found": wanted.size() - missing.size(), "least": maxi(least, 0),
+			"is_complete": missing.is_empty()}
