@@ -50,7 +50,51 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var holes: int = chasms(world)
 	if holes > 0:
 		out.append("%d gouffre(s) enclos" % holes)
+	var ribbons: int = visible_thin(world)
+	if ribbons > 0:
+		out.append("%d case(s) d'herbe visible fine" % ribbons)
 	return out
+
+
+## L'EPAISSEUR DE CE QUI SE VOIT, et pas seulement celle du relief.
+##
+## ⚠ MIN TROIS PORTE SUR LE RELIEF ; IL NE DIT RIEN DE CE QU'UNE FALAISE VOISINE RECOUVRE. Une
+## falaise retombe sur le sol et le cache : entre sa retombee et la levre suivante, il peut ne
+## rester qu'UNE case d'herbe visible. Le relief y est epais, et pourtant ce qu'on voit ne l'est
+## pas -- 278 cases sur 6 321 dans le guide, pour zero case fine au sens du relief.
+##
+## Et c'est exactement la raison d'etre de min trois, un cran plus loin : une bande de deux n'a
+## pas d'interieur, que ce soit dans la carte ou a l'ecran. Le peintre ne peut rien supposer du
+## cote masse de ses tuiles de bord.
+##
+## ⚠ ET LA COURSE SE COMPTE PAR MASSIF. Deux rubans d'herbe qui se touchent mais appartiennent a
+## deux massifs differents ne font pas une bande epaisse : ce sont deux terrains distincts, a
+## deux hauteurs, et le peintre les lit comme tels.
+static func visible_thin(world: PackedStringArray) -> int:
+	var top: Dictionary = {}
+	for one: Dictionary in Massifs.poses(world):
+		var cell: Vector2i = one["cell"]
+		if top.has(cell) and int((top[cell] as Dictionary)["level"]) > int(one["level"]):
+			continue
+		top[cell] = one
+	var grass: Dictionary = {}
+	for cell2: Vector2i in top.keys():
+		if int((top[cell2] as Dictionary)["band"]) == Massifs.SURFACE:
+			grass[cell2] = int((top[cell2] as Dictionary)["massif"])
+	var many: int = 0
+	for cell3: Vector2i in grass.keys():
+		for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+			var length: int = 1
+			for way: int in [-1, 1]:
+				for step: int in [1, 2]:
+					var near: Vector2i = cell3 + axis * way * step
+					if not grass.has(near) or int(grass[near]) != int(grass[cell3]):
+						break
+					length += 1
+			if length < 3:
+				many += 1
+				break
+	return many
 
 
 ## LES GOUFFRES ENCLOS : des poches de VIDE au milieu du monde.
