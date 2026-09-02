@@ -53,6 +53,41 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var ribbons: int = thin_cells_visible(world).size()
 	if ribbons > 0:
 		out.append("%d case(s) d'herbe visible fine" % ribbons)
+	var steps: int = narrow_lips(world).size()
+	if steps > 0:
+		out.append("%d bord(s) sud plus etroit(s) que trois" % steps)
+	return out
+
+
+## LE BORD SUD NE DECROCHE PAS PAR MOINS DE TROIS COLONNES.
+##
+## ⚠ ET C'EST UNE CLAUSE SUR L'HERBE, PAS SUR LA ROCHE -- une levre EST le bord sud d'une
+## surface. Min trois y vaut comme partout ailleurs : un escalier dont les marches font une
+## colonne donne des falaises d'une colonne, qui se touchent COIN CONTRE COIN. Mesure sur le
+## guide : 9 levres de moins de trois colonnes, 4 contacts diagonaux de roche -- une seule et
+## meme cause.
+##
+## ⚠ J'AVAIS D'ABORD MESURE LA ROCHE, ET C'ETAIT LE MAUVAIS BOUT. Une face n'est pas posee par
+## le level designer, elle DECOULE du bord sud : lui demander d'etre epaisse revient a corriger
+## le symptome. On contraint l'herbe, la roche suit -- ce qui est la regle du modele depuis le
+## debut.
+static func narrow_lips(world: PackedStringArray) -> Array[Vector2i]:
+	var lips: Dictionary = {}
+	for pose: Dictionary in Massifs.poses(world):
+		if int(pose["band"]) == Massifs.SURFACE:
+			continue
+		lips[pose["lip"]] = int(pose["level"])
+	var out: Array[Vector2i] = []
+	for lip: Vector2i in lips.keys():
+		var length: int = 1
+		for way: int in [-1, 1]:
+			for step: int in [1, 2]:
+				var near: Vector2i = lip + Vector2i(way * step, 0)
+				if not lips.has(near) or int(lips[near]) != int(lips[lip]):
+					break
+				length += 1
+		if length < 3:
+			out.append(lip)
 	return out
 
 
@@ -172,6 +207,12 @@ static func mend(grid: Array[PackedByteArray]) -> PackedStringArray:
 		# le geste, au contraire, appauvrissait le generateur -- 129 especes de jonction tombaient
 		# a 36 -- et le guide se serait mis a mentir par omission.
 		_flatten(grid)
+		# ⚠ ET UN BORD SUD TROP ETROIT S'ABAISSE : la marche d'une colonne disparait, et avec
+		# elle la falaise d'une colonne qu'elle produisait.
+		for lip: Vector2i in narrow_lips(text(grid)):
+			if lip.y < 0 or lip.y >= tall or lip.x < 0 or lip.x >= wide:
+				continue
+			grid[lip.y][lip.x] = maxi(int(grid[lip.y][lip.x]) - 1, 1)
 	var last: PackedStringArray = text(grid)
 	return last if legal(last) else PackedStringArray()
 
