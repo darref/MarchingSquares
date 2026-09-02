@@ -33,6 +33,7 @@ const DIGITS: Array[String] = [
 ]
 const PLATE: Color = Color(0.97, 0.97, 0.94)
 const INK: Color = Color(0.10, 0.10, 0.12)
+const LABEL: Color = Color(1.0, 0.86, 0.42)
 
 
 func _badge(image: Image, cell: Vector2i, level: int) -> void:
@@ -53,6 +54,41 @@ func _badge(image: Image, cell: Vector2i, level: int) -> void:
 			if ox + 1 + x2 >= image.get_width() or oy + 1 + y2 >= image.get_height():
 				continue
 			image.set_pixel(ox + 1 + x2, oy + 1 + y2, INK)
+
+
+## LE NUMERO D'UN ENSEMBLE : plus gros que la pastille d'etage, pour qu'on ne confonde pas les
+## deux -- l'un designe un MONDE, l'autre dit une hauteur.
+func _label(image: Image, cell: Vector2i, number: int) -> void:
+	var digits: PackedStringArray = PackedStringArray()
+	var rest: int = number
+	while rest > 0:
+		digits.insert(0, str(rest % 10))
+		rest /= 10
+	if digits.is_empty():
+		digits.append("0")
+	var scale: int = 2
+	var wide: int = digits.size() * 4 * scale + 2
+	var tall: int = 5 * scale + 2
+	var ox: int = cell.x * RES + 1
+	var oy: int = cell.y * RES + 1
+	for y: int in range(tall):
+		for x: int in range(wide):
+			if ox + x >= image.get_width() or oy + y >= image.get_height():
+				continue
+			image.set_pixel(ox + x, oy + y, LABEL)
+	for at: int in range(digits.size()):
+		var glyph: String = DIGITS[digits[at].to_int()]
+		for y2: int in range(5):
+			for x2: int in range(3):
+				if glyph.substr(y2 * 3 + x2, 1) != "1":
+					continue
+				for dy: int in range(scale):
+					for dx: int in range(scale):
+						var px: int = ox + 1 + (at * 4 + x2) * scale + dx
+						var py: int = oy + 1 + y2 * scale + dy
+						if px >= image.get_width() or py >= image.get_height():
+							continue
+						image.set_pixel(px, py, INK)
 
 
 func _initialize() -> void:
@@ -141,6 +177,38 @@ func _initialize() -> void:
 			var at2: Vector2i = best[mark2]
 			var level2: int = HeightMask.level_at(world, at2.x, at2.y)
 			_badge(image, at2, level2)
+
+	# ⚠ LES ENSEMBLES SONT NUMEROTES, POUR QU'ON PUISSE LES DESIGNER. Un guide est une mosaique
+	# de mondes ; sans numero, dire « celui-la est faux » demande de decrire sa position, et on
+	# se trompe d'un. Un ensemble est une composante connexe de ce qui n'est PAS du vide -- le
+	# vide separe les mondes, c'est meme a ca qu'il sert ici.
+	if OS.get_environment("NUMEROS") == "":
+		var seen: Dictionary = {}
+		var corners: Array[Vector2i] = []
+		for y3: int in range(tall):
+			for x3: int in range(wide):
+				var here: Vector2i = Vector2i(x3, y3)
+				if seen.has(here) or HeightMask.level_at(world, x3, y3) < 0:
+					continue
+				var corner: Vector2i = here
+				var stack: Array[Vector2i] = [here]
+				seen[here] = true
+				while not stack.is_empty():
+					var at3: Vector2i = stack.pop_back()
+					if at3.y < corner.y or (at3.y == corner.y and at3.x < corner.x):
+						corner = at3
+					for step2: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN,
+							Vector2i.LEFT]:
+						var near2: Vector2i = at3 + step2
+						if near2.x < 0 or near2.y < 0 or near2.x >= wide or near2.y >= tall:
+							continue
+						if seen.has(near2) or HeightMask.level_at(world, near2.x, near2.y) < 0:
+							continue
+						seen[near2] = true
+						stack.append(near2)
+				corners.append(corner)
+		for at4: int in range(corners.size()):
+			_label(image, corners[at4], at4 + 1)
 
 	if OS.get_environment("GRILLE") != "":
 		var grid: Color = Color(1.0, 0.35, 0.35, 0.30)
