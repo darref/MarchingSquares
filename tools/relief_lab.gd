@@ -10,6 +10,7 @@ extends RefCounted
 const HeightMask := preload("res://core/height_mask.gd")
 const Massifs := preload("res://core/massifs.gd")
 const Thickness := preload("res://core/thickness.gd")
+const Gesture := preload("res://core/gesture.gd")
 
 const BAND: Array[String] = ["surf", "chap", "corp", "pied"]
 
@@ -126,53 +127,22 @@ static func draw(rng: RandomNumberGenerator, wide: int = 24, tall: int = 30) -> 
 	return repair(grid)
 
 
-## La reparation : chaque case fine s'aligne sur ses voisines, chaque pincement diagonal se
-## defait, jusqu'au point fixe.
+## ⚠ LA REGLE DU GESTE VIT DANS `core/gesture.gd`, ET NULLE PART AILLEURS. Ce fichier n'en est
+## qu'une facade : les clauses etaient eparpillees -- epaisseur dans `Thickness`, marge de pied
+## dans `Massifs`, gouffre nulle part -- et chaque nouvelle clause devait etre recopiee dans le
+## generateur, la chasse, le batisseur, l'audit et le banc. Il suffisait d'en oublier un pour
+## qu'un relief illegal traverse toute la chaine.
 static func repair(grid: Array[PackedByteArray]) -> PackedStringArray:
-	var tall: int = grid.size()
-	var wide: int = grid[0].size()
-	for round: int in range(16):
-		var world: PackedStringArray = text(grid)
-		var thin: Array[Vector3i] = Thickness.thin_cells(world)
-		var pinch: Array[Vector3i] = Thickness.diagonal_pinches(world)
-		if thin.is_empty() and pinch.is_empty():
-			return world if Massifs.foot_faults(world).is_empty() else PackedStringArray()
-		for cut: Vector3i in pinch:
-			if cut.x < 0 or cut.y < 0 or cut.y + 1 >= tall or cut.x + 1 >= wide:
-				continue
-			grid[cut.y][cut.x + 1] = grid[cut.y][cut.x]
-		for one: Vector3i in thin:
-			if one.x < 0 or one.y < 0 or one.y >= tall or one.x >= wide:
-				continue
-			var votes: Dictionary = {}
-			for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
-				var nx: int = one.x + step.x
-				var ny: int = one.y + step.y
-				if nx < 0 or ny < 0 or ny >= tall or nx >= wide:
-					continue
-				votes[int(grid[ny][nx])] = int(votes.get(int(grid[ny][nx]), 0)) + 1
-			var best: int = int(grid[one.y][one.x])
-			var most: int = 0
-			for value: int in votes.keys():
-				if int(votes[value]) > most:
-					most = int(votes[value])
-					best = value
-			grid[one.y][one.x] = best
-	return PackedStringArray()
+	return Gesture.mend(grid)
 
 
 static func text(grid: Array[PackedByteArray]) -> PackedStringArray:
-	var out: PackedStringArray = PackedStringArray()
-	for line: PackedByteArray in grid:
-		var said: String = ""
-		for v: int in line:
-			said += "~" if v == 0 else str(v - 1)
-		out.append(said)
-	return out
+	return Gesture.text(grid)
 
 
-## Un relief est-il jouable : epais, sans pincement diagonal, sans faute de marge de pied ?
 static func legal(world: PackedStringArray) -> bool:
-	return Thickness.thin_cells(world).is_empty() \
-			and Thickness.diagonal_pinches(world).is_empty() \
-			and Massifs.foot_faults(world).is_empty()
+	return Gesture.legal(world)
+
+
+static func chasms(world: PackedStringArray) -> int:
+	return Gesture.chasms(world)

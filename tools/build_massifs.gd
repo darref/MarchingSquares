@@ -18,7 +18,7 @@ extends SceneTree
 ## compte vert pendant que l'ilot ment.
 
 const HeightMask := preload("res://core/height_mask.gd")
-const Thickness := preload("res://core/thickness.gd")
+const Gesture := preload("res://core/gesture.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
@@ -280,11 +280,7 @@ func _choose(tile: int, wits: Dictionary) -> int:
 					RIM + BASE_SIDE + PAD + MassifForm.CY)
 			if int(paint.get(centre, -1)) != tile:
 				continue
-			if not Thickness.thin_cells(mini).is_empty():
-				continue
-			if not Thickness.diagonal_pinches(mini).is_empty():
-				continue
-			if not Massifs.foot_faults(mini).is_empty():
+			if not Lab.legal(mini):
 				continue
 			return (variant << 24) | bits
 	return -1
@@ -317,12 +313,10 @@ func _alone(tile: int, bits: int, variant: int) -> PackedStringArray:
 func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2i],
 		chosen: Array[int], targets: Dictionary, out_of_reach: Array[int]) -> void:
 	var got: Dictionary = Massifs.analyse(world, wanted)
-	var thin: Array[Vector3i] = Thickness.thin_cells(world)
-	var pinch: Array[Vector3i] = Thickness.diagonal_pinches(world)
-	var faults: Array[Vector2i] = Massifs.foot_faults(world)
+	var wrongs: Array[String] = Gesture.faults(world)
 	print("  %d/%d tuiles peignables" % [int(got["found"]), int(got["wanted"])])
-	print("  %d case(s) fine(s), %d pincement(s) diagonal(aux), %d faute(s) de marge de pied"
-			% [thin.size(), pinch.size(), faults.size()])
+	print("  le guide est %s" % ("LEGAL" if wrongs.is_empty() else "ILLEGAL : "
+			+ ", ".join(wrongs)))
 	var paint: Dictionary = Massifs.paintable(world)
 	var wrong: int = 0
 	var said: Array[String] = []

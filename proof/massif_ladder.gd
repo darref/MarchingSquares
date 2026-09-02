@@ -15,7 +15,8 @@ extends SceneTree
 ##   I2 EPAISSEUR   aucun pave 2x2 entierement de trait -- deux traits ne se collent jamais ;
 ##   I6 VERITE      aucun pixel de fond la ou le monde a de la matiere ;
 ##   I7 UNICITE     deux tuiles ne rendent jamais la meme image ;
-##   I8 FORME       toute tuile posee est dans la forme close.
+##   I8 FORME       toute tuile posee est dans la forme close ;
+##   I9 LEGAL       le guide est un relief que le pinceau peut produire.
 ##
 ## ⚠ ET I6 NE REGARDE QUE LES CASES INTERIEURES. Une case du BORD du monde montre le vide sur
 ## une partie de sa case, et c'est juste -- c'est le rivage. Exiger l'opacite la accuserait le
@@ -28,6 +29,7 @@ const MassifTiles := preload("res://render/massif_tiles.gd")
 const Scene := preload("res://render/massif_scene.gd")
 const Thickness := preload("res://core/thickness.gd")
 const MassifForm := preload("res://core/massif_form.gd")
+const Gesture := preload("res://core/gesture.gd")
 
 const RES: int = MassifTiles.RES
 const OUTLINE: Color = MassifTiles.OUTLINE
@@ -156,6 +158,17 @@ func _initialize() -> void:
 			stray.size()])
 	for one3: String in stray:
 		print("      %s" % one3)
+	# I9 LE GUIDE EST LEGAL, au sens de la REGLE DU GESTE et d'elle seule.
+	#
+	# ⚠ IL MANQUAIT, ET C'EST PAR LA QUE DEUX GOUFFRES SONT PASSES. Les invariants regardaient
+	# le DESSIN -- fermeture, epaisseur du trait, verite, unicite, forme -- et personne ne
+	# regardait le RELIEF. Un guide qui contient un relief que le pinceau ne peut pas produire
+	# fait peindre des tuiles qui n'arriveront jamais, et en cache d'autres.
+	var wrongs: Array[String] = Gesture.faults(
+			HeightMask.read("res://guides/massifs.txt"))
+	green = green and wrongs.is_empty()
+	print("I9 guide legal : %s%s" % ["VERT" if wrongs.is_empty() else "ROUGE",
+			"" if wrongs.is_empty() else "  (" + ", ".join(wrongs) + ")"])
 	print("VERDICT : %s" % ("VERT" if green else "ROUGE"))
 	quit(0 if green else 1)
 

@@ -17,9 +17,10 @@ extends SceneTree
 ## exactement comme il le sera dans le guide.
 
 const HeightMask := preload("res://core/height_mask.gd")
-const Thickness := preload("res://core/thickness.gd")
+const Gesture := preload("res://core/gesture.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
+const Lab := preload("res://tools/relief_lab.gd")
 
 ## La decoupe autour de la case, puis son etirement : le bloc pose dans le guide.
 ## ⚠ ONZE, PAS NEUF : l'ilot etire fait neuf de large, et il faut TROIS colonnes de chaque cote
@@ -140,11 +141,7 @@ func _fuse() -> void:
 ## LE BLOC PORTE-T-IL VRAIMENT SA TUILE ? Relu par le modele, borde comme dans le guide.
 func _carries(block: PackedStringArray, tile: int) -> bool:
 	var world: PackedStringArray = _framed(block)
-	if not Thickness.thin_cells(world).is_empty():
-		return false
-	if not Thickness.diagonal_pinches(world).is_empty():
-		return false
-	if not Massifs.foot_faults(world).is_empty():
+	if not Lab.legal(world):
 		return false
 	var paint: Dictionary = Massifs.paintable(world)
 	return int(paint.get(AT + Vector2i(RIM, RIM), -1)) == tile
@@ -256,11 +253,9 @@ func _construct(tile: int, wits: Dictionary, _rng: RandomNumberGenerator) -> Pac
 			if block.is_empty():
 				continue
 			var world: PackedStringArray = _framed(block)
-			if not Thickness.thin_cells(world).is_empty():
+			if not Lab.legal(world):
 				continue
-			if not Thickness.diagonal_pinches(world).is_empty():
-				continue
-			if not Massifs.foot_faults(world).is_empty():
+			if not Lab.legal(world):
 				continue
 			var paint: Dictionary = Massifs.paintable(world)
 			if int(paint.get(AT + Vector2i(RIM, RIM), -1)) == tile:
@@ -301,7 +296,28 @@ func _spined(bits: int, level: int, shape: int) -> PackedStringArray:
 		for y5: int in range(BLOCK_H):
 			for x5: int in range(ox + isle_w, mini(BLOCK_W, ox + isle_w + 3)):
 				grid[y5][x5] = level + 1
-	return _text(grid)
+	return Lab.text(grid)
+
+
+## ⚠ ET LA REPARATION AUSSI VIT EN UN SEUL ENDROIT. Deux reparateurs locaux vivaient ici, avec
+## chacun leur idee de ce qu'il faut defaire : c'est exactement la fabrique a rustines qu'on
+## vient de fermer.
+func _mend(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int, oy: int,
+		level: int) -> PackedStringArray:
+	for round: int in range(10):
+		var world: PackedStringArray = Lab.text(grid)
+		if Lab.legal(world):
+			return world
+		var mended: PackedStringArray = Gesture.mend(grid)
+		if mended.is_empty():
+			return mended
+		for y: int in range(grid.size()):
+			for x: int in range(grid[0].size()):
+				var level2: int = HeightMask.level_at(mended, x, y)
+				grid[y][x] = 0 if level2 < 0 else level2 + 1
+		_freeze(grid, core, ox, oy, level)
+	var last: PackedStringArray = Lab.text(grid)
+	return last if Lab.legal(last) else PackedStringArray()
 
 
 func _freeze(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int, oy: int,
@@ -311,111 +327,6 @@ func _freeze(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int
 			grid[oy + y][ox + x] = (level + 1) if int(core[x][y]) == 1 else level
 
 
-## La reparation, fenetre gelee : elle aligne chaque case fine sur ses voisines, puis remet la
-## fenetre en place, jusqu'au point fixe.
-func _mend(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int, oy: int,
-		level: int) -> PackedStringArray:
-	for round: int in range(10):
-		var text: PackedStringArray = _text(grid)
-		var thin: Array[Vector3i] = Thickness.thin_cells(text)
-		var pinch: Array[Vector3i] = Thickness.diagonal_pinches(text)
-		if thin.is_empty() and pinch.is_empty():
-			return text
-		for cut: Vector3i in pinch:
-			if cut.x < 1 or cut.y < 1 or cut.y + 1 >= grid.size() - 1 					or cut.x + 1 >= grid[0].size() - 1:
-				continue
-			grid[cut.y][cut.x + 1] = grid[cut.y][cut.x]
-		for one: Vector3i in thin:
-			if one.x < 1 or one.y < 1 or one.y >= grid.size() - 1 or one.x >= grid[0].size() - 1:
-				continue
-			var votes: Dictionary = {}
-			for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
-				votes[int(grid[one.y + step.y][one.x + step.x])] = 						int(votes.get(int(grid[one.y + step.y][one.x + step.x]), 0)) + 1
-			var best: int = int(grid[one.y][one.x])
-			var most: int = 0
-			for value: int in votes.keys():
-				if int(votes[value]) > most:
-					most = int(votes[value])
-					best = value
-			grid[one.y][one.x] = best
-		_freeze(grid, core, ox, oy, level)
-	var last: PackedStringArray = _text(grid)
-	return last if Thickness.thin_cells(last).is_empty() 			and Thickness.diagonal_pinches(last).is_empty() else PackedStringArray()
-
-
 ## UN RELIEF EPAIS TIRE AU SORT -- pose ET efface, comme le pinceau.
 func _draw(rng: RandomNumberGenerator) -> PackedStringArray:
-	var wide: int = rng.randi_range(20, 32)
-	var tall: int = rng.randi_range(22, 34)
-	var grid: Array[PackedByteArray] = []
-	for y: int in range(tall):
-		var line: PackedByteArray = PackedByteArray()
-		line.resize(wide)
-		line.fill(0)
-		grid.append(line)
-	for x: int in range(RIM, wide - RIM):
-		for y2: int in range(RIM, tall - RIM):
-			var row: PackedByteArray = grid[y2]
-			row[x] = 1
-			grid[y2] = row
-	for _stamp: int in range(rng.randi_range(4, 16)):
-		var ox: int = rng.randi_range(RIM + 1, wide - RIM - 4)
-		var oy: int = rng.randi_range(RIM + 1, tall - RIM - 10)
-		var raise: bool = rng.randf() < 0.7
-		for y3: int in range(oy, oy + 3):
-			for x3: int in range(ox, ox + 3):
-				var row2: PackedByteArray = grid[y3]
-				row2[x3] = mini(int(row2[x3]) + 1, 4) if raise else maxi(int(row2[x3]) - 1, 0)
-				grid[y3] = row2
-	return _repair(grid)
-
-
-## ⚠ ON REPARE, ON NE REFUSE PAS -- et c'est le geste meme du pinceau. Un generateur qui jette
-## tout relief fin ne rendait que QUINZE mondes sur mille cinq cents : la battue ne cherchait
-## presque rien, et son silence n'aurait rien prouve. Chaque case fine se fait aligner sur ce que
-## ses voisines cardinales disent majoritairement, jusqu'au point fixe.
-func _repair(grid: Array[PackedByteArray]) -> PackedStringArray:
-	for round: int in range(14):
-		var text: PackedStringArray = _text(grid)
-		var thin: Array[Vector3i] = Thickness.thin_cells(text)
-		# ⚠ ON REPARE AUSSI LES PINCEMENTS DIAGONAUX. Un coin contre coin se defait en alignant
-		# l'une des deux cases cardinales sur sa voisine diagonale : la bande d'epaisseur un
-		# devient une masse, ou disparait.
-		var pinch: Array[Vector3i] = Thickness.diagonal_pinches(text)
-		if thin.is_empty() and pinch.is_empty():
-			return text
-		for cut: Vector3i in pinch:
-			if cut.x < 0 or cut.y < 0 or cut.y + 1 >= grid.size() or cut.x + 1 >= grid[0].size():
-				continue
-			grid[cut.y][cut.x + 1] = grid[cut.y][cut.x]
-		for one: Vector3i in thin:
-			if one.x < 0 or one.y < 0 or one.y >= grid.size() or one.x >= grid[0].size():
-				continue
-			var votes: Dictionary = {}
-			for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
-				var nx: int = one.x + step.x
-				var ny: int = one.y + step.y
-				if nx < 0 or ny < 0 or ny >= grid.size() or nx >= grid[0].size():
-					continue
-				votes[int(grid[ny][nx])] = int(votes.get(int(grid[ny][nx]), 0)) + 1
-			var best: int = int(grid[one.y][one.x])
-			var most: int = 0
-			for value: int in votes.keys():
-				if int(votes[value]) > most:
-					most = int(votes[value])
-					best = value
-			var row3: PackedByteArray = grid[one.y]
-			row3[one.x] = best
-			grid[one.y] = row3
-	var last: PackedStringArray = _text(grid)
-	return last if Thickness.thin_cells(last).is_empty() 			and Thickness.diagonal_pinches(last).is_empty() else PackedStringArray()
-
-
-func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
-	var text: PackedStringArray = PackedStringArray()
-	for line: PackedByteArray in grid:
-		var said: String = ""
-		for v: int in line:
-			said += "~" if v == 0 else str(v - 1)
-		text.append(said)
-	return text
+	return Lab.draw(rng, rng.randi_range(20, 32), rng.randi_range(24, 34))
