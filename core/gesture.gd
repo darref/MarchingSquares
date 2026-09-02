@@ -80,6 +80,11 @@ static func faults(world: PackedStringArray) -> Array[String]:
 ## deux massifs differents ne font pas une bande epaisse : ce sont deux terrains distincts, a
 ## deux hauteurs, et le peintre les lit comme tels.
 static func visible_thin(world: PackedStringArray) -> int:
+	return thin_cells_visible(world).size()
+
+
+## Les cases d'herbe visible dont la course fait moins de trois -- hors plaine.
+static func thin_cells_visible(world: PackedStringArray) -> Array[Vector2i]:
 	var top: Dictionary = {}
 	for one: Dictionary in Massifs.poses(world):
 		var cell: Vector2i = one["cell"]
@@ -91,7 +96,7 @@ static func visible_thin(world: PackedStringArray) -> int:
 		var one2: Dictionary = top[cell2]
 		if int(one2["band"]) == Massifs.SURFACE and int(one2["level"]) >= 1:
 			grass[cell2] = int(one2["massif"])
-	var many: int = 0
+	var out: Array[Vector2i] = []
 	for cell3: Vector2i in grass.keys():
 		for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
 			var length: int = 1
@@ -102,9 +107,9 @@ static func visible_thin(world: PackedStringArray) -> int:
 						break
 					length += 1
 			if length < 3:
-				many += 1
+				out.append(cell3)
 				break
-	return many
+	return out
 
 
 ## LES GOUFFRES ENCLOS : des poches de VIDE au milieu du monde.
@@ -179,8 +184,23 @@ static func mend(grid: Array[PackedByteArray]) -> PackedStringArray:
 			grid[one.y][one.x] = best
 		if chasms(text(grid)) > 0:
 			_fill(grid)
+		# ⚠ ET LE RUBAN FIN SE CORRIGE, IL NE SE REFUSE PAS. Une bande d'herbe visible d'une case
+		# nait quand la falaise d'un massif plus haut recouvre une partie d'un plateau. On abaisse
+		# la bande d'un etage : elle rejoint le sol au lieu de rester un rebord illisible. Refuser
+		# le geste, au contraire, appauvrissait le generateur -- 129 especes de jonction tombaient
+		# a 36 -- et le guide se serait mis a mentir par omission.
+		_flatten(grid)
 	var last: PackedStringArray = text(grid)
 	return last if legal(last) else PackedStringArray()
+
+
+## Abaisser les rubans d'herbe visible trop fins.
+static func _flatten(grid: Array[PackedByteArray]) -> void:
+	var world: PackedStringArray = text(grid)
+	for cell: Vector2i in thin_cells_visible(world):
+		if cell.y < 0 or cell.y >= grid.size() or cell.x < 0 or cell.x >= grid[0].size():
+			continue
+		grid[cell.y][cell.x] = maxi(int(grid[cell.y][cell.x]) - 1, 1)
 
 
 ## Combler les gouffres : toute poche de vide qui ne touche pas le bord devient de la plaine.
