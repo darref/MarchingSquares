@@ -212,11 +212,23 @@ static func footprint(world: PackedStringArray, cells: Array, level: int,
 		var at: Vector2i = cell2 as Vector2i
 		if surface.has(at + Vector2i.DOWN):
 			continue
-		var fall: int = FALL * (level + 1)
+		# ⚠ ET LA FACE S'ARRETE OU LA ROCHE LA RENCONTRE. Chercher seulement les paliers de trois
+		# laissait une face TRAVERSER du sol pose entre deux paliers : la falaise d'un etage 2
+		# descendait neuf rangees a travers un plateau d'etage 1, et son bord venait se coller au
+		# trait de ce que le sol dessinait dessous. On descend donc rangee par rangee, et on
+		# regarde le sol a chaque pas : le bas de la face apres k rangees est a `etage - k/3`.
+		#
+		# ⚠ ET UNE FACE ECRETEE NE POSE PAS SON PIED : le pied est la preuve d'un atterrissage,
+		# c'est-a-dire d'un palier atteint pile. Regle reprise telle quelle de l'ancien modele.
+		var fall: int = 0
 		var landed: bool = false
-		for j: int in range(1, level + 1):
-			if HeightMask.level_at(world, at.x, at.y + FALL * j) == level - j:
-				fall = FALL * j
+		for k: int in range(1, FALL * (level + 1) + 1):
+			var ground: int = HeightMask.level_at(world, at.x, at.y + k)
+			var bottom: int = level - k / FALL
+			if ground > bottom:
+				break
+			fall = k
+			if k % FALL == 0 and ground == bottom:
 				landed = true
 				break
 		for step: int in range(1, fall + 1):
