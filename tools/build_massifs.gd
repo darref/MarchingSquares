@@ -98,7 +98,7 @@ func _initialize() -> void:
 				wits_ras if Massifs.flush_of(wanted[at]) else wits)
 		chosen.append(bits)
 		if bits >= 0:
-			_stamp(grid, wanted[at], bits, bx, by)
+			_stamp(grid, wanted[at], bits & 0xffffff, bx, by, bits >> 24)
 			centres.append(Vector2i(bx + 3 + PAD + MassifForm.CX,
 					by + 3 + PAD + MassifForm.CY))
 			continue
@@ -159,21 +159,27 @@ func _place(grid: Array[PackedByteArray], block: PackedStringArray, ox: int, oy:
 ## ⚠ UNE TUILE AU RAS EST UN MASSIF D'ETAGE 2, ET C'EST TOUT CE QUE « AU RAS » VEUT DIRE : elle
 ## en recouvre un autre. On lui donne donc un socle d'etage 1 -- qui doit porter son PIED avec une
 ## rangee de rab, sans quoi la marge de pied saute.
-func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int) -> void:
+func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int,
+		variant: int = 0) -> void:
 	var flush: bool = Massifs.flush_of(tile)
 	var level: int = 2 if flush else 1
 	var isle: Array[PackedByteArray] = MassifForm.stretched(bits, PAD)
 	var ox: int = bx + 3
 	var oy: int = by + 3
 	if flush:
-		# ⚠ ET LE SOCLE S'ARRETE NET AU BORD OUEST DE L'ILOT -- c'est ce qui fait le
-		# CHEVAUCHEMENT. Un socle qui entoure l'ilot en fait un massif « entierement entoure »,
-		# donc LIBRE : les vingt-six tuiles au ras cessaient d'exister dans le guide sans que
-		# rien ne le dise. En laissant l'ilot affleurer la frontiere du porteur, son contour
-		# longe celle du massif du dessous -- une partie dedans, une partie dehors -- et il n'a
-		# plus, par principe, d'autre rendez-vous que la bordure de tuile.
-		for y: int in range(-BASE_SIDE, ISLE_H + Massifs.FALL + BASE_SOUTH):
-			for x: int in range(0, ISLE_W + BASE_SIDE):
+		# ⚠ UN VRAI CHEVAUCHEMENT DEBORDE, IL NE S'ARRETE PAS PILE SUR LE PORTEUR. Premiere
+		# version : le socle s'arretait net au bord ouest de l'ilot -- c'est bien un
+		# chevauchement, mais le SEUL qu'on montrait, et le plus pauvre : la falaise de l'ilot
+		# retombait sur le socle en trois rangees. Or un massif porte qui deborde est plus haut
+		# que ce qui le borde, donc la ou il sort du porteur SA FACE DESCEND JUSQU'A LA PLAINE --
+		# six rangees. Le guide ne montrait pas ce cas, donc il ne le rendait pas peignable.
+		#
+		# Variante 0 : le socle couvre le NORD de l'ilot, dont le sud surplombe la plaine.
+		# Variante 1 : le socle affleure a l'ouest -- l'ancien cas, garde parce qu'il en est un.
+		var stop: int = (ISLE_H / 2) if variant == 0 else (ISLE_H + Massifs.FALL + BASE_SOUTH)
+		var start: int = -BASE_SIDE if variant == 0 else 0
+		for y: int in range(-BASE_SIDE, stop):
+			for x: int in range(start, ISLE_W + BASE_SIDE):
 				_put(grid, ox + x, oy + y, 1)
 	for x2: int in range(ISLE_W):
 		for y2: int in range(ISLE_H):
@@ -192,23 +198,28 @@ func _stamp(grid: Array[PackedByteArray], tile: int, bits: int, bx: int, by: int
 func _choose(tile: int, wits: Dictionary) -> int:
 	if not wits.has(tile):
 		return -1
-	for bits: int in (wits[tile] as Array[int]):
-		var mini: PackedStringArray = _alone(tile, bits)
-		var paint: Dictionary = Massifs.paintable(mini)
-		var centre: Vector2i = Vector2i(RIM + BASE_SIDE + PAD + MassifForm.CX,
-				RIM + BASE_SIDE + PAD + MassifForm.CY)
-		if int(paint.get(centre, -1)) != tile:
-			continue
-		if not Thickness.thin_cells(mini).is_empty():
-			continue
-		if not Massifs.foot_faults(mini).is_empty():
-			continue
-		return bits
+	# ⚠ ET LA VARIANTE QUI DEBORDE PASSE EN PREMIER. Les deux sont des chevauchements ; celle
+	# qui surplombe la plaine est la plus riche -- c'est elle qui exerce la chute de six.
+	for variant: int in [0, 1]:
+		for bits: int in (wits[tile] as Array[int]):
+			var mini: PackedStringArray = _alone(tile, bits, variant)
+			var paint: Dictionary = Massifs.paintable(mini)
+			var centre: Vector2i = Vector2i(RIM + BASE_SIDE + PAD + MassifForm.CX,
+					RIM + BASE_SIDE + PAD + MassifForm.CY)
+			if int(paint.get(centre, -1)) != tile:
+				continue
+			if not Thickness.thin_cells(mini).is_empty():
+				continue
+			if not Thickness.diagonal_pinches(mini).is_empty():
+				continue
+			if not Massifs.foot_faults(mini).is_empty():
+				continue
+			return (variant << 24) | bits
 	return -1
 
 
 ## L'ilot seul dans son cadre, pour le juger avant de le poser.
-func _alone(tile: int, bits: int) -> PackedStringArray:
+func _alone(tile: int, bits: int, variant: int) -> PackedStringArray:
 	var wide: int = 2 * RIM + 2 * BASE_SIDE + ISLE_W
 	var tall: int = 2 * RIM + 2 * BASE_SIDE + ISLE_H + 2 * Massifs.FALL + BASE_SOUTH
 	var grid: Array[PackedByteArray] = []
@@ -220,7 +231,7 @@ func _alone(tile: int, bits: int) -> PackedStringArray:
 	for y2: int in range(RIM, tall - RIM):
 		for x2: int in range(RIM, wide - RIM):
 			_put(grid, x2, y2, 0)
-	_stamp(grid, tile, bits, RIM - 3 + BASE_SIDE, RIM - 3 + BASE_SIDE)
+	_stamp(grid, tile, bits, RIM - 3 + BASE_SIDE, RIM - 3 + BASE_SIDE, variant)
 	var text: PackedStringArray = PackedStringArray()
 	for line2: PackedByteArray in grid:
 		var said: String = ""
@@ -235,9 +246,11 @@ func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2
 		chosen: Array[int]) -> void:
 	var got: Dictionary = Massifs.analyse(world, wanted)
 	var thin: Array[Vector3i] = Thickness.thin_cells(world)
+	var pinch: Array[Vector3i] = Thickness.diagonal_pinches(world)
 	var faults: Array[Vector2i] = Massifs.foot_faults(world)
 	print("  %d/%d tuiles peignables" % [int(got["found"]), int(got["wanted"])])
-	print("  %d case(s) fine(s), %d faute(s) de marge de pied" % [thin.size(), faults.size()])
+	print("  %d case(s) fine(s), %d pincement(s) diagonal(aux), %d faute(s) de marge de pied"
+			% [thin.size(), pinch.size(), faults.size()])
 	var paint: Dictionary = Massifs.paintable(world)
 	var wrong: int = 0
 	var said: Array[String] = []

@@ -55,12 +55,13 @@ func _initialize() -> void:
 		# relief que le pinceau corrigera avant de le laisser poser : le banc prouve le DESSIN
 		# sur des mondes legaux, pas sur des mondes que le produit ne fabriquera jamais. Le
 		# compte est imprime -- une borne muette se lit comme « tout couvert ».
-		if not Massifs.foot_faults(one).is_empty():
+		if not Massifs.foot_faults(one).is_empty() 				or not Thickness.diagonal_pinches(one).is_empty():
 			refused += 1
 			continue
 		made += 1
 		worlds.append({"name": "tirage %d" % made, "world": one})
-	print("%d tirages retenus, %d ecartes par la marge de pied" % [made, refused])
+	print("%d tirages retenus, %d ecartes (marge de pied ou pincement diagonal)"
+			% [made, refused])
 
 	var green: bool = true
 	var vocabulary: Dictionary = {}

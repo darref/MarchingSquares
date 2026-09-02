@@ -200,3 +200,43 @@ static func thin_cells(heights: PackedStringArray) -> Array[Vector3i]:
 				if thin_at(heights, x, y, storey):
 					out.append(Vector3i(x, y, storey))
 	return out
+
+
+## LE PINCEMENT DIAGONAL : deux cases de meme etat qui se touchent COIN CONTRE COIN, alors que
+## les deux cases cardinales qu'elles partagent sont de l'autre etat.
+##
+## ⚠ MIN TROIS DOIT VALOIR EN DIAGONALE AUSSI -- decision utilisateur. Deux massifs relies par
+## un seul coin sont relies par une bande d'epaisseur UN : le modele doit alors exprimer une
+## jonction que rien ne peut dessiner proprement, et le resultat est complique et laid. C'est
+## exactement l'argument de min trois, sur l'autre axe : une bande d'epaisseur un n'a pas
+## d'interieur, donc le peintre ne peut rien supposer de ses bords.
+##
+## ⚠ ET LA REGLE VAUT DANS LES DEUX ETATS. Un pincement de VIDE -- deux vides qui se touchent
+## par un coin entre deux pleins -- est le meme defaut vu a l'envers : la matiere s'y etrangle.
+##
+## ⚠ ET ELLE NE TOUCHE PAS `thin_cells` : l'ancien modele a livre des guides qui contiennent des
+## contacts diagonaux, deliberement -- ils portaient une tuile du reseau dual. Ajouter la clause
+## la rendrait sa suite rouge sans rien reparer. Le nouveau modele l'appelle en plus.
+static func diagonal_pinches(heights: PackedStringArray) -> Array[Vector3i]:
+	var out: Array[Vector3i] = []
+	var top: int = 0
+	for y: int in range(HeightMask.height(heights)):
+		for x: int in range(HeightMask.width(heights)):
+			top = maxi(top, HeightMask.level_at(heights, x, y))
+	for storey: int in range(0, top + 1):
+		for y2: int in range(-1, HeightMask.height(heights) + 1):
+			for x2: int in range(-1, HeightMask.width(heights) + 1):
+				if pinched_at(heights, x2, y2, storey):
+					out.append(Vector3i(x2, y2, storey))
+	return out
+
+
+## Le coin sud-est de la case (x, y) est-il un pincement, a cet etage ?
+static func pinched_at(heights: PackedStringArray, x: int, y: int, storey: int) -> bool:
+	var here: bool = HeightMask.level_at(heights, x, y) >= storey
+	var down_right: bool = HeightMask.level_at(heights, x + 1, y + 1) >= storey
+	var right: bool = HeightMask.level_at(heights, x + 1, y) >= storey
+	var down: bool = HeightMask.level_at(heights, x, y + 1) >= storey
+	if here == down_right and right == down and here != right:
+		return true
+	return false

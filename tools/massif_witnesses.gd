@@ -142,6 +142,8 @@ func _carries(block: PackedStringArray, tile: int) -> bool:
 	var world: PackedStringArray = _framed(block)
 	if not Thickness.thin_cells(world).is_empty():
 		return false
+	if not Thickness.diagonal_pinches(world).is_empty():
+		return false
 	if not Massifs.foot_faults(world).is_empty():
 		return false
 	var paint: Dictionary = Massifs.paintable(world)
@@ -256,6 +258,8 @@ func _construct(tile: int, wits: Dictionary, _rng: RandomNumberGenerator) -> Pac
 			var world: PackedStringArray = _framed(block)
 			if not Thickness.thin_cells(world).is_empty():
 				continue
+			if not Thickness.diagonal_pinches(world).is_empty():
+				continue
 			if not Massifs.foot_faults(world).is_empty():
 				continue
 			var paint: Dictionary = Massifs.paintable(world)
@@ -314,8 +318,13 @@ func _mend(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int, 
 	for round: int in range(10):
 		var text: PackedStringArray = _text(grid)
 		var thin: Array[Vector3i] = Thickness.thin_cells(text)
-		if thin.is_empty():
+		var pinch: Array[Vector3i] = Thickness.diagonal_pinches(text)
+		if thin.is_empty() and pinch.is_empty():
 			return text
+		for cut: Vector3i in pinch:
+			if cut.x < 1 or cut.y < 1 or cut.y + 1 >= grid.size() - 1 					or cut.x + 1 >= grid[0].size() - 1:
+				continue
+			grid[cut.y][cut.x + 1] = grid[cut.y][cut.x]
 		for one: Vector3i in thin:
 			if one.x < 1 or one.y < 1 or one.y >= grid.size() - 1 or one.x >= grid[0].size() - 1:
 				continue
@@ -331,7 +340,7 @@ func _mend(grid: Array[PackedByteArray], core: Array[PackedByteArray], ox: int, 
 			grid[one.y][one.x] = best
 		_freeze(grid, core, ox, oy, level)
 	var last: PackedStringArray = _text(grid)
-	return last if Thickness.thin_cells(last).is_empty() else PackedStringArray()
+	return last if Thickness.thin_cells(last).is_empty() 			and Thickness.diagonal_pinches(last).is_empty() else PackedStringArray()
 
 
 ## UN RELIEF EPAIS TIRE AU SORT -- pose ET efface, comme le pinceau.
@@ -369,8 +378,16 @@ func _repair(grid: Array[PackedByteArray]) -> PackedStringArray:
 	for round: int in range(14):
 		var text: PackedStringArray = _text(grid)
 		var thin: Array[Vector3i] = Thickness.thin_cells(text)
-		if thin.is_empty():
+		# ⚠ ON REPARE AUSSI LES PINCEMENTS DIAGONAUX. Un coin contre coin se defait en alignant
+		# l'une des deux cases cardinales sur sa voisine diagonale : la bande d'epaisseur un
+		# devient une masse, ou disparait.
+		var pinch: Array[Vector3i] = Thickness.diagonal_pinches(text)
+		if thin.is_empty() and pinch.is_empty():
 			return text
+		for cut: Vector3i in pinch:
+			if cut.x < 0 or cut.y < 0 or cut.y + 1 >= grid.size() or cut.x + 1 >= grid[0].size():
+				continue
+			grid[cut.y][cut.x + 1] = grid[cut.y][cut.x]
 		for one: Vector3i in thin:
 			if one.x < 0 or one.y < 0 or one.y >= grid.size() or one.x >= grid[0].size():
 				continue
@@ -391,7 +408,7 @@ func _repair(grid: Array[PackedByteArray]) -> PackedStringArray:
 			row3[one.x] = best
 			grid[one.y] = row3
 	var last: PackedStringArray = _text(grid)
-	return last if Thickness.thin_cells(last).is_empty() else PackedStringArray()
+	return last if Thickness.thin_cells(last).is_empty() 			and Thickness.diagonal_pinches(last).is_empty() else PackedStringArray()
 
 
 func _text(grid: Array[PackedByteArray]) -> PackedStringArray:
