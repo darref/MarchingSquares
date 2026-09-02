@@ -166,6 +166,87 @@ static func chasms(world: PackedStringArray) -> int:
 	return many
 
 
+## LA MARCHE DU PINCEAU : un monde fait de GESTES, et de rien d'autre.
+##
+## ⚠ ET C'EST CE QUI REND L'ATTEIGNABILITE GRATUITE. Un monde bati par une suite de gestes est
+## atteignable PAR CONSTRUCTION -- la suite est la preuve. Le solveur glouton, lui, ne peut
+## jamais conclure a l'impossible : il ne dit que « aucune suite simple n'y mene ».
+##
+## ⚠ ET C'EST LA QUE LE MODELE S'ETAIT DESACCORDE DE LUI-MEME. Le generateur posait des tampons
+## puis appelait `mend`, qui corrige CASE PAR CASE -- abaisser une case fine, combler un gouffre.
+## Ce sont des retouches d'une case, pas des tampons : le monde qui en sortait n'etait plus
+## reconstructible au pinceau, et CINQ MONDES DU GUIDE SUR DIX etaient dans ce cas. Le guide
+## montrait a l'artiste des reliefs que son pinceau ne produirait jamais.
+##
+## Deux gestes, et deux seulement :
+##   POSER    un tampon 3x3, qui monte d'un etage, n'importe ou ;
+##   EFFACER  un tampon 3x3 CENTRE SUR UNE CASE DE SURFACE PLEINE -- une case dont les huit
+##            voisines sont de la surface du meme massif. Tout le reste, falaise et bords,
+##            s'enleve en consequence.
+##
+## ⚠ ET L'EFFACEMENT SE LIMITE AU COEUR D'UNE MASSE POUR UNE RAISON MESUREE : pose au bord, il
+## ronge une bande deja mince ; pose au coeur, il y creuse un trou de trois sur trois, epais par
+## construction. Mesure : 62 % des gestes passent, contre un generateur qui devait tout reparer.
+##
+## Un geste qui rendrait le monde illegal est simplement REFUSE.
+static func walk(rng: RandomNumberGenerator, wide: int, tall: int, rim: int = 4) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(tall):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(wide)
+		line.fill(0)
+		grid.append(line)
+	for x: int in range(rim, wide - rim):
+		for y2: int in range(rim, tall - rim):
+			grid[y2][x] = 1
+	for _move: int in range(rng.randi_range(10, 40)):
+		var raise: bool = rng.randf() < 0.7
+		var where: Vector2i = _where(grid, rng, raise, wide, tall, rim)
+		if where.x < 0:
+			continue
+		var keep: Array[PackedByteArray] = []
+		for row: PackedByteArray in grid:
+			keep.append(row.duplicate())
+		for y3: int in range(where.y, where.y + 3):
+			for x3: int in range(where.x, where.x + 3):
+				grid[y3][x3] = mini(int(grid[y3][x3]) + 1, 5) if raise 						else maxi(int(grid[y3][x3]) - 1, 1)
+		if not legal(text(grid)):
+			grid = keep
+	return text(grid)
+
+
+## Ou le geste peut se poser : la pose partout, l'effacement au COEUR d'une masse seulement.
+static func _where(grid: Array[PackedByteArray], rng: RandomNumberGenerator, raise: bool,
+		wide: int, tall: int, rim: int) -> Vector2i:
+	if raise:
+		return Vector2i(rng.randi_range(rim, wide - rim - 3), rng.randi_range(rim, tall - rim - 3))
+	var top: Dictionary = {}
+	for one: Dictionary in Massifs.poses(text(grid)):
+		if bool(one["under"]):
+			continue
+		var cell: Vector2i = one["cell"]
+		if top.has(cell) and int((top[cell] as Dictionary)["level"]) > int(one["level"]):
+			continue
+		top[cell] = one
+	var full: Array[Vector2i] = []
+	for cell2: Vector2i in top.keys():
+		var one2: Dictionary = top[cell2]
+		if int(one2["band"]) != Massifs.SURFACE or int(one2["level"]) < 1:
+			continue
+		var solid: bool = true
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				var near: Dictionary = top.get(cell2 + Vector2i(dx, dy), {})
+				if near.is_empty() or int(near["band"]) != Massifs.SURFACE 						or int(near["massif"]) != int(one2["massif"]):
+					solid = false
+		if solid:
+			full.append(cell2)
+	if full.is_empty():
+		return Vector2i(-1, -1)
+	var at: Vector2i = full[rng.randi() % full.size()]
+	return Vector2i(clampi(at.x - 1, rim, wide - rim - 3), clampi(at.y - 1, rim, tall - rim - 3))
+
+
 ## LA CORRECTION : le pinceau corrige, il ne refuse pas (decision utilisateur).
 ##
 ## Chaque case fine s'aligne sur ses voisines cardinales ; chaque pincement diagonal se defait en

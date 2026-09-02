@@ -104,27 +104,7 @@ static func _fall(falls: Dictionary, one: Dictionary) -> String:
 ## elle, tranche des massifs et change les jonctions qu'elle pretend capturer -- il fallait la
 ## reparer, la reverifier, et elle en rejetait le tiers.
 static func draw(rng: RandomNumberGenerator, wide: int = 24, tall: int = 30) -> PackedStringArray:
-	var grid: Array[PackedByteArray] = []
-	for y: int in range(tall):
-		var line: PackedByteArray = PackedByteArray()
-		line.resize(wide)
-		line.fill(0)
-		grid.append(line)
-	for x: int in range(4, wide - 4):
-		for y2: int in range(4, tall - 4):
-			var row: PackedByteArray = grid[y2]
-			row[x] = 1
-			grid[y2] = row
-	for _stamp: int in range(rng.randi_range(4, 18)):
-		var ox: int = rng.randi_range(5, wide - 8)
-		var oy: int = rng.randi_range(5, tall - 12)
-		var raise: bool = rng.randf() < 0.7
-		for y3: int in range(oy, oy + 3):
-			for x3: int in range(ox, ox + 3):
-				var row2: PackedByteArray = grid[y3]
-				row2[x3] = mini(int(row2[x3]) + 1, 4) if raise else maxi(int(row2[x3]) - 1, 0)
-				grid[y3] = row2
-	return repair(grid)
+	return Gesture.walk(rng, wide, tall)
 
 
 ## ⚠ LA REGLE DU GESTE VIT DANS `core/gesture.gd`, ET NULLE PART AILLEURS. Ce fichier n'en est
