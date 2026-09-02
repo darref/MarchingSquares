@@ -294,7 +294,12 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 ## On paie donc en GRAMMAIRE.
 ##
 ## Rend les cases fautives, pour que le pinceau les corrige au lieu de les refuser.
-const FOOT_MARGIN: int = 3
+## ⚠ ET ELLE VAUT UNE RANGEE, PAS TROIS -- mesure, pas prudence. A trois, elle refuse des
+## reliefs que la reparation ne sait pas rattraper localement, et le generateur passe de 43
+## mondes retenus a 8 pour 120 tirages. Sa raison d'etre est etroite : empecher que le trait
+## d'un pied et celui d'une levre se collent, ce qui demande UNE rangee. La lisibilite, elle,
+## est couverte par une autre clause -- l'epaisseur de ce qui SE VOIT, hors plaine.
+const FOOT_MARGIN: int = 1
 
 
 static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:

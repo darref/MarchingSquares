@@ -67,6 +67,15 @@ static func faults(world: PackedStringArray) -> Array[String]:
 ## pas d'interieur, que ce soit dans la carte ou a l'ecran. Le peintre ne peut rien supposer du
 ## cote masse de ses tuiles de bord.
 ##
+## ⚠ ET ELLE NE PORTE PAS SUR LA PLAINE, PARCE QUE C'EST MESURE : sur des reliefs epais tires au
+## sort, 100 % sont propres HORS PLAINE et 27 % seulement le sont plaine comprise. Tout le fin
+## est donc sur elle -- et c'est normal : elle est le sol sur lequel les falaises retombent, donc
+## chacune la decoupe. Un ruban de sol entre deux falaises est une CORNICHE, pas un defaut.
+##
+## La clause hors plaine est donc GRATUITE -- elle ne refuse aucun relief que le geste produit
+## spontanement -- et c'est pourtant elle qui attrape le defaut signale : un plateau dont la
+## surface visible ne fait qu'une case de large.
+##
 ## ⚠ ET LA COURSE SE COMPTE PAR MASSIF. Deux rubans d'herbe qui se touchent mais appartiennent a
 ## deux massifs differents ne font pas une bande epaisse : ce sont deux terrains distincts, a
 ## deux hauteurs, et le peintre les lit comme tels.
@@ -79,8 +88,9 @@ static func visible_thin(world: PackedStringArray) -> int:
 		top[cell] = one
 	var grass: Dictionary = {}
 	for cell2: Vector2i in top.keys():
-		if int((top[cell2] as Dictionary)["band"]) == Massifs.SURFACE:
-			grass[cell2] = int((top[cell2] as Dictionary)["massif"])
+		var one2: Dictionary = top[cell2]
+		if int(one2["band"]) == Massifs.SURFACE and int(one2["level"]) >= 1:
+			grass[cell2] = int(one2["massif"])
 	var many: int = 0
 	for cell3: Vector2i in grass.keys():
 		for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:

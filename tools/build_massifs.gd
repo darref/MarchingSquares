@@ -37,13 +37,16 @@ const ISLE_H: int = MassifForm.ROWS + 2 * PAD
 ## paves -- une course de deux, donc fine, donc 1 368 cases refusees par l'epaisseur. On mesure
 ## la marge sur ce qu'on pose vraiment, jamais sur ce qu'on croit poser.
 const BLOCK_W: int = 19
-const BLOCK_H: int = 24
+const BLOCK_H: int = 30
 const COLUMNS: int = 8
 ## La marge de vide autour du guide : la falaise du bord du monde y tombe.
 const RIM: int = 4
 ## Le socle d'un ilot AU RAS : il deborde d'autant, et de quoi porter le pied.
-const BASE_SIDE: int = 2
-const BASE_SOUTH: int = 4
+## ⚠ ET LES MARGES DE L'ILOT SUIVENT LA REGLE DU GESTE, PAS L'INVERSE. Elles etaient calibrees
+## pour une marge de pied d'UNE rangee ; depuis que min trois vaut aussi sur ce qui se voit, il
+## faut TROIS rangees de sol visible sous chaque pied et trois cases de socle visible autour.
+const BASE_SIDE: int = 3
+const BASE_SOUTH: int = 6
 ## Le monde de couverture : un relief ENTIER, avec son lisere de vide.
 const CUT_W: int = 24
 const CUT_H: int = 30
