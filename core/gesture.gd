@@ -50,7 +50,7 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var holes: int = chasms(world)
 	if holes > 0:
 		out.append("%d gouffre(s) enclos" % holes)
-	var ribbons: int = visible_thin(world)
+	var ribbons: int = thin_cells_visible(world).size()
 	if ribbons > 0:
 		out.append("%d case(s) d'herbe visible fine" % ribbons)
 	return out
@@ -83,7 +83,17 @@ static func visible_thin(world: PackedStringArray) -> int:
 	return thin_cells_visible(world).size()
 
 
-## Les cases d'herbe visible dont la course fait moins de trois -- hors plaine.
+## Les cases d'herbe visible qui sont fines -- par course OU par PINCEMENT DIAGONAL, hors plaine.
+##
+## ⚠ ET LA COURSE COUVRE DEJA LA DIAGONALE -- mesure, pas raisonnement. J'avais ajoute une clause
+## de PINCEMENT DIAGONAL sur la surface visible, en croyant que les courses la manquaient : elle
+## ne s'est declenchee ZERO fois, ni sur le guide ou les diagonales fines avaient ete vues (58
+## cases, toutes par course), ni ailleurs. C'est un theoreme : deux morceaux relies par un seul
+## COIN ont forcement une course de UN de chaque cote. Le code a ete retire -- un mecanisme qui
+## ne se declenche jamais rend la meme image qu'un mecanisme juste, et on ne garde pas ca.
+##
+## Le plus fin qu'on autorise est donc un bloc de TROIS SUR TROIS de surface visible : une case
+## pleine, cernee de huit tuiles de bord.
 static func thin_cells_visible(world: PackedStringArray) -> Array[Vector2i]:
 	var top: Dictionary = {}
 	for one: Dictionary in Massifs.poses(world):
