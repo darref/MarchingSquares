@@ -18,14 +18,24 @@ const Tiles := preload("res://render/contour_tiles.gd")
 const RES: int = Tiles.RES
 const OUTLINE: Color = Tiles.OUTLINE
 
-## LA MATIERE DE CHAQUE BANDE. L'herbe pour la surface, trois roches pour la jupe.
-const BODY: Array[Color] = [
-	Color(0.44, 0.60, 0.32),
-	Color(0.74, 0.57, 0.42),
-	Color(0.64, 0.48, 0.35),
-	Color(0.54, 0.40, 0.29),
-]
+## DEUX MATIERES, ET DEUX SEULEMENT : l'herbe et la roche.
+##
+## ⚠ LE CHAPITEAU, LE CORPS ET LE PIED NE SONT PAS TROIS MATIERES -- ce sont trois POSITIONS
+## dans une meme paroi. Les teinter chacune faisait lire un empilement de bandes la ou il y a
+## une face continue, et c'etait le defaut le plus visible du fond : « il y a tellement
+## d'erreurs que je ne reconnais plus rien ».
+##
+## ⚠ ET UNE SEULE TEINTE PAR MATIERE, QUEL QUE SOIT L'ETAGE. Le tileset livre n'en a qu'une ;
+## teinter chaque etage est une bequille de mise au point qui ment sur ce qui sortira. Meme
+## argument que pour l'essai, deja au dossier : un tileset n'a qu'un jeu de tuiles.
+const GRASS: Color = Color(0.42, 0.58, 0.30)
+const ROCK: Color = Color(0.66, 0.51, 0.38)
 
+## LA LUMIERE VIENT DU NORD-OUEST. C'est ce qui fait lire le relief, et c'est CONSTANT dans la
+## tuile -- une levre a toujours de la surface au-dessus d'elle, un pied est toujours en bas --
+## donc c'est peignable, et une tuile exportee peut le porter.
+const LIT: float = 0.16
+const DARK: float = 0.13
 ## L'amplitude de l'ondulation, en pixels, a F2.
 const SWELL: float = 3.0
 
@@ -142,9 +152,43 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 			if band == Massifs.CHAPITEAU and y2 == 0:
 				out.set_pixel(x2, y2, OUTLINE)
 				continue
-			out.set_pixel(x2, y2, OUTLINE if edge else (PAPER if ink == CONTOUR
-					else BODY[band].lightened(0.13 * float(level - 1))))
+			if edge:
+				out.set_pixel(x2, y2, OUTLINE)
+				continue
+			out.set_pixel(x2, y2, PAPER if ink == CONTOUR else _matter(band, x2, y2))
 	return out
+
+
+## LA MATIERE D'UN PIXEL : l'herbe est plate, la roche est striee et prend le jour au nord-ouest.
+##
+## ⚠ LA STRIURE DIT « PAROI », ET SANS ELLE UNE FALAISE EST UN APLAT MARRON. Elle se tient a
+## distance des deux bords lateraux : deux colonnes de face voisines sont souvent la MEME paroi,
+## et une rainure posee sur le bord se dedoublerait au raccord. Lecon deja payee sur l'ancien
+## modele -- « ce qui depend de la rangee se tient a distance des bords gauche et droit ».
+##
+## ⚠ ET LA LEVRE EST LA SEULE MARQUE QUI TOUCHE UN BORD, parce qu'elle est CONSTANTE : un
+## chapiteau a toujours de la surface au-dessus de lui, c'est sa definition meme.
+static func _matter(band: int, x: int, y: int) -> Color:
+	if band == Massifs.SURFACE:
+		return GRASS
+	var tint: Color = ROCK
+	# La levre prend le jour, juste sous le trait ; le pied s'enfonce dans l'ombre.
+	#
+	# ⚠ ET LA MARQUE DU PIED PORTE SUR TOUTE LA TUILE, PAS SUR SES RANGEES DU BAS. Un pied a
+	# TOUJOURS son sud ouvert -- il atterrit sur du sol, qui n'est pas de son empreinte -- donc
+	# en liberte ses rangees basses sont coupees et la marque disparait : `CORPS 193` rendait
+	# alors la meme image que `PIED 193`. I7 l'a dit a la seconde meme. Une marque doit se poser
+	# la ou la tuile est TOUJOURS visible, et pour un pied c'est partout.
+	if band == Massifs.CHAPITEAU and y <= 2:
+		tint = tint.lightened(LIT * (1.0 - float(y - 1) / 2.0))
+	elif band == Massifs.PIED:
+		tint = tint.darkened(DARK * (0.5 + 0.5 * float(y) / float(RES - 1)))
+	# La striure : deux rainures, au quart et aux trois quarts.
+	if x == RES / 4 or x == RES - 1 - RES / 4:
+		tint = tint.darkened(0.07)
+	elif x == RES / 4 + 1 or x == RES - RES / 4:
+		tint = tint.lightened(0.05)
+	return tint
 
 
 static func _inside(sil: int, x: int, y: int, freedom: int, flush: bool) -> bool:
