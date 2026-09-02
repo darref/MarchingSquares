@@ -53,96 +53,16 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var ribbons: int = thin_cells_visible(world).size()
 	if ribbons > 0:
 		out.append("%d case(s) d'herbe visible fine" % ribbons)
-	var walls: int = thin_lips(world).size()
-	if walls > 0:
-		out.append("%d falaise(s) visible(s) fine(s)" % walls)
 	return out
 
 
-## LES FALAISES VISIBLES TROP FINES -- rend les LEVRES a corriger.
-##
-## ⚠ MIN TROIS VAUT POUR LA ROCHE COMME POUR L'HERBE, ET JE NE L'AVAIS PAS VU. Une face d'UNE
-## SEULE COLONNE est aussi fine qu'un ruban d'herbe d'une case : le peintre ne peut rien
-## supposer du cote masse de ses tuiles de bord, et a la profondeur de rendez-vous du fond elle
-## se reduit a deux pixels. 21 cases dans le guide -- exactement les points que l'utilisateur a
-## marques en rouge.
-##
-## ⚠ ET LA COURSE SE COMPTE PAR LEVRE, PAS PAR CASE. Une face est une PAROI : deux colonnes de
-## roche cote a cote ne la continuent que si elles pendent de la MEME levre. Comptees case par
-## case, deux parois distinctes qui se touchent passeraient pour une seule, epaisse.
-static func thin_lips(world: PackedStringArray) -> Array[Vector2i]:
-	var top: Dictionary = {}
-	for one: Dictionary in Massifs.poses(world):
-		var cell: Vector2i = one["cell"]
-		if top.has(cell) and int((top[cell] as Dictionary)["level"]) > int(one["level"]):
-			continue
-		top[cell] = one
-	var rock: Dictionary = {}
-	for cell2: Vector2i in top.keys():
-		var one2: Dictionary = top[cell2]
-		if int(one2["band"]) == Massifs.SURFACE:
-			continue
-		var lip: Vector2i = one2["lip"]
-		rock[cell2] = Vector3i(lip.x, lip.y, int(one2["level"]))
-	var out: Array[Vector2i] = []
-	for cell3: Vector2i in rock.keys():
-		var mine: Vector3i = rock[cell3]
-		var length: int = 1
-		for way: int in [-1, 1]:
-			for step: int in [1, 2]:
-				var near: Vector2i = cell3 + Vector2i(way * step, 0)
-				if not rock.has(near):
-					break
-				var other: Vector3i = rock[near]
-				if other.y != mine.y or other.z != mine.z:
-					break
-				length += 1
-		if length >= 3:
-			continue
-		var fix: Vector2i = Vector2i(cell3.x, mine.y)
-		if not out.has(fix):
-			out.append(fix)
-	return out
+## ⚠ ET IL N'Y A PAS DE CLAUSE SUR LA ROCHE : DEPUIS LE DEBUT, LA ROCHE NE FAIT QUE SUIVRE
+## L'HERBE. J'en avais ajoute une -- « une face d'une seule colonne est trop fine » -- en croyant
+## completer min trois. Elle est fausse par principe : une face n'est pas posee par le level
+## designer, elle DECOULE du bord sud de la surface. Ce qui compte est la SURFACE, parce que
+## c'est la que le personnage marche.
 
 
-## L'EPAISSEUR DE CE QUI SE VOIT, et pas seulement celle du relief.
-##
-## ⚠ MIN TROIS PORTE SUR LE RELIEF ; IL NE DIT RIEN DE CE QU'UNE FALAISE VOISINE RECOUVRE. Une
-## falaise retombe sur le sol et le cache : entre sa retombee et la levre suivante, il peut ne
-## rester qu'UNE case d'herbe visible. Le relief y est epais, et pourtant ce qu'on voit ne l'est
-## pas -- 278 cases sur 6 321 dans le guide, pour zero case fine au sens du relief.
-##
-## Et c'est exactement la raison d'etre de min trois, un cran plus loin : une bande de deux n'a
-## pas d'interieur, que ce soit dans la carte ou a l'ecran. Le peintre ne peut rien supposer du
-## cote masse de ses tuiles de bord.
-##
-## ⚠ ET ELLE NE PORTE PAS SUR LA PLAINE, PARCE QUE C'EST MESURE : sur des reliefs epais tires au
-## sort, 100 % sont propres HORS PLAINE et 27 % seulement le sont plaine comprise. Tout le fin
-## est donc sur elle -- et c'est normal : elle est le sol sur lequel les falaises retombent, donc
-## chacune la decoupe. Un ruban de sol entre deux falaises est une CORNICHE, pas un defaut.
-##
-## La clause hors plaine est donc GRATUITE -- elle ne refuse aucun relief que le geste produit
-## spontanement -- et c'est pourtant elle qui attrape le defaut signale : un plateau dont la
-## surface visible ne fait qu'une case de large.
-##
-## ⚠ ET LA COURSE SE COMPTE PAR MASSIF. Deux rubans d'herbe qui se touchent mais appartiennent a
-## deux massifs differents ne font pas une bande epaisse : ce sont deux terrains distincts, a
-## deux hauteurs, et le peintre les lit comme tels.
-static func visible_thin(world: PackedStringArray) -> int:
-	return thin_cells_visible(world).size()
-
-
-## Les cases d'herbe visible qui sont fines -- par course OU par PINCEMENT DIAGONAL, hors plaine.
-##
-## ⚠ ET LA COURSE COUVRE DEJA LA DIAGONALE -- mesure, pas raisonnement. J'avais ajoute une clause
-## de PINCEMENT DIAGONAL sur la surface visible, en croyant que les courses la manquaient : elle
-## ne s'est declenchee ZERO fois, ni sur le guide ou les diagonales fines avaient ete vues (58
-## cases, toutes par course), ni ailleurs. C'est un theoreme : deux morceaux relies par un seul
-## COIN ont forcement une course de UN de chaque cote. Le code a ete retire -- un mecanisme qui
-## ne se declenche jamais rend la meme image qu'un mecanisme juste, et on ne garde pas ca.
-##
-## Le plus fin qu'on autorise est donc un bloc de TROIS SUR TROIS de surface visible : une case
-## pleine, cernee de huit tuiles de bord.
 static func thin_cells_visible(world: PackedStringArray) -> Array[Vector2i]:
 	var top: Dictionary = {}
 	for one: Dictionary in Massifs.poses(world):
@@ -157,17 +77,20 @@ static func thin_cells_visible(world: PackedStringArray) -> Array[Vector2i]:
 			grass[cell2] = int(one2["massif"])
 	var out: Array[Vector2i] = []
 	for cell3: Vector2i in grass.keys():
-		for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
-			var length: int = 1
-			for way: int in [-1, 1]:
-				for step: int in [1, 2]:
-					var near: Vector2i = cell3 + axis * way * step
-					if not grass.has(near) or int(grass[near]) != int(grass[cell3]):
-						break
-					length += 1
-			if length < 3:
-				out.append(cell3)
-				break
+		var mine: int = int(grass[cell3])
+		var held: bool = false
+		for oy: int in range(-2, 1):
+			for ox: int in range(-2, 1):
+				var full: bool = true
+				for dy: int in range(3):
+					for dx: int in range(3):
+						var at: Vector2i = cell3 + Vector2i(ox + dx, oy + dy)
+						if not grass.has(at) or int(grass[at]) != mine:
+							full = false
+				if full:
+					held = true
+		if not held:
+			out.append(cell3)
 	return out
 
 
@@ -249,12 +172,6 @@ static func mend(grid: Array[PackedByteArray]) -> PackedStringArray:
 		# le geste, au contraire, appauvrissait le generateur -- 129 especes de jonction tombaient
 		# a 36 -- et le guide se serait mis a mentir par omission.
 		_flatten(grid)
-		# ⚠ ET UNE FACE D'UNE COLONNE SE DEFAIT EN ABAISSANT SA LEVRE : la saillie d'une case
-		# disparait, et avec elle la paroi impossible a peindre.
-		for lip: Vector2i in thin_lips(text(grid)):
-			if lip.y < 0 or lip.y >= tall or lip.x < 0 or lip.x >= wide:
-				continue
-			grid[lip.y][lip.x] = maxi(int(grid[lip.y][lip.x]) - 1, 1)
 	var last: PackedStringArray = text(grid)
 	return last if legal(last) else PackedStringArray()
 

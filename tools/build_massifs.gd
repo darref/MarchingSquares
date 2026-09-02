@@ -169,12 +169,13 @@ func _initialize() -> void:
 			centres.append(Vector2i(bx + 2, by + 2) + Witnesses.AT)
 		kinds.append(todo[at2])
 
-	var text: PackedStringArray = PackedStringArray()
-	for line2: PackedByteArray in grid:
-		var said: String = ""
-		for v: int in line2:
-			said += "~" if v == 0 else str(v - 1)
-		text.append(said)
+	# ⚠ ET LE GUIDE PASSE PAR LA REPARATION DU GESTE AVANT D'ETRE ECRIT. Chaque ilot est verifie
+	# SEUL ; assembles, ils se voisinent, et le voisinage cree des cas qu'aucun d'eux ne portait
+	# -- huit cases d'herbe fine sur le dernier guide, alors que chaque ilot etait legal. Un guide
+	# est un relief comme un autre : il doit etre de ceux que le pinceau produit, donc il subit la
+	# meme correction.
+	var mended: PackedStringArray = Gesture.mend(grid)
+	var text: PackedStringArray = mended if not mended.is_empty() else Gesture.text(grid)
 	var file: FileAccess = FileAccess.open(out, FileAccess.WRITE)
 	file.store_string("\n".join(text) + "\n")
 	file.close()
