@@ -99,6 +99,20 @@ func _initialize() -> void:
 		for key: String in got.keys():
 			targets[key] = int(targets.get(key, 0)) + 1
 	print("le monde pose %d especes de jonction (%d mondes)" % [targets.size(), pool.size()])
+	# ⚠ ET LE DEBORDEMENT SE CONSTRUIT, PARCE QUE LE HASARD NE LE PRODUIT PAS. Un massif porte
+	# dont le bord sud coincide avec celui de son porteur n'a plus de socle sous sa jupe : sa
+	# face descend jusqu'a la PLAINE, six rangees. Mesure sur le guide precedent : 232 chutes de
+	# trois a l'etage 0, 180 a l'etage 1, 69 a l'etage 2 -- et ZERO chute de six. Le cas
+	# n'existait nulle part, donc ses tuiles n'etaient ni peignables ni jugeables.
+	var extra: PackedStringArray = _overhang()
+	if not extra.is_empty():
+		var got2: Dictionary = Lab.species(extra)
+		pool.append(extra)
+		brings.append(got2)
+		for key4: String in got2.keys():
+			targets[key4] = int(targets.get(key4, 0)) + 1
+		print("  + le specimen de DEBORDEMENT : %d especes, dont %d neuves"
+				% [got2.size(), got2.size()])
 
 	# LE CHOIX GLOUTON : a chaque tour, le monde qui apporte le plus d'especes neuves.
 	var covered: Dictionary = {}
@@ -201,6 +215,32 @@ func _alone_block(block: PackedStringArray) -> PackedStringArray:
 				line += block[y - RIM].substr(x - RIM, 1)
 		out.append(line)
 	return out
+
+
+## LE SPECIMEN DE DEBORDEMENT : un massif porte dont le bord sud coincide avec celui de son
+## porteur, donc dont la face descend de SIX jusqu'a la plaine.
+##
+## ⚠ IL SE CONSTRUIT, PARCE QUE LE HASARD NE LE PRODUIT PAS. Mesure sur le guide precedent :
+## 232 chutes de trois a l'etage 0, 180 a l'etage 1, 69 a l'etage 2 -- et ZERO chute de six. Le
+## cas n'existait nulle part, donc ses tuiles n'etaient ni peignables ni jugeables.
+func _overhang() -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(CUT_H):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(CUT_W)
+		line.fill(0)
+		grid.append(line)
+	for y2: int in range(RIM, CUT_H - RIM):
+		for x2: int in range(RIM, CUT_W - RIM):
+			grid[y2][x2] = 1
+	for y3: int in range(RIM + 3, RIM + 12):
+		for x3: int in range(RIM + 3, RIM + 12):
+			grid[y3][x3] = 2
+	for y4: int in range(RIM + 6, RIM + 12):
+		for x4: int in range(RIM + 6, RIM + 12):
+			grid[y4][x4] = 3
+	var world: PackedStringArray = Gesture.mend(grid)
+	return world if not world.is_empty() and Lab.legal(world) else PackedStringArray()
 
 
 func _put(grid: Array[PackedByteArray], x: int, y: int, level: int) -> void:

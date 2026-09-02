@@ -302,11 +302,21 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 const FOOT_MARGIN: int = 1
 
 
+## ⚠ ET ELLE SE LIT SUR CE QUI EST VISIBLE, PAS SUR TOUTES LES POSES. Quand un massif porte
+## deborde son porteur, sa longue face passe DEVANT celle du porteur : le pied du porteur se
+## retrouve alors juste au-dessus du corps du porte -- et la regle criait, alors que ce pied est
+## CACHE et que rien ne se colle a l'ecran. Six fautes sur le specimen de debordement, qui
+## devenait irrealisable : le cas de la chute de SIX n'existait donc nulle part.
 static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
+	var top: Dictionary = {}
+	for one: Dictionary in poses(world):
+		var at: Vector2i = one["cell"]
+		if top.has(at) and int((top[at] as Dictionary)["level"]) > int(one["level"]):
+			continue
+		top[at] = one
 	var bands_at: Dictionary = {}
-	for pose: Dictionary in poses(world):
-		var cell: Vector2i = pose["cell"]
-		bands_at[cell] = int(bands_at.get(cell, 0)) | (1 << int(pose["band"]))
+	for cell3: Vector2i in top.keys():
+		bands_at[cell3] = 1 << int((top[cell3] as Dictionary)["band"])
 	var out: Array[Vector2i] = []
 	var rock: int = (1 << CHAPITEAU) | (1 << CORPS) | (1 << PIED)
 	for cell2: Vector2i in bands_at.keys():
