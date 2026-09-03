@@ -36,7 +36,7 @@ const OUTLINE: Color = MassifTiles.OUTLINE
 
 ## Le monde d'un tirage, et sa marge de vide : la falaise du bord du monde y tombe.
 const WIDE: int = 22
-const TALL: int = 24
+const TALL: int = 38
 const RIM: int = 4
 
 
@@ -57,7 +57,8 @@ func _initialize() -> void:
 		# relief que le pinceau corrigera avant de le laisser poser : le banc prouve le DESSIN
 		# sur des mondes legaux, pas sur des mondes que le produit ne fabriquera jamais. Le
 		# compte est imprime -- une borne muette se lit comme « tout couvert ».
-		if not Massifs.foot_faults(one).is_empty() 				or not Thickness.diagonal_pinches(one).is_empty():
+		if not Massifs.foot_faults(one).is_empty() 				or not Thickness.diagonal_pinches(one).is_empty() \
+				or not _contained(one):
 			refused += 1
 			continue
 		made += 1
@@ -341,3 +342,21 @@ func _draw(rng: RandomNumberGenerator) -> PackedStringArray:
 	if not Thickness.thin_cells(text).is_empty():
 		return PackedStringArray()
 	return text
+
+
+
+## UN MONDE DOIT CONTENIR SES PROPRES CHUTES.
+##
+## ⚠ UNE FACE QUI SORT DU CADRE EST ECRETEE PAR L IMAGE, PAS PAR LE RELIEF : son trait meurt au
+## bord, et le banc accuse le dessin d un defaut que seul le cadre a produit. Depuis le tampon a
+## etage choisi, une chute de quatre etages fait quinze rangees -- le cadre d avant n en gardait
+## que quatre sous la levre la plus basse. Meme lecon qu au premier modele : un relief declare
+## son bord, et une robe hors grille est une tuile impeignable.
+func _contained(world: PackedStringArray) -> bool:
+	var wide: int = HeightMask.width(world)
+	var tall: int = HeightMask.height(world)
+	for one: Dictionary in Massifs.poses(world):
+		var cell: Vector2i = one["cell"]
+		if cell.x < 0 or cell.y < 0 or cell.x >= wide or cell.y >= tall:
+			return false
+	return true

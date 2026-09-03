@@ -99,20 +99,11 @@ func _initialize() -> void:
 		for key: String in got.keys():
 			targets[key] = int(targets.get(key, 0)) + 1
 	print("le monde pose %d especes de jonction (%d mondes)" % [targets.size(), pool.size()])
-	# ⚠ ET LE DEBORDEMENT SE CONSTRUIT, PARCE QUE LE HASARD NE LE PRODUIT PAS. Un massif porte
-	# dont le bord sud coincide avec celui de son porteur n'a plus de socle sous sa jupe : sa
-	# face descend jusqu'a la PLAINE, six rangees. Mesure sur le guide precedent : 232 chutes de
-	# trois a l'etage 0, 180 a l'etage 1, 69 a l'etage 2 -- et ZERO chute de six. Le cas
-	# n'existait nulle part, donc ses tuiles n'etaient ni peignables ni jugeables.
-	var extra: PackedStringArray = _overhang()
-	if not extra.is_empty():
-		var got2: Dictionary = Lab.species(extra)
-		pool.append(extra)
-		brings.append(got2)
-		for key4: String in got2.keys():
-			targets[key4] = int(targets.get(key4, 0)) + 1
-		print("  + le specimen de DEBORDEMENT : %d especes, dont %d neuves"
-				% [got2.size(), got2.size()])
+	# ⚠ LE DEBORDEMENT NE SE CONSTRUIT PLUS : LE GESTE LE PRODUIT. Il a fallu le batir a la main
+	# tant que le pinceau montait d'un etage a la fois -- le hasard ne posait alors que des chutes
+	# de trois. Depuis le tampon a ETAGE CHOISI, la marche rend d'elle-meme 200 levres a six, 89 a
+	# neuf et 9 a douze pour mille a trois. Le specimen est donc retire, et le guide redevient
+	# ATTEIGNABLE de bout en bout : chaque monde qu'il montre, une suite de gestes y mene.
 
 	# LE CHOIX GLOUTON : a chaque tour, le monde qui apporte le plus d'especes neuves.
 	var covered: Dictionary = {}
@@ -153,7 +144,12 @@ func _initialize() -> void:
 	var cells: int = pieces.size() + (todo.size() + per_row - 1) / per_row * per_row
 	var rows: int = (pieces.size() + per_row - 1) / per_row
 	var isle_rows: int = (todo.size() + COLUMNS - 1) / COLUMNS
-	var wide: int = maxi(per_row * CUT_W, COLUMNS * BLOCK_W) + 2 * RIM
+	# ⚠ LA PLAINE NE S'ETEND QUE SOUS LES ILOTS QU'ON POSE VRAIMENT. Elle courait sur les huit
+	# colonnes du gabarit quel que soit le nombre d'ilots : trois specimens dans une plaine de
+	# huit paves, donc cinq paves de terrain que personne ne peint -- et la case rapetisse a
+	# l'ecran pour rien. Ce qui compte n'est pas le nombre de cases, c'est la taille de la case.
+	var isle_cols: int = maxi(1, mini(todo.size(), COLUMNS))
+	var wide: int = maxi(per_row * CUT_W, isle_cols * BLOCK_W) + 2 * RIM
 	var tall: int = 2 * RIM + rows * CUT_H + isle_rows * BLOCK_H
 	var grid: Array[PackedByteArray] = []
 	for y: int in range(tall):
@@ -163,7 +159,7 @@ func _initialize() -> void:
 		grid.append(line)
 	# La plaine ne court que sous les ILOTS : les mondes portent la leur, avec leur vide.
 	for y2: int in range(RIM + rows * CUT_H, tall - RIM):
-		for x2: int in range(RIM, wide - RIM):
+		for x2: int in range(RIM, RIM + isle_cols * BLOCK_W):
 			_put(grid, x2, y2, 0)
 
 	var centres: Array[Vector2i] = []
@@ -215,32 +211,6 @@ func _alone_block(block: PackedStringArray) -> PackedStringArray:
 				line += block[y - RIM].substr(x - RIM, 1)
 		out.append(line)
 	return out
-
-
-## LE SPECIMEN DE DEBORDEMENT : un massif porte dont le bord sud coincide avec celui de son
-## porteur, donc dont la face descend de SIX jusqu'a la plaine.
-##
-## ⚠ IL SE CONSTRUIT, PARCE QUE LE HASARD NE LE PRODUIT PAS. Mesure sur le guide precedent :
-## 232 chutes de trois a l'etage 0, 180 a l'etage 1, 69 a l'etage 2 -- et ZERO chute de six. Le
-## cas n'existait nulle part, donc ses tuiles n'etaient ni peignables ni jugeables.
-func _overhang() -> PackedStringArray:
-	var grid: Array[PackedByteArray] = []
-	for y: int in range(CUT_H):
-		var line: PackedByteArray = PackedByteArray()
-		line.resize(CUT_W)
-		line.fill(0)
-		grid.append(line)
-	for y2: int in range(RIM, CUT_H - RIM):
-		for x2: int in range(RIM, CUT_W - RIM):
-			grid[y2][x2] = 1
-	for y3: int in range(RIM + 3, RIM + 12):
-		for x3: int in range(RIM + 3, RIM + 12):
-			grid[y3][x3] = 2
-	for y4: int in range(RIM + 6, RIM + 12):
-		for x4: int in range(RIM + 6, RIM + 12):
-			grid[y4][x4] = 3
-	var world: PackedStringArray = Gesture.mend(grid)
-	return world if not world.is_empty() and Lab.legal(world) else PackedStringArray()
 
 
 func _put(grid: Array[PackedByteArray], x: int, y: int, level: int) -> void:
