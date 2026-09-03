@@ -207,9 +207,14 @@ static func walk(rng: RandomNumberGenerator, wide: int, tall: int, rim: int = 4)
 		var keep: Array[PackedByteArray] = []
 		for row: PackedByteArray in grid:
 			keep.append(row.duplicate())
+		var floor_at: int = 9
+		for y0: int in range(where.y, where.y + 3):
+			for x0: int in range(where.x, where.x + 3):
+				floor_at = mini(floor_at, int(grid[y0][x0]))
+		var put: int = rng.randi_range(floor_at + 1, mini(floor_at + 2, 4)) if raise 				else rng.randi_range(1, maxi(floor_at - 1, 1))
 		for y3: int in range(where.y, where.y + 3):
 			for x3: int in range(where.x, where.x + 3):
-				grid[y3][x3] = mini(int(grid[y3][x3]) + 1, 5) if raise 						else maxi(int(grid[y3][x3]) - 1, 1)
+				grid[y3][x3] = put
 		if not legal(text(grid)):
 			grid = keep
 	return text(grid)

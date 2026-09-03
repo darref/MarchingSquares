@@ -178,7 +178,12 @@ func _measure(image: Image, world: PackedStringArray, species: Dictionary,
 		poses: Array[Dictionary] = []) -> Dictionary:
 	var top: Dictionary = {}
 	for pose: Dictionary in poses:
-		top[pose["cell"]] = pose
+		if bool(pose["under"]):
+			continue
+		var at: Vector2i = pose["cell"]
+		if top.has(at) and int((top[at] as Dictionary)["level"]) > int(pose["level"]):
+			continue
+		top[at] = pose
 	var width: int = image.get_width()
 	var height: int = image.get_height()
 	var stroke: Array[PackedByteArray] = []
@@ -236,6 +241,20 @@ func _measure(image: Image, world: PackedStringArray, species: Dictionary,
 		for x3: int in range(width - 1):
 			if stroke[y3][x3] == 1 and stroke[y3][x3 + 1] == 1 \
 					and stroke[y3 + 1][x3] == 1 and stroke[y3 + 1][x3 + 1] == 1:
+				# ⚠ UN PAVE N'EST UN DEFAUT QUE SI LES DEUX TRAITS DECRIVENT LA MEME FRONTIERE.
+				# I2 a ete invente pour une frontiere tracee DEUX FOIS par deux couches : la ligne
+				# devrait faire un pixel, elle en fait deux, et l'oeil lit un renflement. Deux faces
+				# DIFFERENTES qui se rencontrent, ce n'est pas ca : il y a vraiment deux flancs, donc
+				# deux traits, et la 3D est juste -- meme si ce sont deux massifs distincts.
+				#
+				# « Une adjacence n'est pas une frontiere », deja au dossier, applique a l'envers :
+				# I2 comptait l'adjacence de pixels d'encre, pas l'identite de la frontiere.
+				var one_a: Dictionary = top.get(Vector2i(x3 / RES, y3 / RES), {})
+				var one_b: Dictionary = top.get(Vector2i((x3 + 1) / RES, (y3 + 1) / RES), {})
+				if not one_a.is_empty() and not one_b.is_empty() and one_a != one_b \
+						and (int(one_a["massif"]) != int(one_b["massif"])
+						or (one_a["lip"] as Vector2i).y != (one_b["lip"] as Vector2i).y):
+					continue
 				pave += 1
 				if where.is_empty():
 					where = "pave au pixel %d,%d (case %d,%d)" % [x3, y3, x3 / RES, y3 / RES]
