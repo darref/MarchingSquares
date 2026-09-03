@@ -29,6 +29,7 @@ const GuideImage := preload("res://render/guide_image.gd")
 const Families := preload("res://core/families.gd")
 const Seams := preload("res://core/seams.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
+const Massifs := preload("res://core/massifs.gd")
 const MassifScene := preload("res://render/massif_scene.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
 
@@ -335,7 +336,29 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# tuile par etage et par case. Sans ca, un pixel transparent d'une tuile -- coin
 	# decoupe, bord balade -- montrait le fond du programme la ou le jeu montrera le sol.
 	_stack_below.clear()
-	if guide_family == Families.BY_CELL:
+	if guide_family == Families.BY_MASSIF:
+		# ⚠ LA PILE EST LE MODELE LUI-MEME, ET ELLE EST DEJA CALCULEE. Un massif se dessine
+		# ENTIER, y compris sous ce qui le recouvre : une case porte donc autant de poses que
+		# de massifs qui la couvrent, et l'ordre de pose tranche qui est devant. Ce qu'une
+		# tuile laisse en transparence montre la pose juste en dessous -- de l'herbe, de la
+		# roche ou le vide selon l'endroit.
+		#
+		# ⚠ ET C'EST POUR CA QUE LE PEINTRE DOIT LA VOIR. Mesure sur le guide : 25 tuiles sur
+		# 39 se posent devant PLUSIEURS matieres -- le corps plein en voit trois, roche 693
+		# fois, herbe 346, vide 572. Peindre son fond en herbe le rendrait faux partout
+		# ailleurs : le fond decouvert se laisse en TRANSPARENCE, et seul le remontage dit
+		# ce qu'on verra vraiment.
+		var piles: Dictionary = {}
+		for pose: Dictionary in Massifs.poses(heights):
+			var at2: Vector2i = pose["cell"]
+			if not piles.has(at2):
+				piles[at2] = [] as Array[int]
+			(piles[at2] as Array[int]).append(Massifs.key_of(pose))
+		for at3: Vector2i in piles.keys():
+			var pile: Array[int] = piles[at3]
+			if pile.size() > 1:
+				_stack_below[at3] = pile.slice(0, pile.size() - 1)
+	elif guide_family == Families.BY_CELL:
 		var columns: int = HeightMask.width(heights)
 		var rows: int = HeightMask.height(heights)
 		var top_level: int = 0
