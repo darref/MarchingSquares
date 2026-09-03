@@ -17,6 +17,10 @@ var _strokes: bool = false
 var _stroked: bool = false
 var _editor: Node = null
 var _zoom_at: Vector2 = Vector2.ZERO
+## Le paysage a ouvrir, par son identifiant de mode. ⚠ IL SE POSE AVANT LE RESEAU : la
+## liste des reseaux se grise d'apres le guide, donc changer de paysage apres coup
+## deplacerait la selection sous nos pieds.
+var _mode: StringName = &""
 var _zoom_steps: int = 0
 var _zoomed: bool = false
 
@@ -56,6 +60,8 @@ func _initialize() -> void:
 			"preuve":
 				_preview = true
 				_decor = 1
+			"massifs":
+				_mode = &"massifs"
 			"trait":
 				_strokes = true
 			_:
@@ -81,6 +87,13 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames == 3:
+		if _mode != &"":
+			var modes: OptionButton = _editor.get_node("%ModeChoice")
+			for index2: int in range(modes.item_count):
+				if StringName(modes.get_item_metadata(index2)) == _mode:
+					modes.select(index2)
+					modes.item_selected.emit(index2)
+					break
 		if _family >= 0:
 			var family: OptionButton = _editor.get_node("%FamilyChoice")
 			family.select(_family)

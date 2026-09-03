@@ -29,6 +29,8 @@ const GuideImage := preload("res://render/guide_image.gd")
 const Families := preload("res://core/families.gd")
 const Seams := preload("res://core/seams.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
+const MassifScene := preload("res://render/massif_scene.gd")
+const MassifTiles := preload("res://render/massif_tiles.gd")
 
 ## Emis des que la peinture change : l'editeur s'en sert pour rafraichir ses compteurs.
 signal painting_changed
@@ -516,13 +518,27 @@ func refresh_background() -> void:
 func _redraw_background() -> void:
 	if _heights.is_empty():
 		return
-	_cache_key = "%d:%d:%d:%d:%d" % ["
+	_cache_key = "%s:%d:%d:%d:%d:%d" % [guide_family, "
 ".join(_heights).hash(), GUIDE_TILE, int(guide_ink), int(guide_purpose),
 			1 if guide_marks else 0]
 	if _cache.has(_cache_key):
 		var pair: Array = _cache[_cache_key]
 		_background = pair[0]
 		_background_flat = pair[1]
+		_job = null
+		loading_progress.emit(1, 1)
+		return
+	# ⚠ LE MODELE DES MASSIFS SE DESSINE D UN COUP, ET C EST MESURE : une seconde pour le
+	# guide entier (2432x3968). Le decoupage par etapes existe parce que l ancien fond coutait
+	# de deux a cinq secondes ; ici il n a pas lieu d etre. Et il n y a PAS d image plate a
+	# part : le modele ne pose aucune ombre portee, donc rien a masquer -- l ancien en avait
+	# une parce que ses ombres tombaient sur des cases de plaine qu aucune tuile ne porte.
+	if guide_family == Families.BY_MASSIF:
+		var made: Image = MassifScene.compose(_heights, 1,
+			MassifTiles.CONTOUR if guide_ink == GuideImage.Ink.WIREFRAME else MassifTiles.PEINT)
+		_background = ImageTexture.create_from_image(made)
+		_background_flat = _background
+		_cache[_cache_key] = [_background, _background_flat]
 		_job = null
 		loading_progress.emit(1, 1)
 		return

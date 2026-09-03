@@ -27,9 +27,19 @@ const Coverage := preload("res://core/coverage.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Walls := preload("res://core/walls.gd")
 const Thickness := preload("res://core/thickness.gd")
+const Massifs := preload("res://core/massifs.gd")
+const Brush := preload("res://core/brush_vocabulary.gd")
 
 const BY_CELL: StringName = &"cell"
 const BY_CORNER: StringName = &"corner"
+## LE MODELE DES MASSIFS : une seule famille, un seul vocabulaire.
+##
+## ⚠ ICI LA FALAISE N'EST PLUS UN SECOND VOCABULAIRE. Un massif se dessine ENTIER -- sa
+## surface et sa jupe -- et une tuile est le couple (silhouette, bande). Il n'y a donc ni
+## carte de surface a nettoyer de ses robes, ni roles a compter a part : une case porte une
+## pose, et c'est tout. Les deux jauges de l'editeur se lisent alors sur les BANDES d'un
+## meme vocabulaire, pas sur deux familles qui s'ignorent.
+const BY_MASSIF: StringName = &"massif"
 
 const FAMILIES: Dictionary = {
 	BY_CELL: {
@@ -40,7 +50,18 @@ const FAMILIES: Dictionary = {
 		"label": "A cheval",
 		"note": "15 tuiles de surface",
 	},
+	BY_MASSIF: {
+		"label": "Massifs",
+		"note": "un massif entier, surface et jupe",
+	},
 }
+
+
+## LE VOCABULAIRE DU MODELE DES MASSIFS : celui que le GESTE atteint, pas la forme close.
+## ⚠ LA FORME CLOSE RESTE LA BORNE HAUTE (core/massif_form.gd) ; elle garde l'invariant, elle
+## n'est plus la cible. Le peintre peint de la surface ; le reste suit.
+static func massif_tiles() -> Array[int]:
+	return Brush.tiles()
 
 
 static func ids() -> Array[StringName]:
@@ -68,6 +89,12 @@ static func note(family: StringName) -> String:
 ## a l'interdit des reliefs d'une tuile d'epaisseur (core/thickness.gd), pas les 47 de la
 ## mathematique. Les 47 restent le theoreme (BlobIndex) ; les 27 sont le vocabulaire.
 static func surface_indices(family: StringName) -> PackedInt32Array:
+	if family == BY_MASSIF:
+		var out: PackedInt32Array = PackedInt32Array()
+		for tile: int in massif_tiles():
+			if Massifs.band_of(tile) == Massifs.SURFACE:
+				out.append(tile)
+		return out
 	if family == BY_CORNER:
 		return CornerIndex.all_indices()
 	return Thickness.SURFACE_INDICES
@@ -80,8 +107,20 @@ static func surface_tile_count(family: StringName) -> int:
 ## Les roles de robe que le mode livre -- les 23 epais, pour les deux familles.
 ## ⚠ C'EST ICI QUE LA BARRE VIT, une seule fois : Walls garde sa mathematique des 36 et
 ## recoit la liste voulue en parametre (un preload Walls -> Thickness ferait un cycle).
-static func wall_roles() -> Array[Vector2i]:
-	return Thickness.wall_roles()
+static func wall_roles(family: StringName = BY_CELL) -> Array[Vector2i]:
+	return [] as Array[Vector2i] if family == BY_MASSIF else Thickness.wall_roles()
+
+
+## LES TUILES DE JUPE du modele des massifs : tout ce qui n'est pas une surface.
+## ⚠ ET ELLES SONT DANS LE MEME VOCABULAIRE que les surfaces, donc dans le meme carnet et
+## sur la meme planche. C'est ce qui distingue ce modele de l'ancien, ou une falaise avait
+## sa feuille a part parce qu'elle « sortait du plan ».
+static func massif_skirts() -> PackedInt32Array:
+	var out: PackedInt32Array = PackedInt32Array()
+	for tile: int in massif_tiles():
+		if Massifs.band_of(tile) != Massifs.SURFACE:
+			out.append(tile)
+	return out
 
 
 ## Ce qu'on peint -> l'index qu'il porte.
@@ -91,6 +130,8 @@ static func wall_roles() -> Array[Vector2i]:
 ## `Vector2i` mais ne designent pas la meme chose -- raison pour laquelle la peinture des
 ## deux familles ne partage jamais le meme carnet.
 static func index_map(family: StringName, heights: PackedStringArray) -> Dictionary:
+	if family == BY_MASSIF:
+		return Massifs.visible(heights)
 	if family == BY_CORNER:
 		return CornerIndex.index_map(heights)
 	return Coverage.index_map(heights)
@@ -98,6 +139,8 @@ static func index_map(family: StringName, heights: PackedStringArray) -> Diction
 
 ## Le rapport de couverture de la famille sur ce relief.
 static func analyse(family: StringName, heights: PackedStringArray) -> Dictionary:
+	if family == BY_MASSIF:
+		return _massif_report(heights)
 	if family == BY_CORNER:
 		return CornerIndex.analyse_relief(heights)
 	return Coverage.analyse_relief(heights)
@@ -121,6 +164,13 @@ static func analyse(family: StringName, heights: PackedStringArray) -> Dictionar
 ## est rendue telle quelle.
 static func surface_map(family: StringName, heights: PackedStringArray) -> Dictionary:
 	var indices: Dictionary = index_map(family, heights)
+	# ⚠ RIEN A NETTOYER : une case porte UNE pose, jupe comprise. L'ancien modele devait
+	# retirer de la carte de surface les cases qu'une robe recouvre -- sur la carte, une case
+	# de robe est une case du sol d'en dessous -- et c'est cet ecart entre « ce que la case
+	# est » et « ce qu'elle montre » qui a fait declarer les 36 roles livres apres UNE
+	# surface peinte. Ici la question ne se pose pas.
+	if family == BY_MASSIF:
+		return indices
 	if family == BY_CORNER:
 		return indices
 	var covered: Dictionary = Walls.visible_roles(heights)
@@ -136,6 +186,8 @@ static func surface_map(family: StringName, heights: PackedStringArray) -> Dicti
 ## lit l'editeur pour tracer sa grille et refuser le crayon, et que lit la suite pour
 ## verifier qu'un mode trouve tout son vocabulaire hors de la plaine : un seul endroit.
 static func paintable_map(family: StringName, heights: PackedStringArray) -> Dictionary:
+	if family == BY_MASSIF:
+		return Massifs.paintable(heights)
 	var kept: Dictionary = {}
 	var carried: Dictionary = surface_map(family, heights)
 	for at: Vector2i in carried.keys():
@@ -157,6 +209,8 @@ static func visible_level(family: StringName, heights: PackedStringArray, at: Ve
 
 ## Les jumelles : ce qui porte le meme index porte la meme tuile.
 static func groups(family: StringName, index_by_key: Dictionary) -> Dictionary:
+	if family == BY_MASSIF:
+		return Massifs.cells_by_key(index_by_key)
 	if family == BY_CORNER:
 		return CornerIndex.points_by_index(index_by_key)
 	return Coverage.cells_by_index(index_by_key)
@@ -164,6 +218,8 @@ static func groups(family: StringName, index_by_key: Dictionary) -> Dictionary:
 
 ## Un index ecrit par ses bits, dans le vocabulaire de sa famille.
 static func describe(family: StringName, index: int) -> String:
+	if family == BY_MASSIF:
+		return Massifs.describe(index)
 	if family == BY_CORNER:
 		return CornerIndex.describe(index)
 	# ⚠ UNE TUILE PAR CASE EST UN COUPLE : la silhouette, et ce qu'il y a au-dela de ses
@@ -202,4 +258,33 @@ static func from_storage(family: StringName, key: Vector2i) -> Vector2i:
 ## La lettre qui nomme la famille dans les cles de sauvegarde et d'export.
 ## `S` pour la surface par case, `C` pour le croisement.
 static func key_letter(family: StringName) -> String:
+	if family == BY_MASSIF:
+		return "M"
 	return "C" if family == BY_CORNER else "S"
+
+
+## LE RAPPORT DU MODELE DES MASSIFS, dans la forme que l'interface lit deja.
+static func _massif_report(heights: PackedStringArray) -> Dictionary:
+	var wanted: Array[int] = massif_tiles()
+	var got: Dictionary = Massifs.analyse(heights, wanted)
+	var groups_by: Dictionary = got["groups"]
+	var present: Array[int] = []
+	var occurrences: Dictionary = {}
+	var positions: Dictionary = {}
+	var filled: int = 0
+	for tile: int in wanted:
+		if not groups_by.has(tile):
+			continue
+		var cells: Array[Vector2i] = groups_by[tile]
+		present.append(tile)
+		occurrences[tile] = cells.size()
+		positions[tile] = cells
+		filled += cells.size()
+	return {
+		"filled_count": filled,
+		"present": present,
+		"missing": got["missing"],
+		"occurrences": occurrences,
+		"positions": positions,
+		"is_complete": bool(got["is_complete"]),
+	}

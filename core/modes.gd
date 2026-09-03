@@ -16,8 +16,14 @@
 extends RefCounted
 
 const Thickness := preload("res://core/thickness.gd")
+const Massifs := preload("res://core/massifs.gd")
+const Brush := preload("res://core/brush_vocabulary.gd")
 
 const EPAIS: StringName = &"epais"
+## LE MODELE DES MASSIFS. ⚠ SON GUIDE EST BATI PAR LE GESTE, ENTIEREMENT : chacun de ses
+## mondes sort d'une suite de tampons, donc la marche EST la preuve qu'il est atteignable.
+## Il ne montre a l'artiste que ce que le pinceau saura faire.
+const MASSIFS: StringName = &"massifs"
 
 ## L'ancien nom du mode par defaut, garde comme alias le temps que tout le monde parle
 ## epais. Il pointe le MEME mode : il n'y en a qu'un.
@@ -37,7 +43,25 @@ static func _static_init() -> void:
 			"wall_tiles": Thickness.wall_roles().size(),
 			"min_occurrences": 1,
 		},
+		MASSIFS: {
+			"label": "Massifs",
+			"guide_path": "res://guides/massifs.txt",
+			"surface_tiles": _massif_count(Massifs.SURFACE, true),
+			"wall_tiles": _massif_count(Massifs.SURFACE, false),
+			"min_occurrences": 1,
+		},
 	}
+
+
+## Les tuiles du modele des massifs, par bande -- les surfaces d'un cote, les jupes de
+## l'autre. ⚠ ELLES SONT DANS UN SEUL VOCABULAIRE ET SUR UNE SEULE PLANCHE : la coupure
+## n'existe que pour les deux jauges de l'editeur, qui disent ou en est le travail.
+static func _massif_count(band: int, equal: bool) -> int:
+	var many: int = 0
+	for tile: int in Brush.tiles():
+		if (Massifs.band_of(tile) == band) == equal:
+			many += 1
+	return many
 
 
 ## Identifiants des modes, dans l'ordre de la liste deroulante.

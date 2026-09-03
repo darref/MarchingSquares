@@ -284,6 +284,16 @@ func _refresh_family_availability() -> void:
 	for index: int in range(choice.item_count):
 		var family: StringName = choice.get_item_metadata(index)
 		choice.set_item_disabled(index, not Families.is_covered(family, _heights))
+	# ⚠ ET SI LE RESEAU CHOISI N EST PAS COUVERT, ON EN PREND UN QUI L EST. Un paysage et un
+	# reseau se choisissent separement, mais tous les couples n existent pas : le modele des
+	# massifs a son propre guide, et l ancien vocabulaire ne le couvre pas. Laisser la liste
+	# sur une entree grisee chargerait un guide avec un reseau qu il ne porte pas -- des
+	# compteurs a zero et un crayon qui refuse tout, sans que rien ne le dise.
+	if choice.item_count > 0 and choice.is_item_disabled(choice.selected):
+		for index2: int in range(choice.item_count):
+			if not choice.is_item_disabled(index2):
+				choice.selected = index2
+				break
 
 
 func _on_family_selected(_index: int) -> void:
@@ -839,11 +849,20 @@ func _refresh_counters() -> void:
 	# On repasse par les roles deja rassembles : les recalculer a chaque coup de crayon
 	# relirait tout le relief pour rien.
 	var walls: Dictionary = Walls.resolve_roles(work.wall_roles(), work.painted_wall_cells(),
-			Families.wall_roles())
+			Families.wall_roles(_current_family()))
+	# ⚠ DANS LE MODELE DES MASSIFS, LES DEUX JAUGES LISENT LA MEME CARTE. Un massif se dessine
+	# entier : sa surface et sa jupe sont dans UN vocabulaire, sur UNE planche, dans UN carnet.
+	# La coupure entre les deux jauges n est plus celle de deux familles qui s ignorent, c est
+	# la BANDE de la tuile -- et elle ne sert qu a dire ou en est le travail.
+	if _current_family() == Families.BY_MASSIF:
+		walls = Delivery.resolve_indexed(work.surface_index(), work.painted_surface_cells(),
+				Families.massif_skirts())
 	var surface_done: int = surface["delivered"].size()
 	var surface_total: int = Families.surface_tile_count(_current_family())
 	var wall_done: int = walls["delivered"].size()
-	var wall_total: int = Families.wall_roles().size()
+	var wall_total: int = Families.wall_roles(_current_family()).size()
+	if _current_family() == Families.BY_MASSIF:
+		wall_total = Families.massif_skirts().size()
 
 	(%SurfaceLabel as Label).text = "Surfaces     %d / %d" % [surface_done, surface_total]
 	(%SurfaceBar as ProgressBar).max_value = float(surface_total)
