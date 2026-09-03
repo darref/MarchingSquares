@@ -21,6 +21,7 @@ const Families := preload("res://core/families.gd")
 const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
 const PackedPNG := preload("res://exporters/packed_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
@@ -680,6 +681,17 @@ func _on_export_chosen(folder: String) -> void:
 	var basename: String = _work_path.get_file().get_basename()
 	if basename == "":
 		basename = String(_current_mode())
+	# ⚠ LE MODELE DES MASSIFS A SON EXPORTATEUR, ET IL NE LIVRE QU'UNE PLANCHE. Faire passer
+	# son vocabulaire par l'ancien -- deux feuilles, surfaces d'un cote, robes de l'autre --
+	# demanderait de couper en deux un massif qui se dessine entier.
+	if _current_family() == Families.BY_MASSIF:
+		var done: Dictionary = MassifTileset.write(_painting, _heights, _current_mode(),
+				folder, basename)
+		if String(done["error"]) != "":
+			_announce("Rien n'est ecrit : %s." % String(done["error"]))
+			return
+		_announce("Exporte dans %s : une planche et son manifeste." % folder.get_file())
+		return
 	var report: Dictionary = TilesetPNG.write(folder, basename, _painting, _heights,
 			_current_mode(), _current_family())
 	if int(report["error"]) == ERR_UNAVAILABLE:

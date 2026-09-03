@@ -317,7 +317,14 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 		_surface_cells[Families.storage_key(guide_family, at)] = indices[at]
 	# Les roles de robe sont rassembles une seule fois : ca coute un parcours complet du
 	# relief, et l editeur en a besoin a chaque coup de crayon.
-	var seen: Dictionary = Walls.visible(heights)
+	# ⚠ DANS LE MODELE DES MASSIFS IL N'Y A PAS DE SECOND VOCABULAIRE, ET LE LAISSER TOURNER
+	# CASSE LES JUMELLES. Un massif se dessine entier : sa jupe est deja dans `_surface_cells`,
+	# avec sa propre tuile. Faire tourner `Walls` par-dessus regroupait les MEMES cases une
+	# seconde fois, par pan et par rangee -- un decoupage qui n'a rien a voir -- et le second
+	# `share()` repartageait les images du premier. Mesure : sur 1 611 jumelles d'un corps,
+	# 1 031 seulement portaient la tuile apres un pixel. Deux groupements du meme carnet ne
+	# peuvent pas coexister ; il n'en faut qu'un.
+	var seen: Dictionary = {"roles": {}, "lips": {}} if guide_family == Families.BY_MASSIF 			else Walls.visible(heights)
 	_wall_roles = seen["roles"]
 	var lips: Dictionary = seen["lips"]
 	for cell: Vector2i in _wall_roles.keys():
@@ -358,7 +365,7 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 					stack.append(int(storey_indices[storey].get(cell, -1)))
 				_stack_below[cell] = stack
 	# Les poses du moteur, pretes a dessiner sous les tuiles -- memes entrees que le jeu.
-	_under_roles = Walls.visible_underfoot(heights)
+	_under_roles = {} if guide_family == Families.BY_MASSIF else Walls.visible_underfoot(heights)
 	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
 	# la recalculer serait relire tout le relief soixante fois par seconde.
 	#

@@ -64,7 +64,11 @@ const MAGIC: String = "solutiles"
 ## portait le numero 3 ; a trois, c'est le corps 2 qui le porte et le pied passe a 4.
 ## Reposer un fichier v2 tel quel mettrait CHAQUE PIED SUR UN CORPS -- de travers, et en
 ## silence, ce que ce fichier existe pour empecher.
-const VERSION: int = 4
+## ⚠ VERSION 5 : LE MODELE DES MASSIFS. Une tuile n'est plus un index de surface ni un role
+## de robe, mais le couple (silhouette, bande) d'un massif dessine entier -- cle `M<tuile>`.
+## La lettre suffirait a les distinguer ; la version bouge quand meme, parce qu'une version
+## qui ne bouge pas quand le sens bouge ne protege de rien. Les fichiers v4 se relisent.
+const VERSION: int = 5
 
 ## Ce que valaient les rangees quand un fichier v2 a ete ecrit.
 const V2_BODY_ROWS: int = 2
@@ -98,7 +102,11 @@ static func slots(heights: PackedStringArray,
 			by_cell[Families.storage_key(family, cells[rank])] = "%s%d:%d" % [letter, index,
 					rank]
 
-	var roles: Dictionary = Walls.cells_by_role(Walls.visible_roles(heights))
+	# ⚠ PAS DE SECONDE PASSE DANS LE MODELE DES MASSIFS. La jupe y est deja rangee ci-dessus,
+	# sous sa propre tuile : une case porte UNE pose. La passe des robes ECRASERAIT ces cles
+	# par des cles `W` -- c'est meme ce qu'elle faisait exprès dans l'ancien modele, ou une
+	# case de robe portait a tort l'index du sol d'en dessous.
+	var roles: Dictionary = {} if family == Families.BY_MASSIF 			else Walls.cells_by_role(Walls.visible_roles(heights))
 	for role: Vector2i in roles.keys():
 		var cells: Array[Vector2i] = _sorted(roles[role])
 		for rank: int in range(cells.size()):
@@ -122,7 +130,11 @@ static func describe(key: String) -> Dictionary:
 		return blank
 	var head: String = key.substr(1, colon - 1)
 	var rank: int = key.substr(colon + 1).to_int()
-	if key.begins_with("S") or key.begins_with("C"):
+	# ⚠ `M` EST LA CLE DU MODELE DES MASSIFS, ET ELLE SE LIT COMME `S`. Une tuile y est un
+	# entier -- le couple (silhouette, bande) plus le bit de contexte -- exactement comme un
+	# index de surface. Ne pas la reconnaitre ici rendait `blank` en silence : l'export
+	# trouvait ZERO tuile livree sur un carnet entierement peint, sans une seule erreur.
+	if key.begins_with("S") or key.begins_with("C") or key.begins_with("M"):
 		return {"family": key.substr(0, 1), "index": head.to_int(), "role": Vector2i.ZERO,
 				"rank": rank}
 	if key.begins_with("W"):
@@ -157,7 +169,10 @@ static func corner_slots(heights: PackedStringArray) -> Dictionary:
 ## L'annuaire d'une famille, dans l'autre sens : cle -> ce qui la porte.
 static func keys_of(heights: PackedStringArray, family: StringName) -> Dictionary:
 	var by_key: Dictionary = {}
-	var source: Dictionary = corner_slots(heights) if family == Families.BY_CORNER 			else slots(heights)
+	# ⚠ ET LA FAMILLE SE TRANSMET. Elle etait perdue ici : `slots(heights)` repartait sur la
+	# famille par defaut, si bien qu'un annuaire demande pour une autre famille rendait les
+	# cles d'une troisieme. Le defaut ne se voyait pas tant qu'une seule famille ecrivait.
+	var source: Dictionary = corner_slots(heights) if family == Families.BY_CORNER 			else slots(heights, family)
 	for at: Vector2i in source.keys():
 		by_key[String(source[at])] = at
 	return by_key
