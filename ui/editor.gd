@@ -97,6 +97,13 @@ func _ready() -> void:
 	var size_choice: OptionButton = %SizeChoice
 	size_choice.item_selected.connect(_on_resolution_selected)
 	(%FamilyChoice as OptionButton).item_selected.connect(_on_family_selected)
+	# ⚠ UNE LISTE A UNE SEULE ENTREE N'EST PAS UN CHOIX, C'EST UN DECOR. On dessine, on ne
+	# configure pas (charte, regle 1) : la ligne entiere s'efface tant qu'il n'y a qu'un
+	# reseau, et reparaitra d'elle-meme le jour ou un second existera.
+	if Families.ids().size() < 2:
+		var row: Node = (%FamilyChoice as Control).get_parent()
+		if row is Control:
+			(row as Control).visible = false
 	var pencil: ColorPickerButton = %PencilColor
 	pencil.color_changed.connect(_on_pencil_changed)
 	for swatch: Node in %Swatches.get_children():
@@ -187,6 +194,12 @@ func _fill_modes() -> void:
 	choice.clear()
 	var first_open: int = -1
 	for id: StringName in Modes.ids():
+		# ⚠ UN MODE FERME NE FIGURE PLUS DU TOUT, IL N'EST PLUS GRISE. Un guide absent se
+		# grise -- c'est un accident, et le dire aide. Un mode FERME, lui, appartient a un
+		# modele qui n'existe plus : le montrer barre ferait chercher a l'acheteur ce qu'il
+		# a rate, alors qu'il n'y a rien a rater.
+		if Modes.is_closed(id):
+			continue
 		choice.add_item(Modes.label(id))
 		var index: int = choice.item_count - 1
 		choice.set_item_metadata(index, id)

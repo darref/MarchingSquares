@@ -42,6 +42,11 @@ static func _static_init() -> void:
 			"surface_tiles": Thickness.SURFACE_INDICES.size(),
 			"wall_tiles": Thickness.wall_roles().size(),
 			"min_occurrences": 1,
+			# ⚠ FERME : c'est le paysage de l'ancien modele, et son vocabulaire n'existe
+			# plus. Il reste dans la table parce que les outils et la suite s'en servent
+			# encore comme TEMOIN -- le demontage de l'ancien noyau viendra apres le portage
+			# du remontage, de l'apercu et de la planche de preuve.
+			"closed": true,
 		},
 		MASSIFS: {
 			"label": "Massifs",
@@ -70,6 +75,11 @@ static func ids() -> Array[StringName]:
 	for id: StringName in MODES.keys():
 		result.append(id)
 	return result
+
+
+## Vrai si le mode appartient a un modele retire : il ne figure plus dans la liste.
+static func is_closed(id: StringName) -> bool:
+	return MODES.has(id) and bool(MODES[id].get("closed", false))
 
 
 static func has(id: StringName) -> bool:

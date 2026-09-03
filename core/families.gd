@@ -42,14 +42,12 @@ const BY_CORNER: StringName = &"corner"
 const BY_MASSIF: StringName = &"massif"
 
 const FAMILIES: Dictionary = {
-	BY_CELL: {
-		"label": "Par case",
-		"note": "27 tuiles de surface",
-	},
-	BY_CORNER: {
-		"label": "A cheval",
-		"note": "15 tuiles de surface",
-	},
+	# ⚠ « PAR CASE » ET « A CHEVAL » SONT RETIREES DU PRODUIT (decision utilisateur). Elles
+	# etaient les deux reseaux de l'ancien modele, ou une tuile de surface ignorait sa jupe ;
+	# le modele des massifs n'a qu'un vocabulaire, et offrir un choix qui n'en est plus un
+	# ferait chercher a l'acheteur une decision qu'il n'a pas a prendre (charte, regle 1).
+	# Leurs constantes survivent le temps que l'ancien noyau soit demonte -- elles ne sont
+	# plus proposees nulle part.
 	BY_MASSIF: {
 		"label": "Massifs",
 		"note": "un massif entier, surface et jupe",

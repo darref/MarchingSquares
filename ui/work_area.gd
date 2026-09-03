@@ -386,12 +386,22 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# meme ses TROIS occurrences. Si un guide futur portait une tuile sur la seule plaine,
 	# elle deviendrait impeignable -- d'ou l'assertion dans la suite.
 	_paintable.clear()
-	for cell: Vector2i in _surface_cells.keys():
-		if _guide_level(cell) >= 1:
+	if guide_family == Families.BY_MASSIF:
+		# ⚠ UNE FACADE NE SE JUGE PAS SUR L'ETAGE DE SA CASE, ET C'EST CE QUI LA RENDAIT
+		# IMPEIGNABLE. Sur la carte, une case de falaise est une case du sol d'en dessous --
+		# de la plaine, etage 0 -- donc `_guide_level(cell) >= 1` la refusait, et l'on ne
+		# pouvait peindre AUCUNE facade. Ce qui compte est l'etage de la POSE, celui du massif
+		# dont la jupe pend ici. Le noyau le sait deja : on lui demande, plutot que de refaire
+		# le calcul avec la mauvaise donnee sous la main.
+		for cell: Vector2i in Families.paintable_map(guide_family, heights).keys():
 			_paintable[cell] = true
-	for cell: Vector2i in _wall_cells.keys():
-		if int(lips.get(cell, 0)) >= 1:
-			_paintable[cell] = true
+	else:
+		for cell: Vector2i in _surface_cells.keys():
+			if _guide_level(cell) >= 1:
+				_paintable[cell] = true
+		for cell: Vector2i in _wall_cells.keys():
+			if int(lips.get(cell, 0)) >= 1:
+				_paintable[cell] = true
 	# Les jumelles : deux cases du meme groupe portent la meme tuile. Le noyau les designe,
 	# on ne fait ici que retenir, pour chaque case, la liste de ses semblables.
 	_twin_of.clear()
