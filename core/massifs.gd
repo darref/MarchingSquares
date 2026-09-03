@@ -240,16 +240,10 @@ static func footprint(world: PackedStringArray, cells: Array, level: int,
 			out[below] = CHAPITEAU if step == 1 else (
 					PIED if (landed and step == fall) else CORPS)
 			lips[below] = at
-		# ⚠ ET LE PIED SE REPOSE UNE CASE PLUS BAS, SOUS LA SURFACE D'ATTERRISSAGE. La case
-		# d'atterrissage le recouvre entierement SAUF la ou son propre contour vagabonde vers
-		# l'interieur -- et c'est exactement la qu'on voyait la plaine a travers la roche, dans
-		# le mince decalage entre le ras du massif porte et le contour libre de son porteur.
-		#
-		# ⚠ CE N'EST PAS UNE TUILE DE PLUS, C'EST UNE POSE DE PLUS. La case d'atterrissage est
-		# deja une case de surface : la declarer case de falaise la rendrait peignable deux fois.
-		# Elle sort donc a part, et se dessine SOUS la surface de l'etage ou elle atterrit.
-		if landed:
-			under[at + Vector2i(0, fall + 1)] = at
+		# ⚠ LE SOUS-PIED EST RETIRE (decision utilisateur). Il reposait le pied une case plus bas,
+		# sous la surface d'atterrissage, pour boucher le mince decalage entre le ras d'un massif
+		# porte et le contour libre de son porteur. Le code est retire, la mesure reste : il ne
+		# coutait aucune tuile -- c'etait une pose de plus, pas un dessin de plus.
 	return out
 
 
@@ -286,18 +280,6 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark],
 					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark,
 					"under": false})
-		# LE SOUS-PIED : meme tuile que le pied, une case plus bas, sous la surface.
-		for cell4: Vector2i in under.keys():
-			var raw2: int = 0
-			for bit2: int in range(8):
-				if print_of.has(cell4 + Vector2i(0, -1) + BlobIndex.OFFSETS[bit2]):
-					raw2 |= 1 << bit2
-			out.append({"cell": cell4, "band": PIED, "level": levels[mark],
-					"sil": BlobIndex.canonicalize(raw2), "flush": covers[mark],
-					"lip": under[cell4], "massif": mark, "under": true})
-	# ⚠ ET LE SOUS-PIED PASSE AVANT TOUT LE RESTE DE SA RANGEE : il doit etre RECOUVERT par la
-	# surface ou il atterrit, pas la recouvrir. Sans cette troisieme cle, il se posait par-dessus
-	# et noircissait le sol.
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ay: int = (a["cell"] as Vector2i).y
 		var by: int = (b["cell"] as Vector2i).y
