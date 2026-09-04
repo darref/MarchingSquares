@@ -1,15 +1,20 @@
 # LA SCENE OU LE DEFAUT SE REGARDE — le guide entier, pose par SoluPaint avec l'essai.
 #
-# C'est la scene de la fiche « l'angle noir derriere les arrondis ». Elle avait ete
-# fabriquee a la main dans une session precedente et PERDUE, parce que ni elle ni son
-# fabricant n'etaient au depot. Cette fois le fabricant est commite, et la scene se
+# Elle avait ete fabriquee a la main dans une session precedente et PERDUE, parce que ni elle
+# ni son fabricant n'etaient au depot. Cette fois le fabricant est commite, et la scene se
 # regenere d'une commande :
 #
 #     godot --headless --path . --script res://tools/make_trial_scene.gd
+#     godot --headless --path . --script res://tools/make_trial_scene.gd -- <manifeste.txt>
+#
+# ⚠ ET ELLE PREND VOTRE TILESET SI VOUS LUI EN DONNEZ UN. Sans argument elle exporte l'essai
+# -- notre dessin de specification -- et pose le monde avec. Avec le chemin d'un manifeste
+# exporte depuis le logiciel, c'est VOTRE art qu'on regarde dans le moteur, ce qui est le
+# seul jugement qui compte.
 #
 # Ce qu'elle fait :
-#   1. exporte l'essai -- le guide lui-meme livre comme tileset -- dans res://trial/ ;
-#   2. releve le relief entier de guides/minimal.txt, plaine comprise, vide exclu ;
+#   1. exporte l'essai -- notre propre trace livree comme tileset -- dans res://trial/ ;
+#   2. releve le relief entier de guides/massifs.txt, plaine comprise, vide exclu ;
 #   3. enregistre res://trial_solutiles_to_solupaint_full.tscn : un seul noeud
 #      SoluPaintWorld, son manifeste et son relief. Les couches, il les repose seul.
 #
@@ -21,7 +26,7 @@ extends SceneTree
 
 const HeightMask := preload("res://core/height_mask.gd")
 const Modes := preload("res://core/modes.gd")
-const Trial := preload("res://exporters/trial_tileset.gd")
+const MassifTrial := preload("res://exporters/massif_trial.gd")
 const WorldScript := preload("res://addons/solupaint/world.gd")
 
 const FOLDER: String = "res://trial"
@@ -29,22 +34,25 @@ const SCENE_PATH: String = "res://trial_solutiles_to_solupaint_full.tscn"
 
 
 func _initialize() -> void:
-	var report: Dictionary = Trial.write(FOLDER, Modes.MINIMAL)
-	if int(report["error"]) != OK:
-		push_error("make_trial_scene: l'export de l'essai a refuse (erreur %d)."
-				% int(report["error"]))
-		quit(1)
-		return
-	var manifest_path: String = ""
-	for path: String in report["written"]:
-		if path.ends_with("_tileset.txt"):
-			manifest_path = path
+	var arguments: PackedStringArray = OS.get_cmdline_user_args()
+	var manifest_path: String = arguments[0] if arguments.size() > 0 else ""
 	if manifest_path == "":
-		push_error("make_trial_scene: l'essai n'a pas ecrit de manifeste.")
+		var report: Dictionary = MassifTrial.write(FOLDER, Modes.MASSIFS)
+		if String(report["error"]) != "":
+			push_error("make_trial_scene: l'export de l'essai a refuse (%s)."
+					% String(report["error"]))
+			quit(1)
+			return
+		for path: String in report["written"]:
+			if path.ends_with("_tileset.txt"):
+				manifest_path = path
+	if manifest_path == "" or not FileAccess.file_exists(manifest_path):
+		push_error("make_trial_scene: aucun manifeste a poser (%s)." % manifest_path)
 		quit(1)
 		return
+	print("tileset : %s" % manifest_path)
 
-	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
+	var guide: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
 	var heights: Dictionary = {}
 	for y: int in range(HeightMask.height(guide)):
 		for x: int in range(HeightMask.width(guide)):
@@ -64,6 +72,11 @@ func _initialize() -> void:
 		world.free()
 		quit(1)
 		return
+	var last_warning: String = String(world.get("last_warning"))
+	if last_warning != "":
+		# ⚠ UN TROU SE DIT, IL NE SE DECOUVRE PAS DANS LE JEU. La scene s'ecrit quand meme --
+		# c'est un banc, on veut le regarder -- mais le compte part a la console.
+		print("ATTENTION : %s" % last_warning)
 
 	# ⚠ SEUL LE NOEUD RACINE PART DANS LA SCENE. Les couches qu'il vient de creer ne sont
 	# pas siennes (pas d'owner) : PackedScene les ignore, et c'est le but -- il les refait
@@ -78,5 +91,5 @@ func _initialize() -> void:
 		quit(1)
 		return
 	print("Scene ecrite : %s" % ProjectSettings.globalize_path(SCENE_PATH))
-	print("  relief : %d cases ; essai : %s" % [heights.size(), manifest_path])
+	print("Ouvrez-la dans l'editeur : le monde s'y repose seul, depuis son relief.")
 	quit(0)

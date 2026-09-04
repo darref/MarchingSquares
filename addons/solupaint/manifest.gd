@@ -4,19 +4,20 @@
 # de pose en entier, et la table des cases. Ce lecteur en tire ce dont le plugin a besoin
 # pour poser une tuile, et rien de plus.
 #
-# ⚠ IL REFUSE PLUTOT QUE DE DEVINER (charte, regle 5). Trois refus, et chacun a sa raison :
+# ⚠ IL REFUSE PLUTOT QUE DE DEVINER (charte, regle 5). Cinq refus, et chacun a sa raison :
 #
 #   - un fichier qui ne s'annonce pas comme un manifeste SoluTiles ;
-#   - une version plus recente que celle que ce plugin sait lire -- une regle de pose a pu
+#   - une version plus RECENTE que celle que ce plugin sait lire -- une regle de pose a pu
 #     changer de sens, et poser quand meme serait un mensonge silencieux ;
-#   - une version TROP VIEILLE, pour exactement la meme raison. ⚠ CE REFUS-LA MANQUAIT, et
-#     son absence a laisse passer un vrai defaut : entre deux livraisons, le hors-carte est
-#     passe de la plaine au VIDE et le sous-pied est apparu, SANS que la version bouge. Un
-#     manifeste v3 d'avant et un v3 d'apres decrivaient deux mondes differents, et le plugin
-#     les posait tous les deux. Un garde-fou qui ne regarde que d'un cote ne garde rien ;
-#   - des constantes de falaise (`storey_tiles`, `body_rows`, `block_rows`) qui ne sont pas
-#     celles que `rules.gd` sait rejouer. Un tileset dont l'etage descend de quatre cases
-#     pose sur un moteur qui en compte trois donnerait un monde faux SANS UNE SEULE ERREUR.
+#   - une version TROP VIEILLE, pour exactement la meme raison. ⚠ CE REFUS-LA A MANQUE UNE
+#     FOIS, et son absence a laisse passer un vrai defaut : entre deux livraisons, le
+#     hors-carte est passe de la plaine au VIDE sans que la version bouge, et le plugin
+#     posait les deux. Un garde-fou qui ne regarde que d'un cote ne garde rien ;
+#   - une HAUTEUR D'ETAGE qui n'est pas la sienne. Un tileset dont l'etage descend de quatre
+#     rangees, pose par un moteur qui en compte trois, donnerait un monde faux SANS UNE
+#     SEULE ERREUR -- le pire des defauts, celui qui ne se signale pas ;
+#   - un VOCABULAIRE qui n'est pas le sien. Le nombre de tuiles est ecrit en clair dans le
+#     manifeste ; s'il differe, la planche et ce moteur ne parlent pas du meme modele.
 #
 # ⚠ ET IL NE RECALCULE PAS LA TABLE DES CASES. Le manifeste la donne en clair ; la deduire
 # de la regle marcherait aujourd'hui et se casserait le jour ou la disposition changera. On
@@ -30,35 +31,25 @@ const MAGIC: String = "solutiles-tileset"
 ## Les versions que ce plugin sait lire, bornes comprises.
 ##
 ## ⚠ LES DEUX BORNES SONT NECESSAIRES. La haute dit « je ne connais pas encore cette
-## regle » ; la basse dit « je ne connais plus celle-la ». La v3 est refusee parce que son
-## sens a change sous elle : le hors-carte y valait la plaine, et rien ne distingue un v3
-## d'avant d'un v3 d'apres.
+## regle » ; la basse dit « je ne connais plus celle-la ».
 ##
-## ⚠ LA V4 TOMBE POUR LA MEME RAISON : la POSE DERRIERE -- le corps repose sous une case
-## qui ecrete -- n'y est pas ecrite, et ce plugin la pose. Un second lecteur, fidele a un
-## fichier v4, poserait un autre monde que lui : deux lecteurs, deux mondes, exactement
-## ce que le contrat existe pour interdire.
-const READS_FROM: int = 8
-const READS_UP_TO: int = 8
+## ⚠ LA V8 EST REFUSEE NOMMEMENT. Elle decrivait l'ancien modele -- une surface plus une robe,
+## deux planches, sept bits de contexte, des poses arriere. Le modele des massifs pose un
+## massif ENTIER, une tuile est le couple (silhouette d'empreinte, bande), et il n'y a plus
+## qu'un bit. Un lecteur qui poserait un v8 avec ces regles-ci fabriquerait un autre monde.
+const READS_FROM: int = 9
+const READS_UP_TO: int = 9
 
-const BY_CELL: StringName = &"cell"
-const BY_CORNER: StringName = &"corner"
+## La seule famille du modele.
+const BY_MASSIF: StringName = &"massif"
 
+## LE VOCABULAIRE QUE CE MOTEUR SAIT POSER. ⚠ ECRIT ICI, ET COMPARE AU NOYAU PAR LA SUITE :
+## le plugin est SEUL dans le projet de l'acheteur, il porte donc sa copie du compte, et la
+## suite verifie qu'il dit la meme chose que `Families.massif_tiles()`. Le jour ou le
+## vocabulaire grandit -- il ne peut que grandir -- la suite le dit ici, et non chez
+## l'acheteur.
+const MASSIF_TILES: int = 39
 
-## Relit un manifeste.
-##
-## Cles rendues :
-##   error          : Error
-##   reason         : String       ce qui cloche, en clair, quand error != OK
-##   version        : int
-##   mode           : String
-##   tile_size      : int
-##   family         : StringName   `cell` ou `corner`
-##   surface_sheet  : String       nom de fichier, a cote du manifeste
-##   surface_slots  : Dictionary[int, Vector2i]       index -> case de la planche
-##   walls_sheet    : String
-##   wall_slots     : Dictionary[Vector2i, Vector2i]  role  -> case de la planche
-##   proof_sheet    : String       peut rester vide : c'est une preuve, pas une donnee
 ## Le suffixe qui reconnait un manifeste sans l'ouvrir.
 const SUFFIX: String = "_tileset.txt"
 
@@ -112,6 +103,17 @@ static func label_of(path: String) -> String:
 	return name if folder.is_empty() else "%s  (%s)" % [name, folder]
 
 
+## Relit un manifeste.
+##
+## Cles rendues :
+##   error       : Error
+##   reason      : String                    ce qui cloche, en clair, quand error != OK
+##   version     : int
+##   mode        : String
+##   tile_size   : int
+##   family      : StringName                `massif`
+##   sheet       : String                    nom de fichier, a cote du manifeste
+##   slots       : Dictionary[int, Vector2i] cle de tuile -> case de la planche
 static func parse(text: String) -> Dictionary:
 	var result: Dictionary = _blank()
 
@@ -127,15 +129,14 @@ static func parse(text: String) -> Dictionary:
 				% [int(result["version"]), READS_FROM]
 				+ "Reexportez le tileset : la regle de pose a change de sens depuis.")
 
-	var storey: int = -1
-	var body: int = -1
-	var block: int = -1
+	var fall: int = -1
+	var counted: int = -1
 
 	for number: int in range(1, lines.size()):
 		var line: String = lines[number].strip_edges()
-		# ⚠ LE COMMENTAIRE PEUT SUIVRE LA VALEUR. Le manifeste met le nom lisible d'un index
-		# apres un `#` sur la meme ligne : le couper d'abord, sinon « slot 0,0  # N+E » se
-		# lirait comme une valeur de trois mots.
+		# ⚠ LE COMMENTAIRE PEUT SUIVRE LA VALEUR. Le manifeste met le nom lisible d'une tuile
+		# apres un `#` sur la meme ligne : le couper d'abord, sinon « slot 0,0  # SURFACE 255 »
+		# se lirait comme une valeur de plusieurs mots.
 		var hash: int = line.find("#")
 		if hash >= 0:
 			line = line.substr(0, hash).strip_edges()
@@ -147,37 +148,39 @@ static func parse(text: String) -> Dictionary:
 				result["mode"] = line.get_slice(" ", 1)
 			"tile_size":
 				result["tile_size"] = line.get_slice(" ", 1).to_int()
-			"storey_tiles":
-				storey = line.get_slice(" ", 1).to_int()
-			"body_rows":
-				body = line.get_slice(" ", 1).to_int()
-			"block_rows":
-				block = line.get_slice(" ", 1).to_int()
+			"fall_rows":
+				fall = line.get_slice(" ", 1).to_int()
+			"tiles":
+				counted = line.get_slice(" ", 1).to_int()
 			"famille":
 				result["family"] = StringName(line.get_slice(" ", 1))
-			"surface":
-				result["surface_sheet"] = line.get_slice(" ", 1)
-			"walls":
-				result["walls_sheet"] = line.get_slice(" ", 1)
-			"proof":
-				result["proof_sheet"] = line.get_slice(" ", 1)
-			"index":
-				var index: int = line.get_slice(" ", 1).to_int()
-				result["surface_slots"][index] = _point(line.get_slice(" ", 3))
-			"role":
-				var role: Vector2i = _point(line.get_slice(" ", 1))
-				result["wall_slots"][role] = _point(line.get_slice(" ", 3))
+			"sheet":
+				result["sheet"] = line.get_slice(" ", 1)
+			"tile":
+				var tile: int = line.get_slice(" ", 1).to_int()
+				result["slots"][tile] = _point(line.get_slice(" ", 3))
 
-	if storey != Rules.STOREY_TILES or body != Rules.BODY_ROWS or block != Rules.BLOCK_ROWS:
-		return _refuse(result, ("Ce tileset compte %d cases par etage, %d rangees de corps "
-				+ "et %d rangees de bloc ; ce plugin en pose %d, %d et %d.")
-				% [storey, body, block, Rules.STOREY_TILES, Rules.BODY_ROWS, Rules.BLOCK_ROWS])
-	if result["surface_sheet"] == "" or result["walls_sheet"] == "":
-		return _refuse(result, "Le manifeste ne nomme pas ses deux planches.")
-	if result["surface_slots"].is_empty() or result["wall_slots"].is_empty():
+	# ⚠ UNE CONSTANTE ABSENTE SE REFUSE, ET SE DIT AUTREMENT QU UNE CONSTANTE FAUSSE. Un
+	# manifeste qui ne declare pas sa hauteur d etage ne peut pas etre CONTROLE : le poser
+	# reviendrait a le croire sur parole. Et le message doit envoyer au bon geste -- reexporter
+	# -- plutot que d annoncer « -1 rangees par etage », qui n aide personne.
+	if fall < 0 or counted < 0:
+		return _refuse(result, "Ce manifeste ne declare ni sa hauteur d'etage ni son "
+				+ "vocabulaire : il vient d'une version anterieure. Reexportez-le depuis "
+				+ "SoluTiles.")
+	if fall != Rules.FALL:
+		return _refuse(result, ("Ce tileset compte %d rangees par etage ; ce plugin en pose %d."
+				% [fall, Rules.FALL]))
+	if counted != MASSIF_TILES:
+		return _refuse(result, ("Ce tileset annonce %d tuiles ; ce plugin en pose %d. "
+				% [counted, MASSIF_TILES])
+				+ "Le vocabulaire a change : mettez le plugin a jour.")
+	if result["family"] != BY_MASSIF:
+		return _refuse(result, "Famille inconnue : '%s'." % result["family"])
+	if result["sheet"] == "":
+		return _refuse(result, "Le manifeste ne nomme pas sa planche.")
+	if result["slots"].is_empty():
 		return _refuse(result, "Le manifeste ne place aucune tuile.")
-	if not (result["family"] == BY_CELL or result["family"] == BY_CORNER):
-		return _refuse(result, "Famille de surface inconnue : '%s'." % result["family"])
 	return result
 
 
@@ -191,27 +194,16 @@ static func read(path: String) -> Dictionary:
 	return parse(text)
 
 
-## Le nombre de tuiles de surface que la famille attend. Sert au controle de completude :
-## une planche a qui il manque une case laisserait un trou dans le monde de l'acheteur.
-## ⚠ V6, LE MODE EPAIS : 27 index par case, 15 a cheval, 25 roles de robe (le redan
-## compris -- vide-devant au corps 1, dans les deux sens). Le plugin est
-## SEUL dans le projet de l acheteur, il porte donc sa copie des comptes -- et la suite
-## la compare au vocabulaire calcule du noyau, comme le reste de la regle de pose.
-const SURFACE_TILES: int = 27
-const WALL_TILES: int = 20
-
-
-static func expected_surface_tiles(family: StringName) -> int:
-	return 15 if family == BY_CORNER else SURFACE_TILES
-
-
-## Vrai si le manifeste place toutes les tuiles que sa famille exige.
+## Vrai si le manifeste place toutes les tuiles du vocabulaire.
+##
+## ⚠ ET C'EST UN CONTROLE, PAS UNE POLITESSE. Il ne manque jamais une tuile a un export
+## honnete -- l'exportateur refuse une feuille incomplete. S'il en manque une ici, c'est que
+## le fichier a ete retouche a la main, et poser les autres laisserait un trou qu'on
+## decouvrirait dans le jeu.
 static func is_complete(report: Dictionary) -> bool:
 	if int(report["error"]) != OK:
 		return false
-	if report["surface_slots"].size() != expected_surface_tiles(report["family"]):
-		return false
-	return report["wall_slots"].size() == WALL_TILES
+	return report["slots"].size() == MASSIF_TILES
 
 
 static func _point(text: String) -> Vector2i:
@@ -222,20 +214,16 @@ static func _point(text: String) -> Vector2i:
 
 
 static func _blank() -> Dictionary:
-	var surface_slots: Dictionary = {}
-	var wall_slots: Dictionary = {}
+	var slots: Dictionary = {}
 	return {
 		"error": OK,
 		"reason": "",
 		"version": 0,
 		"mode": "",
 		"tile_size": 0,
-		"family": BY_CELL,
-		"surface_sheet": "",
-		"walls_sheet": "",
-		"proof_sheet": "",
-		"surface_slots": surface_slots,
-		"wall_slots": wall_slots,
+		"family": BY_MASSIF,
+		"sheet": "",
+		"slots": slots,
 	}
 
 

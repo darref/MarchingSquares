@@ -279,7 +279,7 @@ func _gather(world: Node, at: Vector2) -> void:
 		for dy: int in range(3):
 			for dx: int in range(3):
 				stamp.append(step + Vector2i(dx, dy))
-		if Rules.stamp_creates_thin(world.get("heights"), staged, stamp, wanted):
+		if Rules.stamp_refused(world.get("heights"), staged, stamp, wanted):
 			_refused += 1
 			continue
 		for spot: Vector2i in stamp:
@@ -317,10 +317,14 @@ func _commit(world: Node) -> void:
 	history.add_do_method(world, "apply", _redo_delta.duplicate())
 	history.add_undo_method(world, "apply", _undo_delta.duplicate())
 	history.commit_action(false)
-	if _refused > 0:
+	# ⚠ ET CE QUE LA POSE N'A PAS SU FAIRE SE DIT AUSSI. Un trait qui laisse des cases sans
+	# tuile doit le dire au relachement : un trou muet dans le monde est le pire des defauts.
+	if not String(world.last_warning).is_empty():
+		_say("%d cases posees. %s" % [_redo_delta.size(), String(world.last_warning)])
+	elif _refused > 0:
 		# ⚠ UN REFUS MUET EST LE PIRE DES REFUS : on dit ce qui a ete refuse, et pourquoi.
-		_say("%d cases posees, %d tampon(s) refuses : un relief d'une tuile d'epaisseur n'a pas de tuiles."
-				% [_redo_delta.size(), _refused])
+		_say(("%d cases posees, %d tampon(s) refuses : rien ne fait moins de trois cases, "
+				+ "ni en largeur ni par un coin.") % [_redo_delta.size(), _refused])
 	else:
 		_say("%d cases posees." % _redo_delta.size())
 	_undo_delta = {}

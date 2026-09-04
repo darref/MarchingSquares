@@ -27,6 +27,7 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
 const MANUAL := preload("res://ui/manual.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
+const MassifTrial := preload("res://exporters/massif_trial.gd")
 
 ## Part de l'ecran occupee par la fenetre au lancement.
 const WINDOW_SCREEN_SHARE: float = 0.95
@@ -735,7 +736,13 @@ func _on_packed_chosen(folder: String) -> void:
 	var report: Dictionary = PackedPNG.write(folder, basename, _painting, _heights,
 			_current_mode(), _current_family())
 	if int(report["error"]) == ERR_UNAVAILABLE:
-		var left2: int = report["missing_surface"].size() + report["missing_wall"].size()
+		# ⚠ LES DEUX RAPPORTS NE NOMMENT PAS LEUR MANQUE PAREIL : l ancien le coupe en deux
+		# familles, celui des massifs n en a qu une. On lit celle qui existe.
+		var left2: int = 0
+		if report.has("missing"):
+			left2 = int(report["missing"].size())
+		else:
+			left2 = report["missing_surface"].size() + report["missing_wall"].size()
 		_announce("Il manque %d tuiles : rien n'est ecrit." % left2)
 		return
 	if int(report["error"]) != OK:
@@ -765,9 +772,14 @@ func _on_trial_pressed() -> void:
 
 
 func _on_trial_folder_chosen(folder: String) -> void:
-	var report: Dictionary = Trial.write(folder, _current_mode(), _current_resolution())
-	if int(report["error"]) != OK:
-		_announce("L essai n a pas pu s ecrire (erreur %d)." % int(report["error"]))
+	# ⚠ L'ESSAI SUIT LE MODELE, comme l'export : celui des massifs livre une planche unique et
+	# un manifeste v9, l'ancien deux planches. Les faire passer par le meme exportateur
+	# demanderait de couper en deux un massif qui se dessine entier.
+	var report: Dictionary = MassifTrial.write(folder, _current_mode()) \
+			if _current_family() == Families.BY_MASSIF \
+			else Trial.write(folder, _current_mode(), _current_resolution())
+	if _failed(report):
+		_announce("L essai n a pas pu s ecrire.")
 		return
 	var written: PackedStringArray = report["written"]
 	_announce("Essai ecrit : %d fichiers dans %s." % [written.size(), folder])
@@ -801,11 +813,26 @@ func _on_plugin_folder_chosen(folder: String) -> void:
 ## on le DIT.
 func _install_tileset(folder: String) -> String:
 	var into: String = folder.path_join("solutiles")
-	var ready: Dictionary = TilesetPNG.analyse(_painting, _heights, _current_family())
-	if bool(ready["is_exportable"]):
-		var done: Dictionary = TilesetPNG.write(into, "mon_tileset", _painting, _heights,
+	# ⚠ ET IL SUIT LE MODELE. Le plugin livre lit un manifeste v9 -- celui des massifs ; lui
+	# poser une planche de l'ancien modele donnerait un refus la ou l'acheteur attend un monde.
+	if _current_family() == Families.BY_MASSIF:
+		var ready: Dictionary = MassifTileset.analyse(_painting, _heights)
+		if bool(ready["is_exportable"]):
+			var done: Dictionary = MassifTileset.write(_painting, _heights, _current_mode(),
+					into, "mon_tileset")
+			if not _failed(done):
+				return "Votre tileset est parti avec, dans solutiles/."
+			return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
+		var essai: Dictionary = MassifTrial.write(into, _current_mode())
+		if not _failed(essai):
+			return "L'essai est parti avec, dans solutiles/ : de quoi poser un monde tout " \
+					+ "de suite, sans avoir peint."
+		return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
+	var old_ready: Dictionary = TilesetPNG.analyse(_painting, _heights, _current_family())
+	if bool(old_ready["is_exportable"]):
+		var done2: Dictionary = TilesetPNG.write(into, "mon_tileset", _painting, _heights,
 				_current_mode(), _current_family())
-		if int(done["error"]) == OK:
+		if int(done2["error"]) == OK:
 			return "Votre tileset est parti avec, dans solutiles/."
 		return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
 	var trial: Dictionary = Trial.write(into, _current_mode())
@@ -813,6 +840,14 @@ func _install_tileset(folder: String) -> String:
 		return "L'essai est parti avec, dans solutiles/ : de quoi poser un monde tout " \
 				+ "de suite, sans avoir peint."
 	return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
+
+
+## ⚠ LES DEUX EXPORTATEURS NE DISENT PAS L'ECHEC DE LA MEME FACON : l'ancien rend un `Error`,
+## celui des massifs une raison en clair. Une seule fonction pour les lire, plutot que deux
+## tests qui finiraient par se contredire.
+func _failed(report: Dictionary) -> bool:
+	var trouble: Variant = report.get("error", OK)
+	return String(trouble) != "" if trouble is String else int(trouble) != OK
 
 
 

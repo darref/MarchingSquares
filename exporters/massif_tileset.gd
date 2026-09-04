@@ -129,6 +129,14 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("mode %s" % mode_id)
 	lines.append("famille massif")
 	lines.append("tile_size %d" % int(report["tile_size"]))
+	# ⚠ DEUX CONSTANTES LISIBLES PAR PROGRAMME, ET C'EST UN GARDE-FOU, PAS UNE REDITE. La regle
+	# de pose est en prose plus bas -- necessaire pour REIMPLEMENTER -- mais un moteur doit
+	# pouvoir REFUSER sans lire de la prose. `fall_rows` dit la hauteur d'un etage : un tileset
+	# dont l'etage descend de quatre rangees, pose par un moteur qui en compte trois, donnerait
+	# un monde faux SANS UNE SEULE ERREUR. `tiles` dit combien de tuiles le vocabulaire compte :
+	# une planche a qui il en manque une laisserait un trou dans le monde de l'acheteur.
+	lines.append("fall_rows %d" % Massifs.FALL)
+	lines.append("tiles %d" % Families.massif_tiles().size())
 	lines.append("")
 	spec(lines)
 	lines.append("")
@@ -231,6 +239,12 @@ static func write(painting: Painting, heights: PackedStringArray, mode_id: Strin
 	var sheet: Image = compose(painting, heights, report)
 	if sheet == null:
 		return {"written": PackedStringArray(), "report": report, "error": "planche vide"}
+	# ⚠ LE DOSSIER SE CREE, IL NE SE SUPPOSE PAS. L'installateur ecrit dans `solutiles/` d'un
+	# projet qui ne l'a jamais eu ; sans ca l'export echoue sur un chemin qui n'existe pas, et
+	# le message parle d'ecriture impossible au lieu de dossier absent.
+	if DirAccess.make_dir_recursive_absolute(folder) != OK 			and not DirAccess.dir_exists_absolute(folder):
+		return {"written": PackedStringArray(), "report": report,
+				"error": "dossier impossible a creer"}
 	var made: PackedStringArray = PackedStringArray()
 	var sheet_path: String = folder.path_join(basename + SUFFIX_SHEET)
 	if sheet.save_png(sheet_path) != OK:

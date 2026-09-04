@@ -27,6 +27,8 @@ const WorkIO := preload("res://core/work_io.gd")
 const Families := preload("res://core/families.gd")
 const Walls := preload("res://core/walls.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
+const Massifs := preload("res://core/massifs.gd")
 
 const SUFFIX_SHEET: String = "_packed.png"
 const SUFFIX_LEGEND: String = "_packed.txt"
@@ -69,6 +71,15 @@ static func columns_for(count: int) -> int:
 ## Chaque entree dit ce qu'elle est, pour la legende : `["S", index]` ou `["W", role]`.
 static func order(family: StringName = Families.BY_CELL) -> Array:
 	var out: Array = []
+	# ⚠ LE MODELE DES MASSIFS N A QU UN VOCABULAIRE, DONC QU UNE SUITE. Surfaces et jupes y
+	# sont le meme objet vu a deux hauteurs : les separer en deux blocs redirait une coupure
+	# que le modele a justement supprimee.
+	if family == Families.BY_MASSIF:
+		var tiles: Array[int] = Families.massif_tiles()
+		tiles.sort()
+		for tile: int in tiles:
+			out.append(["M", tile])
+		return out
 	for index: int in Families.surface_indices(family):
 		out.append(["S", index])
 	for role: Vector2i in Families.wall_roles():
@@ -91,6 +102,21 @@ static func compose(painting: Painting, heights: PackedStringArray,
 	sheet.fill(Painting.TRANSPARENT)
 
 	var by_key: Dictionary = WorkIO.cells_by_key(heights, family)
+	if family == Families.BY_MASSIF:
+		var source: Dictionary = report["source"]
+		for spot: int in range(slots.size()):
+			var tile: int = int((slots[spot] as Array)[1])
+			if not source.has(tile):
+				continue
+			var image_key: String = "M%d:%d" % [tile, int(source[tile])]
+			if not by_key.has(image_key):
+				continue
+			var drawn: Image = painting.image_of(by_key[image_key])
+			if drawn == null:
+				continue
+			sheet.blit_rect(drawn, Rect2i(0, 0, side, side),
+					Vector2i(spot % columns, spot / columns) * side)
+		return sheet
 	var surfaces: Dictionary = report["surface_source"]
 	var walls: Dictionary = report["wall_source"]
 	for at: int in range(slots.size()):
@@ -132,7 +158,7 @@ static func legend(painting: Painting, mode_id: StringName, basename: String,
 	lines.append("#")
 	lines.append("# Une seule image, %d colonnes x %d rangees, %d pixels par case." % [
 			columns, rows, painting.resolution])
-	lines.append("# Les surfaces d'abord, puis les robes, en lecture -- gauche a droite,")
+	lines.append("# Les tuiles dans l'ordre du vocabulaire, en lecture -- gauche a droite,")
 	lines.append("# haut en bas. Les cases de la fin peuvent etre vides.")
 	lines.append("#")
 	lines.append("# ⚠ CETTE FEUILLE NE PORTE AUCUNE REGLE DE POSE. Pour poser un monde,")
@@ -148,7 +174,10 @@ static func legend(painting: Painting, mode_id: StringName, basename: String,
 	for at: int in range(slots.size()):
 		var slot: Array = slots[at]
 		var where: String = "%d,%d" % [at % columns, at / columns]
-		if String(slot[0]) == "W":
+		if String(slot[0]) == "M":
+			lines.append("case %s tuile %d  # %s" % [where, int(slot[1]),
+					Massifs.describe(int(slot[1]))])
+		elif String(slot[0]) == "W":
 			var role: Vector2i = slot[1] as Vector2i
 			lines.append("case %s robe pan %d rangee %d" % [where, role.x, role.y])
 		else:
@@ -161,7 +190,12 @@ static func legend(painting: Painting, mode_id: StringName, basename: String,
 static func write(folder: String, basename: String, painting: Painting,
 		heights: PackedStringArray, mode_id: StringName,
 		family: StringName = Families.BY_CELL) -> Dictionary:
-	var report: Dictionary = TilesetPNG.analyse(painting, heights, family)
+	# ⚠ LE REFUS NE SE REIMPLEMENTE PAS : on demande son rapport a l exportateur moteur du
+	# modele, et on s arrete dessus. Deux refus separes finiraient par se contredire, et la
+	# feuille vendue sortirait la ou la feuille moteur refuse.
+	var report: Dictionary = MassifTileset.analyse(painting, heights) \
+			if family == Families.BY_MASSIF \
+			else TilesetPNG.analyse(painting, heights, family)
 	report["written"] = PackedStringArray()
 	report["error"] = OK
 	if not report["is_exportable"]:

@@ -5,12 +5,12 @@
 # pourquoi l'outil lui refuse une case. Celui qui ecrit son moteur veut la regle, ligne par
 # ligne, sans une phrase de plus. Un seul texte pour les trois ne sert aucun des trois.
 #
-# ⚠ ET LE TROISIEME NIVEAU N'EST PAS ECRIT ICI. Il est lu de `TilesetPNG.placement_rules()`,
+# ⚠ ET LE TROISIEME NIVEAU N'EST PAS ECRIT ICI. Il est lu de `MassifTileset.placement_rules()`,
 # c'est-a-dire de ce qui part VRAIMENT dans le manifeste. Le recopier donnerait deux textes a
 # tenir d'accord, et le jour ou la regle bouge il y en a un qui ment.
 extends Control
 
-const TilesetPNG := preload("res://exporters/tileset_png.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
 const Walls := preload("res://core/walls.gd")
 const BlobIndex := preload("res://core/blob_index.gd")
 const Thickness := preload("res://core/thickness.gd")
@@ -288,11 +288,11 @@ func _the_contract() -> String:
 	var lines: PackedStringArray = PackedStringArray()
 	lines.append("[i]Ce qui suit est [b]mot pour mot[/b] ce que votre moteur recoit, dans "
 			+ "le fichier [code]<nom>_tileset.txt[/code]. Quelqu'un qui n'a que ce fichier "
-			+ "et les deux planches doit pouvoir poser un monde correct : si une regle "
+			+ "et la planche doit pouvoir poser un monde correct : si une regle "
 			+ "manquait ici, elle vivrait dans la tete de celui qui a ecrit le premier "
 			+ "moteur, et le second divergerait sans que rien ne le dise.[/i]\n")
 	lines.append("[code]")
-	for line: String in TilesetPNG.placement_rules():
+	for line: String in MassifTileset.placement_rules():
 		var clean: String = line.replace("[", "[lb]")
 		if clean.strip_edges().is_empty():
 			lines.append("")

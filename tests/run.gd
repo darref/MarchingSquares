@@ -27,6 +27,10 @@ const PluginRules := preload("res://addons/solupaint/rules.gd")
 const PluginManifest := preload("res://addons/solupaint/manifest.gd")
 const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
+const Massifs := preload("res://core/massifs.gd")
+const Gesture := preload("res://core/gesture.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
+const MassifTrial := preload("res://exporters/massif_trial.gd")
 const Thickness := preload("res://core/thickness.gd")
 const Domain := preload("res://core/domain.gd")
 const Seams := preload("res://core/seams.gd")
@@ -91,7 +95,6 @@ func _initialize() -> void:
 	_test_plugin_rules()
 	_test_trial_tileset()
 	_test_stacked_levels()
-	_test_dirty_region()
 	_test_plugin_manifest()
 	_test_manifest_discovery()
 	_test_plugin_install()
@@ -251,22 +254,30 @@ func _test_variant_selection() -> void:
 
 func _test_modes_catalogue() -> void:
 	print("modes : catalogue")
-	var ids: Array[StringName] = Modes.ids()
-	# ⚠ UN SEUL MODE : EPAIS. Decision utilisateur du 24/08/2026 -- minimal et ample sont
-	# RETIRES, pas fermes. Le vocabulaire du mode est CALCULE de l'interdit d'epaisseur.
-	_check_equal(ids.size(), 1, "un seul paysage au catalogue")
-	_check_equal(ids[0], Modes.EPAIS, "et c est epais")
-	_check_equal(Modes.MINIMAL, Modes.EPAIS, "l ancien nom pointe le meme mode")
-	_check(Modes.is_available(Modes.EPAIS), "epais a son guide, il se choisit")
-	_check_equal(Modes.label(Modes.EPAIS), "Epais", "libelle du mode epais")
-	_check_equal(Modes.surface_tile_count(Modes.EPAIS), Thickness.SURFACE_INDICES.size(),
-			"48 tuiles de surface, calculees")
-	_check_equal(Modes.wall_tile_count(Modes.EPAIS), Thickness.wall_roles().size(),
-			"44 tuiles de mur, calculees")
-	_check_equal(Modes.tile_count(Modes.EPAIS),
-			Thickness.SURFACE_INDICES.size() + Thickness.wall_roles().size(),
-			"92 tuiles en tout, et le compte est la somme des deux, jamais un nombre ecrit")
-	_check_equal(Modes.min_occurrences(Modes.EPAIS), 1, "epais ne promet qu une occurrence")
+	# ⚠ UN SEUL PAYSAGE SE CHOISIT, ET C EST CELUI DES MASSIFS. `epais` reste dans la table
+	# comme TEMOIN de l ancien modele -- outils et suite s en servent encore -- mais il est
+	# FERME : un mode qu on ne peut plus livrer ne se propose pas (charte, regle 5).
+	var open_modes: Array[StringName] = []
+	for id: StringName in Modes.ids():
+		if Modes.is_available(id):
+			open_modes.append(id)
+	_check_equal(open_modes.size(), 1, "un seul paysage se choisit")
+	_check_equal(open_modes[0], Modes.MASSIFS, "et c est massifs")
+	_check(Modes.is_closed(Modes.EPAIS), "epais est ferme, pas retire : il reste un temoin")
+	_check(not Modes.is_available(Modes.EPAIS), "et il ne se choisit plus")
+	_check_equal(Modes.label(Modes.MASSIFS), "Massifs", "libelle du mode livre")
+	_check(FileAccess.file_exists(Modes.guide_path(Modes.MASSIFS)),
+			"massifs a son guide, il se choisit")
+
+	# ⚠ LES COMPTES SONT CALCULES DU VOCABULAIRE, JAMAIS ECRITS. Une liste ecrite a la main
+	# est une donnee a maintenir et un endroit ou mentir -- meme raison que les index calcules.
+	var tiles: int = Families.massif_tiles().size()
+	_check_equal(Modes.tile_count(Modes.MASSIFS), tiles,
+			"%d tuiles en tout, et le compte est la somme des deux bandes" % tiles)
+	_check(Modes.surface_tile_count(Modes.MASSIFS) > 0, "des surfaces")
+	_check(Modes.wall_tile_count(Modes.MASSIFS) > 0, "et des jupes")
+	_check_equal(Modes.min_occurrences(Modes.MASSIFS), 1,
+			"massifs ne promet qu une occurrence")
 	_check(not Modes.has(&"inexistant"), "un mode inconnu n est pas dans le catalogue")
 
 
@@ -425,9 +436,60 @@ func _test_wall_assembly() -> void:
 ## ⚠ TOUT MODE OUVERT DOIT PROUVER SON GUIDE. La boucle vaut declaration : ajouter un mode
 ## au catalogue, c'est s'engager a ce que son guide passe ici.
 func _test_mode_guides_are_complete() -> void:
+	# ⚠ LE GUIDE LIVRE SE CONTROLE DANS SON PROPRE MODELE. Les modes ouverts sont ceux du
+	# modele des massifs ; `epais` est ferme et garde son controle a part, pour aussi
+	# longtemps que l ancien noyau reste au depot.
 	for id: StringName in Modes.ids():
 		if Modes.is_available(id):
-			_check_one_guide(id)
+			_check_massif_guide(id)
+	_check_one_guide(Modes.EPAIS)
+
+
+## LE GUIDE DU MODELE DES MASSIFS : il porte tout le vocabulaire, et ce qui est peint decide.
+func _check_massif_guide(id: StringName) -> void:
+	print("mode %s : le guide est complet, et ce qui est peint decide" % Modes.label(id))
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(id))
+	var report: Dictionary = Families.analyse(Families.BY_MASSIF, heights)
+	_check(report["is_complete"], "aucune tuile manquante")
+	_check_equal(report["present"].size(), Families.massif_tiles().size(),
+			"les %d tuiles du vocabulaire sont couvertes" % Families.massif_tiles().size())
+	print("  %d poses peignables dans le guide" % report["filled_count"])
+
+	# ⚠ LA PROMESSE DU MODE EST CHIFFREE, DONC ELLE SE PROUVE.
+	var promised: int = Modes.min_occurrences(id)
+	var rarest: int = 1 << 30
+	for tile: int in report["present"]:
+		rarest = mini(rarest, int(report["occurrences"][tile]))
+	_check(rarest >= promised,
+			"chaque tuile est vue au moins %d fois, comme annonce (la plus rare : %d)"
+			% [promised, rarest])
+	var lonely: int = 0
+	for tile2: int in report["present"]:
+		if int(report["occurrences"][tile2]) == 1:
+			lonely += 1
+	print("  %d tuiles n ont AUCUNE jumelle : autant de cases obligatoires" % lonely)
+
+	# ⚠ ET LE GUIDE EST DANS LE DOMAINE QU IL MONTRE. Un guide qui porterait un relief que le
+	# pinceau ne produit pas montrerait a l artiste des tuiles qu il ne saura jamais poser.
+	var faults: Array[String] = Gesture.faults(heights)
+	_check(faults.is_empty(), "et le relief du guide est de ceux que le pinceau produit%s"
+			% ("" if faults.is_empty() else " (%s)" % ", ".join(faults)))
+
+	# UN GUIDE COMPLET NE SUFFIT PAS A EXPORTER : ce qui est peint decide.
+	var painting: Painting = MassifTrial.paint(heights)
+	_check(bool(MassifTileset.analyse(painting, heights)["is_exportable"]),
+			"guide entierement peint : exportable")
+	var target: int = int(report["present"][0])
+	var partial: Painting = Painting.new(MassifTrial.TRIAL_RESOLUTION)
+	for tile3: int in report["present"]:
+		if tile3 == target:
+			continue
+		var cells: Array = report["positions"][tile3]
+		partial.set_image(cells[0], MassifTrial.draw(tile3, MassifTrial.TRIAL_RESOLUTION))
+	var short: Dictionary = MassifTileset.analyse(partial, heights)
+	_check_equal(short["missing"], [target] as Array[int],
+			"laisser une tuile entierement vierge la fait manquer, et elle seule")
+	_check_equal(short["is_exportable"], false, "une tuile non peinte interdit l export")
 
 
 func _check_one_guide(id: StringName) -> void:
@@ -487,9 +549,9 @@ func _check_one_guide(id: StringName) -> void:
 
 
 func _test_minimal_guide_walls() -> void:
-	for id: StringName in Modes.ids():
-		if Modes.is_available(id):
-			_check_one_guide_walls(id)
+	# ⚠ LE VOCABULAIRE DE MUR APPARTIENT A L ANCIEN MODELE, DONC A SON GUIDE. Dans le modele
+	# des massifs une jupe n est pas un second vocabulaire : c est le meme massif, vu plus bas.
+	_check_one_guide_walls(Modes.EPAIS)
 
 
 func _check_one_guide_walls(id: StringName) -> void:
@@ -1700,9 +1762,9 @@ func _test_corner_network() -> void:
 	# ⚠ ET C EST VRAI DE TOUT MODE LIVRE, pas du seul `minimal`. Un mode dont le guide ne
 	# couvre pas les quinze ne peut pas offrir la famille a cheval, donc il ne se choisit
 	# pas (regle 5) : la couverture duale fait partie de ce qu un mode ouvert garantit.
-	for id: StringName in Modes.ids():
-		if not Modes.is_available(id):
-			continue
+	# ⚠ ET LE RESEAU DUAL APPARTIENT A L ANCIEN MODELE : il se controle sur SON guide. Le
+	# guide des massifs n a aucune raison de couvrir des croisements qu il ne livre pas.
+	for id: StringName in [Modes.EPAIS] as Array[StringName]:
 		var other: Dictionary = CornerIndex.analyse_relief(
 				HeightMask.read(Modes.guide_path(id)))
 		var absent: PackedStringArray = PackedStringArray()
@@ -2184,8 +2246,25 @@ func _first_few(items: Array[String]) -> String:
 
 
 func _test_families() -> void:
-	print("familles : les deux vocabulaires de surface, interchangeables")
-	_check_equal(Families.ids().size(), 2, "deux familles au catalogue")
+	print("familles : le catalogue, et les carnets qui ne se melangent jamais")
+	# ⚠ UNE SEULE FAMILLE AU CATALOGUE, ET C EST CELLE DES MASSIFS. Les deux anciens
+	# reseaux -- par case et a cheval -- ont quitte le produit : le modele des massifs n a
+	# qu un vocabulaire, et offrir un choix qui n en est plus un ferait chercher a l acheteur
+	# une decision qu il n a pas a prendre (charte, regle 1). Leurs constantes survivent le
+	# temps que l ancien noyau soit demonte, et cette suite s en sert encore comme temoins.
+	_check_equal(Families.ids().size(), 1, "une seule famille au catalogue")
+	_check_equal(Families.ids()[0], Families.BY_MASSIF, "et c est celle des massifs")
+	_check_equal(Families.key_letter(Families.BY_MASSIF), "M", "une tuile de massif s ecrit M")
+	_check_equal(Families.surface_tile_count(Families.BY_MASSIF)
+			+ Families.massif_skirts().size(), Families.massif_tiles().size(),
+			"surfaces et jupes se partagent le vocabulaire, sans reste")
+
+	var live: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
+	_check(Families.is_covered(Families.BY_MASSIF, live),
+			"le guide livre couvre la famille « %s »"
+			% Families.label(Families.BY_MASSIF))
+
+	# LES TEMOINS DE L ANCIEN MODELE, tant que son noyau est au depot.
 	_check_equal(Families.surface_tile_count(Families.BY_CELL), Thickness.SURFACE_INDICES.size(),
 			"par case : 27 tuiles")
 	_check_equal(Families.surface_tile_count(Families.BY_CORNER), CornerIndex.TILE_COUNT,
@@ -2193,10 +2272,10 @@ func _test_families() -> void:
 	_check_equal(Families.key_letter(Families.BY_CELL), "S", "la surface par case s ecrit S")
 	_check_equal(Families.key_letter(Families.BY_CORNER), "C", "le croisement s ecrit C")
 
-	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
-	for family: StringName in Families.ids():
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.EPAIS))
+	for family: StringName in [Families.BY_CELL, Families.BY_CORNER] as Array[StringName]:
 		_check(Families.is_covered(family, heights),
-				"le guide minimal couvre la famille « %s »" % Families.label(family))
+				"le guide epais couvre la famille « %s »" % Families.label(family))
 
 	# ⚠ LES DEUX CARNETS NE SE MELANGENT JAMAIS. Un croisement et une case sont tous deux des
 	# Vector2i mais ne designent pas la meme chose : les melanger ferait se marcher dessus la
@@ -2824,9 +2903,10 @@ func _test_backing() -> void:
 	_check_equal(rim_backing, 0,
 			"et aucune pose derriere n en sort -- seule sa levre porte sa premiere rangee")
 
-	# Le plugin fait mot pour mot pareil, sur la geometrie meme du defaut.
-	_check_equal(_plugin_drift(pillar, {}, {}, {}), 0,
-			"le plugin repose exactement les memes poses derriere que le noyau")
+	# ⚠ ET LA COMPARAISON AU PLUGIN A QUITTE CE TEST AVEC LE MODELE QU ELLE CONTROLAIT. La
+	# POSE DERRIERE n existe plus : puisque le massif du dessus est au ras partout, celui du
+	# dessous n emerge jamais en plein milieu d une tuile, il emerge a une bordure. Il n y a
+	# donc plus rien a boucher, et `_test_plugin_rules` compare desormais des POSES.
 
 
 func _test_guide_image() -> void:
@@ -3029,15 +3109,17 @@ func _test_manual() -> void:
 	_check(manual != null and manual.can_instantiate(),
 			"le mode d emploi s analyse et s instancie")
 
-	var rules: PackedStringArray = TilesetPNG.placement_rules()
+	# ⚠ ET C EST LE CONTRAT DU MODELE LIVRE QU IL LIT, pas celui d un modele retire. Le
+	# manuel n en garde aucune copie : il met en forme les lignes que l exportateur ecrit.
+	var rules: PackedStringArray = MassifTileset.placement_rules()
 	_check(rules.size() > 20, "la regle de pose fait plus de vingt lignes (%d)" % rules.size())
 
 	var folder: String = "user://manuel"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(folder))
-	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
-	var painting: Painting = Trial.paint(heights, 16)
-	_check_equal(TilesetPNG.write(folder, "manuel", painting, heights, Modes.MINIMAL)["error"],
-			OK, "un manifeste s ecrit, pour avoir de quoi comparer")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
+	var painting: Painting = MassifTrial.paint(heights)
+	_check_equal(String(MassifTileset.write(painting, heights, Modes.MASSIFS, folder,
+			"manuel")["error"]), "", "un manifeste s ecrit, pour avoir de quoi comparer")
 	var manifest: String = FileAccess.get_file_as_string(folder.path_join("manuel_tileset.txt"))
 
 	# ⚠ ON SAUTE LES LIGNES VIDES, et pas par commodite : `String.find("")` rend **-1** en
@@ -3069,12 +3151,14 @@ func _test_manual() -> void:
 
 
 func _test_plugin_rules() -> void:
-	print("SoluPaint : la regle du plugin est CELLE DU NOYAU, case pour case")
+	print("SoluPaint : la regle du plugin est CELLE DU NOYAU, pose pour pose")
 
-	_check_equal(PluginRules.STOREY_TILES, Walls.STOREY_TILES, "meme hauteur d etage")
-	_check_equal(PluginRules.BODY_ROWS, Walls.BODY_ROWS, "meme nombre de rangees de corps")
-	_check_equal(PluginRules.PAN_COUNT, Walls.PAN_COUNT, "meme nombre de pans")
-	_check_equal(PluginRules.BLOCK_ROWS, Walls.BLOCK_ROWS, "meme nombre de rangees de bloc")
+	_check_equal(PluginRules.FALL, Massifs.FALL, "meme hauteur d etage")
+	_check_equal(PluginRules.COVERS, Massifs.COVERS,
+			"meme rangement du bit de contexte au-dessus de la bande")
+	_check_equal(PluginManifest.MASSIF_TILES, Families.massif_tiles().size(),
+			"et le plugin annonce le meme vocabulaire que le noyau (%d tuiles)"
+			% Families.massif_tiles().size())
 
 	# Les 256 voisinages bruts : la canonicalisation doit tomber au meme endroit, toujours.
 	var canon_strays: int = 0
@@ -3083,94 +3167,125 @@ func _test_plugin_rules() -> void:
 			canon_strays += 1
 	_check_equal(canon_strays, 0, "les 256 voisinages bruts se canonicalisent pareil")
 
+	var seen: Dictionary = {}
+
 	# EXHAUSTIF sur les reliefs binaires 3x4 : 4096 mondes, aucun tirage au sort.
-	var seen_surface: Dictionary = {}
-	var seen_roles: Dictionary = {}
-	var seen_corners: Dictionary = {}
 	var drift: int = 0
 	for pattern: int in range(1 << 12):
-		drift += _plugin_drift(_relief_of(pattern, 3, 4), seen_surface, seen_roles, seen_corners)
-	_check_equal(drift, 0, "les 4096 reliefs binaires 3x4 : le plugin et le noyau ne divergent jamais")
+		drift += _plugin_drift(_relief_of(pattern, 3, 4), seen)
+	_check_equal(drift, 0,
+			"les 4096 reliefs binaires 3x4 : le plugin et le noyau ne divergent jamais")
 
-	# ⚠ ET SUR LES RELIEFS REELS, CEUX QUI PARTENT CHEZ L ACHETEUR. Le tirage au sort ne
-	# rencontre pas les 36 roles : les plus rares demandent un contrefort, c est-a-dire une
-	# forme voulue, pas un accident. Les guides livres les portent tous par construction --
-	# ce sont donc eux, et pas le hasard, qui font de cette battue une vraie battue.
-	var real: Array[String] = []
-	for mode_id: StringName in Modes.ids():
-		real.append(Modes.guide_path(mode_id))
-	real.append("res://guides/preview.txt")
-	var on_guides: int = 0
-	for path: String in real:
-		on_guides += _plugin_drift(HeightMask.read(path), seen_surface, seen_roles, seen_corners)
-	on_guides += _plugin_drift(ProofScene.relief(), seen_surface, seen_roles, seen_corners)
-	_check_equal(on_guides, 0,
-			"sur les guides livres et la planche de preuve : aucune divergence")
+	# ⚠ ET EXHAUSTIF SUR TROIS ETATS, PARCE QUE LE MONDE EN A TROIS. Un relief binaire ne
+	# pose jamais de VIDE -- or c est lui qui distingue « case a l etage 0 » de « case hors
+	# du monde », donc la falaise du bord du monde et la chute qui ne pose pas son pied. Une
+	# battue qui ne pose pas de vide ne cherche pas dans tous les cas.
+	var ternary: int = 0
+	for pattern2: int in range(_pow(3, 9)):
+		ternary += _plugin_drift(_relief_of3(pattern2, 3, 3), seen)
+	_check_equal(ternary, 0,
+			"les 19683 reliefs 3x3 a trois etats -- vide, plaine, plateau : aucune divergence")
 
-	# ⚠ LES ANCIENS GUIDES RESTENT DES TEMOINS DE BATTUE. Le monde d un acheteur peut
-	# encore porter des reliefs fins -- le dictionnaire `heights` se remplit aussi a
-	# l inspecteur -- donc la regle de pose du plugin doit s accorder au noyau sur TOUT
-	# relief, pas seulement les epais. Minimal et ample portent les 36 roles, dont les
-	# treize qu epais ne produit plus.
-	on_guides += _plugin_drift(HeightMask.read("res://guides/minimal.txt"),
-			seen_surface, seen_roles, seen_corners)
-	on_guides += _plugin_drift(HeightMask.read("res://guides/ample.txt"),
-			seen_surface, seen_roles, seen_corners)
+	# ⚠ ET SUR LE RELIEF REEL, CELUI QUI PART CHEZ L ACHETEUR. Le tirage au sort ne rencontre
+	# pas tout le vocabulaire : les tuiles les plus rares demandent une forme voulue, pas un
+	# accident. Le guide les porte toutes par construction -- c est donc lui, et pas le
+	# hasard, qui fait de cette battue une vraie battue.
+	var on_guide: int = _plugin_drift(HeightMask.read(Modes.guide_path(Modes.MASSIFS)), seen)
+	_check_equal(on_guide, 0, "sur le guide livre : aucune divergence")
 
-	# ET AU HASARD, sur du relief a etages -- c est la que les robes se compliquent.
+	# ET AU HASARD, du relief a etages TROUE DE VIDE -- c est la que les chutes se compliquent.
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = 20260822
+	rng.seed = 20260903
 	var wild: int = 0
 	for _attempt: int in range(PLUGIN_RANDOM_RELIEFS):
-		wild += _plugin_drift(_random_relief(rng, 9, 9, 3), seen_surface, seen_roles, seen_corners)
-	_check_equal(wild, 0, "%d reliefs 9x9 sur quatre etages, tires au sort : aucune divergence"
+		wild += _plugin_drift(_holed_relief(rng, 9, 9, 3), seen)
+	_check_equal(wild, 0, "%d reliefs 9x9 troues de vide, tires au sort : aucune divergence"
 			% PLUGIN_RANDOM_RELIEFS)
 
 	# ⚠ ET LA BATTUE DOIT AVOIR VRAIMENT CHERCHE. Une comparaison qui ne rencontre aucune
-	# robe ne prouve pas que les robes s accordent : elle prouve qu elle n en a pas vu.
-	_check_equal(seen_roles.size(), Walls.ALL_ROLES.size(),
-			"la battue a rencontre les %d roles de robe" % Walls.ALL_ROLES.size())
-	# ⚠ ON COMPTE LES SILHOUETTES, PAS LES TUILES. Une tuile de surface est le couple
-	# (silhouette, bord) : la battue en rencontre bien plus que quarante-sept, et c'est
-	# normal. Ce qu'on veut savoir ici, c'est qu'elle a vu tous les VOISINAGES.
-	var seen_shapes: Dictionary = {}
-	for tile: int in seen_surface.keys():
-		seen_shapes[BlobIndex.silhouette(tile)] = true
-	_check_equal(seen_shapes.size(), BLOB_TILE_COUNT,
-			"et les %d silhouettes de surface" % BLOB_TILE_COUNT)
-	_check_equal(seen_corners.size(), CornerIndex.TILE_COUNT,
-			"et les %d croisements" % CornerIndex.TILE_COUNT)
+	# falaise ne prouve pas que les falaises s accordent : elle prouve qu elle n en a pas vu.
+	var unmet: int = 0
+	for tile: int in Families.massif_tiles():
+		if not seen.has(tile):
+			unmet += 1
+	_check_equal(unmet, 0, "la battue a rencontre les %d tuiles du vocabulaire"
+			% Families.massif_tiles().size())
+	# ⚠ ET CE QU ELLE RENCONTRE EN PLUS N EST PAS UNE FAUTE. Les reliefs tires au sort ne
+	# respectent pas min trois : ils posent des tuiles que le pinceau ne produira jamais. On
+	# le DIT plutot que de l asserter -- ce compte depend du hasard, pas du modele.
+	print("  info la battue a vu %d tuiles, dont %d hors du vocabulaire du pinceau"
+			% [seen.size(), seen.size() - Families.massif_tiles().size()])
 
 
-## Compte les cases ou le plugin et le noyau ne disent pas la meme chose.
-## Rend 0 quand tout s accorde, et note au passage ce qui a ete rencontre.
-func _plugin_drift(heights: PackedStringArray, seen_surface: Dictionary,
-		seen_roles: Dictionary, seen_corners: Dictionary) -> int:
+## Trois puissance n, sans flottant : `pow()` rend un reel, et 3^9 arrondi au mauvais entier
+## ferait sauter un monde de l enumeration exhaustive sans que rien ne le dise.
+func _pow(base: int, times: int) -> int:
+	var out: int = 1
+	for _step: int in range(times):
+		out *= base
+	return out
+
+
+## Un relief a TROIS etats -- vide, plaine, plateau -- enumere exhaustivement.
+func _relief_of3(pattern: int, columns: int, rows_count: int) -> PackedStringArray:
+	var rows: PackedStringArray = PackedStringArray()
+	var left: int = pattern
+	for y: int in range(rows_count):
+		var line: String = ""
+		for x: int in range(columns):
+			var state: int = left % 3
+			left /= 3
+			line += "~" if state == 0 else ("." if state == 1 else "1")
+		rows.append(line)
+	return rows
+
+
+## Un relief tire au sort, puis troue de vide. ⚠ LE VIDE NE SE TIRE PAS COMME UN ETAGE : pose
+## case par case il ne fait que du bruit, et la falaise du bord du monde -- celle qu on veut
+## eprouver -- demande des poches franches.
+func _holed_relief(rng: RandomNumberGenerator, columns: int, rows_count: int,
+		top: int) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(rows_count):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(columns)
+		for x: int in range(columns):
+			line[x] = rng.randi_range(0, top) + 1
+		grid.append(line)
+	for _hole: int in range(rng.randi_range(0, 3)):
+		var ox: int = rng.randi_range(-1, columns - 2)
+		var oy: int = rng.randi_range(-1, rows_count - 2)
+		for dy: int in range(rng.randi_range(1, 3)):
+			for dx: int in range(rng.randi_range(1, 3)):
+				if oy + dy < 0 or ox + dx < 0 or oy + dy >= rows_count or ox + dx >= columns:
+					continue
+				grid[oy + dy][ox + dx] = 0
+	var out: PackedStringArray = PackedStringArray()
+	for row: PackedByteArray in grid:
+		var said: String = ""
+		for value: int in row:
+			said += "~" if value == 0 else str(value - 1)
+		out.append(said)
+	return out
+
+
+## Compte les poses ou le plugin et le noyau ne disent pas la meme chose.
+## Rend 0 quand tout s accorde, et note au passage les tuiles rencontrees.
+##
+## ⚠ ON COMPARE LES POSES, PAS CE QUI EST VISIBLE. Une case recoit une pose par massif qui la
+## contient ; ne comparer que le sommet laisserait diverger tout ce qui est enterre -- et c est
+## precisement ce qu on voit a travers la transparence d une tuile.
+func _plugin_drift(heights: PackedStringArray, seen: Dictionary) -> int:
 	var world: Dictionary = _plugin_world(heights)
-	var apart: int = 0
-
-	var mine: Dictionary = Coverage.index_map(heights)
-	var theirs: Dictionary = PluginRules.surfaces(world)
-	apart += _compare_maps(mine, theirs, seen_surface)
-
-	var my_corners: Dictionary = CornerIndex.index_map(heights)
-	var their_corners: Dictionary = PluginRules.corners(world)
-	apart += _compare_maps(my_corners, their_corners, seen_corners)
-
-	var my_walls: Dictionary = Walls.visible_roles(heights)
-	var their_walls: Dictionary = PluginRules.walls(world)
-	apart += _compare_maps(my_walls, their_walls, seen_roles)
-
-	# ⚠ LES POSES DERRIERE AUSSI, ET ELLES NE L'ETAIENT PAS. Le controle croise comparait
-	# surfaces, croisements et robes -- jamais le sous-pied, apparu en v4 sans que la
-	# comparaison le suive. Les deux copies de la regle viennent d'apprendre le meme geste
-	# (le corps derriere une case qui ecrete) : c'est exactement le moment ou une
-	# divergence silencieuse s'installerait.
-	var my_under: Dictionary = Walls.visible_underfoot(heights)
-	var their_under: Dictionary = PluginRules.underfoot(world)
-	apart += _compare_maps(my_under, their_under, seen_roles)
-
-	return apart
+	var mine: Dictionary = {}
+	for one: Dictionary in Massifs.poses(heights):
+		var at: Vector2i = one["cell"]
+		mine[Vector3i(at.x, at.y, int(one["level"]))] = Massifs.key_of(one)
+	var theirs: Dictionary = {}
+	for other: Dictionary in PluginRules.poses(world):
+		var at2: Vector2i = other["cell"]
+		theirs[Vector3i(at2.x, at2.y, int(other["level"]))] = PluginRules.key_of(other)
+	return _compare_maps(mine, theirs, seen)
 
 
 ## Deux cartes case -> tuile, comparees dans les DEUX sens.
@@ -3179,12 +3294,12 @@ func _plugin_drift(heights: PackedStringArray, seen_surface: Dictionary,
 ## passerait un test qui se contente de verifier que ce qu il pose est juste.
 func _compare_maps(mine: Dictionary, theirs: Dictionary, seen: Dictionary) -> int:
 	var apart: int = 0
-	for at: Vector2i in mine.keys():
+	for at: Variant in mine.keys():
 		seen[mine[at]] = true
 		if not theirs.has(at) or theirs[at] != mine[at]:
 			apart += 1
-	for at: Vector2i in theirs.keys():
-		if not mine.has(at):
+	for at2: Variant in theirs.keys():
+		if not mine.has(at2):
 			apart += 1
 	return apart
 
@@ -3217,68 +3332,64 @@ func _plugin_world(heights: PackedStringArray) -> Dictionary:
 ## un essai : le refus d'une feuille incomplete s'applique, donc l'essai ne sort QUE s'il
 ## est vraiment complet.
 func _test_trial_tileset() -> void:
-	print("l essai : le guide livre comme tileset, et pose par le plugin")
-	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
-	var side: int = 16
-	var painting: Painting = Trial.paint(heights, side)
+	print("l essai : notre propre trace, livre comme tileset, et pose par le plugin")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
+	var painting: Painting = MassifTrial.paint(heights)
 
-	# Une occurrence par tuile, pas une par case : c'est tout ce que l'export retient.
-	_check_equal(painting.painted_cells().size(),
-			Modes.tile_count(Modes.EPAIS),
+	# Une occurrence par tuile, pas une par case : c est tout ce que l export retient.
+	_check_equal(painting.painted_cells().size(), Families.massif_tiles().size(),
 			"l essai dessine exactement %d tuiles, une fois chacune"
-			% Modes.tile_count(Modes.EPAIS))
-	var report: Dictionary = TilesetPNG.analyse(painting, heights)
+			% Families.massif_tiles().size())
+	var report: Dictionary = MassifTileset.analyse(painting, heights)
 	_check(report["is_exportable"],
 			"SANS QU UN PIXEL SOIT PEINT A LA MAIN, la feuille est complete")
 
 	var folder: String = "user://essai_test"
-	var done: Dictionary = Trial.write(folder, Modes.MINIMAL, side)
-	_check_equal(done["error"], OK, "l essai s ecrit par le chemin normal de l export")
+	var done: Dictionary = MassifTrial.write(folder)
+	_check_equal(String(done["error"]), "", "l essai s ecrit par le chemin normal de l export")
 
 	# --- LE PLUGIN LE RELIT, avec son propre lecteur et ses propres refus.
-	var manifest_path: String = folder.path_join(Trial.TRIAL_BASENAME + "_tileset.txt")
+	var manifest_path: String = folder.path_join(MassifTrial.TRIAL_BASENAME + "_tileset.txt")
 	var manifest: Dictionary = PluginManifest.parse(
 			FileAccess.get_file_as_string(manifest_path))
 	_check_equal(manifest["error"], OK, "et le plugin l accepte : %s" % manifest["reason"])
-	_check_equal(int(manifest["version"]), TilesetPNG.VERSION,
+	_check_equal(int(manifest["version"]), MassifTileset.VERSION,
 			"a la version que l exportateur vient d ecrire")
+	_check(PluginManifest.is_complete(manifest), "et il se sait complet")
 
 	var built: Dictionary = PluginTileSet.build(folder, manifest)
-	_check_equal(built["error"], OK, "le TileSet se fabrique depuis les planches livrees")
+	_check_equal(built["error"], OK, "le TileSet se fabrique depuis la planche livree")
 	var tile_set: TileSet = built["tile_set"]
 	_check(tile_set != null, "et il existe")
+	if tile_set != null:
+		var source: TileSetAtlasSource = tile_set.get_source(
+				int(built["source"])) as TileSetAtlasSource
+		_check_equal(source.get_tiles_count(), Families.massif_tiles().size(),
+				"%d tuiles creees, pas la grille entiere : les cases restantes sont vides"
+				% Families.massif_tiles().size())
 
-	# --- ET IL POSE UN MONDE. Chaque case du decor doit trouver sa tuile.
-	var scene: PackedStringArray = HeightMask.read("res://guides/preview.txt")
-	var world: Dictionary = _plugin_world(scene)
-	var slots: Dictionary = manifest["surface_slots"]
-	var wall_slots: Dictionary = manifest["wall_slots"]
+	# --- ET IL POSE UN MONDE. Chaque pose du guide doit trouver sa tuile.
+	#
+	# ⚠ C EST LE SEUL TEST QUI PARCOURE LA CHAINE ENTIERE. Tous les autres en eprouvent un
+	# maillon : celui-ci part du dessin, le verse dans un carnet, le fait sortir par le CHEMIN
+	# NORMAL de l export, relit le manifeste avec le lecteur DU PLUGIN, en fabrique un TileSet,
+	# et pose un monde. S il passe, un game dev peut essayer.
+	var world: Dictionary = _plugin_world(heights)
+	var slots: Dictionary = manifest["slots"]
+	var placed: Dictionary = PluginRules.layers(world)
 	var missing: int = 0
 	var posed: int = 0
-	for cell: Vector2i in world.keys():
-		var index: int = PluginRules.surface_index_at(world, cell)
-		if index == PluginRules.NO_INDEX:
-			continue
-		if slots.has(index):
-			posed += 1
-		else:
-			missing += 1
-	for role: Vector2i in PluginRules.walls(world).values():
-		if wall_slots.has(role):
-			posed += 1
-		else:
-			missing += 1
-	for role: Vector2i in PluginRules.underfoot(world).values():
-		if wall_slots.has(role):
-			posed += 1
-		else:
-			missing += 1
+	for level: int in placed.keys():
+		for tile: int in (placed[level] as Dictionary).values():
+			if slots.has(tile):
+				posed += 1
+			else:
+				missing += 1
 	_check_equal(missing, 0,
-			"CHAQUE case du decor trouve sa tuile dans l essai : aucun trou")
+			"CHAQUE pose du guide trouve sa tuile dans l essai : aucun trou")
 	_check(posed > 0, "et le monde n est pas vide (%d tuiles posees)" % posed)
 
-	for path: String in done["written"]:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_wipe(folder)
 
 
 ## LA ZONE A REFAIRE, QUAND LE PINCEAU CHANGE UNE CASE.
@@ -3304,163 +3415,115 @@ func _test_trial_tileset() -> void:
 ## l'illustration emploie : si les deux repondent pareil sur tous les etages, il n'existe
 ## aucun relief ou le guide et le jeu se contrediraient.
 func _test_stacked_levels() -> void:
-	print("les etages s empilent, et les deux lecteurs le font pareil")
+	print("les etages s empilent, et une couche par etage dit ce que dit la liste des poses")
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = 20260824
+	rng.seed = 20260903
 	var apart: int = 0
 	var stacked: int = 0
-	var side: int = 10
 
-	for _round: int in range(40):
-		var relief: PackedStringArray = _random_relief(rng, side, side, 3)
+	# ⚠ SUR DES RELIEFS QUE LE PINCEAU PRODUIT, ET C EST LA CONDITION DU THEOREME. « Une case
+	# n a qu une pose par etage » tient parce que min trois separe deux composantes d au moins
+	# trois rangees de vide, alors qu une jupe n en descend que trois : elle s arrete juste
+	# avant. Sur un relief tire au sort, min trois ne tient pas, deux jupes du meme etage se
+	# marchent dessus, et une couche par etage en perd une -- ce qui accuserait le rangement
+	# d un defaut du relief.
+	for _round: int in range(20):
+		var relief: PackedStringArray = Gesture.walk(rng, 14, 14, 3)
+		if relief.is_empty():
+			continue
 		var world: Dictionary = _plugin_world(relief)
-		for level: int in range(HeightMask.top_level(relief) + 1):
-			var theirs: Dictionary = PluginRules.surfaces_at_level(world, level,
-					Rect2i(0, 0, side, side))
-			for y: int in range(side):
-				for x: int in range(side):
-					var mine: int = Coverage.index_at_level(relief, x, y, level)
-					var at: Vector2i = Vector2i(x, y)
-					if mine == Coverage.NO_INDEX:
-						if theirs.has(at):
-							apart += 1
-					elif not theirs.has(at) or int(theirs[at]) != mine:
-						apart += 1
-					elif level < HeightMask.level_at(relief, x, y):
-						stacked += 1
+		var placed: Dictionary = PluginRules.layers(world)
+		var counted: int = 0
+		for level: int in placed.keys():
+			counted += (placed[level] as Dictionary).size()
+		var poses: Array[Dictionary] = PluginRules.poses(world)
+		if counted != poses.size():
+			apart += 1
+		for one: Dictionary in poses:
+			var level2: int = int(one["level"])
+			var at: Vector2i = one["cell"]
+			if not placed.has(level2) or not (placed[level2] as Dictionary).has(at):
+				apart += 1
+			elif int((placed[level2] as Dictionary)[at]) != PluginRules.key_of(one):
+				apart += 1
+		var seen_cells: Dictionary = {}
+		for two: Dictionary in poses:
+			var cell: Vector2i = two["cell"]
+			if seen_cells.has(cell):
+				stacked += 1
+			seen_cells[cell] = true
 
 	_check_equal(apart, 0,
-			"le plugin pose exactement les memes tuiles que l illustration, etage par etage")
+			"une couche par etage porte EXACTEMENT les poses du modele, sans en perdre une")
+	# ⚠ ET IL FAUT QUE L EMPILEMENT AIT LIEU. Un monde plat passerait le test ci-dessus sans
+	# rien empiler du tout : ce serait un compteur qui ne mesure pas ce qu il pretend mesurer.
 	_check(stacked > 0,
-			"et il y a bien des tuiles POSEES SOUS un plateau (%d) : l empilement sert" % stacked)
-
-
-func _test_dirty_region() -> void:
-	print("le pinceau : la zone a refaire, ni trop petite ni differente")
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = 20260823
-	var outside: int = 0
-	var apart: int = 0
-	var rounds: int = 60
-	var side: int = 12
-
-	for _round: int in range(rounds):
-		var world: Dictionary = {}
-		for y: int in range(side):
-			for x: int in range(side):
-				world[Vector2i(x, y)] = rng.randi_range(0, 2)
-		var before: Array[Dictionary] = [PluginRules.surfaces(world),
-				PluginRules.walls(world), PluginRules.underfoot(world)]
-
-		var cell: Vector2i = Vector2i(rng.randi_range(0, side - 1), rng.randi_range(0, side - 1))
-		if rng.randf() < 0.3:
-			world.erase(cell)
-		else:
-			world[cell] = rng.randi_range(0, 2)
-
-		var after: Array[Dictionary] = [PluginRules.surfaces(world),
-				PluginRules.walls(world), PluginRules.underfoot(world)]
-		var region: Rect2i = PluginRules.region_of(world, [cell])
-
-		for k: int in range(3):
-			for at: Vector2i in before[k].keys():
-				var gone: bool = not after[k].has(at)
-				if (gone or after[k][at] != before[k][at]) and not region.has_point(at):
-					outside += 1
-			for at: Vector2i in after[k].keys():
-				if not before[k].has(at) and not region.has_point(at):
-					outside += 1
-
-		var narrow: Dictionary = PluginRules.walls_in(world, region)
-		for at: Vector2i in PluginRules.surfaces_in(world, region).keys():
-			if after[0].get(at) != PluginRules.surfaces_in(world, region)[at]:
-				apart += 1
-		for at: Vector2i in after[0].keys():
-			if region.has_point(at) and not PluginRules.surfaces_in(world, region).has(at):
-				apart += 1
-		for at: Vector2i in (narrow["roles"] as Dictionary).keys():
-			if after[1].get(at) != narrow["roles"][at]:
-				apart += 1
-		for at: Vector2i in after[1].keys():
-			if region.has_point(at) and not (narrow["roles"] as Dictionary).has(at):
-				apart += 1
-		for at: Vector2i in (narrow["underfoot"] as Dictionary).keys():
-			if after[2].get(at) != narrow["underfoot"][at]:
-				apart += 1
-
-	_check_equal(outside, 0,
-			"TOUT ce qu une retouche change tombe DANS la zone : elle n est jamais trop petite")
-	_check_equal(apart, 0,
-			"et la zone dit EXACTEMENT ce que dirait le calcul complet")
+			"et il y a bien des cases qui portent PLUSIEURS poses (%d) : l empilement sert"
+			% stacked)
 
 
 func _test_plugin_manifest() -> void:
 	print("SoluPaint : le manifeste se relit, et le faux se refuse")
 	var folder: String = "user://plugin_manifeste"
-	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
-	var by_key: Dictionary = WorkIO.cells_by_key(heights)
-	var painting: Painting = Painting.new(16)
-	for key: String in by_key.keys():
-		if key.ends_with(":0"):
-			painting.paint(by_key[key], 0, 0, _key_colour(key))
-	var done: Dictionary = TilesetPNG.write(folder, "essai", painting, heights, Modes.MINIMAL)
-	_check_equal(done["error"], OK, "un export complet pour eprouver le lecteur")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
+	var painting: Painting = MassifTrial.paint(heights)
+	var done: Dictionary = MassifTileset.write(painting, heights, Modes.MASSIFS, folder,
+			"essai")
+	_check_equal(String(done["error"]), "", "un export complet pour eprouver le lecteur")
 
 	var report: Dictionary = PluginManifest.read(folder.path_join("essai_tileset.txt"))
-	_check_equal(report["error"], OK, "le manifeste se lit sans reproche")
-	_check_equal(int(report["tile_size"]), 16, "la taille de tuile est relue")
-	_check_equal(report["family"], PluginManifest.BY_CELL, "la famille est relue")
-	_check_equal(report["surface_slots"].size(), Thickness.SURFACE_INDICES.size(), "les 27 cases de surface")
-	_check_equal(report["wall_slots"].size(), Thickness.wall_roles().size(),
-			"les %d cases de robe" % Thickness.wall_roles().size())
+	_check_equal(report["error"], OK, "le manifeste se lit sans reproche : %s"
+			% report["reason"])
+	_check_equal(int(report["tile_size"]), MassifTrial.TRIAL_RESOLUTION,
+			"la taille de tuile est relue")
+	_check_equal(report["family"], PluginManifest.BY_MASSIF, "la famille est relue")
+	_check_equal(report["slots"].size(), Families.massif_tiles().size(),
+			"les %d cases de la planche" % Families.massif_tiles().size())
 	_check(PluginManifest.is_complete(report), "et le manifeste se sait complet")
 
 	# ⚠ LA TABLE DOIT DIRE LA MEME CHOSE QUE L EXPORTATEUR. Le plugin lit ce qui est ecrit ;
 	# si l ecrit ne correspondait pas a ce que la planche contient, le monde sortirait
 	# decale d une case sans qu une seule erreur ne soit levee.
 	var misplaced: int = 0
-	for index: int in report["surface_slots"].keys():
-		if report["surface_slots"][index] != TilesetPNG.surface_slot(index):
-			misplaced += 1
-	for role: Vector2i in report["wall_slots"].keys():
-		if report["wall_slots"][role] != TilesetPNG.wall_slot(role):
+	for tile: int in report["slots"].keys():
+		if report["slots"][tile] != MassifTileset.slot_of(tile):
 			misplaced += 1
 	_check_equal(misplaced, 0, "chaque case relue est celle ou l exportateur a pose la tuile")
 
-	# LE TILESET GODOT, fabrique depuis ce manifeste et ces deux planches.
+	# LE TILESET GODOT, fabrique depuis ce manifeste et cette planche.
 	var built: Dictionary = PluginTileSet.build(folder, report)
-	_check_equal(built["error"], OK, "le TileSet se fabrique depuis les planches ecrites")
+	_check_equal(built["error"], OK, "le TileSet se fabrique depuis la planche ecrite")
 	var tile_set: TileSet = built["tile_set"]
-	_check(tile_set != null and tile_set.tile_size == Vector2i(16, 16),
+	var side: int = MassifTrial.TRIAL_RESOLUTION
+	_check(tile_set != null and tile_set.tile_size == Vector2i(side, side),
 			"il porte la taille de tuile du manifeste")
-	if tile_set != null:
-		var surface: TileSetAtlasSource = tile_set.get_source(int(built["surface_source"])) as TileSetAtlasSource
-		var walls: TileSetAtlasSource = tile_set.get_source(int(built["walls_source"])) as TileSetAtlasSource
-		_check_equal(surface.get_tiles_count(), Thickness.SURFACE_INDICES.size(),
-				"27 tuiles creees, pas la grille entiere : les cases restantes sont vides")
-		_check_equal(walls.get_tiles_count(), Thickness.wall_roles().size(),
-				"et les %d robes" % Thickness.wall_roles().size())
 
 	# LES REFUS (charte, regle 5).
-	_check(int(PluginManifest.parse("n importe quoi\n")["error"]) != OK,
+	_check(int(PluginManifest.parse("n importe quoi")["error"]) != OK,
 			"un fichier qui ne s annonce pas est refuse")
-	var future: String = "%s %d\n" % [PluginManifest.MAGIC, PluginManifest.READS_UP_TO + 1]
+	var future: String = "%s %d" % [PluginManifest.MAGIC, PluginManifest.READS_UP_TO + 1]
 	_check(int(PluginManifest.parse(future)["error"]) != OK,
 			"une version plus recente est refusee, pas devinee")
-	# ⚠ ET LE TROP VIEUX AUSSI, pour exactement la meme raison. Ce refus-la manquait,
-	# et son absence a laisse passer un vrai defaut : entre deux livraisons, le
-	# hors-carte est passe de la plaine au VIDE et le sous-pied est apparu, SANS que la
-	# version bouge. Un manifeste v3 d'avant et un v3 d'apres decrivaient deux mondes
-	# differents, et le plugin les posait tous les deux. Un garde-fou qui ne regarde
-	# que d'un cote ne garde rien.
-	var ancient: String = "%s %d\n" % [PluginManifest.MAGIC, PluginManifest.READS_FROM - 1]
+	# ⚠ ET LE TROP VIEUX AUSSI, pour exactement la meme raison. La v8 decrivait l ancien
+	# modele -- une surface plus une robe, deux planches, sept bits de contexte. Un lecteur
+	# qui la poserait avec les regles d aujourd hui fabriquerait un autre monde, sans une
+	# seule erreur. Un garde-fou qui ne regarde que d un cote ne garde rien.
+	var ancient: String = "%s %d" % [PluginManifest.MAGIC, PluginManifest.READS_FROM - 1]
 	_check(int(PluginManifest.parse(ancient)["error"]) != OK,
 			"UNE VERSION TROP VIEILLE EST REFUSEE : son sens a change sous elle")
-	_check_equal(PluginManifest.READS_UP_TO, TilesetPNG.VERSION,
+	_check_equal(PluginManifest.READS_UP_TO, MassifTileset.VERSION,
 			"et le plugin lit exactement ce que l exportateur ecrit")
-	var wrong: String = FileAccess.get_file_as_string(folder.path_join("essai_tileset.txt")) 			.replace("storey_tiles 3", "storey_tiles 4")
-	_check(int(PluginManifest.parse(wrong)["error"]) != OK,
-			"un etage qui ne descend pas de trois cases est REFUSE : le poser mentirait")
+	var written: String = FileAccess.get_file_as_string(
+			folder.path_join("essai_tileset.txt"))
+	var wrong_fall: String = written.replace("fall_rows 3", "fall_rows 4")
+	_check(int(PluginManifest.parse(wrong_fall)["error"]) != OK,
+			"un etage qui ne descend pas de trois rangees est REFUSE : le poser mentirait")
+	var wrong_count: String = written.replace("tiles %d" % PluginManifest.MASSIF_TILES,
+			"tiles %d" % (PluginManifest.MASSIF_TILES + 1))
+	_check(int(PluginManifest.parse(wrong_count)["error"]) != OK,
+			"et un vocabulaire qui n est pas le sien est REFUSE, pas pose a moitie")
+
+	_wipe(folder)
 
 
 ## L installateur : le bouton destine a l acheteur.
@@ -3479,12 +3542,12 @@ func _test_manifest_discovery() -> void:
 	_check(PluginManifest.discover(folder).is_empty(),
 			"un projet sans tileset n en propose aucun")
 
-	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
-	var painting: Painting = Trial.paint(heights, 16)
-	_check_equal(TilesetPNG.write(folder, "premier", painting, heights, Modes.MINIMAL)["error"],
-			OK, "un tileset s ecrit a la racine")
-	_check_equal(TilesetPNG.write(deeper, "second", painting, heights, Modes.MINIMAL)["error"],
-			OK, "et un autre, trois dossiers plus bas")
+	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MASSIFS))
+	var painting: Painting = MassifTrial.paint(heights)
+	_check_equal(String(MassifTileset.write(painting, heights, Modes.MASSIFS, folder,
+			"premier")["error"]), "", "un tileset s ecrit a la racine")
+	_check_equal(String(MassifTileset.write(painting, heights, Modes.MASSIFS, deeper,
+			"second")["error"]), "", "et un autre, trois dossiers plus bas")
 
 	var found: PackedStringArray = PluginManifest.discover(folder)
 	_check_equal(found.size(), 2, "les deux se trouvent, quelle que soit leur profondeur")
@@ -3637,7 +3700,6 @@ func _test_deep_falls() -> void:
 
 	var lengths: Array[int] = []
 	var strays: int = 0
-	var drift: int = 0
 	var unfooted: int = 0
 	var body_one_seen: int = 0
 
@@ -3670,16 +3732,6 @@ func _test_deep_falls() -> void:
 		if rows_used.has(2):
 			body_one_seen += 1
 
-		# ⚠ ET LE PLUGIN DOIT SUIVRE JUSQU EN BAS. C est la ou une copie de la regle derive
-		# en premier : le corps qui tourne est la seule partie recursive du vocabulaire.
-		var theirs: Dictionary = PluginRules.walls(_plugin_world(relief))
-		for cell: Vector2i in roles.keys():
-			if not theirs.has(cell) or theirs[cell] != roles[cell]:
-				drift += 1
-		for cell: Vector2i in theirs.keys():
-			if not roles.has(cell):
-				drift += 1
-
 	var expected: Array[int] = []
 	for level: int in range(1, HeightMask.MAX_LEVEL + 1):
 		expected.append(Walls.STOREY_TILES * level)
@@ -3696,8 +3748,9 @@ func _test_deep_falls() -> void:
 	# pas le corps 1.
 	_check_equal(body_one_seen, HeightMask.MAX_LEVEL - 1,
 			"le corps 1 apparait des deux etages, et pas avant : une chute de trois ne le voit pas")
-	_check_equal(drift, 0, "le plugin dit la meme chose jusqu a la chute de %d cases"
-			% (Walls.STOREY_TILES * HeightMask.MAX_LEVEL))
+	# ⚠ ET LA COMPARAISON AU PLUGIN A QUITTE CE TEST, avec le modele qu elle controlait. Les
+	# chutes profondes du modele des massifs sont eprouvees par `_test_plugin_rules`, sur des
+	# poses et non sur des roles de robe.
 
 	# ⚠ ET L AUTRE REGIME : UNE ROBE ECRETEE FAIT N IMPORTE QUELLE LONGUEUR, mais elle ne
 	# pose PAS son pied. Atterrir est quantifie par trois ; descendre ne l est pas.
@@ -4033,10 +4086,9 @@ func _random_thick_relief(rng: RandomNumberGenerator) -> PackedStringArray:
 ## traitement que la regle de pose : deux copies qui se fient a leur memoire divergent.
 func _test_thickness_cross_check() -> void:
 	print("thickness : la copie du plugin dit exactement ce que dit le noyau")
-	_check_equal(PluginManifest.SURFACE_TILES, Thickness.SURFACE_INDICES.size(),
-			"le lecteur du plugin attend les 27 surfaces du noyau")
-	_check_equal(PluginManifest.WALL_TILES, Thickness.wall_roles().size(),
-			"et les 20 roles du noyau")
+	# ⚠ ET LE COMPTE DE TUILES A DEMENAGE AVEC LE MODELE : il n y a plus deux vocabulaires --
+	# les surfaces d un cote, les robes de l autre -- mais un seul, celui des massifs. Il se
+	# compare dans `_test_plugin_rules`, avec le reste de la regle de pose.
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x7413C
 	var drift: int = 0

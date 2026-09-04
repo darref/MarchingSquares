@@ -1,199 +1,113 @@
-solutiles-tileset 8
-mode epais
-tile_size 32
+solutiles-tileset 9
+mode massifs
+famille massif
+tile_size 16
+fall_rows 3
+tiles 39
 
-# ======================= LA REGLE DE POSE =======================
-# Ce fichier n'est pas une notice, c'est le contrat. Tout ce qui suit est
-# necessaire et suffisant pour placer chaque tuile.
-
-# --- LE RELIEF ---
-# Une carte est une hauteur par case, et elle a TROIS etats, pas deux :
-#     ~   le VIDE, le hors-monde : il n'y a pas de sol du tout ;
-#     0   la plaine ;
-#     1.. les plateaux.
-# ⚠ LE HORS-CARTE EST DU VIDE, PAS DE LA PLAINE. Une case qu'on ne declare
-# pas n'est pas au niveau 0 : elle n'existe pas. C'est la seule facon de
-# savoir OU LE SOL S'ARRETE, donc de border le monde -- un moteur qui lirait
-# l'absence comme de la plaine etendrait le sol a l'infini sans une erreur.
+# ---- LA REGLE DE POSE ----
+#
+# LE RELIEF. Une hauteur par case : `~` le vide, `0..9` les etages. Le
+# hors-carte est du VIDE, jamais de la plaine -- un moteur qui lirait
+# l'absence comme de la plaine etendrait le sol a l'infini et ne poserait
+# aucune falaise de bord du monde.
 void -1 out_of_map_is_void
-# La silhouette de l'etage N est l'ensemble des cases de hauteur >= N, et
-# c'est un masque BINAIRE : tout ce qui suit s'applique etage par etage. On
-# dessine du bas vers le haut, chaque couche recouvrant la precedente.
-levels silhouette_per_level
-# ⚠ ET LA PLAINE EST UN PLATEAU COMME LES AUTRES. Elle a sa silhouette, ses
-# index de surface, et ses FALAISES la ou elle borde le vide : c'est le bord
-# du monde. Aucune tuile nouvelle n'en decoule -- les memes index, les memes
-# roles -- mais un moteur qui traiterait l'etage 0 a part n'en poserait
-# aucune, et son monde flotterait sur un sol sans fin.
 plain level_like_any_other
-draw_order bottom_up
-
-# --- LA SURFACE : le blob 47 ---
-# La tuile occupe UNE CASE, et son dessin depend des huit voisins de cette
-# case. Voisinage 8 bits, sens horaire depuis le nord.
-bits N=1 NE=2 E=4 SE=8 S=16 SW=32 W=64 NW=128
-# ⚠ UN BIT DE COIN N'EST CONSERVE QUE SI LES DEUX CARDINAUX QUI L'ENCADRENT
-# SONT PLEINS. Un coin diagonal isole ne change pas la silhouette de la tuile :
-# il ne doit donc pas produire une tuile de plus. Les 256 voisinages bruts se
-# reduisent ainsi a exactement 47 index.
-canonicalise corner_needs_both_cardinals
-# La tuile d'une case est celle de SON etage, jamais de l'union des etages.
-visible own_level
-# La couche de surface est posee sur la grille des cases, sans decalage.
-surface_offset none
-
-# --- LES FALAISES ---
-# ⚠ UN PLATEAU N'A DE FACE QU'AU SUD. Les trois autres cotes ne montrent rien :
-# on voit son dessus, puis le sol d'en dessous, sans transition.
-faces south_only
-storey_tiles 3
-body_rows 3
-block_rows 5
-# LA CHUTE. Sous une levre de l'etage N -- une case de l'etage N dont la case
-# au sud est plus basse -- on cherche l'etage le plus haut M reellement
-# atteint, et la chute vaut storey_tiles * (N - M).
-# ⚠ ON SONDE LA CASE JUSTE SOUS LE PIED, jamais celles que la robe traverse :
-# les etages partagent la grille, et l'etage N-1 continue SOUS la robe de
-# l'etage N. Sonder au fil de la descente repondrait « touche » des la premiere
-# case, et toutes les falaises feraient une case de haut.
-fall storey_tiles_times_gap probe_below_foot
-# ⚠ ET QUAND RIEN N'EST DESSOUS, LA ROBE NE S'ARRETE PAS A L'ETAGE 0 : elle
-# tombe d'un etage de PLUS -- storey_tiles * (N + 1) -- et ne pose PAS son
-# pied. On ne touche pas le fond d'un gouffre. C'est la falaise du bord du
-# monde, et c'est aussi celle de la plaine elle-meme, qu'aucun etage ne peut
-# recevoir. Partir de storey_tiles * N donnerait zero pour la plaine, qui
-# n'aurait alors jamais de falaise du tout.
-fall_into_void one_storey_more no_foot
-# LE MODE EPAIS, A MIN TROIS. Rien ne fait une bande fine : une case --
-# pleine OU vide -- dont la course (la suite de cases du meme etat qui la
-# contient le long d'un axe) fait moins de trois -- bord + centre + bord --
-# est FINE, et ce dans CHAQUE silhouette d'etage, plaine comprise.
-# Le pinceau du moteur refuse tout geste qui en creerait une : le tileset
-# n'a pas de tuile pour elle, et la table de ce fichier est le vocabulaire
-# entier qui survit a cet interdit.
+#
+# LE MASSIF. Pour chaque etage L a partir de ZERO, une composante connexe
+# des cases de niveau AU MOINS L -- pas exactement L. Les massifs sont donc
+# EMBOITES : une case de niveau 3 appartient aux massifs 3, 2, 1 et 0.
+# Groupes a l'etage exact, un porteur deviendrait un ANNEAU troue la ou le
+# massif du dessus se pose, et l'on verrait le sol a travers son milieu.
+massif connected_component level_at_least from_zero
+#
+# L'EMPREINTE. La surface du massif, PLUS la falaise qui pend sous chaque
+# bord sud. La silhouette se lit sur l'EMPREINTE, jamais sur la surface
+# seule : une case de falaise a des voisines de falaise, et la lire dans la
+# surface la dirait isolee.
+footprint surface_plus_south_skirt
+silhouette read_on_footprint eight_bits blob_canonical
+#
+# LA CHUTE. Un etage vaut TROIS rangees. La face cherche le premier palier j
+# tel que le sol, 3j rangees plus bas, soit exactement j etages sous la
+# levre ; elle n'est donc PAS forfaitaire. Si elle n'en trouve aucun, elle
+# tombe dans le vide et NE POSE PAS SON PIED -- on ne touche pas le fond
+# d'un gouffre. Et la sonde regarde SOUS LE PIED, jamais les rangees
+# traversees : une terrasse posee sur le trajet n'arrete pas la chute.
+fall three_rows_per_storey probe_under_foot no_foot_into_void
+#
+# LES BANDES. La surface, puis le chapiteau au premier pas, le corps
+# ensuite, le pied a l'atterrissage. Une tuile EST le couple (silhouette,
+# bande) -- plus le seul bit de contexte qui reste.
+bands surface crown body foot
+#
+# LE SEUL BIT DE CONTEXTE : EST-CE QUE JE RECOUVRE UN AUTRE MASSIF ?
+# Si oui, mon contour est AU RAS partout -- son arete touche la bordure de
+# tuile au rendez-vous, pour que n'importe quelle voisine puisse la
+# rejoindre. Si non, mes aretes sont LIBRES. La PLAINE ne compte pas comme
+# chose recouverte : sans cette clause tout massif recouvrirait quelque
+# chose, donc tout serait au ras, et la liberte disparaitrait.
+flush covers_another_massif plain_does_not_count
+#
+# L'ORDRE DE POSE. Par RANGEE d'abord, par ETAGE ensuite ; la derniere pose
+# gagne. Un chevauchement n'est QUE de l'occlusion par ordre de rendu : le
+# massif du dessus masque la falaise du dessous, il ne la modifie pas. Le
+# voisinage d'une tuile ne depend donc jamais de ce qu'on pose dessus.
+draw_order by_row_then_level last_wins
+#
+# ⚠ ET IL N'Y A NI POSE ARRIERE NI SOUS-PIED. Puisque le massif du dessus
+# est au ras partout, celui du dessous n'emerge jamais EN PLEIN MILIEU d'une
+# tuile : il emerge toujours a une bordure. Il n'existe donc aucune tuile
+# composite, et le massif du dessous est dessine COMPLET.
+no_backing no_underfoot massif_drawn_whole
+#
+# L'EPAISSEUR. Aucune course de cases du meme etat -- pleine ou vide -- ne
+# fait moins de TROIS, dans chaque silhouette d'etage. Ce n'est pas une
+# regle en soi : c'est la consequence d'un pinceau qui pose un tampon 3x3.
 thin_forbidden run_shorter_than_three all_storeys both_states
-# RACCOURCISSEMENT. Si la robe rencontre le sol de SON PROPRE etage, elle
-# s'arrete la et ne pose PAS son pied : elle ne touche pas le sol d'en bas,
-# elle bute contre un voisin de son niveau.
-trim stop_on_same_level no_foot
-# LA RANGEE, au pas `step` (1 = premiere case sous la levre) d'une chute de
-# `drop` cases :
-#     step == 1               -> 0  chapiteau
-#     step == drop et posee   -> 4  pied
-#     sinon                   -> 1 + (step - 2) modulo body_rows
-row_for crown_first foot_last body_cycle
-# LE PAN. C'est le couple des deux flancs : pan = ouest * 2 + est.
-#     0 ARRET     ma roche s'arrete a ce flanc
-#     1 CONTINUE  de la ROCHE a ce flanc : la meme face se poursuit
-# ⚠ DEUX ETATS, PAS TROIS, ET C'EST LA REGLE DES COUCHES QUI LE PERMET. Un
-# troisieme etat, DEVANT, disait « mon voisin est en retrait, je porte
-# l'angle » -- c'est-a-dire une affirmation sur le VOISIN. Or « qui est
-# devant » ne se demande plus a la tuile : la face la plus proche se pose
-# par-dessus l'autre, et l'ORDRE DE DESSIN tranche. La dissymetrie que les
-# neuf pans achetaient au prix de vingt-sept roles, l'empilement la donne
-# pour rien. Les 4 pans vivent tous, a toutes les rangees.
-# ⚠ ET `ARRET` NE BORDE JAMAIS DE LA ROCHE : c'est un theoreme -- il veut dire
-# qu'aucune face ne couvre la case d'a cote -- verifie sur 5 216 flancs, dont
-# 35,5 %% de terre et 64,5 %% de vide, et zero de roche.
-# ⚠ ET LE PAN SE CHOISIT PAR RANGEE, JAMAIS PAR COLONNE : sous le pied d'une
-# voisine plus courte, un flanc redevient `arret`.
-pan west_times_two_plus_east lip_row_comparison per_row
+#
+sheet_rule fixed_size one_drawing_per_tile no_variants
 
-# --- LA POSE DERRIERE : le sous-pied, et le corps derriere une case qui ecrete ---
-# Une robe qui atterrit repose son PIED une case plus bas, SOUS la surface
-# de cette case. Raison : la case d'atterrissage a ses coins nord decoupes
-# -- son voisin du nord est la face de la falaise -- et par ces coins on
-# verrait le sol au lieu de la roche qui continue derriere.
-# Ce n'est PAS une tuile de plus : c'est la meme, posee une fois de plus.
-# Le pan est celui du pied, sans rien recalculer : c'est la meme face.
-# ORDRE : le sous-pied se pose JUSTE AVANT la surface de l'etage ou il
-# atterrit -- pas avant toutes les surfaces. Un moteur qui dessine tous les
-# etages du bas vers le haut recouvrirait sinon le sous-pied avec l'etage
-# d'en dessous, et les coins montreraient de nouveau le sol.
-underfoot foot_role redrawn_below under_landing_surface
-# ⚠ ET UNE ROBE ECRETEE PASSE DERRIERE LA CASE QUI L'A COUPEE. Sous cette
-# case -- seulement si elle est EXACTEMENT de l'etage de la levre : plus
-# haute, son sommet depasse la face -- on repose la rangee du pas suivant,
-# row_for(drop + 1) : toujours un CORPS. Jamais un pied, qui reste la preuve
-# d'un atterrissage ; jamais un chapiteau, un blocage au premier pas ayant
-# reduit la robe a neant. Le pan est celui de la derniere rangee posee, et
-# l'ordre est celui du sous-pied : juste avant la surface de l'etage de la
-# case qui la recouvre. Sans cette pose, le coin nord decoupe de la case qui
-# ecrete s'ouvre sur l'etage d'en dessous -- de l'herbe ou du vide, la ou la
-# roche continue.
-backing next_body_row under_trimming_cell same_level_only
-# LE CHAPITEAU SOUS SA LEVRE. La face COMMENCE sous la case qui la lance :
-# sous chaque levre se repose la premiere rangee de SA chute, avec le pan
-# du premier pas. Les marges transparentes de la tuile de surface montrent
-# ainsi le VRAI flanc de la vraie face de chaque occurrence, au lieu de
-# l'etage d'en dessous vu a travers le haut de la paroi. Une pose de plus,
-# AUCUNE tuile de plus. Le sous-pied garde une case disputee.
-lip_backing first_fall_row under_lip_cell
-
-# --- LA PLANCHE ---
-# Une tuile, un dessin, une case. Les deux planches ont une taille FIXE :
-# elle ne depend ni du guide ni de ce qui a ete peint, seulement du
-# vocabulaire. Le lecteur peut donc calculer la case d'une tuile sans rien
-# lire d'autre que ce fichier. Il n'y a PAS de variantes : plusieurs cases
-# du guide portent la meme tuile, mais elles portent le meme dessin.
-sheet fixed_size one_drawing_per_tile no_variants
-# ================================================================
-
-surface solutiles_essai_surface.png 8 4
-famille cell
-# les 27 index de la famille, en ordre croissant, huit par rangee ; les
-# cases qui restent en fin de planche sont vides.
-index 5 slot 0,0  # N+E
-index 7 slot 1,0  # N+NE+E
-index 20 slot 2,0  # E+S
-index 23 slot 3,0  # N+NE+E+S
-index 28 slot 4,0  # E+SE+S
-index 29 slot 5,0  # N+E+SE+S
-index 31 slot 6,0  # N+NE+E+SE+S
-index 65 slot 7,0  # N+W
-index 71 slot 0,1  # N+NE+E+W
-index 80 slot 1,1  # S+W
-index 92 slot 2,1  # E+SE+S+W
-index 112 slot 3,1  # S+SW+W
-index 113 slot 4,1  # N+S+SW+W
-index 116 slot 5,1  # E+S+SW+W
-index 119 slot 6,1  # N+NE+E+S+SW+W
-index 124 slot 7,1  # E+SE+S+SW+W
-index 127 slot 0,2  # N+NE+E+SE+S+SW+W
-index 193 slot 1,2  # N+W+NW
-index 197 slot 2,2  # N+E+W+NW
-index 199 slot 3,2  # N+NE+E+W+NW
-index 209 slot 4,2  # N+S+W+NW
-index 221 slot 5,2  # N+E+SE+S+W+NW
-index 223 slot 6,2  # N+NE+E+SE+S+W+NW
-index 241 slot 7,2  # N+S+SW+W+NW
-index 247 slot 0,3  # N+NE+E+S+SW+W+NW
-index 253 slot 1,3  # N+E+SE+S+SW+W+NW
-index 255 slot 2,3  # N+NE+E+SE+S+SW+W+NW
-
-proof solutiles_essai_preuve.png
-# chaque index sur son propre ilot, dans l'ordre de la planche de surface :
-# la preuve qu'il n'en manque aucun, peinte avec ces tuiles-ci.
-
-walls solutiles_essai_walls.png 4 5
-# 4 pans (le couple des deux flancs) x 5 rangees = 20 tuiles.
-role 0,0 slot 0,0  # arret|arret / chapiteau
-role 0,1 slot 0,1  # arret|arret / corps 0
-role 0,2 slot 0,2  # arret|arret / corps 1
-role 0,3 slot 0,3  # arret|arret / corps 2
-role 0,4 slot 0,4  # arret|arret / pied
-role 1,0 slot 1,0  # arret|continue / chapiteau
-role 1,1 slot 1,1  # arret|continue / corps 0
-role 1,2 slot 1,2  # arret|continue / corps 1
-role 1,3 slot 1,3  # arret|continue / corps 2
-role 1,4 slot 1,4  # arret|continue / pied
-role 2,0 slot 2,0  # continue|arret / chapiteau
-role 2,1 slot 2,1  # continue|arret / corps 0
-role 2,2 slot 2,2  # continue|arret / corps 1
-role 2,3 slot 2,3  # continue|arret / corps 2
-role 2,4 slot 2,4  # continue|arret / pied
-role 3,0 slot 3,0  # continue|continue / chapiteau
-role 3,1 slot 3,1  # continue|continue / corps 0
-role 3,2 slot 3,2  # continue|continue / corps 1
-role 3,3 slot 3,3  # continue|continue / corps 2
-role 3,4 slot 3,4  # continue|continue / pied
+sheet solutiles_essai_massifs.png 8 5
+# une planche unique : surfaces ET jupes, meme vocabulaire. Les tuiles sont
+# rangees par cle croissante, huit par rangee ; les cases qui restent en fin
+# de planche sont vides.
+tile 28 slot 0,0  # SURFACE 28 libre
+tile 31 slot 1,0  # SURFACE 31 libre
+tile 112 slot 2,0  # SURFACE 112 libre
+tile 124 slot 3,0  # SURFACE 124 libre
+tile 127 slot 4,0  # SURFACE 127 libre
+tile 223 slot 5,0  # SURFACE 223 libre
+tile 241 slot 6,0  # SURFACE 241 libre
+tile 253 slot 7,0  # SURFACE 253 libre
+tile 255 slot 0,1  # SURFACE 255 libre
+tile 287 slot 1,1  # CHAPITEAU 31 libre
+tile 479 slot 2,1  # CHAPITEAU 223 libre
+tile 497 slot 3,1  # CHAPITEAU 241 libre
+tile 503 slot 4,1  # CHAPITEAU 247 libre
+tile 511 slot 5,1  # CHAPITEAU 255 libre
+tile 543 slot 6,1  # CORPS 31 libre
+tile 735 slot 7,1  # CORPS 223 libre
+tile 753 slot 0,2  # CORPS 241 libre
+tile 759 slot 1,2  # CORPS 247 libre
+tile 767 slot 2,2  # CORPS 255 libre
+tile 775 slot 3,2  # PIED 7 libre
+tile 961 slot 4,2  # PIED 193 libre
+tile 967 slot 5,2  # PIED 199 libre
+tile 65556 slot 6,2  # SURFACE 20 au ras
+tile 65557 slot 7,2  # SURFACE 21 au ras
+tile 65616 slot 0,3  # SURFACE 80 au ras
+tile 65617 slot 1,3  # SURFACE 81 au ras
+tile 65620 slot 2,3  # SURFACE 84 au ras
+tile 65813 slot 3,3  # CHAPITEAU 21 au ras
+tile 65873 slot 4,3  # CHAPITEAU 81 au ras
+tile 66053 slot 5,3  # CORPS 5 au ras
+tile 66065 slot 6,3  # CORPS 17 au ras
+tile 66069 slot 7,3  # CORPS 21 au ras
+tile 66113 slot 0,4  # CORPS 65 au ras
+tile 66117 slot 1,4  # CORPS 69 au ras
+tile 66129 slot 2,4  # CORPS 81 au ras
+tile 66305 slot 3,4  # PIED 1 au ras
+tile 66309 slot 4,4  # PIED 5 au ras
+tile 66369 slot 5,4  # PIED 65 au ras
+tile 66373 slot 6,4  # PIED 69 au ras

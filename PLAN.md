@@ -4003,9 +4003,42 @@ de pied, 0 îlot qui ne porte pas sa tuile.
    tuerait une bonne part des silhouettes de PIED.
 2. **Les îlots** — fait. Le guide porte 52/52, calculé, revérifié dans le guide assemblé.
 3. **Le dessin** — l'utilisateur regarde et valide. C'est le cran où on en est.
-4. **LE PORTAGE, ET SEULEMENT APRÈS.** `Coverage`, `Families`, `Walls` (qui meurt), l'éditeur,
-   `work_io`, l'export, le manifeste v9. ⚠ **Le plugin SoluPaint seulement après que
-   l'utilisateur ait vérifié le fonctionnement dans le soft** — règle constante du projet.
+4. **LE PORTAGE — FAIT (2026-09-03).** L'éditeur, `work_io` (v5), `Families`, l'export
+   (`exporters/massif_tileset.gd`, manifeste **v9**), l'essai (`exporters/massif_trial.gd`), la
+   planche packed, le mode d'emploi (dont le niveau 3, lu à la source du nouveau contrat), et
+   **le plugin SoluPaint**. `Walls`, `Coverage`, `CornerIndex`, `Brink*`, `Thickness` ne sont
+   plus lus par le produit : ils vivent comme **témoins**, avec `guides/epais.txt`, jusqu'au
+   démontage.
+
+## LE PLUGIN, PORTÉ — ce qu'il est devenu et ce qu'il a coûté
+
+- **`addons/solupaint/rules.gd`** est la copie du modèle des massifs sur un monde **non borné**
+  (`Dictionary` case → étage, l'absence valant le VIDE) : composantes emboîtées, empreinte,
+  chute qui cherche son palier, le seul bit de ras, plus l'épaisseur et le pincement pour le
+  pinceau. Les 683 lignes de l'ancien vocabulaire sont parties avec lui.
+- **UNE COUCHE PAR ÉTAGE** remplace les trois de l'ancien modèle (sous-pied, surface, falaises).
+  Deux poses d'une même case ont forcément des étages différents — à un étage donné une case
+  n'appartient qu'à une composante — donc empiler par étage croissant rend exactement ce que
+  rend la liste triée. Il n'y a plus de couche de falaises à part : la jupe d'un massif est sur
+  la même couche que sa surface, **parce que c'est le même massif**.
+- **UNE SEULE PLANCHE, UNE SEULE SOURCE D'ATLAS.** Manifeste **v9** ; la v8 est refusée
+  nommément. Deux constantes lisibles par programme y entrent — `fall_rows` et `tiles` — parce
+  qu'un moteur doit pouvoir REFUSER sans lire de la prose.
+- ⚠ **LA ZONE À REFAIRE N'EST PLUS SOUTENABLE, et c'est le vrai prix du modèle.** Un massif est
+  une composante connexe, et « au ras » est une propriété du massif **entier** : poser une case
+  peut réunir deux massifs ou faire déborder un porté, et alors tout son contour change de règle
+  d'un bout du monde à l'autre. Une zone bornée laisserait le monde faux pendant qu'on le
+  dessine, sans rien signaler. On repose donc tout — **3 ms sur 16x16, 14 sur 32x32, 75 sur
+  64x64, 209 sur 96x96**. Un calcul incrémental est possible ; il n'est pas écrit.
+- ⚠ **UNE POSE PERDUE SE DIT** (`last_warning`, distinct de `last_error`). « Une case n'a qu'une
+  pose par étage » est un théorème **sous min trois** ; l'inspecteur peut le violer.
+- **Le contrôle croisé, dans les deux sens** : 256 voisinages, **4 096** reliefs binaires 3x4,
+  **19 683** reliefs 3x3 à trois états — le vide en est, et c'est lui qui distingue les
+  modèles —, le guide livré, et **400** reliefs 9x9 troués tirés au sort. Zéro divergence, et la
+  battue rencontre les 39 tuiles.
+- **La chaîne entière, sur le vrai travail peint** (`tools/chain_massifs.gd`) : 39 tuiles relues,
+  0 rendues, 39/39 livrées, export, relu par le lecteur DU PLUGIN, **29 109 poses, 0 sans tuile**.
+- **Suite : 685 vérifications, 0 échec.** Elle en portait 13 rouges depuis le portage du noyau.
 
 ## Les pièges déjà payés, pour ne pas les repayer
 
