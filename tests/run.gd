@@ -3120,32 +3120,45 @@ func _test_manual() -> void:
 	var painting: Painting = MassifTrial.paint(heights)
 	_check_equal(String(MassifTileset.write(painting, heights, Modes.MASSIFS, folder,
 			"manuel")["error"]), "", "un manifeste s ecrit, pour avoir de quoi comparer")
-	var manifest: String = FileAccess.get_file_as_string(folder.path_join("manuel_tileset.txt"))
+	var manifest: String = FileAccess.get_file_as_string(
+			folder.path_join("manuel_tileset.txt"))
 
-	# ⚠ ON SAUTE LES LIGNES VIDES, et pas par commodite : `String.find("")` rend **-1** en
-	# Godot la ou Python rend 0. Les six lignes de respiration du contrat se seraient donc
-	# declarees absentes d'un fichier qui les contient -- un test faux, qui envoie corriger ce
-	# qui va bien.
-	var strays: int = 0
+	# ⚠ CE TEST EST RETOURNE, ET C'EST LE POINT (decision utilisateur du 04/09/2026). Il
+	# verifiait que les lignes du manuel se trouvent DANS le manifeste, mot pour mot. Le
+	# manifeste ne porte plus la regle : elle vit dans le moteur, et se fournit sous licence a
+	# qui veut ecrire le sien. Ce qui etait la garantie devient donc la faute a surveiller.
+	#
+	# ⚠ ET CA N'AFFAIBLIT AUCUNE JUSTESSE. Ce qui garantit que deux moteurs s'accordent, c'est le
+	# CONTROLE CROISE -- reliefs exhaustifs, compares dans les deux sens -- jamais la prose du
+	# fichier. Celle-ci n'etait que de la documentation, utile a qui veut REIMPLEMENTER.
+	var leaked: int = 0
 	var first: String = ""
 	for line: String in rules:
-		if line.is_empty():
+		var clean: String = line.strip_edges()
+		# On ne cherche que les CLAUSES, pas les commentaires : un `#` peut coincider par
+		# hasard, une clause non.
+		if clean.is_empty() or clean.begins_with("#"):
 			continue
-		if manifest.find(line) == -1:
-			strays += 1
+		if manifest.find(clean) != -1:
+			leaked += 1
 			if first.is_empty():
-				first = line
-	_check_equal(strays, 0,
-			"les %d lignes du manuel sont dans le manifeste, mot pour mot%s"
-			% [rules.size(), "" if first.is_empty() else " (manque : %s)" % first])
+				first = clean
+	_check_equal(leaked, 0,
+			"le manifeste ne porte AUCUNE clause de la regle de pose%s"
+			% ("" if first.is_empty() else " (fuite : %s)" % first))
 
-	# ⚠ ET IL FAUT QUE LA REGLE SOIT VRAIMENT LA REGLE, pas un entete recopie. On cherche
-	# la clause qui porte le plus : celle du vide.
+	# ⚠ MAIS IL DOIT GARDER DE QUOI REFUSER. Sans `fall_rows` ni `tiles`, un lecteur ne peut
+	# plus distinguer un tileset qui n'est pas le sien -- et un monde faux qui ne se signale pas
+	# est le pire des defauts.
+	_check(manifest.contains("fall_rows "), "mais il garde `fall_rows`, qui sert a refuser")
+	_check(manifest.contains("tiles "), "et `tiles`, pour la meme raison")
+
+	# ET LE MODE D'EMPLOI, LUI, LA PORTE TOUJOURS -- lue a la source, jamais recopiee.
 	var carries: bool = false
-	for line: String in rules:
-		if line.begins_with("void "):
+	for line2: String in rules:
+		if line2.begins_with("void "):
 			carries = true
-	_check(carries, "et elles portent bien la clause du vide, pas seulement l en-tete")
+	_check(carries, "et le manuel porte bien la clause du vide, pas seulement l en-tete")
 
 	_wipe(folder)
 

@@ -30,8 +30,33 @@ const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vect
 
 
 ## LE VERDICT : ce relief est-il de ceux que le pinceau produit ?
+##
+## ⚠ IL COURT-CIRCUITE, ET CE N'EST PAS UNE COQUETTERIE. Il rendait `faults().is_empty()`, donc
+## il calculait LES SIX CLAUSES meme quand la premiere avait deja tranche -- dont trois qui
+## relisent chacune `Massifs.poses()`, la carte la plus couteuse du modele. Or `Gesture.walk`
+## appelle `legal()` APRES CHAQUE TAMPON, et la plupart des tampons refuses le sont sur
+## l'epaisseur, qui ne demande aucune pose. Mesure : 976 ms par monde de 24x30.
+##
+## ⚠ ET L'ORDRE EST CELUI DU COUT, PAS CELUI DU DOSSIER. Epaisseur et pincement se lisent sur le
+## relief nu ; le gouffre est un simple remplissage ; seules les trois dernieres demandent les
+## poses, et elles se les PARTAGENT desormais. Une carte couteuse ne se recalcule pas a chaque
+## tour de boucle -- lecon deja payee sept fois ailleurs.
+##
+## ⚠ ET `faults()` GARDE SON ROLE, INCHANGE : nommer ce qui cloche, pour reparer. Un verdict
+## booleen suffit a refuser, jamais a corriger.
 static func legal(world: PackedStringArray) -> bool:
-	return faults(world).is_empty()
+	if Thickness.any_thin(world):
+		return false
+	if Thickness.any_pinch(world):
+		return false
+	if chasms(world) > 0:
+		return false
+	var made: Array[Dictionary] = Massifs.poses(world)
+	if not Massifs.foot_faults(world, made).is_empty():
+		return false
+	if not thin_cells_visible(world, made).is_empty():
+		return false
+	return narrow_lips(world, made).is_empty()
 
 
 ## CE QUI CLOCHE, NOMME. ⚠ Un verdict booleen suffit a refuser, jamais a corriger : le pinceau
@@ -44,16 +69,19 @@ static func faults(world: PackedStringArray) -> Array[String]:
 	var pinch: int = Thickness.diagonal_pinches(world).size()
 	if pinch > 0:
 		out.append("%d pincement(s) diagonal(aux)" % pinch)
-	var feet: int = Massifs.foot_faults(world).size()
+	# ⚠ ET LES TROIS DERNIERES SE PARTAGENT UNE SEULE LECTURE DES POSES. Elles la refaisaient
+	# chacune : trois fois la carte la plus couteuse du modele, pour un seul verdict.
+	var made: Array[Dictionary] = Massifs.poses(world)
+	var feet: int = Massifs.foot_faults(world, made).size()
 	if feet > 0:
 		out.append("%d faute(s) de marge de pied" % feet)
 	var holes: int = chasms(world)
 	if holes > 0:
 		out.append("%d gouffre(s) enclos" % holes)
-	var ribbons: int = thin_cells_visible(world).size()
+	var ribbons: int = thin_cells_visible(world, made).size()
 	if ribbons > 0:
 		out.append("%d case(s) d'herbe visible fine" % ribbons)
-	var steps: int = narrow_lips(world).size()
+	var steps: int = narrow_lips(world, made).size()
 	if steps > 0:
 		out.append("%d bord(s) sud plus etroit(s) que trois" % steps)
 	return out
@@ -71,9 +99,10 @@ static func faults(world: PackedStringArray) -> Array[String]:
 ## le level designer, elle DECOULE du bord sud : lui demander d'etre epaisse revient a corriger
 ## le symptome. On contraint l'herbe, la roche suit -- ce qui est la regle du modele depuis le
 ## debut.
-static func narrow_lips(world: PackedStringArray) -> Array[Vector2i]:
+static func narrow_lips(world: PackedStringArray,
+		given: Array[Dictionary] = []) -> Array[Vector2i]:
 	var lips: Dictionary = {}
-	for pose: Dictionary in Massifs.poses(world):
+	for pose: Dictionary in (given if not given.is_empty() else Massifs.poses(world)):
 		if int(pose["band"]) == Massifs.SURFACE:
 			continue
 		lips[pose["lip"]] = int(pose["level"])
@@ -98,9 +127,10 @@ static func narrow_lips(world: PackedStringArray) -> Array[Vector2i]:
 ## c'est la que le personnage marche.
 
 
-static func thin_cells_visible(world: PackedStringArray) -> Array[Vector2i]:
+static func thin_cells_visible(world: PackedStringArray,
+		given: Array[Dictionary] = []) -> Array[Vector2i]:
 	var top: Dictionary = {}
-	for one: Dictionary in Massifs.poses(world):
+	for one: Dictionary in (given if not given.is_empty() else Massifs.poses(world)):
 		var cell: Vector2i = one["cell"]
 		if top.has(cell) and int((top[cell] as Dictionary)["level"]) > int(one["level"]):
 			continue
@@ -253,6 +283,16 @@ static func _where(grid: Array[PackedByteArray], rng: RandomNumberGenerator, rai
 
 
 ## LA CORRECTION : le pinceau corrige, il ne refuse pas (decision utilisateur).
+##
+## ⚠ ET ELLE N'A RIEN A FAIRE DANS UNE BATTUE. `mend` retouche CASE PAR CASE -- abaisser une
+## case fine, combler un gouffre -- ce qui n'est pas un tampon : le monde qui en sort est LEGAL
+## sans etre reconstructible au pinceau. Un generateur qui l'appelle apres chaque coup fabrique
+## donc des reliefs que l'artiste ne produira jamais, et les tuiles qu'ils portent entrent au
+## vocabulaire pour rien. C'est deja arrive une fois -- cinq mondes du guide sur dix -- et
+## `walk` a ete ecrit pour ca. Le recenseur, lui, etait reste sur l'ancienne fabrique jusqu'au
+## 05/09/2026 : SIX TUILES FANTOMES en sont sorties, qu'aucun geste n'atteint.
+##
+## `mend` sert au PINCEAU, qui repare le geste de l'artiste. Jamais a une battue.
 ##
 ## Chaque case fine s'aligne sur ses voisines cardinales ; chaque pincement diagonal se defait en
 ## alignant une cardinale sur sa diagonale ; chaque gouffre se comble a la plaine. Jusqu'au point

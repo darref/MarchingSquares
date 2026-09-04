@@ -17,6 +17,7 @@ const Painting := preload("res://core/painting.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const Families := preload("res://core/families.gd")
 const Massifs := preload("res://core/massifs.gd")
+const Signing := preload("res://core/signing.gd")
 
 const MAGIC: String = "solutiles-tileset"
 
@@ -142,7 +143,19 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	lines.append("fall_rows %d" % Massifs.FALL)
 	lines.append("tiles %d" % Families.massif_tiles().size())
 	lines.append("")
-	spec(lines)
+	# ⚠ LA REGLE DE POSE N'EST PLUS ECRITE ICI (decision utilisateur du 04/09/2026), et ce
+	# n'est PAS un affaiblissement de la justesse. Ce qui garantit que deux moteurs s'accordent,
+	# c'est le CONTROLE CROISE -- 4 096 reliefs binaires, 19 683 ternaires, le guide livre et des
+	# reliefs tires au sort, compares dans les deux sens a chaque execution. La prose, elle,
+	# n'etait que de la documentation : utile a qui veut REIMPLEMENTER, c'est-a-dire au cloneur.
+	#
+	# ⚠ ET CE QUI RESTE SUFFIT A REFUSER. `fall_rows` et `tiles` sont les deux constantes que le
+	# lecteur compare aux siennes : sans elles il ne pourrait plus distinguer un tileset qui
+	# n'est pas le sien, et c'est le pire des defauts -- celui qui ne se signale pas. Un
+	# garde-fou qui ne regarde que d'un cote ne garde rien.
+	lines.append("# La regle de pose ne figure pas dans ce fichier. Elle vit dans le moteur")
+	lines.append("# SoluPaint, qui la porte en entier, et se fournit sous licence a qui veut")
+	lines.append("# ecrire le sien. Ce manifeste dit OU sont les tuiles, pas comment les poser.")
 	lines.append("")
 	lines.append("sheet %s %d %d" % [basename + SUFFIX_SHEET, COLUMNS, rows()])
 	lines.append("# une planche unique : surfaces ET jupes, meme vocabulaire. Les tuiles sont")
@@ -159,9 +172,13 @@ static func manifest(report: Dictionary, mode_id: StringName, basename: String) 
 	return "\n".join(lines) + "\n"
 
 
-## LA REGLE DE POSE, telle qu'elle part dans le manifeste.
-## ⚠ LE MODE D'EMPLOI LA LIT D'ICI. La recopier dans l'interface donnerait deux textes a tenir
-## d'accord, et le jour ou la regle bouge il y en a un qui ment.
+## LA REGLE DE POSE, EN CLAIR -- pour le mode d'emploi et pour la licence, PLUS pour le fichier.
+##
+## ⚠ ELLE NE PART PLUS DANS LE MANIFESTE, et elle reste ici pour deux raisons. Le niveau 3 du
+## mode d'emploi la LIT A LA SOURCE : le recopier dans l'interface donnerait deux textes a tenir
+## d'accord, et le jour ou la regle bouge il y en a un qui ment. Et c'est elle qu'on fournit sous
+## licence a qui veut ecrire son propre moteur -- une fois, sous contrat, plutot que dans chaque
+## export livre a tout le monde.
 static func placement_rules() -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
 	spec(lines)
@@ -254,11 +271,26 @@ static func write(painting: Painting, heights: PackedStringArray, mode_id: Strin
 	if sheet.save_png(sheet_path) != OK:
 		return {"written": made, "report": report, "error": "ecriture impossible"}
 	made.append(sheet_path)
+	# LE SCEAU PORTE LES PIXELS, PAS SEULEMENT LE TEXTE.
+	#
+	# ⚠ SIGNER LE SEUL MANIFESTE LAISSERAIT ECHANGER LA PLANCHE SOUS LUI : quelqu'un revendrait
+	# notre planche d'essai sous son nom avec un manifeste refait, et le sceau tiendrait. On
+	# scelle donc les octets de l'IMAGE, la table des cases et la version -- re-decouper,
+	# re-empaqueter ou echanger l'image casse le sceau.
+	#
+	# ⚠ ET ON RELIT L'IMAGE DEPUIS LE DISQUE, pas depuis la memoire : c'est le fichier livre
+	# qu'on scelle, pas ce qu'on croit avoir ecrit.
+	var written_sheet: PackedByteArray = FileAccess.get_file_as_bytes(sheet_path)
+	var seal: String = Signing.seal(written_sheet,
+			Signing.table_of(report["source"]), VERSION)
 	var text_path: String = folder.path_join(basename + SUFFIX_MANIFEST)
 	var file: FileAccess = FileAccess.open(text_path, FileAccess.WRITE)
 	if file == null:
 		return {"written": made, "report": report, "error": "manifeste impossible"}
-	file.store_string(manifest(report, mode_id, basename))
+	var text: String = manifest(report, mode_id, basename)
+	if not seal.is_empty():
+		text += "seal %s\n" % seal
+	file.store_string(text)
 	file.close()
 	made.append(text_path)
 	return {"written": made, "report": report, "error": ""}

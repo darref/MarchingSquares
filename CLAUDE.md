@@ -46,9 +46,23 @@ niveau **au moins** L, et la plaine est le massif d'étage 0. Une tuile est le c
 `SURFACE`, `CHAPITEAU`, `CORPS` ou `PIED`. Et il ne reste **qu'un bit de contexte** :
 suis-je **AU RAS** ?
 
-Clé d'une tuile : `COVERS | (bande << 8) | silhouette`, `COVERS = 1 << 16` (`Massifs.key`).
-Au ras, seuls les quatre cardinaux comptent — la profondeur y est nulle, donc rien ne se
-creuse, pas même les coins rentrants.
+Clé d'une tuile : `CUT | COVERS | (bande << 8) | silhouette` (`Massifs.key`) — `COVERS = 1 << 16`,
+`CUT_WEST = 1 << 17`, `CUT_EAST = 1 << 18`. Au ras, seuls les quatre cardinaux comptent — la
+profondeur y est nulle, donc rien ne se creuse, pas même les coins rentrants.
+
+**LE CISAILLEMENT — de l'herbe et de la roche du MÊME massif, côte à côte.** La bande encode déjà
+la transition **verticale** (surface → chapiteau → corps → pied : c'est pour ça que la lèvre porte
+son trait). Rien n'encodait l'**horizontale** : la silhouette se lit sur l'empreinte, donc une case
+d'herbe dont la voisine est la falaise de son propre massif avait ce bit mis, se croyait pleine, et
+rendait la tuile d'intérieur qui se répète partout. La roche s'arrêtait **net**. Le bit se lit sur
+l'**empreinte du massif**, jamais sur ce qui se voit — sinon l'identité d'une tuile dépendrait de
+ce qu'on pose dessus. ⚠ **Jamais les deux côtés à la fois** : min trois l'interdit, et
+l'énumération exhaustive le confirme (zéro fenêtre sur 2^18).
+
+**Et un seul côté trace.** La roche marque sa fin (loi de la lèvre, couchée sur le côté), l'herbe
+prend une **ombre** — deux traits dos à dos feraient le pavé 2×2 qu'I2 refuse. ⚠ Et **la lumière
+tranche** : un cisaillement est un corps d'angle, l'arête s'éclaire à l'ouest et s'ombre à l'est,
+sans quoi `CORPS 255 cisaillé ouest` rendait exactement `CORPS 21 au ras`.
 
 **Les quatre règles qui ont coûté cher à trouver :**
 
@@ -71,10 +85,26 @@ creuse, pas même les coins rentrants.
    ornement, c'est ce qui les sépare : F0 vaut un pixel.
 
 **Le vocabulaire livré est celui du GESTE, pas la forme close.** `core/brush_vocabulary.gd`
-(généré) porte les **39 tuiles** que le pinceau atteint — 14 surfaces, 25 falaises.
+(généré) porte les **55 tuiles** que le pinceau atteint.
 `core/massif_form.gd` reste la **borne haute** : elle garde l'invariant I8, elle n'est plus la
-cible. ⚠ **La liste ne peut que croître** : une battue qui ne rencontre pas une tuile prouve
-qu'elle est rare, jamais qu'elle est impossible.
+cible. ⚠ **La liste ne peut que croître — À MODÈLE CONSTANT.** C'est la précision qui manquait, et
+elle a coûté un cycle entier. Quand la **clé change de sens**, une entrée d'avant ne désigne plus
+rien ; quand une **battue était fausse**, elle a inscrit ce qu'aucun geste n'atteint. Dans les deux
+cas la liste se **redérive** (`brush_census --refaire`), elle ne se cumule pas.
+
+⚠ **ET `Gesture.mend` N'A RIEN À FAIRE DANS UNE BATTUE.** Il retouche **case par case** — abaisser
+une case fine, combler un gouffre — ce qui n'est pas un tampon : le monde qui en sort est *légal*
+sans être *reconstructible au pinceau*. Le recenseur l'appelait après chaque coup jusqu'au
+05/09/2026 : **six tuiles fantômes** en sont sorties, qu'aucun geste n'atteint. `mend` sert au
+pinceau, qui répare le geste de l'artiste. Jamais à une battue.
+
+⚠ **ET LES BATTUES PARTAGENT UN SEUL VIVIER** (`Lab.ground()`). Le recenseur tirait ses mondes, le
+bâtisseur les siens : le premier écrivait au vocabulaire ce que le second ne savait pas porter, et
+le guide sortait avec des tuiles absentes. Quatre sources **construites**, donc reproductibles —
+les marches (qui fabriquent le cisaillement), les terrasses, les sols étagés, le hasard — plus **les
+mondes gardés** : *un monde qui porte une tuile EST son témoin*, et la battue les jetait. ⚠ **Et le
+guide n'est PAS dans le vivier** : il en est bâti, l'y remettre ferait converger le cycle vers le
+BAS (mesuré : 55 tuiles, puis 50 au tour suivant).
 
 **Les invariants du banc** (`proof/massif_ladder.gd`) :
 
@@ -95,6 +125,8 @@ core/            logique pure, zéro dépendance UI, utilisable en headless
   massif_witnesses.gd  GENERE — les blocs trouvés pour ce que la fenêtre ne porte pas
   brush_vocabulary.gd  GENERE — les tuiles que le geste atteint : ce qu'on livre
   gesture.gd         la règle du geste : ce qu'un relief a le droit d'être, écrit UNE fois
+  signing.gd         le sceau : ce qu'on scelle, et pourquoi ce n'est pas une serrure
+  found_worlds.gd    GENERE — les mondes gardés, témoins de ce qu'aucun vivier n'atteint
   domain.gd          le domaine : quels reliefs l'acheteur a le droit de bâtir
   blob_index.gd      voisinage 8 bits, canonicalisation, les 47 index
   height_mask.gd     le guide en relief : `~` le vide, `.`/`0` la plaine, `1..9` les plateaux
@@ -131,12 +163,13 @@ proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
   ladder.gd          l'ancien banc du contour prouvé
 exporters/
-  massif_tileset.gd  la planche et le manifeste (v9)
+  massif_tileset.gd  la planche et le manifeste (v10, allégé)
   massif_trial.gd    l'essai : notre propre trace, livrée comme tileset
   packed_png.gd      la planche packed, une seule image, pour la vendre
   tileset_png.gd, trial_tileset.gd   anciens modèles
 addons/solupaint/    LE PLUGIN MOTEUR — ce qui part chez l'acheteur
   rules.gd           la copie de la règle de pose, sur un monde NON BORNÉ
+  signature.gd       le sceau vérifié chez l'acheteur — il DIT, il ne bloque pas
   manifest.gd        lecture du `<nom>_tileset.txt`, et ses refus
   tileset.gd, world.gd, dock.gd, plugin.gd, README.md
 tests/run.gd     runner headless, code de sortie non nul en cas d'échec
@@ -146,6 +179,10 @@ tools/           outils de fabrication, jamais lus par le logiciel
   preview_massifs.gd   l'image, pour la regarder (`GUIDE=` `F=` `GRILLE=`)
   brush_census.gd      ce que le geste atteint, et ce qu'il fabrique hors de la forme
   reload_work.gd       relire un vrai fichier de session sans le réécrire
+  shear.gd             le cisaillement : plancher, plafond, et ce qu'il coûterait
+  find_worlds.gd       les mondes qui portent ce que le vivier n'atteint pas (jalonné)
+  make_key.gd          la paire de clés de signature — la privée reste HORS du dépôt
+  blind_spots.gd / tile_situations.gd / find_massif.gd   regarder plutôt que déduire
   chain_massifs.gd     LA CHAÎNE ENTIÈRE sur un vrai `.solutiles` : export → plugin → pose
   preview_engine.gd    le monde tel que le moteur le posera, avec VOTRE planche
   check_solupaint.gd   le banc du nœud : couches, contre-geste, fuites
@@ -350,11 +387,24 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 - **⚠ UNE TUILE N'EST LIVRÉE QUE SI SA LISTE PORTE UN DESSIN**, pas du seul fait que sa clé
   existe au rapport. Un compteur qui ne mesure pas ce qu'il prétend mesurer est pire que pas de
   compteur.
-- **Le manifeste est un CONTRAT, pas une notice** — et il doit être **nécessaire et suffisant** :
-  quelqu'un qui n'a *que* ce fichier et la planche doit pouvoir poser un monde correct. La règle
-  de pose y vit en clair, une seule fois, avec des commentaires `#` qui disent *pourquoi*. Si une
-  règle manque, elle vivra dans la tête de celui qui a écrit le premier moteur, et le second
-  divergera sans que rien ne le dise.
+- **⚠ LE MANIFESTE NE PORTE PLUS LA RÈGLE DE POSE** (décision utilisateur du 04/09/2026). Il dit
+  **où sont les tuiles**, pas **comment les poser**. Et ça n'affaiblit **aucune** garantie : ce qui
+  garantit que deux moteurs s'accordent est le **contrôle croisé** — reliefs exhaustifs comparés
+  dans les deux sens à chaque exécution — jamais la prose du fichier, qui n'était que de la
+  documentation, utile à qui veut *réimplémenter*. La règle vit dans `placement_rules()`, que le
+  niveau 3 du mode d'emploi lit à la source, et se fournit **sous licence**.
+- **⚠ MAIS IL GARDE DE QUOI REFUSER** : `fall_rows` et `tiles`, les deux constantes que le lecteur
+  compare aux siennes. Sans elles il ne peut plus distinguer un tileset qui n'est pas le sien, et
+  un monde faux qui ne se signale pas est le pire des défauts.
+- **LE SCEAU PORTE LES PIXELS, PAS LE TEXTE** (`core/signing.gd`, `addons/solupaint/signature.gd`).
+  Le condensé couvre les **octets de la planche** + la table triée + la version : re-découper,
+  ré-empaqueter ou échanger l'image le casse. ⚠ **Et c'est une AFFIRMATION, pas une serrure** — le
+  plugin part en GDScript en clair, un refus sauterait en trente secondes, et la charte interdit de
+  maquiller un verrou. Il **dit** la provenance (`provenance`, une troisième variable distincte de
+  `last_error` et `last_warning`). ⚠ **La clé privée ne part jamais** : `SOLUTILES_KEY`, hors du
+  dépôt, `*.pem` au `.gitignore`. Sans elle l'export sort **non signé et le dit** — c'est l'état
+  normal du build d'essai, et la seule asymétrie qui compte : un cloneur peut fabriquer des
+  tilesets, pas des **signés**.
 - **⚠ UN GARDE-FOU QUI NE REGARDE QUE D'UN CÔTÉ NE GARDE RIEN.** Le lecteur porte **deux
   bornes**, `READS_FROM` autant que `READS_UP_TO` : la haute dit « je ne connais pas encore cette
   règle », la basse « je ne connais plus celle-là ». Et **la version bouge dès que le SENS

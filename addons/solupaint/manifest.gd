@@ -19,12 +19,18 @@
 #   - un VOCABULAIRE qui n'est pas le sien. Le nombre de tuiles est ecrit en clair dans le
 #     manifeste ; s'il differe, la planche et ce moteur ne parlent pas du meme modele.
 #
+# ⚠ ET LA PROVENANCE N'EST PAS UN SIXIEME REFUS. Le sceau se LIT et se DIT -- signe, non signe,
+# ou invalide -- il ne bloque rien. « Non signe » est l'etat normal de l'essai livre avec le
+# plugin et de tout export fait sans la cle privee ; refuser reviendrait a interdire a l'acheteur
+# ses propres planches. Voir `signature.gd`.
+#
 # ⚠ ET IL NE RECALCULE PAS LA TABLE DES CASES. Le manifeste la donne en clair ; la deduire
 # de la regle marcherait aujourd'hui et se casserait le jour ou la disposition changera. On
 # lit ce qui est ecrit.
 extends RefCounted
 
 const Rules := preload("res://addons/solupaint/rules.gd")
+const Signature := preload("res://addons/solupaint/signature.gd")
 
 const MAGIC: String = "solutiles-tileset"
 
@@ -54,7 +60,7 @@ const BY_MASSIF: StringName = &"massif"
 ## suite verifie qu'il dit la meme chose que `Families.massif_tiles()`. Le jour ou le
 ## vocabulaire grandit -- il ne peut que grandir -- la suite le dit ici, et non chez
 ## l'acheteur.
-const MASSIF_TILES: int = 62
+const MASSIF_TILES: int = 55
 
 ## Le suffixe qui reconnait un manifeste sans l'ouvrir.
 const SUFFIX: String = "_tileset.txt"
@@ -165,6 +171,8 @@ static func parse(text: String) -> Dictionary:
 			"tile":
 				var tile: int = line.get_slice(" ", 1).to_int()
 				result["slots"][tile] = _point(line.get_slice(" ", 3))
+			"seal":
+				result["seal"] = line.get_slice(" ", 1)
 
 	# ⚠ UNE CONSTANTE ABSENTE SE REFUSE, ET SE DIT AUTREMENT QU UNE CONSTANTE FAUSSE. Un
 	# manifeste qui ne declare pas sa hauteur d etage ne peut pas etre CONTROLE : le poser
@@ -197,7 +205,22 @@ static func read(path: String) -> Dictionary:
 		return _refuse(failed, "Manifeste illisible : %s" % path)
 	var text: String = file.get_as_text()
 	file.close()
-	return parse(text)
+	var result: Dictionary = parse(text)
+	if int(result["error"]) != OK:
+		return result
+	# ⚠ LE VERDICT SE REND ICI, PAS DANS `parse` : il faut la PLANCHE, et `parse` ne connait
+	# qu'une chaine. C'est aussi ce qui garde `parse` utilisable pour un manifeste ecrit a la
+	# main dans un test, sans image a cote.
+	#
+	# ⚠ ET IL NE REFUSE JAMAIS. Un sceau absent ou invalide se DIT ; il ne bloque pas. Refuser
+	# reviendrait a interdire a l'acheteur ses propres planches, et le controle sauterait de
+	# toute facon en trente secondes -- le plugin part en clair.
+	var sheet: PackedByteArray = FileAccess.get_file_as_bytes(
+			path.get_base_dir().path_join(String(result["sheet"])))
+	result["provenance"] = Signature.judge(sheet,
+			Signature.table_of(result["slots"], {}), int(result["version"]),
+			String(result["seal"]))
+	return result
 
 
 ## Vrai si le manifeste place toutes les tuiles du vocabulaire.
@@ -230,6 +253,8 @@ static func _blank() -> Dictionary:
 		"family": BY_MASSIF,
 		"sheet": "",
 		"slots": slots,
+		"seal": "",
+		"provenance": Signature.ABSENT,
 	}
 
 

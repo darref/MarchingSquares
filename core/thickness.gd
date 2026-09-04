@@ -240,3 +240,35 @@ static func pinched_at(heights: PackedStringArray, x: int, y: int, storey: int) 
 	if here == down_right and right == down and here != right:
 		return true
 	return false
+
+
+## ⚠ Y A-T-IL UNE CASE FINE ? -- et on sort a la PREMIERE, sans batir la liste.
+##
+## `thin_cells` parcourt tous les etages et toutes les cases pour les COMPTER : c'est ce qu'il
+## faut pour reparer, jamais pour refuser. Le pinceau et le generateur ne demandent qu'un oui ou
+## non, et la plupart des reliefs refuses le sont des la premiere case examinee.
+static func any_thin(heights: PackedStringArray) -> bool:
+	var top: int = 0
+	for y: int in range(HeightMask.height(heights)):
+		for x: int in range(HeightMask.width(heights)):
+			top = maxi(top, HeightMask.level_at(heights, x, y))
+	for storey: int in range(0, top + 1):
+		for y2: int in range(-1, HeightMask.height(heights) + 1):
+			for x2: int in range(-1, HeightMask.width(heights) + 1):
+				if thin_at(heights, x2, y2, storey):
+					return true
+	return false
+
+
+## Y A-T-IL UN PINCEMENT DIAGONAL ? Meme argument : on sort au premier.
+static func any_pinch(heights: PackedStringArray) -> bool:
+	var top: int = 0
+	for y: int in range(HeightMask.height(heights)):
+		for x: int in range(HeightMask.width(heights)):
+			top = maxi(top, HeightMask.level_at(heights, x, y))
+	for storey: int in range(0, top + 1):
+		for y2: int in range(-1, HeightMask.height(heights) + 1):
+			for x2: int in range(-1, HeightMask.width(heights) + 1):
+				if pinched_at(heights, x2, y2, storey):
+					return true
+	return false

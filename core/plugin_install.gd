@@ -35,6 +35,7 @@ const FILES: Array[String] = [
 	"plugin.cfg",
 	"plugin.gd",
 	"rules.gd",
+	"signature.gd",
 	"tileset.gd",
 	"world.gd",
 ]

@@ -353,9 +353,14 @@ const FOOT_MARGIN: int = 1
 ## retrouve alors juste au-dessus du corps du porte -- et la regle criait, alors que ce pied est
 ## CACHE et que rien ne se colle a l'ecran. Six fautes sur le specimen de debordement, qui
 ## devenait irrealisable : le cas de la chute de SIX n'existait donc nulle part.
-static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
+## ⚠ ET ELLE ACCEPTE DES POSES DEJA CALCULEES. `poses()` est LA carte couteuse du modele -- 14 ms
+## sur 32x32 -- et trois clauses du geste la relisaient chacune pour son compte. Une carte
+## couteuse ne se recalcule pas a chaque tour de boucle : la lecon est deja au dossier, payee
+## sept fois, et elle vaut ici aussi.
+static func foot_faults(world: PackedStringArray,
+		given: Array[Dictionary] = []) -> Array[Vector2i]:
 	var top: Dictionary = {}
-	for one: Dictionary in poses(world):
+	for one: Dictionary in (given if not given.is_empty() else poses(world)):
 		var at: Vector2i = one["cell"]
 		if bool(one["under"]):
 			continue

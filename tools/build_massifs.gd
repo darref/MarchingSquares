@@ -84,28 +84,23 @@ func _initialize() -> void:
 	# la relire encadree, et elle en rejetait le tiers. Un monde entier, lui, est legal par
 	# construction et porte son propre lisere de vide -- deux mondes voisins sont donc separes
 	# par huit cases de vide, sans qu'on ait rien a menager.
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = 0x475549
-	var pool: Array[PackedStringArray] = []
+	# ⚠ LE MEME VIVIER QUE LE RECENSEUR ET LA CHASSE. Ce batisseur tirait ses propres mondes :
+	# le recenseur ecrivait au vocabulaire des tuiles que ce vivier-ci ne portait pas, et le
+	# guide sortait avec HUIT TUILES ABSENTES -- sans que rien ne le dise avant l'export. Deux
+	# battues qui ne cherchent pas au meme endroit ne peuvent pas s'accorder : c'est la faute des
+	# deux copies d'une regle, appliquee a la RECHERCHE. Le vivier vit dans `relief_lab.gd`.
+	var pool: Array[PackedStringArray] = Lab.ground(draws)
 	var brings: Array[Dictionary] = []
 	var targets: Dictionary = {}
-	while pool.size() < draws:
-		var one: PackedStringArray = Lab.draw(rng, CUT_W, CUT_H)
-		if one.is_empty():
-			continue
+	for one: PackedStringArray in pool:
 		var got: Dictionary = Lab.species(one)
-		# ⚠ ET LE GLOUTON VISE LES DEUX CHOSES A LA FOIS : les especes de JONCTION et les
-		# TUILES. Il ne visait que les jonctions, et les tuiles n'etaient couvertes que par
-		# accident -- huit d'entre elles tombaient alors dans les ilots, ou dans le vide quand
-		# aucune fenetre ne savait les decouper. Or un monde qui porte une tuile EST son temoin :
-		# le chercher ailleurs, c'est refuser une preuve qu'on a deja sous la main.
-		#
-		# ⚠ LES DEUX FAMILLES DE CLES NE SE CONFONDENT PAS : une jonction est nommee par
-		# `Lab.species`, une tuile par « T » suivi de sa cle. Melangees sans prefixe, une espece
-		# et une tuile pourraient porter le meme nom et l'une masquerait l'autre.
+		# ⚠ ET LE GLOUTON VISE LES DEUX CHOSES A LA FOIS : les especes de JONCTION et les TUILES.
+		# Il ne visait que les jonctions, et les tuiles n'etaient couvertes que par accident. Un
+		# monde qui porte une tuile EST son temoin : le chercher ailleurs, c'est refuser une
+		# preuve qu'on a deja sous la main. Les deux familles de cles ne se confondent pas -- une
+		# tuile est nommee « T » suivi de sa cle.
 		for tile0: Variant in Massifs.paintable(one).values():
 			got["T%d" % int(tile0)] = true
-		pool.append(one)
 		brings.append(got)
 		for key: String in got.keys():
 			targets[key] = int(targets.get(key, 0)) + 1

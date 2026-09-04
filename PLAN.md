@@ -4075,70 +4075,68 @@ pinceau tant qu'un témoin ne sera pas trouvé. C'est réversible ; livrer 79 tu
 impeignables ne le serait pas.
 
 
+
 ---
 
-# LE CISAILLEMENT — l'état au 2026-09-04, et par où reprendre
+# LE CISAILLEMENT, ET CE QU'IL A RÉVÉLÉ — l'état au 2026-09-05
 
-⚠ **LA SUITE EST ROUGE : 681 vérifications, 30 échecs, et ils ont TOUS la même cause.** Le
-vocabulaire compte **62 tuiles**, le guide n'en porte que **54** : l'export refuse donc une
-feuille incomplète (c'est la règle), et manifeste, TileSet, essai et découverte tombent en
-cascade derrière. Ce n'est pas trente défauts, c'en est **un**.
+**Suite : 687 vérifications, 0 échec. Banc : VERT** (I1 I2 I6 I7 I8 I9, 55 dessins pour
+55 tuiles). **Guide : 55/55 portées, 277/277 jonctions, 0 îlot nécessaire, LEGAL.**
 
-## Ce qui a été fait
+## Le cisaillement, en trois lignes
 
-**LE CISAILLEMENT EST DANS LE MODÈLE.** Relevé par l'utilisateur sur le **massif 21** du guide,
-en regardant SON trait remonté — pas le dessin calculé, qui est la spécification et a donc
-toujours l'air juste. De l'herbe et de la roche du **même massif**, côte à côte : la silhouette
-se lit sur l'EMPREINTE, donc chacune avait son bit mis, se croyait pleine, et rendait la tuile
-d'intérieur qui se répète partout. Personne ne traçait la frontière — la roche s'arrêtait NET.
+De l'herbe et de la roche du **même massif**, côte à côte. La bande encodait déjà la transition
+verticale ; rien n'encodait l'horizontale, donc chacune se croyait pleine et rendait la tuile
+d'intérieur. Relevé par l'utilisateur sur le **massif 21**, en regardant **son** trait remonté —
+pas le dessin calculé, qui est la spécification et a donc toujours l'air juste.
 
-- **`Massifs.CUT_WEST` (bit 17) et `CUT_EAST` (bit 18)**, lus sur l'**empreinte du massif**,
-  jamais sur la carte visible : un massif se dessine entier, son identité ne peut pas dépendre
-  de ce qu'on pose dessus. ⚠ Jamais les deux à la fois — min trois l'interdit, et l'énumération
-  exhaustive le confirme (zéro fenêtre sur 2^18).
-- **Le dessin** : la roche trace son trait (loi de la lèvre, couchée sur le côté), l'herbe prend
-  une **ombre**. ⚠ Un seul des deux trace, sinon deux traits dos à dos font le pavé 2×2 qu'I2
-  refuse. Et **la lumière tranche** : un cisaillement est un corps d'angle, l'arête s'éclaire à
-  l'ouest et s'ombre à l'est — sans quoi `CORPS 255 cisaillé ouest` rendait exactement
-  `CORPS 21 au ras`, et I7 le disait.
-- **Le plugin suit**, contrôle croisé vert. **Manifeste v10**, la v9 refusée nommément.
-- **Le banc est VERT** : I1 I2 I6 I7 I8 I9, 50 dessins pour 50 tuiles.
-- **Le guide rebâti** : 152×278, 274/274 jonctions, 0 îlot qui ment, LEGAL.
+`CUT_WEST` (bit 17), `CUT_EAST` (bit 18), lus sur l'**empreinte**. La roche trace, l'herbe ombre,
+l'arête s'éclaire à l'ouest et s'ombre à l'est. Manifeste **v10**, la v9 refusée nommément.
 
-## ⚠ ET LA VRAIE LEÇON N'EST PAS LE CISAILLEMENT, C'EST LA BATTUE
+## ⚠ MAIS LA VRAIE DÉCOUVERTE EST AILLEURS : SIX TUILES ÉTAIENT DES FANTÔMES
 
-Le recenseur ne battait **qu'au hasard**, et le hasard ne fabrique presque pas de bords sud en
-marches — la forme qui produit un cisaillement. En lui donnant le guide et une famille de
-marches, **9 tuiles de base sont apparues** qui existaient depuis toujours. *Une battue qui ne
-cherche pas là où ça se trouve n'a pas cherché.*
+L'ancien recenseur appelait `Gesture.mend` après chaque tampon — il **réparait** un relief
+illégal au lieu de refuser le coup. `mend` retouche **case par case**, ce qui n'est pas un
+tampon : le monde qui en sort est *légal* sans être *reconstructible au pinceau*. **Six tuiles**
+sont ainsi entrées au vocabulaire, qu'aucun geste n'atteint. Une septième, `SURFACE 223 libre`,
+était une clé **d'avant le cisaillement** dont toutes les occurrences portent désormais un `CUT`.
 
-## CE QUI RESTE, ET C'EST UNE SEULE CHOSE
+C'est le défaut que le projet avait **déjà payé et corrigé** dans `Gesture.walk` — mais le
+recenseur, lui, était resté sur l'ancienne fabrique. Et c'est lui qui écrit le vocabulaire.
 
-**Huit tuiles sont dans le vocabulaire et absentes du guide** — elles n'ont ni fenêtre
-d'énumération ni témoin :
+**62 → 55.** Le guide est redescendu de 152×278 à 152×248 et n'a plus besoin d'aucun îlot : les
+48 mondes portent tout, donc chaque tuile est portée par un relief qu'une suite de gestes atteint.
+C'est plus fort qu'avant le cisaillement.
 
-    SURFACE 223 libre · CORPS 1 libre · CORPS 7 libre · CORPS 17 libre
-    CORPS 193 libre · CORPS 199 libre · CORPS 209 libre · PIED 21 au ras
+## Les trois lois que ce cycle a écrites
 
-Ce sont toutes des tuiles **de base**, pas des cisaillées. La chasse (`tools/massif_witnesses.gd`,
-`PART=i/n` puis `--fusion`) est passée de 41 à 58 témoins sur 128 sans les attraper.
+1. **« La liste ne peut que croître » vaut À MODÈLE CONSTANT.** Quand la clé change de sens, ou
+   quand une battue était fausse, la liste se **redérive** (`--refaire`), elle ne se cumule pas.
+2. **`mend` sert au PINCEAU, jamais à une battue.**
+3. **Les battues partagent un seul vivier** (`Lab.ground()`), **construit** donc reproductible,
+   et **le guide n'en fait pas partie** — il en est bâti, l'y remettre fait converger vers le bas
+   (mesuré : 55 puis 50).
 
-⚠ **ET LA CAUSE EST CONNUE : deux battues qui ne partagent pas leur vivier.** Le recenseur les a
-rencontrées dans SES mondes ; le bâtisseur tire les SIENS. Deux copies d'une même recherche
-finissent par diverger, exactement comme deux copies d'une règle. **Le prochain cycle est de leur
-donner la même source de mondes** — ou de faire écrire au recenseur ce que le bâtisseur sait
-porter, jamais plus.
+## Ce qui est fait par ailleurs
 
-⚠ **Et la fusion de la chasse ne relit pas le fichier existant** : elle réécrit à partir des
-seules parts. Elle a crû cette fois (41 → 58), mais rien ne le garantit — c'est la même faute que
-le recenseur a déjà corrigée chez lui (« la liste ne peut que croître »). À réparer.
+- **Le manifeste est allégé** : plus de règle de pose en clair, seulement où sont les tuiles.
+  `fall_rows` et `tiles` restent — ce sont eux qui permettent de REFUSER.
+- **Le sceau porte les pixels** : octets de la planche + table triée + version. Il **dit** la
+  provenance, il ne bloque pas. Clé privée hors du dépôt (`SOLUTILES_KEY`, `*.pem` ignoré).
+- **`legal()` court-circuite** et les trois clauses coûteuses partagent une seule lecture des
+  poses : **976 → 554 ms** par monde, à verdict rigoureusement identique (30 échecs avant, les
+  mêmes 30 après — vérifié ligne pour ligne).
+- **`find_worlds.gd` jalonne** : il écrit à chaque prise. Trois heures de chasse ont été perdues
+  d'un coup faute de jalons ; ça ne se reproduira pas.
 
-## Ensuite, et seulement ensuite
+## CE QUI RESTE
 
-- **Le second mode de guide : un vrai paysage** plutôt qu'une planche de spécimens. Il est
-  **borné à sa propre recherche** — il ne touche ni le modèle, ni la clé, ni le dessin, ni le
-  plugin, et le carnet range par TUILE donc un travail se recharge d'un mode à l'autre. ⚠ **À une
-  condition, et c'est toute la raison de ce cycle** : le vocabulaire doit être CLOS avant. Sinon
-  un paysage révélerait de nouvelles tuiles — c'est précisément ce qui vient d'arriver avec les
-  marches — et le cycle repartirait.
-- **La version : 11.0.0**, majeure. Le sens de la clé a changé.
+1. **17 tuiles à peindre** — l'utilisateur a 38 des 55. Les 14 cisaillées plus 3 tuiles de base.
+   Son `.solutiles` se recharge intact (38 relues, 1 rendue : la clé fantôme, dont l'image est
+   toujours dans son fichier).
+2. **`PIED 21 au ras`** n'a pas d'îlot propre — un monde le porte, donc le guide l'a, mais aucune
+   fenêtre ne sait le découper. À chasser si on veut un îlot dédié.
+3. **La version : 11.0.0**, majeure. Le sens de la clé a changé.
+4. **Le second mode de guide — un vrai paysage.** Il est borné à sa propre recherche, à la
+   condition que le vocabulaire soit clos. Il l'est bien plus qu'hier : le vivier est construit,
+   reproductible, et toute tuile arrive avec le relief qui la prouve.

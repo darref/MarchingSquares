@@ -23,6 +23,7 @@ extends Node2D
 const Manifest := preload("res://addons/solupaint/manifest.gd")
 const Rules := preload("res://addons/solupaint/rules.gd")
 const TileSetBuilder := preload("res://addons/solupaint/tileset.gd")
+const Signature := preload("res://addons/solupaint/signature.gd")
 
 ## Le manifeste livre avec le tileset : `<nom>_tileset.txt`. La planche est lue a cote de lui,
 ## sous le nom qu'il donne.
@@ -51,6 +52,13 @@ var last_error: String = ""
 ## qu'il se lit, et enverrait l'acheteur resoudre le mauvais probleme.
 var last_warning: String = ""
 
+## D'ou vient ce tileset, en clair : « signe SoluTiles », « non signe », ou « sceau invalide ».
+##
+## ⚠ TROISIEME VARIABLE, ET C'EST DELIBERE. `last_error` dit ce qui empeche de LIRE, `last_warning`
+## ce qui s'est mal passe a la POSE, et celle-ci d'ou vient la planche. Trois questions
+## differentes : les confondre enverrait l'acheteur resoudre le mauvais probleme.
+var provenance: String = ""
+
 ## ⚠ UNE COUCHE PAR ETAGE, ET L'ORDRE DES ENFANTS EST L'ORDRE DE POSE. Une case recoit une pose
 ## par massif qui la contient -- les massifs sont emboites -- et deux poses d'une meme case ont
 ## forcement des etages differents, puisqu'a un etage donne une case n'appartient qu'a une
@@ -74,6 +82,7 @@ func _ready() -> void:
 func _reload() -> void:
 	last_error = ""
 	last_warning = ""
+	provenance = ""
 	_source = -1
 	_tile_set = null
 	if manifest_path == "":
@@ -106,6 +115,10 @@ func _reload() -> void:
 
 	_tile_set = built["tile_set"]
 	_source = int(built["source"])
+	# ⚠ LA PROVENANCE SE DIT, ELLE NE BLOQUE PAS. Elle n'entre donc ni dans `last_error` -- qui
+	# empeche le pinceau de s'armer -- ni dans `last_warning`, qui compte des poses perdues.
+	# Melanger les trois enverrait l'acheteur resoudre un probleme qu'il n'a pas.
+	provenance = Signature.say(int(_manifest.get("provenance", Signature.ABSENT)))
 	rebuild()
 
 

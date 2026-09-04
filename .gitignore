@@ -19,3 +19,6 @@ mono_crash.*.json
 # Outils de fabrication (Python)
 __pycache__/
 *.pyc
+
+# Les cles de signature ne vivent JAMAIS dans le depot.
+*.pem

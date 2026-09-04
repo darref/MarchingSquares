@@ -36,44 +36,18 @@ const RIM: int = 4
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var runs: int = args[0].to_int() if not args.is_empty() else 300
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	# ⚠ LA GRAINE SE CHANGE, SINON DEUX EXECUTIONS EXPLORENT LE MEME MONDE. `GRAINE=n`.
-	rng.seed = 0x42525553 + OS.get_environment("GRAINE").to_int() * 7919
+	# ⚠ LE MEME VIVIER QUE LE BATISSEUR ET LA CHASSE. Ce recenseur tirait ses propres mondes :
+	# il ecrivait alors au vocabulaire des tuiles que le batisseur ne savait pas porter, et le
+	# guide sortait avec huit tuiles absentes. Deux battues qui ne cherchent pas au meme endroit
+	# ne peuvent pas s'accorder -- c'est la faute des deux copies d'une regle, appliquee a la
+	# recherche. Le vivier vit dans `relief_lab.gd`, et il est le seul.
 	var met: Dictionary = {}
-	var refused: int = 0
-	var moves: int = 0
-	var made: int = 0
-	for run: int in range(runs):
-		var walk: Dictionary = _walk(rng)
-		refused += int(walk["refused"])
-		moves += int(walk["moves"])
-		if (walk["world"] as PackedStringArray).is_empty():
-			continue
-		made += 1
-		for tile: Variant in Massifs.paintable(walk["world"]).values():
+	var pool: Array[PackedStringArray] = Lab.ground(runs)
+	for world: PackedStringArray in pool:
+		for tile: Variant in Massifs.paintable(world).values():
 			met[int(tile)] = true
-
-	# ⚠ ET UNE BATTUE QUI NE CHERCHE QU'AU HASARD N'A PAS VRAIMENT CHERCHE. Le geste produit peu
-	# de CISAILLEMENTS -- deux sur six paysages -- parce qu'ils naissent d'un bord sud EN MARCHES,
-	# et qu'un tampon pose au hasard en fabrique rarement. On ajoute donc deux sources dont on
-	# sait qu'elles en portent : le guide livre, et une famille de bords sud en marches batie
-	# exprès. Chacune reste un relief LEGAL -- `Gesture.legal` tranche -- donc chacune est
-	# atteignable au pinceau, ce qui est toute la question.
-	for path: String in ["res://guides/massifs.txt"]:
-		for tile2: Variant in Massifs.paintable(HeightMask.read(path)).values():
-			met[int(tile2)] = true
-	for top_level: int in [1, 2]:
-		for plan: int in range(256):
-			var deep: Array[int] = []
-			var rest: int = plan
-			for _b: int in range(4):
-				deep.append(rest % 4)
-				rest /= 4
-			var stair: PackedStringArray = _stairs(deep, top_level)
-			if not Gesture.legal(stair):
-				continue
-			for tile3: Variant in Massifs.paintable(stair).values():
-				met[int(tile3)] = true
+	var made: int = pool.size()
+	print("  vivier commun : %d mondes" % made)
 
 	var form: Array[int] = MassifForm.vocabulary()
 	var never: Array[int] = []
@@ -86,8 +60,7 @@ func _initialize() -> void:
 			stray.append(tile3)
 
 	print("=== LE RECENSEMENT DU PINCEAU ===")
-	print("  %d marches, %d gestes tentes, %d refuses (fins ou pincements)"
-			% [made, moves, refused])
+	print("  %d mondes battus (vivier commun)" % made)
 	print("  la forme close  : %d tuiles" % form.size())
 	print("  le geste atteint: %d tuiles" % met.size())
 	print("  JAMAIS ATTEINTES : %d" % never.size())
@@ -117,9 +90,17 @@ func _initialize() -> void:
 	# une tuile prouve qu'elle est rare, jamais qu'elle est impossible : ecraser la liste avec le
 	# resultat d'une seule execution ferait DISPARAITRE des tuiles qu'une autre avait trouvees.
 	# La liste ne peut donc que croitre, et chaque execution la corrobore ou l'etend.
-	if args.size() > 1 and args[1] == "--ecrire":
-		for old: int in Stored.tiles():
-			met[old] = true
+	if args.has("--ecrire"):
+		# ⚠ « LA LISTE NE PEUT QUE CROITRE » VAUT A MODELE CONSTANT, et c'est la precision qui
+		# manquait. Quand la CLE change de sens -- le cisaillement entre dans l'identite -- une
+		# entree d'avant ne designe plus rien : `SURFACE 223 libre` a survecu a l'union alors que
+		# toutes ses occurrences portent desormais « cisaille a l'ouest ». Et quand une BATTUE
+		# etait fausse -- l'ancien recenseur reparait ses mondes au lieu de refuser le coup --
+		# elle a inscrit six tuiles qu'aucun geste n'atteint. Dans les deux cas la liste doit se
+		# REDERIVER, pas se cumuler : `--refaire` le dit explicitement, et rien ne l'a en defaut.
+		if not args.has("--refaire"):
+			for old: int in Stored.tiles():
+				met[old] = true
 		var keys: Array[int] = []
 		keys.assign(met.keys())
 		keys.sort()
