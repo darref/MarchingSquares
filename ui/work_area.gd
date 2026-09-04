@@ -62,15 +62,17 @@ const UPLOAD_PER_FRAME: int = 48
 ## millisecondes : le budget en laisse passer une par image, et l'interface reste vivante.
 const LOAD_BUDGET_USEC: int = 12000
 
-## L'ETAGE 0, CONCRETISE. Le guide ne dessine pas la plaine -- elle ne lui appartient pas --
-## mais elle EXISTERA dans le jeu : le sol sous les plateaux sera un etage plat du meme
-## tileset, pose par le moteur sur sa propre couche. La zone de travail la montre donc, en
-## aplat, DEBORDANT LARGEMENT DU GUIDE : le relief se lit alors comme un morceau de monde et
-## non comme une decoupe posee sur du vide.
+## LE VIDE -- hors du monde, c'est le fond du programme, et il est DECLARE ICI, une fois.
 ##
-## ⚠ ELLE EST A L'EDITEUR, PAS AU GUIDE. Aucun pixel de ce sol ne sort a l'export, et
-## `guide_image` continue de laisser le vide. C'est du decor, pas une tuile.
-const GROUND: Color = Color(0.204, 0.235, 0.188)
+## ⚠ CE N'EST PAS UN TABLIER. L'ancien aplat de plaine debordait du guide et contredisait
+## la falaise que celui-ci declare ; il a disparu en 4.0.0 et ne revient pas. Celui-ci
+## n'ajoute aucune matiere : c'est exactement ce qu'on voit deja a cote du monde.
+##
+## ⚠ ET IL SE PEINT, IL NE SE SUPPOSE PAS. Sous la transparence d'une tuile COMMENCEE il
+## faut effacer le guide, y compris la ou rien n'est pose dessous. La seule facon que
+## l'efface et le dehors ne divergent JAMAIS est qu'ils sortent de la meme constante :
+## s'en remettre a la couleur d'effacement du moteur, c'est deux endroits pour une couleur.
+const VOID: Color = Color(0.3, 0.3, 0.3)
 
 # Le fond representatif est soutenu : on l'attenue pour que les pixels poses ressortent.
 # Le fond utilisable est deja en teinte basse, il n'a pas besoin d'etre efface.
@@ -227,6 +229,16 @@ var _wall_roles: Dictionary = {}
 ## Sous chaque case, la pile des sols enterres (un index par etage couvert) -- pour que le
 ## remontage empile comme le jeu : une tuile par etage et par case.
 var _stack_below: Dictionary = {}
+## LES CASES QUE LE MONDE OCCUPE : celles ou le modele pose au moins une tuile. C'est sur
+## elles, et sur elles seules, que le guide s'efface quand la tuile est commencee.
+##
+## ⚠ CE N'EST PAS `_stack_below`, ET LES CONFONDRE ETAIT LE DEFAUT. Celui-la ne porte que
+## les cases qui ont quelque chose SOUS elles ; une case dont la pile n'a qu'une pose n'y
+## entrait pas, donc rien n'y effacait le guide, donc sa transparence montrait le guide au
+## lieu du VIDE. Mesure sur le guide livre : 12 903 cases posees sur 19 492 n'ont qu'une
+## pose -- toute la plaine et sa jupe de bord du monde -- dont 3 384 sont des tuiles de
+## bord, celles qui ont justement de la transparence a montrer.
+var _posed: Dictionary = {}
 ## Les poses du moteur : pied sous l'atterrissage, corps derriere l'ecretage, CHAPITEAU
 ## SOUS LA LEVRE. Case -> role de robe a dessiner entre le socle et la tuile.
 var _under_roles: Dictionary = {}
@@ -336,6 +348,7 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 	# tuile par etage et par case. Sans ca, un pixel transparent d'une tuile -- coin
 	# decoupe, bord balade -- montrait le fond du programme la ou le jeu montrera le sol.
 	_stack_below.clear()
+	_posed.clear()
 	if guide_family == Families.BY_MASSIF:
 		# ⚠ LA PILE EST LE MODELE LUI-MEME, ET ELLE EST DEJA CALCULEE. Un massif se dessine
 		# ENTIER, y compris sous ce qui le recouvre : une case porte donc autant de poses que
@@ -356,6 +369,10 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 			(piles[at2] as Array[int]).append(Massifs.key_of(pose))
 		for at3: Vector2i in piles.keys():
 			var pile: Array[int] = piles[at3]
+			# ⚠ TOUTE CASE POSEE EST NOTEE, MEME SEULE SUR SA PILE. C'est elle qui dit ou le
+			# guide doit s'effacer ; ne noter que les piles a plusieurs laissait la plaine
+			# et sa jupe montrer le guide a travers leur transparence, au lieu du vide.
+			_posed[at3] = true
 			if pile.size() > 1:
 				_stack_below[at3] = pile.slice(0, pile.size() - 1)
 	elif guide_family == Families.BY_CELL:
@@ -387,6 +404,9 @@ func show_guide(heights: PackedStringArray, painting: RefCounted) -> void:
 				for storey: int in range(covered + 1):
 					stack.append(int(storey_indices[storey].get(cell, -1)))
 				_stack_below[cell] = stack
+	if guide_family != Families.BY_MASSIF:
+		for cell2: Vector2i in _stack_below.keys():
+			_posed[cell2] = true
 	# Les poses du moteur, pretes a dessiner sous les tuiles -- memes entrees que le jeu.
 	_under_roles = {} if guide_family == Families.BY_MASSIF else Walls.visible_underfoot(heights)
 	# L'annuaire des cases qui portent quelque chose. La grille s'y appuie a chaque image :
@@ -619,6 +639,11 @@ func _draw() -> void:
 	if columns <= 0:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
+	# LE VIDE, POSE EN PREMIER. Il ne se voit nulle part -- c'est deja la couleur du fond du
+	# programme -- mais il donne a l'efface d'en dessous une source unique : ce qu'on
+	# retire sous une tuile commencee et ce qu'on voit a cote du monde sont la meme
+	# constante, donc ils ne peuvent pas diverger.
+	draw_rect(Rect2(Vector2.ZERO, size), VOID)
 	if _background != null and not assembled:
 		# Un TRACE se lit presque opaque ; un aplat se laisse traverser pour qu'on voie
 		# son propre travail par-dessus.
@@ -640,7 +665,7 @@ func _draw() -> void:
 	# omission. Famille par case seulement : a cheval, le dessous d'un croisement est fait
 	# de quatre tuiles, il n'y a pas UNE surface a poser dessous.
 	if not hide_work and _painting != null:
-		for under: Vector2i in _stack_below.keys():
+		for under: Vector2i in _posed.keys():
 			if not _on_screen(under, frame):
 				continue
 			# EN PEIGNANT AUSSI, PAS SEULEMENT AU REMONTAGE : derriere la transparence
@@ -651,14 +676,20 @@ func _draw() -> void:
 			# de ce qu'il reste a faire.
 			if not assembled and not _painting.is_painted(under):
 				continue
-			for below: int in (_stack_below[under] as Array):
+			var box: Rect2 = Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px))
+			# ⚠ ON EFFACE LE GUIDE AVANT D'EMPILER, ET SUR TOUTE CASE POSEE. « Jamais le
+			# guide » ne valait que la ou une autre pose venait le recouvrir ; ailleurs --
+			# la plaine, sa jupe de bord du monde, tout ce qui n'a qu'une pose -- il
+			# restait visible sous la transparence, et le peintre voyait le guide la ou le
+			# jeu montrera le VIDE. Herbe et roche etaient justes, le vide ne l'etait pas.
+			draw_rect(box, VOID)
+			for below: int in (_stack_below.get(under, []) as Array):
 				var ground_group: Array = _by_index.get(below, [])
 				if ground_group.is_empty():
 					continue
 				var ground: Vector2i = _painting.holder(ground_group[0])
 				if _textures.has(ground):
-					draw_texture_rect(_textures[ground],
-							Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)), false)
+					draw_texture_rect(_textures[ground], box, false)
 			# LES POSES DU MOTEUR -- pied sous l'atterrissage, corps derriere l'ecretage,
 			# CHAPITEAU SOUS LA LEVRE : la roche vraie de chaque occurrence, entre le
 			# socle et la tuile. C'est ce qui rend les marges transparentes honnetes au
@@ -668,13 +699,16 @@ func _draw() -> void:
 				if not rock_group.is_empty():
 					var rock: Vector2i = _painting.holder(rock_group[0])
 					if _textures.has(rock):
-						draw_texture_rect(_textures[rock],
-								Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)), false)
+						draw_texture_rect(_textures[rock], box, false)
 			# En peignant, la case se hachure sous sa tuile : seules les zones que la
 			# tuile laisse transparentes montrent les diagonales -- « ici, on voit
 			# derriere ». Le remontage reste nu : cette vue decrasse l'ecran.
-			if not assembled:
-				_draw_hatch(Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px)))
+			#
+			# ⚠ ET SEULEMENT LA OU IL Y A QUELQUE CHOSE DERRIERE. Sur une case qui n'a
+			# qu'une pose, ce qu'on voit par la transparence est le vide : hachurer toute
+			# la plaine crierait plus fort que l'information.
+			if not assembled and (_stack_below.has(under) or _under_roles.has(under)):
+				_draw_hatch(box)
 	for holder: Vector2i in (_textures.keys() if not hide_work else []):
 		var texture: ImageTexture = _textures[holder]
 		var painted: bool = ring and _painting.is_painted(holder)
