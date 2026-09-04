@@ -86,22 +86,42 @@ const FALL: int = 3
 ## a la bande dans la meme cle.
 const COVERS: int = 1 << 16
 
+## LE CISAILLEMENT : de l'herbe et de la roche du MEME massif, cote a cote.
+##
+## ⚠ LA BANDE ENCODE DEJA LA TRANSITION VERTICALE -- surface, chapiteau, corps, pied -- et c'est
+## pour ca que la levre porte son trait. RIEN n'encodait la transition HORIZONTALE : la
+## silhouette se lit sur l'EMPREINTE, donc une case d'herbe dont la voisine est la falaise de son
+## PROPRE massif a ce bit MIS, se croit pleine, et rend la tuile d'interieur qui se repete
+## partout. Personne ne tracait la frontiere, et la roche s'arretait NET contre l'herbe.
+##
+## ⚠ ET IL SE LIT SUR L'EMPREINTE DU MASSIF, JAMAIS SUR CE QUI SE VOIT. Un massif se dessine
+## ENTIER, y compris sous ce qui le recouvre : lire le cisaillement sur la carte visible ferait
+## dependre l'identite d'une tuile de ce qu'on pose dessus -- exactement ce que ce modele existe
+## pour interdire.
+const CUT_WEST: int = 1 << 17
+const CUT_EAST: int = 1 << 18
+const CUTS: int = CUT_WEST | CUT_EAST
+
 ## Les quatre cardinaux, pour la cle au ras : au ras la profondeur est nulle, donc rien ne se
 ## creuse, pas meme les coins rentrants -- une tuile au ras ne depend que de ses cardinaux.
 const KEY_CARDINALS: int = 0x55
 
 
-static func key(band: int, sil: int, flush: bool) -> int:
+## ⚠ ET LE CISAILLEMENT NE PASSE PAS PAR LA CANONICALISATION DU RAS. Au ras, seuls les cardinaux
+## comptent -- la profondeur y est nulle. Mais le cisaillement ne dit rien du CONTOUR : il dit
+## quelle MATIERE est a cote, dans la meme empreinte. Les deux sont orthogonaux.
+static func key(band: int, sil: int, flush: bool, cut: int = 0) -> int:
 	if not flush:
-		return (band << 8) | sil
+		return cut | (band << 8) | sil
 	var bare: int = sil & KEY_CARDINALS
 	if bare == KEY_CARDINALS:
-		return (band << 8) | 255
-	return COVERS | (band << 8) | bare
+		return cut | (band << 8) | 255
+	return cut | COVERS | (band << 8) | bare
 
 
 static func key_of(pose: Dictionary) -> int:
-	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]))
+	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]),
+			int(pose.get("cut", 0)))
 
 
 static func band_of(tile: int) -> int:
@@ -116,9 +136,24 @@ static func flush_of(tile: int) -> bool:
 	return (tile & COVERS) != 0
 
 
+## De quel cote la matiere change, dans la meme empreinte. `0`, `CUT_WEST`, `CUT_EAST`.
+## ⚠ JAMAIS LES DEUX A LA FOIS : il faudrait un doigt d'herbe d'UNE colonne entre deux jupes du
+## meme massif, et min trois l'interdit.
+static func cut_of(tile: int) -> int:
+	return tile & CUTS
+
+
 static func describe(tile: int) -> String:
-	return "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
+	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
 			"au ras" if flush_of(tile) else "libre"]
+	var cut: int = cut_of(tile)
+	if cut == CUT_WEST:
+		said += ", cisaille a l ouest"
+	elif cut == CUT_EAST:
+		said += ", cisaille a l est"
+	elif cut != 0:
+		said += ", cisaille des deux cotes"
+	return said
 
 
 ## L'etage d'une case. L'absence est du VIDE.
@@ -314,8 +349,18 @@ static func poses(heights: Dictionary) -> Array[Dictionary]:
 			for bit: int in range(8):
 				if print_of.has(cell + OFFSETS[bit]):
 					raw |= 1 << bit
+			# LE CISAILLEMENT SE LIT DANS L'EMPREINTE DE CE MASSIF : une voisine qui s'y
+			# trouve est du meme massif par construction.
+			var grass: bool = int(print_of[cell]) == SURFACE
+			var cut: int = 0
+			if print_of.has(cell + Vector2i.LEFT) \
+					and (int(print_of[cell + Vector2i.LEFT]) == SURFACE) != grass:
+				cut |= CUT_WEST
+			if print_of.has(cell + Vector2i.RIGHT) \
+					and (int(print_of[cell + Vector2i.RIGHT]) == SURFACE) != grass:
+				cut |= CUT_EAST
 			out.append({"cell": cell, "band": int(print_of[cell]), "level": levels[mark],
-					"sil": canonicalise(raw), "flush": covers[mark],
+					"sil": canonicalise(raw), "flush": covers[mark], "cut": cut,
 					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ay: int = (a["cell"] as Vector2i).y

@@ -52,7 +52,11 @@ func _initialize() -> void:
 		parts = maxi(1, shard.split("/")[1].to_int())
 
 	var wanted: Array[int] = MassifForm.vocabulary()
-	var wits: Dictionary = MassifForm.witnesses()
+	# ⚠ L'ENUMERATION CISAILLEE, PAS L'AUTRE. Une tuile cisaillee n'a pas de fenetre dans
+	# `witnesses()` : la chercher la revient a demander une cle qui n'existe pas, et la chasse
+	# s'arretait sur « Out of bounds get index ». Le cisaillement fait partie de l'identite
+	# depuis qu'il est dans la cle ; l'enumeration qui sert de source doit le savoir aussi.
+	var wits: Dictionary = MassifForm.shear_witnesses()
 	var found: Dictionary = {}
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x5749544E + part * 7919
@@ -247,7 +251,14 @@ func _read(path: String) -> Dictionary:
 ## donc a exprimer toutes les jonctions possibles.
 func _construct(tile: int, wits: Dictionary, _rng: RandomNumberGenerator) -> PackedStringArray:
 	var level: int = 2 if Massifs.flush_of(tile) else 1
-	for bits: int in (wits[tile & 0xffff] as Array[int]):
+	# La cle de l'enumeration cisaillee : la coupe en tete, puis la bande et la silhouette.
+	# ⚠ ET UNE TUILE SANS FENETRE NE FAIT PAS PLANTER LA CHASSE, elle la laisse passer : c'est
+	# une tuile a chercher autrement, pas une erreur de programme.
+	var coupe: int = (Massifs.cut_of(tile) >> 17) & 3
+	var source: int = (coupe << 24) | (tile & 0xffff)
+	if not wits.has(source):
+		return PackedStringArray()
+	for bits: int in (wits[source] as Array[int]):
 		for shape: int in range(4):
 			var block: PackedStringArray = _spined(bits, level, shape)
 			if block.is_empty():

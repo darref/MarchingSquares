@@ -50,6 +50,28 @@ const BlobIndex := preload("res://core/blob_index.gd")
 ## qui ne mesure pas ce qu'il pretend mesurer est pire que pas de compteur.
 const COVERS: int = 1 << 16
 
+## LE CISAILLEMENT : de l'herbe et de la roche du MEME massif, cote a cote.
+##
+## ⚠ LA BANDE ENCODE DEJA LA TRANSITION VERTICALE -- surface, chapiteau, corps, pied -- et c'est
+## pour ca que la levre porte son trait. RIEN n'encodait la transition HORIZONTALE : la
+## silhouette se lit sur l'EMPREINTE, donc une case d'herbe dont la voisine est la falaise de son
+## PROPRE massif a ce bit MIS, se croit pleine, et rend la tuile d'interieur qui se repete
+## partout. Sa voisine de roche fait de meme, et personne ne trace la frontiere : la roche
+## s'arrete NET contre l'herbe. Releve par l'utilisateur sur le massif 21 du guide, en regardant
+## SON trait remonte -- pas le dessin calcule, qui est la specification et a donc l'air juste.
+##
+## ⚠ ET LES DEUX COTES LE PORTENT, PAS SEULEMENT LA ROCHE (decision utilisateur). La loi « un
+## flanc qui s'arrete ne se creuse pas, il se trait » ne demandait que la roche ; mais une
+## frontiere tracee d'un seul cote se voit, et le rendu semble faux.
+##
+## ⚠ ET ILS SE RANGENT AU-DESSUS DE `COVERS`, JAMAIS DEDANS. Meme lecon que `COVERS` lui-meme,
+## qui valait 256 -- c'est-a-dire exactement `CHAPITEAU << 8` -- et melangeait le contexte avec
+## la bande. Bits 17 et 18 : au-dessus de la bande (8..15) et du ras (16), sous l'etage que
+## `massif_scene` empile a 20.
+const CUT_WEST: int = 1 << 17
+const CUT_EAST: int = 1 << 18
+const CUTS: int = CUT_WEST | CUT_EAST
+
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 
 
@@ -276,8 +298,23 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 			for bit: int in range(8):
 				if print_of.has(cell + BlobIndex.OFFSETS[bit]):
 					raw |= 1 << bit
+			# LE CISAILLEMENT SE LIT DANS L'EMPREINTE DU MASSIF, PAS SUR CE QUI SE VOIT.
+			#
+			# ⚠ ET C'EST LA MEME RAISON QUE TOUT LE RESTE DU MODELE : un massif se dessine
+			# ENTIER, y compris sous ce qui le recouvre. Lire le cisaillement sur la carte
+			# VISIBLE ferait dependre l'identite d'une tuile de ce qu'on pose dessus -- exactement
+			# ce que le modele existe pour interdire. `print_of` est l'empreinte de CE massif :
+			# une voisine qui s'y trouve est du meme massif par construction.
+			var grass: bool = int(print_of[cell]) == SURFACE
+			var cut: int = 0
+			if print_of.has(cell + Vector2i.LEFT) \
+					and (int(print_of[cell + Vector2i.LEFT]) == SURFACE) != grass:
+				cut |= CUT_WEST
+			if print_of.has(cell + Vector2i.RIGHT) \
+					and (int(print_of[cell + Vector2i.RIGHT]) == SURFACE) != grass:
+				cut |= CUT_EAST
 			out.append({"cell": cell, "band": int(print_of[cell]), "level": levels[mark],
-					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark],
+					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark], "cut": cut,
 					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark,
 					"under": false})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -368,17 +405,22 @@ static func foot_faults(world: PackedStringArray) -> Array[Vector2i]:
 const CARDINALS: int = 0x55
 
 
-static func key(band: int, sil: int, flush: bool) -> int:
+## ⚠ ET LE CISAILLEMENT NE PASSE PAS PAR LA CANONICALISATION DU RAS. Au ras, seuls les cardinaux
+## comptent -- la profondeur y est nulle, donc rien ne se creuse. Mais le cisaillement ne dit
+## rien du CONTOUR : il dit quelle MATIERE est a cote, dans la meme empreinte. Les deux sont
+## orthogonaux, et une tuile au ras porte son cisaillement comme une autre.
+static func key(band: int, sil: int, flush: bool, cut: int = 0) -> int:
 	if not flush:
-		return (band << 8) | sil
+		return cut | (band << 8) | sil
 	var bare: int = sil & CARDINALS
 	if bare == CARDINALS:
-		return (band << 8) | 255
-	return COVERS | (band << 8) | bare
+		return cut | (band << 8) | 255
+	return cut | COVERS | (band << 8) | bare
 
 
 static func key_of(pose: Dictionary) -> int:
-	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]))
+	return key(int(pose["band"]), int(pose["sil"]), bool(pose["flush"]),
+			int(pose.get("cut", 0)))
 
 
 static func band_of(tile: int) -> int:
@@ -393,10 +435,28 @@ static func flush_of(tile: int) -> bool:
 	return (tile & COVERS) != 0
 
 
+## De quel cote la matiere change, dans la meme empreinte. `0`, `CUT_WEST`, `CUT_EAST`.
+##
+## ⚠ ET JAMAIS LES DEUX A LA FOIS -- ce n'est pas de la chance, min trois l'interdit. Il faudrait
+## un doigt d'herbe d'UNE colonne entre deux jupes du meme massif : a cette rangee, la silhouette
+## de l'etage y ferait une course d'une case, donc fine. Verifie aussi par l'enumeration
+## exhaustive de `massif_form.shear_vocabulary()` : zero fenetre des deux cotes sur 2^18.
+static func cut_of(tile: int) -> int:
+	return tile & CUTS
+
+
 ## Le nom d'une tuile, en clair.
 static func describe(tile: int) -> String:
-	return "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
+	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
 			"au ras" if flush_of(tile) else "libre"]
+	var cut: int = cut_of(tile)
+	if cut == CUT_WEST:
+		said += ", cisaille a l ouest"
+	elif cut == CUT_EAST:
+		said += ", cisaille a l est"
+	elif cut != 0:
+		said += ", cisaille des deux cotes"
+	return said
 
 
 ## CE QUE CHAQUE CASE MONTRE : la tuile du massif le plus haut qui la couvre.

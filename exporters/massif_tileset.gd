@@ -20,12 +20,16 @@ const Massifs := preload("res://core/massifs.gd")
 
 const MAGIC: String = "solutiles-tileset"
 
+## ⚠ VERSION 10 : LE CISAILLEMENT ENTRE DANS L'IDENTITE DE LA TUILE. Une case d'herbe contre la
+## falaise de son PROPRE massif ne rend plus la tuile d'interieur : elle a la sienne, et la roche
+## d'en face aussi. Un lecteur v9 poserait la mauvaise tuile a ces endroits, sans une erreur.
+##
 ## ⚠ VERSION 9 : LE MODELE DES MASSIFS. Le sens de la regle de pose change entierement -- un
 ## massif entier au lieu d'une surface plus une robe, deux bandes de plus, un seul bit de
 ## contexte au lieu de sept, une seule planche. Un lecteur v8 qui poserait un fichier v9
 ## fabriquerait un monde faux SANS UNE SEULE ERREUR, et c'est le pire des defauts. La v8 sera
 ## donc refusee nommement par le lecteur, comme la v7 l'etait par elle.
-const VERSION: int = 9
+const VERSION: int = 10
 
 const COLUMNS: int = 8
 const SUFFIX_SHEET: String = "_massifs.png"

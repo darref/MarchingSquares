@@ -4073,3 +4073,72 @@ mais la règle 5 tranche l'autre sens — une tuile sans îlot est une tuile que
 peindre, donc un trou dans le jeu. Elles restent au fichier avec leurs fenêtres, refusées au
 pinceau tant qu'un témoin ne sera pas trouvé. C'est réversible ; livrer 79 tuiles dont 27
 impeignables ne le serait pas.
+
+
+---
+
+# LE CISAILLEMENT — l'état au 2026-09-04, et par où reprendre
+
+⚠ **LA SUITE EST ROUGE : 681 vérifications, 30 échecs, et ils ont TOUS la même cause.** Le
+vocabulaire compte **62 tuiles**, le guide n'en porte que **54** : l'export refuse donc une
+feuille incomplète (c'est la règle), et manifeste, TileSet, essai et découverte tombent en
+cascade derrière. Ce n'est pas trente défauts, c'en est **un**.
+
+## Ce qui a été fait
+
+**LE CISAILLEMENT EST DANS LE MODÈLE.** Relevé par l'utilisateur sur le **massif 21** du guide,
+en regardant SON trait remonté — pas le dessin calculé, qui est la spécification et a donc
+toujours l'air juste. De l'herbe et de la roche du **même massif**, côte à côte : la silhouette
+se lit sur l'EMPREINTE, donc chacune avait son bit mis, se croyait pleine, et rendait la tuile
+d'intérieur qui se répète partout. Personne ne traçait la frontière — la roche s'arrêtait NET.
+
+- **`Massifs.CUT_WEST` (bit 17) et `CUT_EAST` (bit 18)**, lus sur l'**empreinte du massif**,
+  jamais sur la carte visible : un massif se dessine entier, son identité ne peut pas dépendre
+  de ce qu'on pose dessus. ⚠ Jamais les deux à la fois — min trois l'interdit, et l'énumération
+  exhaustive le confirme (zéro fenêtre sur 2^18).
+- **Le dessin** : la roche trace son trait (loi de la lèvre, couchée sur le côté), l'herbe prend
+  une **ombre**. ⚠ Un seul des deux trace, sinon deux traits dos à dos font le pavé 2×2 qu'I2
+  refuse. Et **la lumière tranche** : un cisaillement est un corps d'angle, l'arête s'éclaire à
+  l'ouest et s'ombre à l'est — sans quoi `CORPS 255 cisaillé ouest` rendait exactement
+  `CORPS 21 au ras`, et I7 le disait.
+- **Le plugin suit**, contrôle croisé vert. **Manifeste v10**, la v9 refusée nommément.
+- **Le banc est VERT** : I1 I2 I6 I7 I8 I9, 50 dessins pour 50 tuiles.
+- **Le guide rebâti** : 152×278, 274/274 jonctions, 0 îlot qui ment, LEGAL.
+
+## ⚠ ET LA VRAIE LEÇON N'EST PAS LE CISAILLEMENT, C'EST LA BATTUE
+
+Le recenseur ne battait **qu'au hasard**, et le hasard ne fabrique presque pas de bords sud en
+marches — la forme qui produit un cisaillement. En lui donnant le guide et une famille de
+marches, **9 tuiles de base sont apparues** qui existaient depuis toujours. *Une battue qui ne
+cherche pas là où ça se trouve n'a pas cherché.*
+
+## CE QUI RESTE, ET C'EST UNE SEULE CHOSE
+
+**Huit tuiles sont dans le vocabulaire et absentes du guide** — elles n'ont ni fenêtre
+d'énumération ni témoin :
+
+    SURFACE 223 libre · CORPS 1 libre · CORPS 7 libre · CORPS 17 libre
+    CORPS 193 libre · CORPS 199 libre · CORPS 209 libre · PIED 21 au ras
+
+Ce sont toutes des tuiles **de base**, pas des cisaillées. La chasse (`tools/massif_witnesses.gd`,
+`PART=i/n` puis `--fusion`) est passée de 41 à 58 témoins sur 128 sans les attraper.
+
+⚠ **ET LA CAUSE EST CONNUE : deux battues qui ne partagent pas leur vivier.** Le recenseur les a
+rencontrées dans SES mondes ; le bâtisseur tire les SIENS. Deux copies d'une même recherche
+finissent par diverger, exactement comme deux copies d'une règle. **Le prochain cycle est de leur
+donner la même source de mondes** — ou de faire écrire au recenseur ce que le bâtisseur sait
+porter, jamais plus.
+
+⚠ **Et la fusion de la chasse ne relit pas le fichier existant** : elle réécrit à partir des
+seules parts. Elle a crû cette fois (41 → 58), mais rien ne le garantit — c'est la même faute que
+le recenseur a déjà corrigée chez lui (« la liste ne peut que croître »). À réparer.
+
+## Ensuite, et seulement ensuite
+
+- **Le second mode de guide : un vrai paysage** plutôt qu'une planche de spécimens. Il est
+  **borné à sa propre recherche** — il ne touche ni le modèle, ni la clé, ni le dessin, ni le
+  plugin, et le carnet range par TUILE donc un travail se recharge d'un mode à l'autre. ⚠ **À une
+  condition, et c'est toute la raison de ce cycle** : le vocabulaire doit être CLOS avant. Sinon
+  un paysage révélerait de nouvelles tuiles — c'est précisément ce qui vient d'arriver avec les
+  marches — et le cycle repartirait.
+- **La version : 11.0.0**, majeure. Le sens de la clé a changé.

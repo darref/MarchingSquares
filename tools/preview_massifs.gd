@@ -4,7 +4,14 @@ extends SceneTree
 ##
 ##     godot --headless --path . --script res://tools/preview_massifs.gd -- <sortie.png> [zoom] [x y w h]
 ##
-## Variables : `GUIDE=` le relief a peindre, `F=` la liberte (0 1 2), `GRILLE=1` la grille.
+## Variables : `GUIDE=` le relief a peindre, `F=` la liberte (0 1 2), `GRILLE=1` la grille,
+## `ART=<travail.solutiles>` VOS pixels au lieu du dessin calcule.
+##
+## ⚠ ET `ART=` EST LA VUE QUI COMPTE POUR JUGER SON PROPRE TRAVAIL. Le dessin calcule est la
+## SPECIFICATION : il ne peut pas mentir sur ce que le guide contient, donc il a toujours l'air
+## juste. Ce qu'un peintre veut voir, c'est SON trait remonte en paysage -- la ou deux tuiles se
+## rencontrent, la ou une lumiere ne suit pas. On reprend donc le meme chemin que le jeu : chaque
+## case EMPRUNTE, par identite, la premiere occurrence peinte de sa tuile.
 ##
 ## ⚠ ET IL NE CALCULE RIEN LUI-MEME. Il appelle `render/massif_scene.gd`, celui que le banc
 ## mesure : une image qu'on regarde et une image qu'on mesure doivent sortir du meme code, sinon
@@ -15,6 +22,9 @@ const Modes := preload("res://core/modes.gd")
 const Scene := preload("res://render/massif_scene.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
 const Massifs := preload("res://core/massifs.gd")
+const Families := preload("res://core/families.gd")
+const WorkIO := preload("res://core/work_io.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
 
 const RES: int = Scene.RES
 ## ⚠ LE FOND NE DOIT PAS AVALER LE TRAIT. A `#171719` il etait a trois valeurs du noir du
@@ -112,8 +122,14 @@ func _initialize() -> void:
 	# qui rend la mesure possible -- mais un PNG a fond transparent se regarde mal.
 	var image: Image = Image.create_empty(wide * RES, tall * RES, false, Image.FORMAT_RGBA8)
 	image.fill(VOID)
-	image.blend_rect(Scene.compose(world, freedom, ink),
-			Rect2i(0, 0, wide * RES, tall * RES), Vector2i.ZERO)
+	var art: String = OS.get_environment("ART")
+	var painted: bool = not art.is_empty()
+	if painted:
+		image.blend_rect(_from_work(art, world), Rect2i(0, 0, wide * RES, tall * RES),
+				Vector2i.ZERO)
+	else:
+		image.blend_rect(Scene.compose(world, freedom, ink),
+				Rect2i(0, 0, wide * RES, tall * RES), Vector2i.ZERO)
 
 	# ⚠ LA GRILLE SE REPERE, ELLE NE SE LIT PAS. Pleine et opaque, elle masquait le trait meme
 	# qu'on vient regarder. En pointille clair, elle dit ou sont les bordures de tuile sans
@@ -130,7 +146,10 @@ func _initialize() -> void:
 	# appartiennent a d'autres tuiles. La teinter par etage serait pire -- ce serait la MEME
 	# tuile montree en deux tons, donc un mensonge sur ce que l'artiste peint. L'ombre, elle,
 	# ne pretend rien : elle dit « ceci est plus haut que cela », et `OMBRE=` l'eteint.
-	if OS.get_environment("OMBRE") == "":
+	# ⚠ ET ELLE NE TOMBE JAMAIS SUR L'ART DE QUELQU'UN D'AUTRE. Elle assombrit des pixels ; sur
+	# le dessin calcule c'est une aide a la lecture, sur VOS pixels ce serait juger une couleur
+	# que vous n'avez pas posee. `ART=` l'eteint donc d'office.
+	if OS.get_environment("OMBRE") == "" and not painted:
 		var levels: Dictionary = {}
 		for one: Dictionary in Massifs.poses(world):
 			var cell: Vector2i = one["cell"]
@@ -237,7 +256,62 @@ func _initialize() -> void:
 		image.resize(image.get_width() * zoom, image.get_height() * zoom,
 				Image.INTERPOLATE_NEAREST)
 	image.save_png(out)
+	var said: String = "VOTRE trait" if painted 			else ("contour" if ink == MassifTiles.CONTOUR else "peint")
 	print("guide %dx%d a F%d (%s), ecrit : %s (%dx%d)"
-			% [wide, tall, freedom, "contour" if ink == MassifTiles.CONTOUR else "peint",
-			out, image.get_width(), image.get_height()])
+			% [wide, tall, freedom, said, out, image.get_width(), image.get_height()])
 	quit(0)
+
+
+## LE PAYSAGE REMONTE AVEC VOS PIXELS -- le meme chemin que le jeu.
+##
+## ⚠ CHAQUE CASE EMPRUNTE, ELLE NE FABRIQUE RIEN (charte, regle 3), et TOUJOURS LA PREMIERE
+## OCCURRENCE PEINTE : c'est deja la regle de l'export et celle de l'apercu en jeu. Une autre
+## occurrence rendrait une autre image pour la meme tuile, et le paysage scintillerait d'une
+## execution a l'autre.
+##
+## ⚠ ET L'ORDRE DE POSE FAIT TOUT. On ne trie rien ici : `Massifs.poses` rend deja les poses
+## dans l'ordre de dessin -- par rangee, puis par etage -- et la derniere gagne. C'est de la
+## que vient l'occlusion, et c'est ce qui doit se regarder.
+func _from_work(path: String, world: PackedStringArray) -> Image:
+	var wide: int = HeightMask.width(world)
+	var tall: int = HeightMask.height(world)
+	var canvas: Image = Image.create_empty(wide * RES, tall * RES, false, Image.FORMAT_RGBA8)
+	canvas.fill(Color(0, 0, 0, 0))
+
+	var loaded: Dictionary = WorkIO.read(path, world)
+	if int(loaded["error"]) != OK:
+		printerr("ART : '%s' ne se lit pas (erreur %d)." % [path, int(loaded["error"])])
+		return canvas
+	var painting: RefCounted = loaded["painting"]
+	var report: Dictionary = MassifTileset.analyse(painting, world)
+	var by_key: Dictionary = WorkIO.cells_by_key(world, Families.BY_MASSIF)
+	var source: Dictionary = report["source"]
+
+	var art_of: Dictionary = {}
+	for tile: Variant in source.keys():
+		var key: String = "M%d:%d" % [int(tile), int(source[tile])]
+		if not by_key.has(key):
+			continue
+		var drawn: Image = painting.image_of(by_key[key])
+		if drawn == null:
+			continue
+		# ⚠ ON RAMENE A LA TAILLE DU RENDU, ET ON LE DIT. La grille, les pastilles et les
+		# numeros se posent tous en `RES` ; un travail peint plus fin serait REDUIT ici, donc
+		# juge sur moins de pixels qu'il n'en porte. A 16 c'est un pour un.
+		if drawn.get_width() != RES:
+			drawn = drawn.duplicate()
+			drawn.resize(RES, RES, Image.INTERPOLATE_NEAREST)
+		art_of[int(tile)] = drawn
+
+	var missing: int = 0
+	for pose: Dictionary in Massifs.poses(world):
+		var tile2: int = Massifs.key_of(pose)
+		if not art_of.has(tile2):
+			missing += 1
+			continue
+		canvas.blend_rect(art_of[tile2] as Image, Rect2i(0, 0, RES, RES),
+				(pose["cell"] as Vector2i) * RES)
+	print("  %d tuiles peintes, %d poses sans dessin%s" % [art_of.size(), missing,
+			"" if int(painting.resolution) == RES
+			else "  (peint en %d px, reduit a %d)" % [int(painting.resolution), RES]])
+	return canvas

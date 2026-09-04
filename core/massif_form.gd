@@ -64,6 +64,54 @@ static func witnesses() -> Dictionary:
 	return found
 
 
+## LES COUPLES AVEC LEUR CISAILLEMENT, exhaustivement.
+##
+## ⚠ POURQUOI CE BIT-LA ET PAS UN AUTRE. La BANDE encode deja la transition VERTICALE -- surface,
+## chapiteau, corps, pied -- et c'est pour ca que la levre porte son trait. Rien n'encodait la
+## transition HORIZONTALE : la silhouette se lit sur l'EMPREINTE, donc une case d'herbe dont la
+## voisine est la falaise de son propre massif a ce bit MIS, se croit pleine, et rend la tuile
+## d'interieur qui se repete partout. Sa voisine de roche fait de meme. La frontiere n'est
+## dessinee par personne, et la roche s'arrete net (releve par l'utilisateur, massif 21).
+##
+## ⚠ ET LES DEUX COTES SE RESERVENT, PAS SEULEMENT LA ROCHE (decision utilisateur). La loi
+## « un flanc qui s'arrete ne se creuse pas, il se trait » ne demandait que la roche ; mais une
+## frontiere tracee d'un seul cote se voit, et le rendu semble faux. C'est un jugement de
+## peintre, et c'est lui qui tranche ici.
+##
+## Rend `{(coupe << 24) | (bande << 8) | silhouette: [bits de fenetre]}`.
+static func shear_witnesses() -> Dictionary:
+	var found: Dictionary = {}
+	for bits: int in range(1 << (COLS * ROWS)):
+		var surface: Array[PackedByteArray] = _window(bits)
+		if _thin_inside(surface):
+			continue
+		var here: Dictionary = {}
+		var cuts: Dictionary = {}
+		_couples_of(surface, here, cuts)
+		for key: int in cuts.keys():
+			if not found.has(key):
+				found[key] = [] as Array[int]
+			(found[key] as Array[int]).append(bits)
+	return found
+
+
+## LE VOCABULAIRE SI LE CISAILLEMENT ENTRE DANS L'IDENTITE DE LA TUILE.
+## Cle : `(coupe << 24) | (ras << 16) | (bande << 8) | silhouette`.
+static func shear_vocabulary() -> Array[int]:
+	var found: Dictionary = {}
+	for key: int in shear_witnesses().keys():
+		var cut: int = key >> 24
+		var band: int = (key >> 8) & 0xff
+		var sil: int = key & 0xff
+		var bits: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0)
+		found[Massifs.key(band, sil, false, bits)] = true
+		found[Massifs.key(band, sil, true, bits)] = true
+	var out: Array[int] = []
+	out.assign(found.keys())
+	out.sort()
+	return out
+
+
 ## LA FENETRE ETIREE : la fenetre 3x6, bordee en repliquant ses bords vers l'exterieur.
 ##
 ## ⚠ ET L'ETIREMENT EST CE QUI GARANTIT L'EPAISSEUR, sans une seule boucle de reparation. Toute
@@ -94,14 +142,16 @@ static func stretched(bits: int, pad: int = 2) -> Array[PackedByteArray]:
 ## entre dans la forme. Ce n'est pas circulaire -- une tuile posee qui n'est ni enumeree ni
 ## portee par un temoin fait rougir I8, et la reponse est alors d'aller lui chercher un temoin,
 ## pas de baisser la barre. La forme reste ce qu'on sait PEINDRE.
+## ⚠ ET ELLE PORTE LE CISAILLEMENT DEPUIS QU'IL EST DANS LA CLE. Sans lui, I8 -- « toute tuile
+## posee est dans la forme close » -- rougirait sur chaque tuile cisaillee, alors que ce sont
+## exactement les tuiles qu'on vient d'ajouter au modele. Une forme close qui ne connait pas la
+## cle qu'elle juge ne juge rien.
 static func vocabulary() -> Array[int]:
 	var found: Dictionary = {}
 	for tile: int in Witnesses.blocks().keys():
 		found[int(tile)] = true
-	for couple: int in couples():
-		var band: int = (couple >> 8) & 0xff
-		found[Massifs.key(band, couple & 0xff, false)] = true
-		found[Massifs.key(band, couple & 0xff, true)] = true
+	for tile2: int in shear_vocabulary():
+		found[tile2] = true
 	var out: Array[int] = []
 	out.assign(found.keys())
 	out.sort()
@@ -113,14 +163,20 @@ static func vocabulary() -> Array[int]:
 ## ⚠ ET UNE TUILE PEUT VENIR DE PLUSIEURS COUPLES. Au ras, cinq silhouettes rendent le meme
 ## dessin : remonter d'une tuile vers « son » couple n'a plus de sens, il faut LES couples. Sans
 ## cette table, chercher l'ilot d'une tuile au ras cherchait une cle qui n'existe pas.
+## ⚠ ET ELLE LIT L'ENUMERATION CISAILLEE, PAS L'AUTRE. C'est elle qui donne au batisseur du
+## guide, pour chaque tuile, une fenetre qui la produit : branchee sur l'enumeration sans
+## cisaillement, elle ne trouverait d'ilot pour AUCUNE tuile cisaillee, et le guide les
+## laisserait impeignables sans que rien ne le dise.
 static func sources(flush: bool) -> Dictionary:
-	var wits: Dictionary = witnesses()
+	var wits: Dictionary = shear_witnesses()
 	var out: Dictionary = {}
-	for couple: int in wits.keys():
-		var tile: int = Massifs.key((couple >> 8) & 0xff, couple & 0xff, flush)
+	for key: int in wits.keys():
+		var cut: int = key >> 24
+		var bits_of: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0)
+		var tile: int = Massifs.key((key >> 8) & 0xff, key & 0xff, flush, bits_of)
 		if not out.has(tile):
 			out[tile] = [] as Array[int]
-		for bits: int in (wits[couple] as Array[int]):
+		for bits: int in (wits[key] as Array[int]):
 			(out[tile] as Array[int]).append(bits)
 	return out
 
@@ -183,7 +239,12 @@ static func _thin_inside(surface: Array[PackedByteArray]) -> bool:
 ## forcement le MEME massif -- une composante connexe ne se coupe pas. Mais deux composantes
 ## distinctes de la fenetre peuvent aussi bien etre reliees DEHORS : les deux lectures sont
 ## realisables, donc on prend les deux. Les supposer separees sous-compterait la forme.
-static func _couples_of(surface: Array[PackedByteArray], out: Dictionary) -> void:
+## ⚠ `cuts` EST UNE SORTIE DE PLUS, PAS UN AUTRE PARCOURS. Le cisaillement se lit sur la MEME
+## fenetre et le MEME plan de chute que le couple : l'enumerer a part demanderait une seconde
+## copie de cette fonction, et deux copies d'une enumeration finissent toujours par diverger.
+## Cle : `(coupe << 24) | (bande << 8) | silhouette`, coupe = bit 0 l'ouest, bit 1 l'est.
+static func _couples_of(surface: Array[PackedByteArray], out: Dictionary,
+		cuts: Dictionary = {}) -> void:
 	var mark: Array[PackedByteArray] = _components(surface)
 	var mine: int = -1
 	if int(surface[CX][CY]) == 1:
@@ -232,7 +293,25 @@ static func _couples_of(surface: Array[PackedByteArray], out: Dictionary) -> voi
 			for bit: int in range(8):
 				if band_of.has(Vector2i(CX, CY) + BlobIndex.OFFSETS[bit]):
 					raw |= 1 << bit
-			out[(int(band_of[Vector2i(CX, CY)]) << 8) | BlobIndex.canonicalize(raw)] = true
+			var couple: int = (int(band_of[Vector2i(CX, CY)]) << 8) 					| BlobIndex.canonicalize(raw)
+			out[couple] = true
+			# LE CISAILLEMENT : de l'herbe et de la roche du MEME massif, cote a cote.
+			#
+			# ⚠ ET « MEME MASSIF » EST ACQUIS ICI SANS RIEN DE PLUS : `band_of` ne porte que les
+			# composantes JOINTES, donc une voisine qui s'y trouve est du meme massif par
+			# construction. C'est ce qui rend la propriete LOCALE, donc enumerable : la colonne
+			# voisine dont la levre est plus haute est reliee a la mienne par la rangee de cette
+			# levre, qui est dans la fenetre.
+			var centre: Vector2i = Vector2i(CX, CY)
+			var grass: bool = int(band_of[centre]) == Massifs.SURFACE
+			var cut: int = 0
+			for k: int in range(2):
+				var near2: Vector2i = centre + (Vector2i.LEFT if k == 0 else Vector2i.RIGHT)
+				if not band_of.has(near2):
+					continue
+				if (int(band_of[near2]) == Massifs.SURFACE) != grass:
+					cut |= 1 << k
+			cuts[(cut << 24) | couple] = true
 
 
 static func _footprint(surface: Array[PackedByteArray], mark: Array[PackedByteArray],

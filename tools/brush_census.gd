@@ -22,6 +22,7 @@ const HeightMask := preload("res://core/height_mask.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Thickness := preload("res://core/thickness.gd")
+const Gesture := preload("res://core/gesture.gd")
 const Lab := preload("res://tools/relief_lab.gd")
 const Stored := preload("res://core/brush_vocabulary.gd")
 
@@ -51,6 +52,28 @@ func _initialize() -> void:
 		made += 1
 		for tile: Variant in Massifs.paintable(walk["world"]).values():
 			met[int(tile)] = true
+
+	# ⚠ ET UNE BATTUE QUI NE CHERCHE QU'AU HASARD N'A PAS VRAIMENT CHERCHE. Le geste produit peu
+	# de CISAILLEMENTS -- deux sur six paysages -- parce qu'ils naissent d'un bord sud EN MARCHES,
+	# et qu'un tampon pose au hasard en fabrique rarement. On ajoute donc deux sources dont on
+	# sait qu'elles en portent : le guide livre, et une famille de bords sud en marches batie
+	# exprès. Chacune reste un relief LEGAL -- `Gesture.legal` tranche -- donc chacune est
+	# atteignable au pinceau, ce qui est toute la question.
+	for path: String in ["res://guides/massifs.txt"]:
+		for tile2: Variant in Massifs.paintable(HeightMask.read(path)).values():
+			met[int(tile2)] = true
+	for top_level: int in [1, 2]:
+		for plan: int in range(256):
+			var deep: Array[int] = []
+			var rest: int = plan
+			for _b: int in range(4):
+				deep.append(rest % 4)
+				rest /= 4
+			var stair: PackedStringArray = _stairs(deep, top_level)
+			if not Gesture.legal(stair):
+				continue
+			for tile3: Variant in Massifs.paintable(stair).values():
+				met[int(tile3)] = true
 
 	var form: Array[int] = MassifForm.vocabulary()
 	var never: Array[int] = []
@@ -173,3 +196,32 @@ func _walk(rng: RandomNumberGenerator) -> Dictionary:
 				var level: int = HeightMask.level_at(mended, x4, y4)
 				grid[y4][x4] = 0 if level < 0 else level + 1
 	return {"world": last, "refused": refused, "moves": moves}
+
+
+## UN BORD SUD EN MARCHES : quatre blocs de trois colonnes, chacun plongeant de zero a trois
+## rangees. C'est exactement la forme qui fabrique un CISAILLEMENT -- la colonne de gauche
+## s'arrete haut, sa jupe pend, et celle de droite continue en surface a cote d'elle.
+##
+## ⚠ MIN TROIS EST RESPECTE PAR CONSTRUCTION (les blocs font trois colonnes), mais on demande
+## quand meme a `Gesture.legal` : la marge de pied et le gouffre ne se lisent pas sur la largeur.
+func _stairs(deep: Array[int], top_level: int) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for _y: int in range(30):
+		var row: PackedByteArray = PackedByteArray()
+		row.resize(24)
+		row.fill(0)
+		grid.append(row)
+	for y2: int in range(4, 26):
+		for x: int in range(4, 20):
+			grid[y2][x] = 1
+	for x2: int in range(6, 18):
+		var bottom: int = 10 + deep[mini((x2 - 6) / 3, 3)]
+		for y3: int in range(6, bottom + 1):
+			grid[y3][x2] = top_level + 1
+	var out: PackedStringArray = PackedStringArray()
+	for row2: PackedByteArray in grid:
+		var said: String = ""
+		for v: int in row2:
+			said += "~" if v == 0 else str(v - 1)
+		out.append(said)
+	return out

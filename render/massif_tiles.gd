@@ -39,6 +39,14 @@ const DARK: float = 0.13
 ## L'amplitude de l'ondulation, en pixels, a F2.
 const SWELL: float = 3.0
 
+## L'ombre que l'herbe porte au bord d'un cisaillement. ⚠ UNE OMBRE, PAS UN TRAIT : I2 compte
+## les pixels exactement `OUTLINE`, et deux traits dos a dos feraient le pave 2x2 qu'il refuse.
+const SHEAR_SHADE: float = 0.30
+
+## L'arete d'un corps d'angle : eclairee a l'ouest, ombree a l'est. Elle dit « la paroi tourne
+## ici », et c'est ce qui empeche une tuile cisaillee de rendre la meme image qu'une tuile au ras.
+const SHEAR_TURN: float = 0.34
+
 ## LES ENCRES DU FOND. ⚠ ET LE CONTOUR PROUVE N'EST PAS UNE COQUETTERIE : en aplats, la matiere
 ## d'une couche cache les traits de celle du dessous et l'oeil ne peut plus juger du TRACE. En
 ## contour, toute la matiere porte la meme teinte : ce qui reste visible, ce sont exactement les
@@ -111,7 +119,8 @@ static func _swell(along: int) -> float:
 ## meme vert, meme matiere, on ne voit que son contour. La teinte est ce qui dit l'altitude
 ## quand la vue est de dessus.
 static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
-		backdrop: Color = Color(0, 0, 0, 0), level: int = 1, ink: int = PEINT) -> Image:
+		backdrop: Color = Color(0, 0, 0, 0), level: int = 1, ink: int = PEINT,
+		cut: int = 0) -> Image:
 	var out: Image = Image.create_empty(RES, RES, false, Image.FORMAT_RGBA8)
 	out.fill(backdrop)
 	var solid: Array[PackedByteArray] = []
@@ -152,6 +161,44 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 			if band == Massifs.CHAPITEAU and y2 == 0:
 				out.set_pixel(x2, y2, OUTLINE)
 				continue
+			# LE CISAILLEMENT : la MEME empreinte change de matiere sur ce bord lateral.
+			#
+			# ⚠ C'EST LE TRAIT DE LEVRE, COUCHE SUR LE COTE, ET IL OBEIT A LA MEME LOI. On ne
+			# peint dans une tuile que ce qui est CONSTANT : un chapiteau a toujours de la
+			# surface au-dessus de lui, et une tuile CISAILLEE a toujours l'autre matiere de ce
+			# cote-la. C'est tout ce que le bit achete, et c'est pour ca qu'il fallait un bit --
+			# sans lui la tuile se croyait pleine et rendait l'interieur qui se repete partout.
+			#
+			# ⚠ ET UN SEUL DES DEUX COTES TRACE, PARCE QUE DEUX TRAITS SE COLLERAIENT. I2 existe
+			# exactement pour ca : deux lignes d'un pixel dos a dos font un pave 2x2 tout de
+			# trait. La ROCHE trace -- « un flanc qui s'arrete ne se creuse pas, il se trait » --
+			# et l'HERBE prend une OMBRE, pas un trait. Ce n'est pas un demi-traitement : de ce
+			# cote-la le terrain plonge, et une ombre est ce qu'un bord de plateau porte. Les deux
+			# tuiles restent distinctes, ce qu'I7 exige, et l'artiste peindra chacune a sa main.
+			var lateral: bool = ((cut & Massifs.CUT_WEST) != 0 and x2 == 0) 					or ((cut & Massifs.CUT_EAST) != 0 and x2 == RES - 1)
+			if lateral:
+				if band == Massifs.SURFACE:
+					out.set_pixel(x2, y2, _matter(band, x2, y2, ink).darkened(SHEAR_SHADE))
+				else:
+					out.set_pixel(x2, y2, OUTLINE)
+				continue
+			# ⚠ ET LE TRAIT SEUL NE SUFFIT PAS A DISTINGUER LA TUILE. Un bord AU RAS trace lui
+			# aussi un pixel au bord : `CORPS 255 cisaille ouest` rendait alors exactement
+			# `CORPS 21 au ras`, et I7 le disait. Une tuile EST son dessin -- piege deja paye une
+			# fois sur ce modele, quand treize tuiles sur cinquante-cinq rendaient une image deja
+			# rendue.
+			#
+			# ⚠ LA LUMIERE TRANCHE, ET ELLE EST CONSTANTE. Un cisaillement est un CORPS D'ANGLE :
+			# la paroi tourne ici. La lumiere vient du nord-ouest, donc une arete a l'ouest
+			# s'eclaire et une arete a l'est s'ombre -- ce qui distingue aussi les deux cotes
+			# entre eux, sans quoi ils se seraient a leur tour confondus.
+			if band != Massifs.SURFACE:
+				if (cut & Massifs.CUT_WEST) != 0 and x2 == 1:
+					out.set_pixel(x2, y2, _matter(band, x2, y2, ink).lightened(SHEAR_TURN))
+					continue
+				if (cut & Massifs.CUT_EAST) != 0 and x2 == RES - 2:
+					out.set_pixel(x2, y2, _matter(band, x2, y2, ink).darkened(SHEAR_TURN))
+					continue
 			if edge:
 				out.set_pixel(x2, y2, OUTLINE)
 				continue

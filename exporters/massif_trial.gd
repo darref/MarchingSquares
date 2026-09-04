@@ -74,7 +74,7 @@ static func paint(heights: PackedStringArray,
 static func draw(tile: int, resolution: int = TRIAL_RESOLUTION) -> Image:
 	var image: Image = MassifTiles.shape(Massifs.sil_of(tile),
 			Massifs.band_of(tile), Massifs.flush_of(tile), 1,
-			Color(0, 0, 0, 0), TRIAL_LEVEL, MassifTiles.PEINT)
+			Color(0, 0, 0, 0), TRIAL_LEVEL, MassifTiles.PEINT, Massifs.cut_of(tile))
 	if resolution != image.get_width():
 		image.resize(resolution, resolution, Image.INTERPOLATE_NEAREST)
 	return image

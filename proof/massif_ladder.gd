@@ -129,7 +129,8 @@ func _initialize() -> void:
 	for tile: int in vocabulary.keys():
 		for freedom2: int in [0, 1, 2]:
 			var one: Image = MassifTiles.shape(Massifs.sil_of(tile), Massifs.band_of(tile),
-					Massifs.flush_of(tile), freedom2)
+					Massifs.flush_of(tile), freedom2, Color(0, 0, 0, 0), 1,
+					MassifTiles.PEINT, Massifs.cut_of(tile))
 			var mark: String = "%d/%s" % [freedom2, Marshalls.raw_to_base64(one.get_data())]
 			if drawings.has(mark):
 				twins.append("F%d : %s == %s" % [freedom2, Massifs.describe(tile),

@@ -94,11 +94,49 @@ func _initialize() -> void:
 		if one.is_empty():
 			continue
 		var got: Dictionary = Lab.species(one)
+		# ⚠ ET LE GLOUTON VISE LES DEUX CHOSES A LA FOIS : les especes de JONCTION et les
+		# TUILES. Il ne visait que les jonctions, et les tuiles n'etaient couvertes que par
+		# accident -- huit d'entre elles tombaient alors dans les ilots, ou dans le vide quand
+		# aucune fenetre ne savait les decouper. Or un monde qui porte une tuile EST son temoin :
+		# le chercher ailleurs, c'est refuser une preuve qu'on a deja sous la main.
+		#
+		# ⚠ LES DEUX FAMILLES DE CLES NE SE CONFONDENT PAS : une jonction est nommee par
+		# `Lab.species`, une tuile par « T » suivi de sa cle. Melangees sans prefixe, une espece
+		# et une tuile pourraient porter le meme nom et l'une masquerait l'autre.
+		for tile0: Variant in Massifs.paintable(one).values():
+			got["T%d" % int(tile0)] = true
 		pool.append(one)
 		brings.append(got)
 		for key: String in got.keys():
 			targets[key] = int(targets.get(key, 0)) + 1
-	print("le monde pose %d especes de jonction (%d mondes)" % [targets.size(), pool.size()])
+	var species: int = 0
+	for key0: String in targets.keys():
+		if not key0.begins_with("T"):
+			species += 1
+	# ⚠ ET LE VIVIER NE SE TIRE PAS QU'AU HASARD. Le CISAILLEMENT nait d'un bord sud EN MARCHES,
+	# que le tampon pose rarement : le recenseur, lui, avait recu cette famille et rencontrait
+	# donc des tuiles que ce vivier-ci ne voyait jamais. Deux battues qui ne cherchent pas au
+	# meme endroit ne peuvent pas s'accorder -- et c'est le guide qui payait, avec huit tuiles
+	# sans temoin. On fabrique donc les memes marches ici.
+	for top_level: int in [1, 2]:
+		for plan: int in range(64):
+			var deep: Array[int] = []
+			var rest: int = plan
+			for _b: int in range(3):
+				deep.append(rest % 4)
+				rest /= 4
+			var stair: PackedStringArray = _stairs(deep, top_level)
+			if not Gesture.legal(stair):
+				continue
+			var brought: Dictionary = Lab.species(stair)
+			for tile1: Variant in Massifs.paintable(stair).values():
+				brought["T%d" % int(tile1)] = true
+			pool.append(stair)
+			brings.append(brought)
+			for key1: String in brought.keys():
+				targets[key1] = int(targets.get(key1, 0)) + 1
+	print("le monde pose %d especes de jonction et %d tuiles (%d mondes)"
+			% [species, targets.size() - species, pool.size()])
 	# ⚠ LE DEBORDEMENT NE SE CONSTRUIT PLUS : LE GESTE LE PRODUIT. Il a fallu le batir a la main
 	# tant que le pinceau montait d'un etage a la fois -- le hasard ne posait alors que des chutes
 	# de trois. Depuis le tampon a ETAGE CHOISI, la marche rend d'elle-meme 200 levres a six, 89 a
@@ -125,7 +163,7 @@ func _initialize() -> void:
 		for key3: String in (brings[best] as Dictionary).keys():
 			covered[key3] = true
 		brings[best] = {}
-	print("  %d mondes couvrent %d especes sur %d"
+	print("  %d mondes couvrent %d cibles sur %d (jonctions ET tuiles)"
 			% [pieces.size(), covered.size(), targets.size()])
 
 	# PHASE DEUX : ce qui manque encore en TUILES, par ilot calcule.
@@ -353,14 +391,23 @@ func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2
 	var shown: Dictionary = Lab.species(world)
 	var absent: int = 0
 	var lacks: Array[String] = []
+	# ⚠ ET ON NE COMPTE ICI QUE LES JONCTIONS. `targets` sert desormais DEUX objectifs au
+	# glouton -- les especes de jonction et les tuiles -- mais l'audit des jonctions ne juge que
+	# les siennes : sans ce filtre il reclamait des « T65616 » a `Lab.species`, qui n'en pose
+	# aucune, et annoncait cinquante manques imaginaires. Un compteur qui ne mesure pas ce qu'il
+	# pretend mesurer est pire que pas de compteur.
+	var kinds_only: int = 0
 	for kind: String in targets.keys():
+		if kind.begins_with("T"):
+			continue
+		kinds_only += 1
 		if shown.has(kind):
 			continue
 		absent += 1
 		if lacks.size() < 10:
 			lacks.append(kind)
 	print("  JONCTIONS : %d especes sur %d que le monde pose"
-			% [targets.size() - absent, targets.size()])
+			% [kinds_only - absent, kinds_only])
 	for one: String in lacks:
 		print("      manque : %s" % one)
 	var missing: Array[String] = []
@@ -368,4 +415,39 @@ func _audit(world: PackedStringArray, wanted: Array[int], centres: Array[Vector2
 		missing.append(Massifs.describe(tile))
 	if not missing.is_empty():
 		print("  tuiles manquantes : %s" % " | ".join(missing))
+	# ⚠ ET ON LES NOMME. « Huit tuiles hors de portee » sans dire lesquelles est un compteur
+	# qu'on ne peut pas suivre : ce sont exactement les tuiles a qui il faut chercher un temoin,
+	# donc la liste de travail du prochain cycle.
 	print("  (%d tuiles hors de portee, refusees au pinceau)" % out_of_reach.size())
+	for lost: int in out_of_reach:
+		print("      sans temoin : %s" % Massifs.describe(lost))
+
+
+## UN BORD SUD EN MARCHES : trois blocs de trois colonnes, chacun plongeant de zero a trois
+## rangees. C'est la forme qui fabrique un CISAILLEMENT -- la colonne de gauche s'arrete haut,
+## sa jupe pend, et celle de droite continue en surface a cote d'elle.
+##
+## ⚠ ET ELLE EST LEGALE PAR CONSTRUCTION, MAIS ON DEMANDE QUAND MEME. Min trois est respecte --
+## les blocs font trois colonnes -- mais ni la marge de pied ni le gouffre ne se lisent sur la
+## largeur : `Gesture.legal` tranche, comme pour n'importe quel monde du vivier.
+func _stairs(deep: Array[int], top_level: int) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for _y: int in range(CUT_H):
+		var row: PackedByteArray = PackedByteArray()
+		row.resize(CUT_W)
+		row.fill(0)
+		grid.append(row)
+	for y2: int in range(RIM, CUT_H - RIM):
+		for x: int in range(RIM, CUT_W - RIM):
+			grid[y2][x] = 1
+	for x2: int in range(RIM + 2, RIM + 11):
+		var bottom: int = 10 + deep[mini((x2 - RIM - 2) / 3, 2)]
+		for y3: int in range(RIM + 2, mini(bottom + 1, CUT_H - RIM)):
+			grid[y3][x2] = top_level + 1
+	var out: PackedStringArray = PackedStringArray()
+	for row2: PackedByteArray in grid:
+		var said: String = ""
+		for v: int in row2:
+			said += "~" if v == 0 else str(v - 1)
+		out.append(said)
+	return out

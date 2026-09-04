@@ -33,12 +33,18 @@ const MAGIC: String = "solutiles-tileset"
 ## ⚠ LES DEUX BORNES SONT NECESSAIRES. La haute dit « je ne connais pas encore cette
 ## regle » ; la basse dit « je ne connais plus celle-la ».
 ##
-## ⚠ LA V8 EST REFUSEE NOMMEMENT. Elle decrivait l'ancien modele -- une surface plus une robe,
+## ⚠ LA V9 EST REFUSEE NOMMEMENT, ET LA V8 AVANT ELLE. La v9 ne connaissait pas le
+## CISAILLEMENT : une case d'herbe contre la falaise de son propre massif y portait la tuile
+## d'interieur, celle qui se repete partout. Un lecteur v10 qui poserait un fichier v9 mettrait
+## donc la mauvaise tuile a ces endroits -- sans une seule erreur. La version bouge des que le
+## SENS bouge, sinon deux fichiers de meme version decrivent deux mondes.
+##
+## ⚠ ET LA V8, ELLE, Elle decrivait l'ancien modele -- une surface plus une robe,
 ## deux planches, sept bits de contexte, des poses arriere. Le modele des massifs pose un
 ## massif ENTIER, une tuile est le couple (silhouette d'empreinte, bande), et il n'y a plus
 ## qu'un bit. Un lecteur qui poserait un v8 avec ces regles-ci fabriquerait un autre monde.
-const READS_FROM: int = 9
-const READS_UP_TO: int = 9
+const READS_FROM: int = 10
+const READS_UP_TO: int = 10
 
 ## La seule famille du modele.
 const BY_MASSIF: StringName = &"massif"
@@ -48,7 +54,7 @@ const BY_MASSIF: StringName = &"massif"
 ## suite verifie qu'il dit la meme chose que `Families.massif_tiles()`. Le jour ou le
 ## vocabulaire grandit -- il ne peut que grandir -- la suite le dit ici, et non chez
 ## l'acheteur.
-const MASSIF_TILES: int = 39
+const MASSIF_TILES: int = 62
 
 ## Le suffixe qui reconnait un manifeste sans l'ouvrir.
 const SUFFIX: String = "_tileset.txt"
