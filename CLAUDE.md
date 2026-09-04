@@ -596,8 +596,11 @@ niveau 0 du mode d'emploi, entrée de grotte, motifs carrés, tuiles animées) s
   **mode**, pas un réglage, et c'est **gratuit pour le travail en cours** : le carnet range par
   tuile, donc un travail commencé sur l'un se recharge sur l'autre.
 - **Deux styles de trait : `straight` et `ondulated`** — ce sont F1 et F2 du modèle, gratuits en
-  vocabulaire. ⚠ **Mais pas encore pour les falaises** : `wall_depth` ne lit `freedom` que pour
-  le test `== 0`, donc les deux rendent aujourd'hui le même bord de face.
+  vocabulaire, et **le modèle des massifs les rend pour toutes les bandes** : `MassifTiles.depth_of`
+  lit `freedom` en entier — F0 rentre d'un pixel, F1 va au rendez-vous à mi-tuile, F2 ondule
+  autour — et `_inside` s'en sert pour la surface comme pour la falaise. ⚠ **La réserve notée ici
+  visait `wall_depth`, qui appartient à l'ANCIEN modèle** (`render/contour_tiles.gd`) : elle ne
+  vaut plus. Ce qui reste à faire est de l'**offrir**, pas de le calculer.
 - **L'arbre des fonds de guide** : `Technique = computed | example`, `computed = wireframe |
   painted`, `painted = straight | ondulated`. ⚠ **Et tout doit montrer la liberté dès qu'elle est
   disponible** : le fond n'est pas une décoration, c'est la spécification, et une liberté qu'on
