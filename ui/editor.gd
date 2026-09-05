@@ -286,8 +286,13 @@ func _fill_inks() -> void:
 	choice.select(0)
 
 
+## ⚠ CHANGER DE TECHNIQUE OU DE STYLE RECOMPOSE LE FOND ENTIER, et ce n'est pas instantane :
+## le modele des massifs pose le paysage d'un coup. Les deux listes tombent ici -- c'est la meme
+## poignee -- donc la meme attente, donc la meme barre.
 func _on_style_selected(_index: int) -> void:
+	await _show_then("Changement de fond", "on recompose le paysage")
 	_apply_background_style()
+	_idle()
 
 
 func _apply_background_style() -> void:
@@ -402,8 +407,13 @@ func _on_mode_selected(_index: int) -> void:
 	_idle()
 
 
+## ⚠ CHANGER LA TAILLE DES FAUX PIXELS RECHARGE TOUT LE PAYSAGE, exactement comme en changer.
+## C'est la meme attente que « Chargement du paysage », et elle se disait pour l'un, pas pour
+## l'autre.
 func _on_resolution_selected(_index: int) -> void:
+	await _show_then("Changement de la taille des pixels", "le relief et ses tuiles")
 	_load_current_mode()
+	_idle()
 
 
 func _on_pencil_changed(color: Color) -> void:
@@ -520,12 +530,23 @@ func _idle() -> void:
 
 
 ## ⚠ IL FAUT RENDRE LA MAIN A L'ECRAN POUR QU'IL PEIGNE. Poser le panneau puis travailler dans
-## la meme image ne montre rien du tout : Godot ne dessine qu'entre deux images. Un `await` sur
-## la suivante coute une image et rend la barre reelle.
+## la meme image ne montre rien du tout : Godot ne dessine qu'entre deux images.
+##
+## ⚠ ET `process_frame` NE SUFFIT PAS -- C'EST LA FAUTE QUI RENDAIT LA MOITIE DES BARRES
+## INVISIBLES ALORS QU'ELLES ETAIENT ECRITES (relevee par l'utilisateur sur l'installation du
+## plugin et l'export de l'essai, qui appelaient bien cette fonction). Le signal est emis au
+## DEBUT du traitement d'une image ; quand on l'attend depuis un clic ou un signal, on reprend
+## la main dans la meme image, AVANT son dessin. Le panneau etait donc pose, puis le travail
+## bloquait le fil, puis `_idle` le refermait -- et il n'avait jamais ete peint une seule fois.
+##
+## On attend donc que l'image soit DESSINEE : `frame_post_draw` est emis apres le rendu, et
+## c'est la seule preuve que le panneau est reellement a l'ecran. `process_frame` d'abord, pour
+## que la mise en page du panneau soit faite avant qu'on demande son dessin.
 func _show_then(title: String, note: String) -> void:
 	_busy(title, note)
 	_busy_held = true
 	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
 
 
 func _on_twins_toggled(_pressed: bool) -> void:
@@ -726,7 +747,7 @@ static func must_confirm(painted: int, dirty: bool) -> bool:
 ## une gene, et elle use la seule confirmation qui compte.
 func _on_new_pressed() -> void:
 	if _painting == null or not must_confirm(_painting.painted_cells().size(), _dirty):
-		_new_project()
+		await _new_project()
 		return
 	var count: int = _painting.painted_cells().size()
 	# ⚠ ON DIT COMBIEN, PAS « DES MODIFICATIONS ». Un nombre se pese ; « des modifications » se
@@ -741,14 +762,14 @@ func _on_new_pressed() -> void:
 
 func _on_new_saved_first() -> void:
 	_reset_after_save = true
-	_on_save_pressed()
+	await _on_save_pressed()
 
 
 func _on_new_discarded(action: StringName) -> void:
 	if action != &"jeter":
 		return
 	_new_dialog.hide()
-	_new_project()
+	await _new_project()
 
 
 ## REPARTIR D'UN GUIDE VIERGE. ⚠ ET CA ROUVRE LES CHOIX QUE LE PREMIER PIXEL AVAIT FERMES : la
@@ -756,6 +777,7 @@ func _on_new_discarded(action: StringName) -> void:
 ## rejetterait tout le travail. Sans « nouveau projet », le seul moyen d'en changer d'avis
 ## etait de relancer le logiciel.
 func _new_project() -> void:
+	await _show_then("Nouveau projet", "on repart d'un guide vierge")
 	_work_path = ""
 	(%WorkHint as Label).text = "Rien d'enregistre pour l'instant."
 	_load_current_mode()
@@ -812,15 +834,19 @@ func _on_open_chosen(path: String) -> void:
 
 func _on_save_pressed() -> void:
 	if _work_path != "":
-		_write_work(_work_path)
+		await _write_work(_work_path)
 		return
 	_save_dialog.current_file = "%s.%s" % [_current_mode(), WorkIO.EXTENSION]
 	_save_dialog.popup_centered_ratio(0.6)
 
 
+## ⚠ ENREGISTRER EST LONG, ET C'ETAIT L'ATTENTE LA PLUS MUETTE DE TOUTES. Le fichier range l'art
+## par tuile, chacune en PNG encode en base64 : plusieurs kilo-octets par ligne, et autant de
+## lignes que de tuiles peintes. Rien ne le disait.
 func _write_work(path: String) -> void:
 	if _painting == null:
 		return
+	await _show_then("Enregistrement du travail", path.get_file())
 	if WorkIO.write(path, _painting, _heights, _current_mode(), _current_family()) != OK:
 		_announce("Enregistrement impossible.")
 		return
@@ -830,7 +856,7 @@ func _write_work(path: String) -> void:
 	_announce("Enregistre dans %s" % path.get_file())
 	if _reset_after_save:
 		_reset_after_save = false
-		_new_project()
+		await _new_project()
 
 
 func _on_export_pressed() -> void:

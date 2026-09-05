@@ -568,6 +568,12 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   ⚠ **Mais on ne fige pas `_tile_px` : c'est le TRACÉ qui se cale, pas l'échelle** — et la grille
   se cale avec, sinon elle flotte à côté des tuiles et cesse de dire où sont les bordures.
 - **Clic gauche pose, clic droit efface** — éprouvé à la main, l'inverse se trompait de réflexe.
+- **TOUTE ATTENTE IMPOSÉE SE DIT, ET SOUS SON NOM.** Sept l'ignoraient : nouveau projet,
+  enregistrement, changement de technique, de style, de taille des faux pixels, installation du
+  plugin, export de l'essai. ⚠ **Deux causes distinctes, et la seconde est la traîtresse** —
+  quatre n'annonçaient rien du tout, trois **annonçaient sans être peintes** (voir le piège
+  `process_frame` ci-dessous). Un défaut qui ne se voit pas à la lecture du code : l'appel est
+  bien là.
 - **Les jauges se recalculent à chaque coup de crayon** (règle 6), depuis les mêmes fonctions que
   la suite : ce que l'écran affiche est ce que les tests prouvent.
 - **Le mode d'emploi vit DANS le logiciel, à trois niveaux** — prise en main, comment ça marche,
@@ -609,6 +615,14 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   zéro, il laisse le panneau minuscule en haut à gauche. C'est `set_anchors_and_offsets_preset()`.
 - **`%` se lie au dernier fragment d'une concaténation**, pas à la chaîne entière. Bâtir la
   chaîne dans une variable d'abord.
+- **⚠ `await get_tree().process_frame` NE GARANTIT PAS QUE L'ÉCRAN A PEINT.** Le signal est émis
+  au **début** du traitement d'une image ; attendu depuis un clic ou un signal, on reprend la
+  main dans la **même** image, avant son dessin. Un panneau d'attente posé puis suivi d'un
+  travail bloquant n'était donc **jamais peint une seule fois** — et la moitié des barres de
+  progression étaient invisibles alors qu'elles étaient écrites (relevé par l'utilisateur sur
+  l'installation du plugin et l'export de l'essai). La preuve qu'une image est **dessinée**,
+  c'est `RenderingServer.frame_post_draw`. On attend les deux : `process_frame` pour que la mise
+  en page soit faite, `frame_post_draw` pour qu'elle soit à l'écran.
 - **En script `SceneTree`, `quit()` part avant la première itération** : le `_ready()` d'un nœud
   qu'on vient d'ajouter n'a pas encore tourné. Rejouer son geste avant de mesurer.
 - **`user://` survit d'une exécution à l'autre** : un test qui écrit doit d'abord faire le vide,
