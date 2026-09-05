@@ -4212,18 +4212,33 @@ tuile **survolée** — même mécanique que « Voisines », même place, même 
   l'utilisent. Il faut donc savoir, par tuile, **si elle est animée**, et c'est un bit de plus
   dans le carnet, pas dans la clé.
 
-## 2 · LES FLUIDES — *décidé, spécifié par l'utilisateur*
+## 2 · LES FLUIDES — *décidé et tranché par l'utilisateur le 2026-09-05*
 
 **De l'eau, peinte comme n'importe quel liquide.** Un fluide est **uniquement une SURFACE, bordée**
 — pas de falaise, donc pas de bande, donc pas de chute. C'est ce qui le rend beaucoup moins cher
 que le terrain.
+
+**⚠ ET UN FLUIDE NE TOUCHE JAMAIS À L'IDENTITÉ D'UNE TUILE DE TERRAIN.** C'est le pivot de toute
+la fiche. Il se pose en **couche au-dessus** de la surface d'un étage, comme un massif recouvrant :
+de l'**occlusion par ordre de rendu**, rien d'autre. La case d'herbe sous un lac reste
+`SURFACE 255` — elle existe entièrement sous ce qui la recouvre, comme le modèle l'exige déjà
+partout. Les trois zones réservées vivent **dans la tuile du fluide**, à dehors transparent : la
+transition herbe → bordure se peint PAR-DESSUS l'herbe, et l'herbe n'en sait rien. Le vocabulaire
+du terrain ne bouge donc **pas d'une tuile**.
+
+**L'ordre des couches, par étage** : terrain(L) → matière 1(L) → matière 2(L) → terrain(L+1)… La
+jupe d'un massif d'étage L+1 retombe ainsi **par-dessus** le fluide de l'étage L.
 
 **Les mondes réservés.** Des **mondes supplémentaires, à côté de ceux du terrain**, qui montrent
 **tous les cas de fluide** — bordure, eau pleine — exactement comme le terrain montre les siens,
 mais dans des mondes **distincts et réservés**, de la **même structure**.
 
 ⚠ **Et pour le mode paysage il faudra faire autrement** : un paysage n'est pas un damier, les
-accidents de fluide devront y être **placés**, pas juxtaposés.
+accidents de fluide devront y être **placés**, pas juxtaposés. C'est l'inverse du damier — on pose
+un paysage plausible, on **vérifie par programme** ce qu'il porte, et là où une tuile manque on
+cherche l'accident qui la produit (une baie, une flèche, une mare) au lieu d'ajouter un spécimen.
+⚠ **Les fluides n'inventent pas ce problème, ils le MULTIPLIENT** : c'est déjà celui du terrain en
+paysage, et c'est pour ça que les deux dispositions restent bornées à leur propre recherche.
 
 **Les tuiles à réserver pour pouvoir animer** (déclaré par l'utilisateur) :
 
@@ -4231,17 +4246,92 @@ accidents de fluide devront y être **placés**, pas juxtaposés.
 2. la **bordure → eau** ;
 3. l'**eau pleine**.
 
-### Ce que ça engage, et qui n'est pas encore tranché
+⚠ **CE NE SONT PAS TROIS TUILES, CE SONT TROIS ZONES** d'un même dessin : l'eau pleine est la
+silhouette 255, les deux autres sont l'extérieur et l'intérieur de chaque tuile de bordure. Les
+animer demande donc l'axe des frames — **et c'est la raison pour laquelle l'animation vient avant
+les fluides dans cette liste.** Sans elle, on livrerait une eau fixe.
 
-- **⚠ L'ORDRE DES MATIÈRES EST UNE DÉCISION, PAS UNE DÉDUCTION** (déjà au dossier) : sable sur
-  herbe, eau sur sable. Sans ordre, il faut un jeu de tuiles par paire de matières.
-- **Un fluide ne touche ni la lèvre ni le bord** de son étage — sinon c'est une cascade, qui est
-  un autre sujet. À reconfirmer maintenant que le modèle est celui des massifs.
-- **Le vocabulaire du fluide se CALCULE**, comme celui du terrain : c'est un masque binaire, donc
-  les silhouettes d'une surface — et rien d'autre. ⚠ **À énumérer, pas à estimer.**
-- **À trancher : combien de matières, et sont-elles nommées ?** « N'importe quel liquide » veut
-  dire que le vocabulaire est **un**, et que la couleur appartient au peintre. C'est le choix le
-  moins cher et le plus fidèle à la charte — à confirmer.
+### LE COÛT, MESURÉ — 8 tuiles par matière, pas 47
+
+Un fluide est un masque binaire, et comme il ne touche ni la lèvre ni le bord de son étage, il
+n'est **jamais au ras** et **jamais cisaillé** : les deux bits de contexte du terrain ne le
+concernent pas. Il ne lui reste que la silhouette.
+
+Le vocabulaire livré porte **8** silhouettes de surface libre et non cisaillée — `28, 31, 112,
+124, 127, 241, 253, 255` — et c'est exactement ce qu'un fluide coûte. ⚠ **Le « +47 par matière »
+du dossier vient de l'ANCIEN modèle et il est périmé** ; la borne haute est le théorème des 256
+fenêtres sous min trois (27 index), pas 47. ⚠ **Et 8 est un plancher, pas une vérité** : c'est ce
+qu'une battue atteint, et la liste ne peut que croître.
+
+**⚠ ET LA CLAUSE « NI LA LÈVRE NI LE BORD » N'EST PAS UNE PUDEUR : C'EST CE QUI ACHÈTE LES DEUX
+BITS.** La lever ferait revenir *au ras* et *cisaillement* sur le fluide, et le coût changerait
+d'ordre de grandeur.
+
+### LES TROIS DÉCISIONS DE L'UTILISATEUR (2026-09-05)
+
+**1. UNE SEULE MATIÈRE, donc un seul vocabulaire.** « N'importe quel liquide » : la couleur
+appartient au peintre. L'eau et la lave sont **deux peintures du même jeu de 8 tuiles**.
+
+**2. PAS D'OCÉAN.** Un fluide ne touche pas le bord du monde — qui est la lèvre de la plaine. La
+contrainte reste donc entière, et avec elle les 8 tuiles.
+
+⚠ **Mais l'eau au PIED D'UNE FALAISE est gratuite**, et le guide doit le MONTRER. Un pied de
+massif d'étage L+1 se pose après la couche de fluide de l'étage L : il la recouvre par ordre de
+rendu, comme tout le reste. L'eau vient donc battre la roche sans une tuile de plus. Un pied n'est
+pas une lèvre — la lèvre interdite est celle de **son** étage. Une permission qu'on ne montre pas
+est une permission que personne n'utilisera.
+
+**3. DE L'EAU SUR LA PLAINE.** Et elle **ne prend pas le crayon** non plus : une tuile de fluide
+sur la plaine est la **jumelle** de la même tuile sur un plateau, donc elle se remplit en peignant
+le vocabulaire ailleurs. C'est de nouveau l'argument de vente — la mare du jeu sort du même
+tileset, sans un dessin de plus. ⚠ **Et son blob garde sa marge du bord du monde** : c'est ça,
+« pas d'océan ».
+
+### CE QUE « UNE SEULE MATIÈRE » IMPOSE : LE PROJET ENTIER
+
+⚠ **CE N'EST PAS UN CONFORT D'ORGANISATION, C'EST L'UNITÉ D'EXPORT.** Avec un vocabulaire unique,
+le livrable cesse d'être *un travail* et devient un **ensemble** — le terrain, plus une instance
+par matière — et c'est l'ensemble qui sort en une planche et un manifeste. Il faut donc pouvoir
+**créer, ouvrir et enregistrer un PROJET** (demandé par l'utilisateur le 2026-09-05).
+
+**Le projet est le `.solutiles` ÉTENDU, pas un type de fichier de plus.** Un fichier v5 se relit
+comme un projet à **un seul calque**, nommé « terrain » : on sait le replacer, donc on le
+**traduit**, et rien n'est rendu. En-tête lisible, la liste des calques, puis les lignes de tuiles
+préfixées de leur calque — `peek()` reste bon marché, il ne lit que l'en-tête.
+
+**⚠ L'ORDRE DES MATIÈRES EST L'ORDRE DE CRÉATION, ET RIEN D'AUTRE.** C'est le point où la fiche
+frôle la charte : une liste de matières qu'on réordonne serait un panneau de réglages, et la règle
+1 l'interdit. Ajouter une matière est un **geste** — elle se pose au-dessus, comme un calque. Pas
+de poignées, pas de flèches, pas de case à cocher. Si l'on veut le sable sous l'eau, on crée le
+sable d'abord. Même principe que « peindre **est** l'acte de sélection ».
+
+Ce que le projet coûte, poste par poste :
+
+| | |
+|---|---|
+| `work_io` | une version de plus — **v7**, v6 étant prise par l'animation |
+| l'export | la planche gagne 8 cases par matière ; le manifeste doit **déclarer les calques et leur ordre**, sinon deux moteurs divergeront |
+| le plugin | une couche de plus par matière et par étage, dans l'ordre déclaré — le portage est mécanique |
+| l'écran | créer / ouvrir / enregistrer un **projet** remplace le travail ; la barre de gauche porte la liste des matières |
+| les jauges | elles comptent **par calque** : « terrain 42/55, eau 3/8 » |
+
+### CE QUI RESTE À TRANCHER
+
+- **⚠ FAUT-IL UNE SEULE REFONTE DU CARNET AU LIEU DE DEUX ?** L'animation prend `work_io` v6 et le
+  manifeste v11 ; les fluides prendraient v7 et v12. Si les deux chantiers se suivent de près, il
+  vaut peut-être mieux ouvrir **d'un coup** l'axe des frames et l'axe des calques : un format qui
+  change deux fois de suite est deux fois l'occasion de perdre du travail.
+- **Nommer une matière.** « Eau », « lave » — c'est du texte, donc de la configuration au sens
+  strict. Le minimum tolérable : un nom libre **au moment de la création**, uniquement pour que la
+  barre et le manifeste aient de quoi appeler le calque.
+- **La fabrication des îlots de fluide.** Le plateau porteur doit déborder le blob d'au moins une
+  case sur les quatre côtés, et ⚠ **un accident de fluide ne se pose pas sous un autre** — même
+  piège que pour le relief : un blob trop proche change le voisinage du précédent et la tuile visée
+  disparaît du guide.
+- **La composition du guide se fait PAR COMBINAISON**, pas en un guide géant : terrain seul,
+  terrain + matière, chacun sa planche. À 14,6 px la case, un guide qui empile tout cesse de
+  montrer. Le carnet range par tuile, donc passer d'une composition à l'autre est **gratuit pour le
+  travail en cours**.
 
 ## 3 · LES GROTTES ET LES TROUS — *décidé, spécifié par l'utilisateur*
 
