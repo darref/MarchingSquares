@@ -252,6 +252,9 @@ var _by_role: Dictionary = {}
 var _targets: Dictionary = {}
 var _needs_fit: bool = false
 var _job: RefCounted = null
+## Un fond de massifs annonce, pas encore compose. ⚠ IL LUI FAUT UNE IMAGE D'ECART : annoncer et
+## composer dans la meme image ne montre rien, Godot ne dessine qu'entre deux images.
+var _pending: bool = false
 var _cache: Dictionary = {}
 var _cache_key: String = ""
 
@@ -264,6 +267,8 @@ func _ready() -> void:
 ## chaque pixel pose ferait, a 256 de cote, un quart de mega-octet par pixel et par coup de
 ## souris. On marque la case sale, et on ne televerse qu ici.
 func _process(_delta: float) -> void:
+	if _pending:
+		_compose_massifs()
 	if _job != null:
 		if _job.step(LOAD_BUDGET_USEC):
 			_background = ImageTexture.create_from_image(_job.image())
@@ -570,6 +575,15 @@ func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
 	queue_redraw()
 
 
+## LA ZONE TRAVAILLE-T-ELLE ? ⚠ C'EST ELLE QUI SAIT, PAS L'ECRAN. Le panneau d'attente etait
+## BASCULE par qui parlait en dernier : au demarrage, le fond s'annoncait, puis `_apply_decor`
+## annoncait son decor et refermait le panneau dans la MEME image -- donc il ne se peignait
+## jamais, et il n'y avait aucune barre au demarrage. Une visibilite qui se DEDUIT de ce qui
+## travaille ne peut pas se faire fermer sous elle.
+func is_busy() -> bool:
+	return _pending or _job != null
+
+
 ## Relance le calcul du fond. L'editeur s'en sert quand une aide a la vue change ce que le
 ## fond doit montrer.
 func refresh_background() -> void:
@@ -601,28 +615,44 @@ func _redraw_background() -> void:
 	# part : le modele ne pose aucune ombre portee, donc rien a masquer -- l ancien en avait
 	# une parce que ses ombres tombaient sur des cases de plaine qu aucune tuile ne porte.
 	if guide_family == Families.BY_MASSIF:
-		# ⚠ UN EXEMPLE N'EST PAS UNE ENCRE, C'EST UNE AUTRE SOURCE. « Notre dessin » se CALCULE
-		# depuis le relief -- il ne peut pas mentir sur ce que le guide contient, donc il a
-		# toujours l'air juste. Un exemple, lui, est du VRAI trait remonte : c'est la seule vue
-		# ou l'on voit ce que l'outil rend vraiment, et c'est la que les defauts se trouvent.
-		var made: Image = null
-		if Examples.CATALOGUE.has(guide_example):
-			var art: RefCounted = Examples.painting(guide_example, _heights)
-			made = MassifScene.compose_painted(_heights, art) if art != null else null
-		if made == null:
-			made = MassifScene.compose(_heights, 1,
-				MassifTiles.CONTOUR if guide_ink == GuideImage.Ink.WIREFRAME
-				else MassifTiles.PEINT)
-		_background = ImageTexture.create_from_image(made)
-		_background_flat = _background
-		_cache[_cache_key] = [_background, _background_flat]
-		_job = null
-		loading_progress.emit(1, 1)
+		# ⚠ ON ANNONCE AVANT DE COMPOSER, ET ON REND LA MAIN A L'ECRAN. Le modele des massifs
+		# compose d'un coup -- une seconde pour le guide entier -- et n'emettait donc son
+		# avancement qu'UNE FOIS FINI : la fenetre restait figee sans rien dire, et il n'y avait
+		# AUCUNE barre au demarrage ni au changement de paysage (releve par l'utilisateur).
+		#
+		# ⚠ ET IL NE SUFFIT PAS D'EMETTRE AVANT : Godot ne dessine qu'entre deux images. On pose
+		# donc le travail en attente et `_process` le fait a l'image suivante -- c'est exactement
+		# ce que faisait l'ancien fond par etapes, pour la meme raison.
+		_pending = true
+		loading_progress.emit(0, 1)
 		return
 	_background = null
 	_background_flat = null
 	_job = RenderJob.new(_heights, GUIDE_TILE, guide_ink, guide_purpose, guide_marks)
 	loading_progress.emit(0, _job.total)
+
+
+## LA COMPOSITION DIFFEREE DU FOND, faite une image apres l'annonce.
+func _compose_massifs() -> void:
+	_pending = false
+	# ⚠ UN EXEMPLE N'EST PAS UNE ENCRE, C'EST UNE AUTRE SOURCE. « Notre dessin » se CALCULE
+	# depuis le relief -- il ne peut pas mentir sur ce que le guide contient, donc il a toujours
+	# l'air juste. Un exemple, lui, est du VRAI trait remonte : c'est la seule vue ou l'on voit ce
+	# que l'outil rend vraiment, et c'est la que les defauts se trouvent.
+	var made: Image = null
+	if Examples.CATALOGUE.has(guide_example):
+		var art: RefCounted = Examples.painting(guide_example, _heights)
+		made = MassifScene.compose_painted(_heights, art) if art != null else null
+	if made == null:
+		made = MassifScene.compose(_heights, 1,
+				MassifTiles.CONTOUR if guide_ink == GuideImage.Ink.WIREFRAME
+				else MassifTiles.PEINT)
+	_background = ImageTexture.create_from_image(made)
+	_background_flat = _background
+	_cache[_cache_key] = [_background, _background_flat]
+	_job = null
+	loading_progress.emit(1, 1)
+	queue_redraw()
 
 
 ## Recadre le guide entier dans la fenetre.

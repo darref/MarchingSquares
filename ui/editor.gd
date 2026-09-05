@@ -281,17 +281,29 @@ func _on_style_selected(_index: int) -> void:
 
 
 func _apply_background_style() -> void:
+	var picked: Dictionary = _style_pick()
+	# ⚠ L'ENCRE N'A PAS DE SENS SUR UN TRAIT PEINT : ce ne sont ni nos aplats ni nos traits, ce
+	# sont des pixels poses a la main. On ferme le choix plutot que de l'ignorer.
+	(%InkChoice as OptionButton).disabled = StringName(picked["example"]) != &"" 			or int(picked["purpose"]) == GuideImage.Purpose.EXAMPLE
+	(%WorkArea as Control).set_guide_style(picked["ink"], picked["purpose"], picked["example"])
+
+
+## CE QUE LES DEUX LISTES DISENT, LU UNE SEULE FOIS.
+##
+## ⚠ DEUX ENDROITS QUI RESOLVENT LE MEME CHOIX FINISSENT PAR SE CONTREDIRE, et ca vient d'etre
+## paye : `_load_current_mode` lisait la metadonnee et l'affectait directement. Depuis qu'elle
+## designe un EXEMPLE par son nom, il ecrivait un `StringName` dans un champ d'enumeration --
+## coerce en silence -- et surtout il PERDAIT l'exemple choisi des qu'on changeait de paysage.
+func _style_pick() -> Dictionary:
 	var technic: OptionButton = %StyleChoice
 	var style: OptionButton = %InkChoice
 	var pick: StringName = StringName(technic.get_item_metadata(technic.selected))
-	var purpose: GuideImage.Purpose = GuideImage.Purpose.EXAMPLE if pick == &"satyron" \
-			else GuideImage.Purpose.REPRESENTATIVE
-	var example: StringName = pick if Examples.CATALOGUE.has(pick) else &""
-	# ⚠ L'ENCRE N'A PAS DE SENS SUR UN TRAIT PEINT : ce ne sont ni nos aplats ni nos traits, ce
-	# sont des pixels poses a la main. On ferme le choix plutot que de l'ignorer.
-	style.disabled = pick != &""
-	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected), purpose,
-			example)
+	return {
+		"ink": style.get_item_metadata(style.selected),
+		"purpose": GuideImage.Purpose.EXAMPLE if pick == &"satyron"
+				else GuideImage.Purpose.REPRESENTATIVE,
+		"example": pick if Examples.CATALOGUE.has(pick) else &"",
+	}
 
 
 ## La famille de surface choisie. ⚠ ELLE SE CHOISIT AVANT DE DESSINER, comme le paysage et
@@ -366,10 +378,10 @@ func _load_current_mode() -> void:
 	work.guide_family = _current_family()
 	work.pencil = (%PencilColor as ColorPickerButton).color
 	_apply_fill_rules()
-	var technic: OptionButton = %StyleChoice
-	var style: OptionButton = %InkChoice
-	work.guide_ink = style.get_item_metadata(style.selected)
-	work.guide_purpose = technic.get_item_metadata(technic.selected)
+	var picked: Dictionary = _style_pick()
+	work.guide_ink = picked["ink"]
+	work.guide_purpose = picked["purpose"]
+	work.guide_example = picked["example"]
 	work.show_guide(_heights, _painting)
 	(%PreviewPanel as Control).show_guide(_heights, _painting)
 	(%NeighboursPanel as Control).show_guide(_painting, work.ground_stacks())
@@ -443,10 +455,22 @@ func _on_swatch_pressed(button: Button) -> void:
 
 ## ⚠ LA VALEUR AFFICHEE EST CELLE DU TRAVAIL REEL : des tuiles dessinees sur des tuiles a
 ## dessiner. Pas un compte a rebours, pas une animation qui tourne pendant qu'on attend.
+## ⚠ ET LE FOND NE FERME PAS UN PANNEAU QUI NE LUI APPARTIENT PAS. Il emet `(1, 1)` des qu'il a
+## fini -- le modele des massifs compose d'un coup -- et comme `done == total`, il refermait le
+## panneau EN PLEIN MILIEU d'une ouverture de travail, qui l'avait ouvert avant lui et n'avait
+## pas fini. Resultat : la barre clignotait et disparaissait, donc il n'y avait PAS de barre a
+## l'ouverture (releve par l'utilisateur). Une operation longue GARDE la main jusqu'a son
+## annonce ; le fond ne fait que remplir la barre quand personne d'autre ne l'occupe.
 func _on_loading_progress(done: int, total: int) -> void:
 	if done < total:
-		_busy("Dessin du fond du guide", "%d / %d tuiles" % [done, total], done, total)
-	else:
+		# ⚠ ON NE COMPTE QUE CE QUI SE COMPTE. L'ancien fond se dessinait par etapes, tuile par
+		# tuile, et sa jauge disait un vrai avancement. Le modele des massifs compose D'UN SEUL
+		# TENANT : annoncer « 0 / 1 tuiles » serait un compteur qui ne mesure rien. On nomme
+		# alors l'etat, ce qui est vrai, plutot que d'inventer une fraction.
+		_busy("Dessin du fond du guide",
+				"%d / %d tuiles" % [done, total] if total > 1 else "le paysage entier",
+				done, total)
+	elif not _busy_held:
 		_idle()
 
 
@@ -462,6 +486,11 @@ func _on_loading_progress(done: int, total: int) -> void:
 ## ⚠ ET ELLE EST HONNETE : du VRAI avancement la ou il existe (le fond du guide compte ses
 ## tuiles), un etat NOMME sinon. Jamais un pourcentage invente -- une jauge qui ne mesure pas ce
 ## qu'elle pretend mesurer est pire que pas de jauge.
+## Vrai tant qu'une operation longue tient le panneau. ⚠ SANS LUI, N'IMPORTE QUEL SIGNAL
+## D'AVANCEMENT PEUT LE REFERMER SOUS ELLE.
+var _busy_held: bool = false
+
+
 func _busy(title: String, note: String, done: int = 0, total: int = 0) -> void:
 	(%LoadingPanel as Control).visible = true
 	(%LoadingTitle as Label).text = title
@@ -474,8 +503,13 @@ func _busy(title: String, note: String, done: int = 0, total: int = 0) -> void:
 	(%LoadingCount as Label).text = note
 
 
+## ⚠ FERMER, C'EST LACHER SA PRISE -- PAS ETEINDRE L'ECRAN. Le panneau reste tant qu'un fond est
+## en cours : sinon la premiere annonce venue le referme sous le travail qui n'a pas fini. C'est
+## exactement ce qui supprimait la barre au demarrage -- le fond s'annoncait, puis `_apply_decor`
+## annoncait son decor et refermait le panneau dans la MEME image, donc il ne se peignait jamais.
 func _idle() -> void:
-	(%LoadingPanel as Control).visible = false
+	_busy_held = false
+	(%LoadingPanel as Control).visible = (%WorkArea as Control).is_busy()
 
 
 ## ⚠ IL FAUT RENDRE LA MAIN A L'ECRAN POUR QU'IL PEIGNE. Poser le panneau puis travailler dans
@@ -483,6 +517,7 @@ func _idle() -> void:
 ## la suivante coute une image et rend la barre reelle.
 func _show_then(title: String, note: String) -> void:
 	_busy(title, note)
+	_busy_held = true
 	await get_tree().process_frame
 
 
@@ -694,7 +729,11 @@ func _on_open_pressed() -> void:
 ## peint ; il faut charger ce paysage AVANT de pouvoir y reposer quoi que ce soit. D'ou
 ## l'en-tete d'abord, le guide ensuite, les tuiles en dernier.
 func _on_open_chosen(path: String) -> void:
-	await _show_then("Ouverture du travail", path.get_file())
+	# ⚠ TROIS ETAPES REELLES, PAS UN ETAT FIGE. Ouvrir lit en DEUX TEMPS -- le fichier dit dans
+	# quel paysage il a ete peint, et il faut charger ce paysage AVANT de pouvoir y reposer quoi
+	# que ce soit -- puis il faut remonter l'ecran. Ce sont trois attentes distinctes, de durees
+	# tres differentes : les nommer vaut mieux qu'un pourcentage invente.
+	await _show_then("Ouverture du travail", "1/3  on lit l'en-tete")
 	var header: Dictionary = WorkIO.peek(path)
 	if int(header["error"]) != OK:
 		_announce("Ce fichier n'est pas un travail SoluTiles.")
@@ -702,8 +741,12 @@ func _on_open_chosen(path: String) -> void:
 	_select_metadata(%ModeChoice, header["mode"])
 	_select_metadata(%SizeChoice, int(header["resolution"]))
 	_select_metadata(%FamilyChoice, header["family"])
+	_busy("Ouverture du travail", "2/3  le paysage : %s" % header["mode"], 1, 3)
+	await get_tree().process_frame
 	_load_current_mode()
 
+	_busy("Ouverture du travail", "3/3  on repose les tuiles", 2, 3)
+	await get_tree().process_frame
 	var report: Dictionary = WorkIO.read(path, _heights)
 	if int(report["error"]) != OK:
 		_announce("Fichier illisible.")
