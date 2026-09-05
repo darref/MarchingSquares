@@ -645,12 +645,12 @@ niveau 0 du mode d'emploi, entrée de grotte, motifs carrés, tuiles animées) s
   injonction — *demander à un seul dessin d'être à la fois beau et exhaustif*. C'est l'axe du
   **mode**, pas un réglage, et c'est **gratuit pour le travail en cours** : le carnet range par
   tuile, donc un travail commencé sur l'un se recharge sur l'autre.
-- **Deux styles de trait : `straight` et `ondulated`** — ce sont F1 et F2 du modèle, gratuits en
-  vocabulaire, et **le modèle des massifs les rend pour toutes les bandes** : `MassifTiles.depth_of`
-  lit `freedom` en entier — F0 rentre d'un pixel, F1 va au rendez-vous à mi-tuile, F2 ondule
-  autour — et `_inside` s'en sert pour la surface comme pour la falaise. ⚠ **La réserve notée ici
-  visait `wall_depth`, qui appartient à l'ANCIEN modèle** (`render/contour_tiles.gd`) : elle ne
-  vaut plus. Ce qui reste à faire est de l'**offrir**, pas de le calculer.
+- **⚠ LES DEUX STYLES DE TRAIT SONT RETIRÉS** (décision utilisateur du 05/09/2026). F2 — le trait
+  qui ondule entre deux rendez-vous — est supprimé. Il ne coûtait aucune tuile, c'était le même
+  vocabulaire ; mais **le dessin calculé ne sert que d'aperçu**, l'artiste peint par-dessus et son
+  trait remplace le nôtre. Soigner un aperçu que personne ne livre est du travail pour rien.
+  **F0 reste** : ce n'est pas un style, c'est le plancher — la profondeur d'un pixel — et le banc
+  doit prouver que les invariants y tiennent aussi.
 - **L'arbre des fonds de guide** : `Technique = computed | example`, `computed = wireframe |
   painted`, `painted = straight | ondulated`. ⚠ **Et tout doit montrer la liberté dès qu'elle est
   disponible** : le fond n'est pas une décoration, c'est la spécification, et une liberté qu'on

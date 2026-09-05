@@ -36,9 +36,6 @@ const ROCK: Color = Color(0.66, 0.51, 0.38)
 ## donc c'est peignable, et une tuile exportee peut le porter.
 const LIT: float = 0.16
 const DARK: float = 0.13
-## L'amplitude de l'ondulation, en pixels, a F2.
-const SWELL: float = 3.0
-
 ## L'ombre que l'herbe porte au bord d'un cisaillement. ⚠ UNE OMBRE, PAS UN TRAIT : I2 compte
 ## les pixels exactement `OUTLINE`, et deux traits dos a dos feraient le pave 2x2 qu'il refuse.
 const SHEAR_SHADE: float = 0.30
@@ -94,22 +91,17 @@ static func depth_of(along: int, freedom: int, flush: bool) -> int:
 	# disparait entierement ; a `RES / 2 - 1` il lui reste deux pixels, tous deux de bord, donc
 	# deux traits colles que I2 compte. C'est la meme barre que min trois, un cran plus bas :
 	# bord, centre, bord.
-	var meet: float = 0.0 if flush else (1.0 if freedom <= 0 else float(RES) / 2.0 - 1.0)
-	if freedom < 2:
-		return int(round(meet))
-	return int(round(meet + SWELL * _swell(along)))
+	# ⚠ L'ONDULATION EST SUPPRIMEE (decision utilisateur du 05/09/2026). Elle etait le « style
+	# ondulated », F2 du modele : le trait serpentait entre deux rendez-vous au lieu d'aller
+	# droit. Elle ne coutait aucune tuile -- c'est le meme vocabulaire -- mais le dessin calcule
+	# NE SERT QUE D'APERCU : c'est la specification, l'artiste peint par-dessus et son trait
+	# remplace le notre. Onduler un aperçu, c'est soigner ce que personne ne livre.
+	#
+	# ⚠ ET `along` RESTE AU PARAMETRE, INUTILISE. Le retirer changerait la signature de tout ce
+	# qui appelle `depth_of` pour un gain nul, et le jour ou une profondeur depend a nouveau de
+	# la position le long du bord, il faudrait tout rouvrir. Le nom dit ce qu'il porte.
+	return int(round(0.0 if flush else (1.0 if freedom <= 0 else float(RES) / 2.0 - 1.0)))
 
-
-## ⚠ LE RENDEZ-VOUS EST UN SEGMENT PLAT, PAS UN POINT -- et c'est la discretisation qui l'exige,
-## pas le gout. La ou deux cardinaux ouverts se rencontrent, la coupe de l'ouest se prend a
-## `depth_of(y)` et celle du sud a `depth_of(x)` : avec une ondulation qui vaut zero PILE au coin
-## et un juste a cote, le pixel du coin reste seul -- ses deux voisins sont coupes, lui non. Un
-## pixel de trait isole est une extremite, et I1 la comptait. Deux pixels plats a chaque bout, et
-## la question ne se pose plus.
-static func _swell(along: int) -> float:
-	if along < 2 or along > RES - 3:
-		return 0.0
-	return sin(PI * float(along) / float(RES - 1))
 
 
 ## LA TUILE. `backdrop` n'est peint que pour une PLANCHE de specimens : isolee, une tuile a

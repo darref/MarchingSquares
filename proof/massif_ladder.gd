@@ -34,6 +34,20 @@ const Gesture := preload("res://core/gesture.gd")
 const RES: int = MassifTiles.RES
 const OUTLINE: Color = MassifTiles.OUTLINE
 
+## LES LIBERTES QUE LE BANC EPROUVE.
+##
+## ⚠ DEUX, PLUS TROIS. F2 -- le trait ondule -- est supprime (decision utilisateur du
+## 05/09/2026) : le dessin calcule NE SERT QUE D'APERCU, l'artiste peint par-dessus. F0 reste, et
+## ce n'est pas un style : c'est le PLANCHER, la profondeur d'UN pixel, et le banc doit prouver
+## que les invariants tiennent aussi la ou le trait a le moins de place.
+##
+## ⚠ ET ELLE EST UNE CONSTANTE PARCE QU'UN COMPTE LA DIVISAIT EN DUR. I7 annoncait
+## `drawings.size() / 3` : en passant de trois libertes a deux, il a dit « 55 tuiles, 36
+## dessins » alors que le verdict etait juste. Un compteur qui ne mesure pas ce qu'il pretend
+## mesurer est pire que pas de compteur -- et celui-la etait a UN chiffre ecrit a la main de le
+## devenir.
+const FREEDOMS: Array[int] = [0, 1]
+
 ## Le monde d'un tirage, et sa marge de vide : la falaise du bord du monde y tombe.
 const WIDE: int = 22
 const TALL: int = 38
@@ -68,7 +82,7 @@ func _initialize() -> void:
 
 	var green: bool = true
 	var vocabulary: Dictionary = {}
-	for freedom: int in [0, 1, 2]:
+	for freedom: int in FREEDOMS:
 		var ends: int = 0
 		var pave: int = 0
 		var holes: int = 0
@@ -127,7 +141,7 @@ func _initialize() -> void:
 	var drawings: Dictionary = {}
 	var twins: Array[String] = []
 	for tile: int in vocabulary.keys():
-		for freedom2: int in [0, 1, 2]:
+		for freedom2: int in FREEDOMS:
 			var one: Image = MassifTiles.shape(Massifs.sil_of(tile), Massifs.band_of(tile),
 					Massifs.flush_of(tile), freedom2, Color(0, 0, 0, 0), 1,
 					MassifTiles.PEINT, Massifs.cut_of(tile))
@@ -140,7 +154,7 @@ func _initialize() -> void:
 	green = green and twins.is_empty()
 	print("I7 unicite : %s (%d tuiles, %d dessins)"
 			% ["VERT" if twins.is_empty() else "ROUGE", vocabulary.size(),
-			drawings.size() / 3])
+			drawings.size() / FREEDOMS.size()])
 	for one2: String in twins:
 		print("      %s" % one2)
 	# I8 LA FORME CLOSE DIT-ELLE VRAI ? On compare dans les DEUX SENS : toute tuile POSEE doit

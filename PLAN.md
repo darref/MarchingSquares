@@ -4153,3 +4153,129 @@ SON trait remonté, comme la première fois ; le dessin calculé a toujours l'ai
 4. **Le second mode de guide — un vrai paysage.** Il est borné à sa propre recherche, à la
    condition que le vocabulaire soit clos. Il l'est bien plus qu'hier : le vivier est construit,
    reproductible, et toute tuile arrive avec le relief qui la prouve.
+
+
+---
+
+# LA SECONDE PARTIE DU PROJET — la todo, organisée le 2026-09-05
+
+⚠ **CE N'EST PAS UNE LISTE DE SOUHAITS, C'EST UN ORDRE.** Chaque chantier ci-dessous dépend du
+précédent d'une façon qui n'est pas négociable, et la raison est écrite à chaque fois. Ce qui est
+*décidé* est marqué comme tel ; ce qui reste à **trancher** est nommé, jamais supposé.
+
+## 0 · CE QUI FERME LA PREMIÈRE PARTIE — à solder d'abord
+
+1. **LE COIN HAUT DU CISAILLEMENT.** Relevé par l'utilisateur, différé par lui. Là où le trait du
+   cisaillement croise celui de la lèvre, une tuile (ou plusieurs) reste fausse. ⚠ **À regarder
+   sur SON trait remonté, jamais sur le dessin calculé** — celui-ci est la spécification, il a
+   toujours l'air juste. Instruments : `tools/tile_situations.gd`, et l'aperçu `ART=`.
+2. **LA VERSION : 11.0.0**, majeure — le sens de la clé a changé (le cisaillement y est entré).
+3. **`PIED 21 au ras` n'a pas d'îlot propre.** Un monde le porte, donc le guide l'a ; mais aucune
+   fenêtre ne sait le découper. À chasser si l'on veut un îlot dédié.
+4. **La fusion de la chasse ne relit pas l'existant** (`massif_witnesses --fusion`) : elle
+   réécrit depuis les seules parts. Elle a crû cette fois, rien ne le garantit.
+
+## 1 · L'ANIMATION PAR FRAME — *décidé, spécifié par l'utilisateur*
+
+**Les ROOMS du logiciel.** Une grille de boutons **en haut de la barre de GAUCHE**, portant chacun
+le nom d'une room :
+
+- **Dessin** — ce que le logiciel fait aujourd'hui ;
+- **Animation** — décrite ci-dessous.
+
+**Ce que fait la room Animation :**
+
+- on décide, **pour l'ensemble du guide**, d'un **nombre de frames identique pour toutes les
+  tuiles** — mais **seulement si l'animation est déclenchée pour la tuile X** ;
+- on **bascule la frame courante** pour tout le guide ;
+- on peint **comme avant** dans chaque tuile dont on veut dessiner la frame N.
+
+**Et à droite**, juste sous « Voisines », un outil **« Frame List »** : il compare les frames de la
+tuile **survolée** — même mécanique que « Voisines », même place, même geste.
+
+### Ce que ça engage, et qui n'est pas encore tranché
+
+- **⚠ `Painting` ne tient qu'UNE image par tuile.** C'est la décision la plus structurante du
+  carnet — *une tuile, une image* — et l'animation la rouvre : il en faudra **N**. La règle des
+  jumelles doit continuer de tenir (peindre une jumelle peint la tuile), donc c'est la **frame**
+  qui devient un second axe, pas une variante déguisée. ⚠ **Et « les variantes sont supprimées »
+  reste vrai** : N frames ne sont pas N variantes, ce sont N instants du **même** dessin.
+- **La sauvegarde change de sens** → `work_io` **v6**, et les fichiers v5 se **traduisent** (une
+  tuile non animée est une tuile à une frame).
+- **La planche exportée change de forme** → manifeste **v11**. Une tuile animée occupe N cases.
+  ⚠ **Et le lecteur doit pouvoir REFUSER** : il lui faut le nombre de frames en clair, comme
+  `fall_rows` et `tiles` aujourd'hui.
+- **Le plugin doit poser une animation** — `TileSetAtlasSource` sait le faire nativement
+  (`set_tile_animation_frames_count`). À vérifier avant de s'engager.
+- **À trancher : le nombre de frames est-il global au guide, ou par tuile ?** L'utilisateur dit
+  « équivalent pour toutes les tuiles », donc **global** — mais seules les tuiles *déclenchées*
+  l'utilisent. Il faut donc savoir, par tuile, **si elle est animée**, et c'est un bit de plus
+  dans le carnet, pas dans la clé.
+
+## 2 · LES FLUIDES — *décidé, spécifié par l'utilisateur*
+
+**De l'eau, peinte comme n'importe quel liquide.** Un fluide est **uniquement une SURFACE, bordée**
+— pas de falaise, donc pas de bande, donc pas de chute. C'est ce qui le rend beaucoup moins cher
+que le terrain.
+
+**Les mondes réservés.** Des **mondes supplémentaires, à côté de ceux du terrain**, qui montrent
+**tous les cas de fluide** — bordure, eau pleine — exactement comme le terrain montre les siens,
+mais dans des mondes **distincts et réservés**, de la **même structure**.
+
+⚠ **Et pour le mode paysage il faudra faire autrement** : un paysage n'est pas un damier, les
+accidents de fluide devront y être **placés**, pas juxtaposés.
+
+**Les tuiles à réserver pour pouvoir animer** (déclaré par l'utilisateur) :
+
+1. la **transition herbe → bordure** ;
+2. la **bordure → eau** ;
+3. l'**eau pleine**.
+
+### Ce que ça engage, et qui n'est pas encore tranché
+
+- **⚠ L'ORDRE DES MATIÈRES EST UNE DÉCISION, PAS UNE DÉDUCTION** (déjà au dossier) : sable sur
+  herbe, eau sur sable. Sans ordre, il faut un jeu de tuiles par paire de matières.
+- **Un fluide ne touche ni la lèvre ni le bord** de son étage — sinon c'est une cascade, qui est
+  un autre sujet. À reconfirmer maintenant que le modèle est celui des massifs.
+- **Le vocabulaire du fluide se CALCULE**, comme celui du terrain : c'est un masque binaire, donc
+  les silhouettes d'une surface — et rien d'autre. ⚠ **À énumérer, pas à estimer.**
+- **À trancher : combien de matières, et sont-elles nommées ?** « N'importe quel liquide » veut
+  dire que le vocabulaire est **un**, et que la couleur appartient au peintre. C'est le choix le
+  moins cher et le plus fidèle à la charte — à confirmer.
+
+## 3 · LES GROTTES ET LES TROUS — *décidé, spécifié par l'utilisateur*
+
+- **Les entrées de grotte contre les façades** — déjà évoquées au dossier, jamais bâties.
+- **Les trous dans la surface.**
+- **Dans le damier ET dans le paysage**, chacun de la manière qui lui convient.
+
+### Ce que ça engage, et qui n'est pas encore tranché
+
+- **⚠ UN TROU N'EST PAS UN MASSIF EN CREUX.** Le modèle dit qu'un massif est une composante
+  connexe de ce qui est *au moins* à l'étage L : un trou y ferait un anneau, et le bord intérieur
+  se creuserait. C'est **exactement** la faute déjà payée (« groupé à l'étage exact, le porteur
+  devient un ANNEAU troué »). Un trou est donc **un troisième vocabulaire**, comme les escaliers —
+  **il se déclare**, comme `~` l'a été pour le vide.
+- **Une entrée de grotte est une tuile de FAÇADE**, donc de bande `CHAPITEAU`/`CORPS`/`PIED`. Elle
+  ne change pas la silhouette : c'est une **marque** posée sur une façade existante. À décider si
+  elle entre dans la clé (coûteux) ou si elle est une **couche** posée par-dessus (gratuit).
+
+## 4 · CE QUI RESTE, PLUS LOIN
+
+- **Deux modes de disposition : paysage et damier.** ⚠ **Borné à sa propre recherche**, à la
+  condition que le vocabulaire soit clos — il l'est bien plus depuis le vivier commun. Et les
+  fluides comme les grottes en dépendent : ils demandent tous deux « et en paysage, comment ? ».
+- **Exemple High Res.** La place est prise dans la liste, grisée. Il reste à le peindre.
+- **Le plugin Unity.** Rien de commencé. Le contrôle croisé du plugin Godot est le modèle à
+  reprendre : c'est lui qui empêche deux lecteurs de diverger.
+- **La signature, suite.** Le sceau porte les pixels et **dit** la provenance. Ce qui reste :
+  poser la clé publique définitive, et sauvegarder la privée **ailleurs que sur la machine**.
+
+## ⚠ CE QUI EST RETIRÉ, ET NE REVIENT PAS
+
+**Les deux styles de trait (`straight` / `ondulated`).** F2 — le trait qui ondule entre deux
+rendez-vous — est **supprimé** (décision utilisateur du 05/09/2026). Il ne coûtait aucune tuile,
+c'était le même vocabulaire. Mais **le dessin calculé ne sert que d'aperçu** : c'est la
+spécification, l'artiste peint par-dessus et son trait remplace le nôtre. Soigner un aperçu que
+personne ne livre est du travail pour rien. **F0 reste** — ce n'est pas un style, c'est le
+plancher, la profondeur d'un pixel, et le banc doit prouver que les invariants y tiennent aussi.
