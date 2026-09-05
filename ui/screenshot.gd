@@ -9,6 +9,9 @@ var _work: String = ""
 var _assembled: bool = false
 var _preview: bool = false
 var _marks: bool = true
+## ⚠ POUR REGARDER LES COUTURES. Grille en place, ses traits les couvrent : c'est exactement
+## pourquoi elles ne se voyaient pas avant qu'on puisse la masquer.
+var _no_grid: bool = false
 var _hover: Vector2i = Vector2i(-1, -1)
 var _hovered: bool = false
 var _family: int = -1
@@ -45,6 +48,8 @@ func _initialize() -> void:
 				_technic = 1
 			"nu":
 				_marks = false
+			"sansgrille":
+				_no_grid = true
 			"cheval":
 				_family = 1
 			"fil":
@@ -106,6 +111,10 @@ func _process(_delta: float) -> bool:
 			var marks: CheckBox = _editor.get_node("%MarksCheck")
 			marks.button_pressed = true
 			marks.toggled.emit(true)
+		if _no_grid:
+			var grid: CheckBox = _editor.get_node("%GridCheck")
+			grid.button_pressed = true
+			grid.toggled.emit(true)
 		if _ink >= 0:
 			var ink: OptionButton = _editor.get_node("%InkChoice")
 			ink.select(_ink)

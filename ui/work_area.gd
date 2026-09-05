@@ -729,7 +729,7 @@ func _draw() -> void:
 			# de ce qu'il reste a faire.
 			if not assembled and not _painting.is_painted(under):
 				continue
-			var box: Rect2 = Rect2(_cell_origin(under), Vector2(_tile_px, _tile_px))
+			var box: Rect2 = _cell_box(under)
 			# ⚠ ON EFFACE LE GUIDE AVANT D'EMPILER, ET SUR TOUTE CASE POSEE. « Jamais le
 			# guide » ne valait que la ou une autre pose venait le recouvrir ; ailleurs --
 			# la plaine, sa jupe de bord du monde, tout ce qui n'a qu'une pose -- il
@@ -770,7 +770,7 @@ func _draw() -> void:
 		for cell: Vector2i in twins:
 			if not _on_screen(cell, frame):
 				continue
-			var rect: Rect2 = Rect2(_cell_origin(cell), Vector2(_tile_px, _tile_px))
+			var rect: Rect2 = _cell_box(cell)
 			draw_texture_rect(texture, rect, false)
 			# Trop dezoome pour qu'un faux pixel se voie : on cerne la case, sinon le
 			# travail semble ne rien produire.
@@ -788,13 +788,13 @@ func _draw() -> void:
 	_draw_shape_preview(pixel_px)
 
 	if _stroke != 0 and lock_to_tile and _stroke_tile != NOWHERE:
-		draw_rect(Rect2(_cell_origin(_stroke_tile), Vector2(_tile_px, _tile_px)),
+		draw_rect(_cell_box(_stroke_tile),
 				LOCK_RING, false, 3.0)
 	if _hover != NOWHERE:
 		var accepted: bool = _is_paintable(_hover)
 		if accepted and not assembled:
 			_draw_linked(frame)
-		draw_rect(Rect2(_cell_origin(_hover), Vector2(_tile_px, _tile_px)),
+		draw_rect(_cell_box(_hover),
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
 
 
@@ -893,8 +893,11 @@ func _draw_grid(pixel_px: float) -> void:
 		fine = pixel_px
 	var frame: Rect2 = Rect2(Vector2.ZERO, size)
 	for cell: Vector2i in _paintable.keys():
-		var at: Vector2 = _cell_origin(cell)
-		var box: Rect2 = Rect2(at, Vector2(_tile_px, _tile_px))
+		# ⚠ LA GRILLE SE CALE COMME LES TUILES, sinon elle flotte a cote d'elles : un trait pose
+		# a la fraction pres et une tuile posee a l'entier ne tombent pas au meme endroit, et la
+		# grille cesse de dire ou sont les bordures -- ce pour quoi elle existe.
+		var box: Rect2 = _cell_box(cell)
+		var at: Vector2 = box.position
 		# ⚠ ON NE TRACE QUE CE QUI EST A L'ECRAN. A fort zoom, la grille fine d'un guide
 		# entier ferait des dizaines de milliers de traits dont la quasi-totalite hors cadre.
 		if not frame.intersects(box):
@@ -905,21 +908,19 @@ func _draw_grid(pixel_px: float) -> void:
 		if _lonely.has(cell):
 			draw_rect(box, LONE_LINE, false, 1.0)
 			continue
-		draw_line(at, at + Vector2(_tile_px, 0.0), TILE_LINE, 1.0)
-		draw_line(at, at + Vector2(0.0, _tile_px), TILE_LINE, 1.0)
+		draw_line(at, at + Vector2(box.size.x, 0.0), TILE_LINE, 1.0)
+		draw_line(at, at + Vector2(0.0, box.size.y), TILE_LINE, 1.0)
 		if not _paintable.has(_below(cell)):
-			draw_line(at + Vector2(0.0, _tile_px), at + Vector2(_tile_px, _tile_px),
-					TILE_LINE, 1.0)
+			draw_line(at + Vector2(0.0, box.size.y), at + box.size, TILE_LINE, 1.0)
 		if not _paintable.has(cell + Vector2i.RIGHT):
-			draw_line(at + Vector2(_tile_px, 0.0), at + Vector2(_tile_px, _tile_px),
-					TILE_LINE, 1.0)
+			draw_line(at + Vector2(box.size.x, 0.0), at + box.size, TILE_LINE, 1.0)
 		if fine <= 0.0:
 			continue
 		for i: int in range(1, _painting.resolution):
 			var offset: float = float(i) * fine
-			draw_line(at + Vector2(offset, 0.0), at + Vector2(offset, _tile_px),
+			draw_line(at + Vector2(offset, 0.0), at + Vector2(offset, box.size.y),
 					PIXEL_LINE, 1.0)
-			draw_line(at + Vector2(0.0, offset), at + Vector2(_tile_px, offset),
+			draw_line(at + Vector2(0.0, offset), at + Vector2(box.size.x, offset),
 					PIXEL_LINE, 1.0)
 
 
@@ -928,6 +929,34 @@ func _draw_grid(pixel_px: float) -> void:
 ## ⚠ UN CROISEMENT EST DECALE D'UNE DEMI-CASE. Sa tuile est a cheval sur quatre cases : sa
 ## boite va donc de (i-0.5, j-0.5) a (i+0.5, j+0.5). C'est ce decalage, et lui seul, qui met
 ## le guide sous la bonne tuile -- le fond, lui, ne bouge pas.
+## LA BOITE D'UNE CASE, CALEE SUR DES PIXELS ENTIERS.
+##
+## ⚠ ET C'EST CE QUI SUPPRIME LES COUTURES. `_tile_px` est un FLOTTANT -- il vient du cadrage,
+## donc il vaut 22,7 ou 31,4 -- et chaque case etait dessinee a `Rect2(origine, taille)` avec
+## ces deux valeurs fractionnaires. Deux consequences, et la seconde est celle qui se voyait :
+##
+##   - `draw_rect` et `draw_texture_rect` ne rasterisent PAS un rectangle fractionnaire de la
+##     meme facon. L'efface du VIDE et la tuile posee par-dessus ne couvraient donc pas
+##     exactement les memes pixels, et un liseré de fond depassait d'un cote ;
+##   - deux cases voisines ne partageaient pas leur frontiere au pixel pres : selon l'arrondi,
+##     il restait un trou ou un recouvrement d'un pixel.
+##
+## En calculant les DEUX bords depuis la meme formule et en les arrondissant, la frontiere
+## droite d'une case EST la frontiere gauche de sa voisine -- par construction, quel que soit le
+## zoom. La lecon etait deja au dossier, appliquee au panneau d'apercu (« le cote de case est
+## arrondi a l'entier, une echelle fractionnaire montrerait des coutures que le dessin n'a
+## pas ») et jamais a la zone de travail.
+##
+## ⚠ ET ON NE FIGE PAS `_tile_px` A UN ENTIER : le zoom deviendrait saccade. C'est le TRACE qui
+## se cale, pas l'echelle.
+func _cell_box(cell: Vector2i) -> Rect2:
+	var x0: float = roundf(_origin.x + float(cell.x) * _tile_px)
+	var y0: float = roundf(_origin.y + float(cell.y) * _tile_px)
+	var x1: float = roundf(_origin.x + float(cell.x + 1) * _tile_px)
+	var y1: float = roundf(_origin.y + float(cell.y + 1) * _tile_px)
+	return Rect2(x0, y0, maxf(1.0, x1 - x0), maxf(1.0, y1 - y0))
+
+
 func _cell_origin(cell: Vector2i) -> Vector2:
 	if cell.y < 0:
 		var point: Vector2i = Families.from_storage(Families.BY_CORNER, cell)
