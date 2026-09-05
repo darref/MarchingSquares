@@ -491,6 +491,22 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 - **⚠ EN VUE D'ENSEMBLE, UN FAUX PIXEL MESURE MOINS D'UN PIXEL D'ÉCRAN**, et l'on croit que rien
   ne se passe alors qu'un seul trait peint deux cents cases. En dessous du seuil, les cases qui
   portent de la peinture sont **cerclées**.
+- **⚠ ET AU-DESSUS DU SEUIL, LE ZOOM SE CALE SUR UN MULTIPLE ENTIER DE LA RÉSOLUTION.** Un faux
+  pixel qui vaut 1,42 pixel d'écran en occupe **un ici et deux là**, au hasard de l'arrondi : le
+  dessin **bave** à l'intérieur des tuiles pendant que leur bordure, elle, reste franche — et
+  c'est ce **contraste** qu'on prend pour une couture dès qu'on masque la grille. ⚠ **Aucun
+  filtrage ne répare ça** : lisser étalerait la faute et montrerait des dégradés que la peinture
+  n'a pas. Le seul remède est l'échelle entière, comme dans tout éditeur de pixel art. On monte
+  vers l'entier supérieur et on descend vers l'inférieur, sinon un cran aller-retour ne revient
+  pas au même endroit ; **on borne les crans, jamais le produit** — écrêter 32 × 63 à 2000 rendrait
+  baveux le zoom le plus profond, celui où la faute se voit le mieux. Le **cadrage** garde sa
+  liberté : il vise la vue d'ensemble, où rien ne peut être net de toute façon.
+- **⚠ ET LA BOÎTE D'UNE CASE SE POSE SUR DES PIXELS ENTIERS, pas à la fraction.** Les deux bords
+  se calculent par la même formule puis s'arrondissent : la frontière droite d'une case **est** la
+  frontière gauche de sa voisine, par construction et à tout zoom. Sans ça l'efface du vide et la
+  tuile posée par-dessus ne couvrent pas les mêmes pixels, et un liseré de fond dépasse d'un côté.
+  ⚠ **Mais on ne fige pas `_tile_px` : c'est le TRACÉ qui se cale, pas l'échelle** — et la grille
+  se cale avec, sinon elle flotte à côté des tuiles et cesse de dire où sont les bordures.
 - **Clic gauche pose, clic droit efface** — éprouvé à la main, l'inverse se trompait de réflexe.
 - **Les jauges se recalculent à chaque coup de crayon** (règle 6), depuis les mêmes fonctions que
   la suite : ce que l'écran affiche est ce que les tests prouvent.
