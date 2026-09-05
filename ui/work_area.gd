@@ -662,6 +662,9 @@ func fit() -> void:
 	if columns <= 0 or rows <= 0 or size.x <= 0.0:
 		return
 	var usable: float = maxf(size.x - reserved_left - reserved_right, 1.0)
+	# ⚠ LE CADRAGE NE SE CALE PAS, ET C'EST VOULU. Il vise la vue d'ensemble, ou un faux pixel
+	# mesure moins d'un pixel d'ecran : rien n'y peut etre net, et forcer une echelle entiere y
+	# ferait perdre la moitie du guide pour un gain nul. `_crisp` s'en charge des qu'on zoome.
 	_tile_px = minf(usable / float(columns), size.y / float(rows)) * 0.94
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	_origin = Vector2(reserved_left + (usable - span.x) * 0.5, (size.y - span.y) * 0.5)
@@ -1185,9 +1188,44 @@ static func _floordiv(value: int, by: int) -> int:
 
 func _zoom_at(pivot: Vector2, factor: float) -> void:
 	var before: Vector2 = (pivot - _origin) / _tile_px
-	_tile_px = clampf(_tile_px * factor, MIN_TILE_PX, MAX_TILE_PX)
+	_tile_px = _crisp(clampf(_tile_px * factor, MIN_TILE_PX, MAX_TILE_PX), factor > 1.0)
 	_origin = pivot - before * _tile_px
 	queue_redraw()
+
+
+## UN FAUX PIXEL DOIT FAIRE UN NOMBRE ENTIER DE PIXELS D'ECRAN.
+##
+## ⚠ SANS CA, LE DESSIN EST BAVEUX PARTOUT SAUF AU BORD DES TUILES (releve par l'utilisateur).
+## Une tuile de seize faux pixels etalee sur 22,7 pixels d'ecran donne 1,42 pixel par faux
+## pixel : avec un filtrage AU PLUS PROCHE, certains en occupent UN et d'autres DEUX, au hasard
+## de l'arrondi. L'interieur devient irregulier -- « baveux » -- tandis que la bordure de tuile,
+## elle, est franche. Ce contraste EST la couture : ce n'est pas un trait en trop, c'est la
+## grille des faux pixels qui se remet d'aplomb a chaque case.
+##
+## ⚠ ET AUCUN FILTRAGE NE REPARE CA. Un lissage etalerait la faute au lieu de la supprimer, et
+## le dessin montrerait des degrades que la peinture n'a pas -- exactement ce que le filtrage au
+## plus proche existe pour eviter. Le seul remede est l'echelle ENTIERE, et c'est ce que fait
+## tout editeur de pixel art.
+##
+## ⚠ EN DESSOUS D'UN PIXEL PAR FAUX PIXEL, ON NE SNAPPE PLUS : rien ne peut y etre net, et
+## bloquer le zoom a la vue d'ensemble empecherait de voir le guide entier. C'est la que les
+## cases peintes se CERNENT, precisement parce qu'un faux pixel n'y est plus visible.
+##
+## ⚠ ET LE SENS DU ZOOM DECIDE DE L'ARRONDI, sans quoi un cran en avant suivi d'un cran en
+## arriere ne revient pas au meme endroit : on monte vers l'entier superieur, on descend vers
+## l'inferieur.
+func _crisp(wanted: float, growing: bool) -> float:
+	if _painting == null:
+		return wanted
+	var side: float = float(_painting.resolution)
+	var per: float = wanted / side
+	if per < 1.0:
+		return wanted
+	# ⚠ ON BORNE LES CRANS, PAS LE PRODUIT. Borner `steps * side` entre les deux limites rendrait
+	# une valeur qui n'est plus un multiple des le premier ecretage -- 32 x 63 = 2016 devient 2000,
+	# et le zoom le plus profond, celui ou la faute se voit le mieux, redeviendrait baveux.
+	var steps: float = ceilf(per) if growing else floorf(per)
+	return clampf(steps, 1.0, floorf(MAX_TILE_PX / side)) * side
 
 
 ## Trace du dernier point au point courant. Sans ce segment, un geste rapide laisserait des
