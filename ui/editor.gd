@@ -67,6 +67,19 @@ var _painting: RefCounted = null
 
 ## Le fichier de travail en cours, vide tant qu on n a pas enregistre une fois.
 var _work_path: String = ""
+
+## Y A-T-IL QUELQUE CHOSE A PERDRE ? ⚠ ET C'EST BIEN LA QUESTION, PAS « A-T-ON PEINT ». Un
+## travail peint puis enregistre ne se perd pas en recommencant : il est sur le disque, et se
+## rouvre. Demander confirmation la-dessus apprendrait a cliquer « oui » sans lire, et le jour
+## ou la question compte vraiment, elle serait deja devenue un reflexe.
+var _dirty: bool = false
+
+## Recommencer une fois l'enregistrement fini. ⚠ IL FAUT UN DRAPEAU PARCE QUE LA BOITE DE
+## FICHIER EST ASYNCHRONE : « Enregistrer, puis recommencer » ne peut pas recommencer tout de
+## suite quand le travail n'a pas encore de nom -- il faut attendre le choix, et NE PAS
+## recommencer si l'on annule.
+var _reset_after_save: bool = false
+var _new_dialog: ConfirmationDialog = null
 var _open_dialog: FileDialog = null
 var _manual: Control = null
 var _save_dialog: FileDialog = null
@@ -90,6 +103,8 @@ func _ready() -> void:
 	_fill_inks()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
+	work.painting_changed.connect(_on_painting_changed)
+	(%NewButton as Button).pressed.connect(_on_new_pressed)
 	work.loading_progress.connect(_on_loading_progress)
 	work.hover_changed.connect(_on_hover_changed)
 	var mode_choice: OptionButton = %ModeChoice
@@ -638,6 +653,10 @@ func _build_dialogs() -> void:
 	_open_dialog.file_selected.connect(_on_open_chosen)
 	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Enregistrer le travail", work_filter)
 	_save_dialog.file_selected.connect(_write_work)
+	# ⚠ ANNULER L'ENREGISTREMENT ANNULE AUSSI CE QUI DEVAIT LE SUIVRE. Sans ca, le drapeau
+	# resterait leve et le PROCHAIN enregistrement, sans rapport, effacerait le travail.
+	_save_dialog.canceled.connect(_forget_reset)
+	_build_new_dialog()
 	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Exporter le tileset",
 			PackedStringArray())
 	_export_dialog.dir_selected.connect(_on_export_chosen)
@@ -662,6 +681,86 @@ func _make_dialog(mode: FileDialog.FileMode, title: String,
 	dialog.use_native_dialog = true
 	add_child(dialog)
 	return dialog
+
+
+## LA BOITE DE « NOUVEAU PROJET » — trois issues, dans l'ordre ou l'on veut les lire.
+##
+## ⚠ LA PLUS SURE EN PREMIER, ET C'EST LA REGLE DES REFUS DU DOSSIER : chaque condition dit ce
+## qui manque puis ce qu'il faut faire, dans l'ordre ou on les remplit. Ici : enregistrer, puis
+## recommencer ; recommencer sans enregistrer ; ne rien faire. Une boite qui mettrait « perdre »
+## sous le pouce ferait perdre du travail a la main de l'utilisateur lui-meme.
+func _build_new_dialog() -> void:
+	_new_dialog = ConfirmationDialog.new()
+	_new_dialog.title = "Nouveau projet"
+	_new_dialog.ok_button_text = "Enregistrer, puis recommencer"
+	_new_dialog.get_cancel_button().text = "Annuler"
+	_new_dialog.add_button("Recommencer sans enregistrer", false, "jeter")
+	_new_dialog.confirmed.connect(_on_new_saved_first)
+	_new_dialog.custom_action.connect(_on_new_discarded)
+	add_child(_new_dialog)
+
+
+func _on_painting_changed() -> void:
+	_dirty = true
+
+
+func _forget_reset() -> void:
+	_reset_after_save = false
+
+
+## QUAND FAUT-IL DEMANDER ? Peint ET pas enregistre depuis. Rien d'autre.
+##
+## ⚠ ET C'EST UNE FONCTION A PART PARCE QU'AUCUN BANC NE SAIT MONTER L'EDITEUR ENTIER. La suite
+## ne mesure jamais l'interface complete -- l'editeur charge un guide, compose un fond, et son
+## `_ready` demande une image pour tourner. La regle, elle, se mesure sans rien monter, et c'est
+## elle qui peut regresser en silence dans les deux sens : ne plus jamais demander fait perdre
+## du travail ; demander toujours apprend a cliquer « oui » sans lire, et le jour ou la question
+## compte, elle est deja devenue un reflexe.
+static func must_confirm(painted: int, dirty: bool) -> bool:
+	return dirty and painted > 0
+
+
+## ⚠ LA QUESTION NE SE POSE QUE S'IL Y A QUELQUE CHOSE A PERDRE. Rien de peint, ou tout deja
+## enregistre : on recommence sans rien demander. C'est la regle 1 de la charte appliquee a une
+## boite de dialogue -- une confirmation qui ne protege de rien n'est pas une securite, c'est
+## une gene, et elle use la seule confirmation qui compte.
+func _on_new_pressed() -> void:
+	if _painting == null or not must_confirm(_painting.painted_cells().size(), _dirty):
+		_new_project()
+		return
+	var count: int = _painting.painted_cells().size()
+	# ⚠ ON DIT COMBIEN, PAS « DES MODIFICATIONS ». Un nombre se pese ; « des modifications » se
+	# lit sans rien apprendre, et c'est ce qui fait cliquer sans lire.
+	var where: String = ("Le dernier enregistrement est %s." % _work_path.get_file()
+			if _work_path != "" else "Ce travail n'a jamais ete enregistre.")
+	_new_dialog.dialog_text = ("%d cases peintes ne sont pas enregistrees.
+%s"
+			% [count, where])
+	_new_dialog.popup_centered()
+
+
+func _on_new_saved_first() -> void:
+	_reset_after_save = true
+	_on_save_pressed()
+
+
+func _on_new_discarded(action: StringName) -> void:
+	if action != &"jeter":
+		return
+	_new_dialog.hide()
+	_new_project()
+
+
+## REPARTIR D'UN GUIDE VIERGE. ⚠ ET CA ROUVRE LES CHOIX QUE LE PREMIER PIXEL AVAIT FERMES : la
+## taille des faux pixels et le reseau se referment au premier pixel parce qu'en changer
+## rejetterait tout le travail. Sans « nouveau projet », le seul moyen d'en changer d'avis
+## etait de relancer le logiciel.
+func _new_project() -> void:
+	_work_path = ""
+	(%WorkHint as Label).text = "Rien d'enregistre pour l'instant."
+	_load_current_mode()
+	_dirty = false
+	_announce("Nouveau projet : le guide est vierge, et les choix sont rouverts.")
 
 
 func _on_open_pressed() -> void:
@@ -699,6 +798,7 @@ func _on_open_chosen(path: String) -> void:
 	(%NeighboursPanel as Control).show_guide(_painting,
 			(%WorkArea as Control).ground_stacks())
 	_work_path = path
+	_dirty = false
 	_refresh_counters()
 
 	var orphans: int = PackedStringArray(report["unplaced"]).size()
@@ -725,8 +825,12 @@ func _write_work(path: String) -> void:
 		_announce("Enregistrement impossible.")
 		return
 	_work_path = path
+	_dirty = false
 	(%WorkHint as Label).text = path.get_file()
 	_announce("Enregistre dans %s" % path.get_file())
+	if _reset_after_save:
+		_reset_after_save = false
+		_new_project()
 
 
 func _on_export_pressed() -> void:

@@ -471,6 +471,12 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 6
 
+[node name="NewButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100029]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Repartir d'un guide vierge. Ce qui est peint est perdu -- et la question ne se pose que s'il y a quelque chose a perdre. Rouvre aussi les choix que le premier pixel avait fermes : la taille des faux pixels et le reseau."
+text = "Nouveau projet"
+
 [node name="OpenButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100005]
 unique_name_in_owner = true
 layout_mode = 2

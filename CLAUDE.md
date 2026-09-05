@@ -304,6 +304,19 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   blanc si elle se peint, de rouge sinon : le refus se voit avant le clic.
 - **Le mode, la taille des faux pixels et la famille se choisissent AVANT de dessiner**, et se
   ferment au premier pixel : en changer rejetterait tout le travail.
+- **« NOUVEAU PROJET » NE DEMANDE RIEN QUAND IL N'Y A RIEN À PERDRE.** Peint **et** non
+  enregistré depuis : on demande. Vierge, ou déjà enregistré : on repart, sans un mot — le
+  fichier est sur le disque et se rouvre. ⚠ **Une confirmation qui ne protège de rien n'est pas
+  une sécurité, c'est une gêne** : elle apprend à cliquer « oui » sans lire, et le jour où la
+  question compte vraiment, elle est déjà devenue un réflexe. La boîte offre **trois** issues,
+  la plus sûre en premier — *enregistrer puis recommencer* · *recommencer sans enregistrer* ·
+  *annuler* — et elle **dit combien de cases** sont en jeu : un nombre se pèse, « des
+  modifications » se lit sans rien apprendre. ⚠ **Et la règle vit dans une fonction à part**
+  (`must_confirm`) : aucun banc ne monte l'éditeur entier, alors qu'elle, elle se mesure sans
+  rien monter — et elle peut régresser **dans les deux sens**.
+- **⚠ ET C'EST LE SEUL MOYEN DE ROUVRIR LES CHOIX FERMÉS.** La taille des faux pixels et le
+  réseau se ferment au premier pixel ; sans « Nouveau projet », en changer d'avis demandait de
+  relancer le logiciel.
 - **Annuler est indispensable, pas confortable.** Un trait de travers ruine une tuile dans tous
   ses exemplaires à la fois. `Ctrl+Z` / `Ctrl+Y`, l'unité est la **passe** (du clic au
   relâchement), on journalise les **pixels changés** et **on rejoue à l'envers**.

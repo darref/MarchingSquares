@@ -69,6 +69,7 @@ func _initialize() -> void:
 	_test_surface_map()
 	_test_work_area()
 	_test_seamless_scale()
+	_test_new_project()
 	_test_symmetry()
 	_test_work_io()
 	_test_export()
@@ -994,6 +995,27 @@ func _test_work_area() -> void:
 	_check_equal(dual_painting.pixel_at(corner, 8, 8).a > 0.0, true, "au bon pixel de sa tuile")
 	root.remove_child(dual)
 	dual.free()
+
+
+## NOUVEAU PROJET : la question ne se pose que s'il y a quelque chose a perdre.
+##
+## ⚠ ON MESURE LA REGLE, PAS LA BOITE. Aucun banc ne monte l'editeur entier -- il charge un
+## guide, compose un fond, et son `_ready` demande une image pour tourner. Mais la regle, elle,
+## peut regresser en silence DANS LES DEUX SENS, et les deux sont graves : ne plus jamais
+## demander fait perdre du travail ; demander toujours apprend a cliquer « oui » sans lire, et
+## le jour ou la question compte vraiment, elle est deja devenue un reflexe. C'est exactement le
+## genre de defaut qu'aucune relecture ne voit et qu'un test attrape en une ligne.
+func _test_new_project() -> void:
+	print("nouveau projet : quand la question se pose, et quand elle ne se pose pas")
+	var editor: GDScript = load("res://ui/editor.gd")
+	_check(editor.can_instantiate(), "le script de l editeur s analyse")
+	_check(not editor.must_confirm(0, false), "guide vierge : on repart sans rien demander")
+	_check(not editor.must_confirm(0, true),
+			"et un guide vierge marque sale ne demande rien non plus -- il n y a rien a perdre")
+	_check(not editor.must_confirm(120, false),
+			"peint PUIS ENREGISTRE : rien a perdre, le fichier est sur le disque")
+	_check(editor.must_confirm(1, true), "une seule case peinte non enregistree : on demande")
+	_check(editor.must_confirm(4000, true), "et a quatre mille aussi, evidemment")
 
 
 ## L'ECHELLE QUE LA GRILLE MASQUEE IMPOSE — celle qui ne peut pas faire de couture.
