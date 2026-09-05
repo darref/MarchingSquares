@@ -480,8 +480,11 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 ### L'écran
 
 - **Deux barres : à gauche les options, à droite le travail.** ⚠ **Et « Projet » — ouvrir,
-  enregistrer — vit à GAUCHE** (décision utilisateur) : ouvrir un travail n'est pas peindre,
-  c'est décider *sur quoi* on peint, au même titre que le paysage et la taille des faux pixels.
+  enregistrer — comme « Moteur » — installer le plugin, bâtir l'essai — vivent à GAUCHE**
+  (décision utilisateur) : ni l'un ni l'autre n'est peindre. Ouvrir un travail, c'est décider
+  *sur quoi* on peint ; installer le moteur, c'est ce qu'on fait *une fois le tileset fini*.
+  À droite il ne reste que ce dont la main se sert pendant qu'elle dessine — les deux jauges et
+  l'export, les outils, les voisines, la vue.
   ⚠ **Et la liste des raccourcis y vit aussi, tout en bas** : la barre de droite est pleine — jauges, export, huit outils,
   palette, voisines, vue, travail, moteur — pendant que la gauche a de la place sous « Fond du
   guide ». Une aide qu'on ne lit qu'une fois n'a pas à disputer sa place à ce qu'on utilise
