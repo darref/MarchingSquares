@@ -25,9 +25,12 @@ Ces règles arbitrent toutes les décisions techniques.
 
 ## Où vit quoi
 
-- **`PLAN.md` gouverne l'ordre du travail.** Sa **dernière section** — « LE MODÈLE DES
-  MASSIFS » — est l'état courant et la liste de ce qui reste. Tout ce qui précède dans ce
-  fichier est de l'**histoire** : vrai comme récit, périmé comme spécification.
+- **`PLAN.md` gouverne l'ordre du travail.** Sa **dernière section** — « LA SECONDE PARTIE DU
+  PROJET », organisée le 2026-09-05 — est la liste de ce qui reste, **et c'est un ordre, pas une
+  liste de souhaits** : chaque chantier y dit de quoi il dépend, et sépare ce qui est *décidé par
+  l'utilisateur* de ce qui reste **à trancher**. La section « LE CISAILLEMENT, ET CE QU'IL A
+  RÉVÉLÉ » qui la précède est l'état du modèle au même jour. Tout ce qui précède encore est de
+  l'**histoire** : vrai comme récit, périmé comme spécification.
 - **`ARCHIVE.md`** est l'ancien `CLAUDE.md`, gardé entier le jour où il a été compacté
   (2026-09-03). On y va pour retrouver *pourquoi* une règle a été prise et ce qu'elle a
   coûté — jamais pour appliquer une règle telle quelle. En cas de contradiction, ce
@@ -449,8 +452,9 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   qu'un fichier abîmé.
 - **LE PORTAGE EST FAIT : le plugin pose des MASSIFS.** `rules.gd` est la copie du modèle —
   composantes connexes emboîtées, empreinte, chute qui cherche son palier, le seul bit de ras —
-  et **une couche par étage** remplace les trois de l'ancien modèle. Manifeste **v9**, la v8
-  refusée nommément ; une seule planche, une seule source d'atlas.
+  et **une couche par étage** remplace les trois de l'ancien modèle. Manifeste **v10** (le
+  cisaillement est entré dans la clé), les versions antérieures refusées nommément ; une seule
+  planche, une seule source d'atlas.
 - **⚠ ET IL N'Y A PLUS DE ZONE À REFAIRE, PARCE QU'ELLE N'EST PLUS SOUTENABLE.** Un massif est
   une **composante connexe**, et le bit « au ras » est une propriété du massif **entier** : poser
   une case peut réunir deux massifs, ou faire déborder un massif de son porteur — et alors tout
@@ -634,33 +638,51 @@ Quand la monter, et je le proposerai le moment venu :
 
 ## Questions ouvertes
 
-Les fiches détaillées (matières bordées, signature du manifeste, sweet spot de la grammaire,
-niveau 0 du mode d'emploi, entrée de grotte, motifs carrés, tuiles animées) sont dans
-`ARCHIVE.md`. Ce qui reste vif :
+Les fiches détaillées (sweet spot de la grammaire, niveau 0 du mode d'emploi, motifs carrés) sont
+dans `ARCHIVE.md` ; les chantiers de la seconde partie sont spécifiés en long dans la dernière
+section de `PLAN.md`, et résumés ici. Ce qui reste vif :
 
-- **CE QUI RESTE, DANS L'ORDRE — et c'est l'ordre que l'utilisateur a fixé** (PLAN.md) :
-  1. **la grammaire** — chiffrer les clauses candidates avant de bâtir quoi que ce soit ;
-  2. les îlots — fait ;
-  3. **le dessin** — l'utilisateur regarde et valide. C'est le cran où on en est : *« le choix
-     des tuiles n'est pas parfait partout, l'apparence globale est déjà satisfaisante »*, donc le
-     guide sera **redessiné**, et le carnet rangé par tuile rend ce redessin gratuit ;
-  4. **le portage — fait.** L'éditeur, `work_io` (v5), l'export (`massif_tileset`, manifeste v9),
-     l'essai, la planche packed, le mode d'emploi, et **le plugin SoluPaint**. Ce qui reste de
-     l'ancien noyau (`Walls`, `Coverage`, `CornerIndex`, `Brink*`, `Thickness`) n'est plus lu par
-     le produit : il vit comme **témoin**, avec le guide `epais.txt`, jusqu'au démontage.
+- **CE QUI RESTE, DANS L'ORDRE — et c'est l'ordre que l'utilisateur a fixé** (PLAN.md, dernière
+  section). La **première partie est bâtie** : le modèle, le guide, l'éditeur, `work_io` (v5),
+  l'export (`massif_tileset`, manifeste v10), l'essai, la planche packed, le mode d'emploi et le
+  plugin SoluPaint. Ce qui reste de l'ancien noyau (`Walls`, `Coverage`, `CornerIndex`, `Brink*`,
+  `Thickness`) n'est plus lu par le produit : il vit comme **témoin**, avec le guide `epais.txt`,
+  jusqu'au démontage. Reste donc :
+  0. **solder la première partie** — le **coin haut du cisaillement** (relevé puis différé par
+     l'utilisateur : là où le trait du cisaillement croise celui de la lèvre, une tuile reste
+     fausse ; ⚠ **à regarder sur SON trait remonté, jamais sur le dessin calculé**, qui est la
+     spécification et a toujours l'air juste) ; la **version 11.0.0**, majeure, puisque le sens de
+     la clé a changé ; `PIED 21 au ras`, qu'un monde porte mais qu'aucune fenêtre ne sait
+     découper en îlot ; et la fusion de la chasse, qui **ne relit pas l'existant**.
+  1. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
+  2. **les fluides** — décidés et spécifiés ;
+  3. **les grottes et les trous** — décidés et spécifiés ;
+  4. **plus loin** : les deux dispositions, l'Exemple High Res, le plugin Unity, la suite de la
+     signature.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce
   qu'une tuile a le droit de savoir* — et il se paie en contours ouverts. ⚠ **Les chutes de
   plusieurs étages sont non négociables** (décision utilisateur) : toute clause qui les
   limiterait est écartée d'office.
+- **L'ANIMATION PAR FRAME.** Des **rooms** en haut de la barre de gauche (Dessin, Animation), un
+  nombre de frames **global au guide** mais utilisé par les seules tuiles *déclenchées*, et un
+  outil « Frame List » sous « Voisines ». ⚠ **Elle rouvre la décision la plus structurante du
+  carnet** : `Painting` ne tient qu'**une** image par tuile, il en faudra N. La frame devient un
+  **second axe**, jamais une variante déguisée — « les variantes sont supprimées » reste vrai, N
+  frames sont N instants du **même** dessin, et la règle des jumelles doit continuer de tenir.
+  Elle coûte `work_io` **v6** (les v5 se traduisent : non animée = une frame) et manifeste **v11**
+  (⚠ le lecteur doit pouvoir **refuser**, donc le nombre de frames en clair, comme `fall_rows`).
 - **L'exemple, peint à la main.** L'utilisateur peint lui-même un tileset, qui deviendra le choix
   « Example » et devra passer en conditions réelles dans le soft **et** dans l'addon, par
   tâtonnements successifs. Le banc où chaque itération se regarde : `tools/make_trial_scene.gd`.
 - **Deux modes de disposition : paysage et damier de spécimens.** La résolution de la double
   injonction — *demander à un seul dessin d'être à la fois beau et exhaustif*. C'est l'axe du
   **mode**, pas un réglage, et c'est **gratuit pour le travail en cours** : le carnet range par
-  tuile, donc un travail commencé sur l'un se recharge sur l'autre.
+  tuile, donc un travail commencé sur l'un se recharge sur l'autre. ⚠ **Borné à sa propre
+  recherche**, à la condition que le vocabulaire soit clos — il l'est bien plus depuis le vivier
+  commun. Les fluides comme les grottes en dépendent : ils demandent tous deux « et en paysage,
+  comment ? ».
 - **⚠ LES DEUX STYLES DE TRAIT SONT RETIRÉS** (décision utilisateur du 05/09/2026). F2 — le trait
   qui ondule entre deux rendez-vous — est supprimé. Il ne coûtait aucune tuile, c'était le même
   vocabulaire ; mais **le dessin calculé ne sert que d'aperçu**, l'artiste peint par-dessus et son
@@ -668,20 +690,35 @@ niveau 0 du mode d'emploi, entrée de grotte, motifs carrés, tuiles animées) s
   **F0 reste** : ce n'est pas un style, c'est le plancher — la profondeur d'un pixel — et le banc
   doit prouver que les invariants y tiennent aussi.
 - **L'arbre des fonds de guide** : `Technique = computed | example`, `computed = wireframe |
-  painted`, `painted = straight | ondulated`. ⚠ **Et tout doit montrer la liberté dès qu'elle est
-  disponible** : le fond n'est pas une décoration, c'est la spécification, et une liberté qu'on
-  ne montre pas est une liberté que personne n'utilisera.
-- **Les matières bordées** (eau, sable) : un masque binaire, donc une couche posée comme un étage
-  mais **sans falaise**. +47 tuiles par matière, à deux conditions qui sont des décisions — les
-  matières sont **ordonnées** (sable sur herbe, eau sur sable), et une matière **ne touche ni la
-  lèvre ni le bord** de son étage, sinon c'est une cascade. ⚠ Et le guide se compose **par
+  painted`. ⚠ **Plus de `straight | ondulated`** — F2 est retiré, voir la ligne ci-dessus. ⚠ **Et
+  tout doit montrer la liberté dès qu'elle est disponible** : le fond n'est pas une décoration,
+  c'est la spécification, et une liberté qu'on ne montre pas est une liberté que personne
+  n'utilisera.
+- **LES FLUIDES** (l'eau, et n'importe quel liquide) : un masque binaire, donc **uniquement une
+  SURFACE bordée** — pas de falaise, donc pas de bande, donc pas de chute, et c'est ce qui les
+  rend beaucoup moins chers que le terrain. Ils vivent dans des **mondes réservés**, à côté de
+  ceux du terrain et de la même structure. Trois tuiles sont réservées pour l'animation (déclaré
+  par l'utilisateur) : herbe → bordure, bordure → eau, eau pleine. Deux conditions qui sont des
+  décisions — les matières sont **ordonnées** (sable sur herbe, eau sur sable), et une matière
+  **ne touche ni la lèvre ni le bord** de son étage, sinon c'est une cascade, qui est un autre
+  sujet. ⚠ **Le vocabulaire se calcule, il ne s'estime pas.** ⚠ Et le guide se compose **par
   combinaison**, pas en un guide géant grisé : à 14,6 px la case, le guide cesse de montrer ce
-  qu'il existe pour montrer.
+  qu'il existe pour montrer. ⚠ **En mode paysage il faudra faire autrement** : les accidents de
+  fluide devront y être **placés**, pas juxtaposés.
 - **Les escaliers et les pentes douces** : un **troisième** vocabulaire, pas une matière — et il
   ne se déduit pas, il se **déclare**, comme `~` l'a été pour le vide.
-- **La signature du manifeste** : que l'addon ne pose que ce que le logiciel a produit. ⚠ **Un
-  verrou dans l'addon ne protège de rien** — il part en GDScript en clair, et la charte interdit
-  de maquiller un contrôle qui saute en trente secondes. Ce que la signature sépare, c'est « lire
+- **LES GROTTES ET LES TROUS**, dans le damier **et** dans le paysage. ⚠ **UN TROU N'EST PAS UN
+  MASSIF EN CREUX** : un massif est une composante connexe de ce qui est *au moins* à l'étage L,
+  un trou y ferait un **anneau** dont le bord intérieur se creuserait — exactement la faute déjà
+  payée. Un trou se **déclare** donc, comme les escaliers. Une **entrée de grotte**, elle, est une
+  tuile de façade (`CHAPITEAU`/`CORPS`/`PIED`) qui ne change pas la silhouette : c'est une
+  **marque**. Reste à décider si elle entre dans la clé (coûteux) ou si elle est une **couche**
+  posée par-dessus (gratuit).
+- **La signature, suite.** Le sceau **existe** (`core/signing.gd`, `addons/solupaint/signature.gd`,
+  manifeste v10) : il porte les pixels et **dit** la provenance, il ne bloque pas. Ce qui reste :
+  poser la **clé publique définitive**, et sauvegarder la privée **ailleurs que sur la machine**.
+  ⚠ **Un verrou dans l'addon ne protège de rien** — il part en GDScript en clair, et la charte
+  interdit de maquiller un contrôle qui saute en trente secondes. Ce que la signature sépare, c'est « lire
   un fichier texte » de « craquer un binaire ». La pièce la plus forte : le build d'essai **n'a
   pas de clé privée du tout**.
 - **Le plugin Unity.** Rien de commencé. Le contrôle croisé du plugin Godot est le modèle à
