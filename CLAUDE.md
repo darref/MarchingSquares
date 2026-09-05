@@ -138,7 +138,8 @@ core/            logique pure, zéro dépendance UI, utilisable en headless
   seams.gd           les pixels que le modèle prouve identiques d'une tuile à l'autre
   painting.gd        les faux pixels posés dans chaque tuile ; UNE image par groupe
   work_io.gd         lecture / écriture du travail en cours (.solutiles, v5)
-  proof_scene.gd     la planche de preuve : un îlot par tuile, calculée
+  proof_scene.gd     la planche de preuve : un îlot par tuile — encore lue par le banc et
+                     l'ANCIEN export ; le produit ne la montre plus, le guide EST la planche
   surface_demos.gd / wall_demos.gd   GENERES — les îlots découpés dans le guide
   modes.gd           catalogue des modes (guide + règles d'exportation)
   delivery.gd        quelles cases peintes deviennent des tuiles
@@ -156,7 +157,7 @@ ui/              l'éditeur
   editor.tscn, editor.gd   la fenêtre ; aucune règle de produit ne vit dans le .gd
   work_area.gd       grille, zoom, fond du guide, pose des faux pixels
   sidebar.gd, tool_section.gd   la barre translucide et ses sections repliables
-  preview_panel.gd   l'aperçu en jeu ; neighbours_panel.gd  la case survolée et ses voisines
+  neighbours_panel.gd  la case survolée et ses voisines
   manual.gd          le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd      capture la fenêtre, pour se relire
 guides/          guides au format texte
@@ -351,17 +352,21 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   diverger. ⚠ **Et l'efface n'est pas un tablier** — l'aplat de plaine qui débordait du guide a
   disparu en 4.0.0 et ne revient pas : ici on ne pose aucune matière, seulement ce qu'on voit
   déjà à côté du monde.
-- **Toutes les vues empilent** — remontage, aperçu en jeu, voisines, et la zone de travail dès
+- **Toutes les vues empilent** — remontage, voisines, et la zone de travail dès
   qu'une tuile est commencée. Le fond découvert se laisse en **transparence** : le jeu montrera
   le vrai sol d'en dessous, et la complétude ne compte que des **tuiles** (≥ 1 pixel), jamais
   des pixels.
-- **L'aperçu en jeu ne fabrique aucune tuile** : chaque case y **emprunte**, par identité, ce
-  qui est peint dans le guide, et toujours la première occurrence, sinon le décor scintillerait
-  à chaque coup de crayon. Il dit *comment ça rend*, pas *si tout est peint* — les jauges sont
-  là pour ça.
-- **La planche de preuve est calculée, jamais dessinée** — un îlot par tuile, à une place connue
-  d'avance, dans l'ordre de la planche exportée. Un acheteur voit N tuiles, il ne voit pas
-  l'absence d'une N+1ᵉ ; la planche le lui montre.
+- **⚠ L'APERÇU EN JEU A ÉTÉ SUPPRIMÉ** (décision utilisateur du 05/09/2026), et la raison
+  tient en une ligne : **le guide livré EST déjà une planche de spécimens**, montrée en
+  permanence, peinte en temps réel. Un petit panneau qui reposait les mêmes tuiles sur une
+  colline disait donc ce que l'écran disait déjà. ⚠ **Et la planche de preuve part avec lui** :
+  elle vivait dans le même panneau. Ce qu'elle garantissait — *l'acheteur voit N tuiles, il ne
+  voit pas l'absence d'une N+1ᵉ* — est tenu par le guide lui-même (un îlot par tuile) et par
+  les **deux jauges**, qui comptent ce qui manque plutôt que de le faire chercher.
+- **La planche de preuve est calculée, jamais dessinée** — un îlot par tuile, à une place
+  connue d'avance, dans l'ordre de la planche exportée. ⚠ **Elle n'est plus montrée dans le
+  produit** (voir ci-dessus) : `core/proof_scene.gd` reste lu par le banc, par l'ancien export
+  et par une dizaine d'outils, et c'est là qu'elle a sa valeur.
 - **Les îlots et les spécimens se CHERCHENT, ils ne se déduisent pas** : on balaie les positions
   et on **juge** (épais ? la case porte-t-elle la tuile annoncée ? reste-t-elle peignable ?), au
   milieu du contexte où le témoin servira. Un témoin cherché sur le vide et posé sur la plaine
@@ -474,8 +479,10 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 
 ### L'écran
 
-- **Deux barres : à gauche les options, à droite le travail.** ⚠ **Et la liste des raccourcis
-  vit à GAUCHE, tout en bas** : la barre de droite est pleine — jauges, export, huit outils,
+- **Deux barres : à gauche les options, à droite le travail.** ⚠ **Et « Projet » — ouvrir,
+  enregistrer — vit à GAUCHE** (décision utilisateur) : ouvrir un travail n'est pas peindre,
+  c'est décider *sur quoi* on peint, au même titre que le paysage et la taille des faux pixels.
+  ⚠ **Et la liste des raccourcis y vit aussi, tout en bas** : la barre de droite est pleine — jauges, export, huit outils,
   palette, voisines, vue, travail, moteur — pendant que la gauche a de la place sous « Fond du
   guide ». Une aide qu'on ne lit qu'une fois n'a pas à disputer sa place à ce qu'on utilise
   cent fois. À gauche **ce qu'on fabrique** et
@@ -488,6 +495,12 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   `mouse_entered`, qui se déclenche à l'envers dès qu'on passe sur un enfant.
 - **⚠ UN LIBELLÉ QUI S'ALLONGE IMPOSE SA LARGEUR À TOUTE LA BARRE.** Payé deux fois.
 - **⚠ LES QUATRE BORDS D'UN PANNEAU ANCRÉ SE POSENT, PAS UN SEUL.**
+- **⚠ ET DEUX CASES DE VUE ONT ÉTÉ RETIRÉES : « masquer les marques » et « masquer les
+  ombres »** (décision utilisateur du 05/09/2026), parce qu'elles ne masquaient plus rien. Les
+  deux appartenaient à l'ancien modèle : le dessin des massifs ne pose ni marqueur de coin ni
+  tiret de rangée, et il n'a **pas de lumière portée** à éteindre — `_background_flat` y **est**
+  `_background`. Une case qui ne change rien à l'écran est pire qu'absente : on la coche, on ne
+  voit aucun effet, et l'on cherche la panne.
 - **Les cases de vue disent « masquer », pas « afficher »**, et partent décochées : une case qui
   commence cochée donne à croire qu'on ajoute alors qu'on retire. « Masquer le guide » n'est
   qu'un décrassage de l'écran — la zone de travail montre **déjà** le paysage assemblé en
@@ -509,16 +522,19 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   pas au même endroit ; **on borne les crans, jamais le produit** — écrêter 32 × 63 à 2000 rendrait
   baveux le zoom le plus profond, celui où la faute se voit le mieux. Le **cadrage** garde sa
   liberté : il vise la vue d'ensemble, où rien ne peut être net de toute façon.
-- **L'APERÇU DANS LE LOGICIEL : on regarde le rendu final, on ne peint plus.** Il va plus loin
-  que « Masquer le guide », qui laisse le crayon en main : ici le crayon est **rangé**, et tout
-  ce qui désigne du travail part avec lui — grille, cernes, hachures, liées, et **le curseur
-  lui-même**, qui est une couture de plus à l'endroit exact où l'on vient pour n'en plus voir.
-  ⚠ **Et l'échelle s'y cale à TOUS les crans** : elle monte par multiples entiers de la
-  résolution et descend par **diviseurs** entiers — et **c'est l'exposant qu'on borne, pas le
-  diviseur**, sinon écrêter D à 3 rend 5,33 pixels par case et la couture rentre par la porte
-  qu'on vient de fermer. ⚠ **Et un mode qui coupe la peinture doit le MONTRER** : la section du
-  pinceau se grise en entier, les lettres d'outil se taisent, et la liste des raccourcis dit ce
-  qui reste — une aide qui promet ce qui n'existe pas envoie chercher une panne.
+- **⚠ « MASQUER LA GRILLE » FAIT DEUX CHOSES, ET LA SECONDE N'ÉTAIT PAS FAITE.** Retirer les
+  traits ne suffit pas à montrer le rendu : sous un pixel d'écran par faux pixel, l'échelle
+  libre **recoupe la tuile** — `_cell_box` arrondit chaque case, donc la grille des faux pixels
+  se remet d'aplomb à chaque bordure — et l'on croyait voir des coutures **apparaître** en
+  masquant la grille, alors qu'elles étaient là avant et que la grille les cachait. Grille
+  masquée, l'échelle se cale donc à **tous** les crans : multiples entiers de la résolution en
+  montant, **diviseurs** entiers en descendant. ⚠ **Et c'est l'exposant qu'on borne, pas le
+  diviseur** — écrêter D à 3 rendrait 5,33 pixels par case, et la couture rentrerait par la
+  porte qu'on vient de fermer.
+- **⚠ ET LE CRAYON RESTE EN MAIN.** Un mode « aperçu » qui rangeait le crayon a été bâti puis
+  **supprimé le jour même** (décision utilisateur) : si la netteté ne coûte pas la peinture,
+  elle n'a pas à se payer d'un mode où l'on ne peut plus rien faire. Une case à cocher qui
+  retire une gêne, et rien d'autre. C'est la règle 1 de la charte, appliquée à une vue.
 - **⚠ ET LE PARTAGE DES BORDS N'ÉTAIT PAS LA CAUSE.** `core/seams.gd` — les pixels que le modèle
   prouve identiques d'une tuile à l'autre — repose sur `Walls`, donc sur l'**ancien** modèle :
   dans la famille des massifs `_wall_roles` est vide et `_echo_seams` rend `false` au premier

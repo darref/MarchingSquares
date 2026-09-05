@@ -180,42 +180,40 @@ var guide_marks: bool = true
 var reserved_left: float = 0.0
 var reserved_right: float = 0.0
 
-## La grille se montre ou se cache. Une grille est une aide a viser, pas un decor : quand
-## on juge une couleur, elle gene.
+## LA GRILLE SE MONTRE OU SE CACHE — et elle emporte la NETTETE avec elle.
+##
+## Une grille est une aide a viser, pas un decor : quand on juge une couleur, elle gene. Mais
+## la masquer ne suffisait pas a montrer le rendu final, et c'est la seconde moitie de son
+## travail.
+##
+## ⚠ SOUS UN PIXEL D'ECRAN PAR FAUX PIXEL, UNE ECHELLE LIBRE RECOUPE LA TUILE. `_cell_box`
+## arrondit chaque case a des pixels entiers -- il le faut, sinon deux voisines ne partagent
+## pas leur frontiere -- donc la grille des faux pixels se remet d'aplomb A CHAQUE BORDURE.
+## L'interieur bave, la bordure reste franche, et ce contraste EST la couture qu'on croyait
+## voir apparaitre en masquant la grille. Elle etait la avant ; la grille la cachait.
+##
+## Grille masquee, l'echelle se cale donc a TOUS les crans : elle monte par multiples entiers
+## de la resolution et descend par DIVISEURS entiers -- 1/2, 1/4, 1/8. Dans les deux sens
+## chaque faux pixel est traite exactement comme son voisin, d'un bout du monde a l'autre.
+##
+## ⚠ ET ON PEINT TOUJOURS. C'est ce qui a fait supprimer le mode d'apercu qui portait ça au
+## depart : si la nettete ne coute pas le crayon, elle n'a pas a se payer d'un mode ou l'on
+## ne peut plus rien faire. Une case a cocher qui retire une gene, et rien d'autre.
+##
+## Grille visible, l'echelle garde sa liberte sous le pixel : la vue d'ensemble en a besoin,
+## et c'est la qu'on CERNE les cases peintes plutot que de pretendre les montrer.
 var show_grid: bool = true
 
 ## LE REMONTAGE : on efface tout ce qui n'est pas les tuiles peintes -- le fond du guide,
 ## les deux grilles, les cercles de repere -- et il ne reste que le paysage rebati.
 ##
 ## ⚠ C'EST LE SEUL CONTROLE QUE LE PROGRAMME NE PEUT PAS FAIRE. Il sait prouver que les
-## 59 tuiles existent ; il ne sait pas juger qu'elles SE RACCORDENT. Un bord est peint d'un
+## tuiles existent ; il ne sait pas juger qu'elles SE RACCORDENT. Un bord est peint d'un
 ## cote, son voisin de l'autre, a deux moments differents. Seul l'oeil voit la couture.
 ##
 ## ⚠ ET UNE CASE NON PEINTE RESTE UN TROU. On ne la remplit pas d'un aplat aimable : le
 ## trou est la verite, et c'est exactement ce qu'on veut voir.
 var assembled: bool = false
-
-## L'APERCU DANS LE LOGICIEL : on regarde le rendu final, on ne peint plus.
-##
-## Il va plus loin que « Masquer le guide », qui laisse le crayon en main. Ici le crayon est
-## RANGE, et tout ce qui designe du travail disparait avec lui : la grille, les cernes, les
-## hachures, les liees du survol, et le curseur lui-meme. Il ne reste que les tuiles posees,
-## empilees comme le moteur les posera.
-##
-## ⚠ ET SURTOUT, L'ECHELLE S'Y CALE A TOUS LES CRANS. C'est la vraie raison d'etre du mode.
-## En peignant, le zoom ne se cale qu'au-dessus d'un pixel d'ecran par faux pixel -- en
-## dessous, la vue d'ensemble a besoin de sa liberte, et l'on cerne les cases plutot que de
-## les montrer. Mais une echelle libre RECOUPE la tuile : `_cell_box` arrondit chaque case a
-## des pixels entiers, donc la grille des faux pixels se remet d'aplomb A CHAQUE BORDURE.
-## L'interieur bave, la bordure reste franche, et ce contraste EST la couture qu'on voit des
-## qu'on masque la grille. Dans l'apercu on ne peut donc pas laisser l'echelle libre : elle
-## monte par multiples entiers de la resolution et descend par DIVISEURS entiers -- 1/2, 1/4,
-## 1/8. Dans les deux sens chaque faux pixel est traite exactement comme son voisin, d'un
-## bout du monde a l'autre, et aucune bordure de tuile ne peut plus se voir.
-##
-## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT. Rien de ce qui sort a l'export n'en depend, coche
-## ou non -- c'est une facon de regarder, au meme titre que la grille.
-var preview_only: bool = false
 
 ## L'inverse de `assembled` : on efface ce qui est peint et on ne garde que le guide.
 ## ⚠ LES DEUX SE COCHENT EN MEME TEMPS SANS SE CONTREDIRE : il ne reste alors rien du tout,
@@ -677,27 +675,17 @@ func _compose_massifs() -> void:
 	queue_redraw()
 
 
-## ON ENTRE ET ON SORT DE L'APERCU PAR ICI, jamais en posant le drapeau a la main.
+## ON MASQUE ET ON REMONTRE LA GRILLE PAR ICI, jamais en posant le drapeau a la main.
 ##
-## ⚠ TROIS CHOSES A FAIRE, ET AUCUNE N'EST FACULTATIVE. Une passe en cours se ferme -- sinon
-## le journal garde un trait ouvert que rien ne fermera jamais, et « annuler » defait deux
-## coups de crayon d'un coup. Le survol se rend -- sinon le releve de case et les voisines
-## montrent une case qu'on ne designe plus. Et l'echelle se recale -- sinon on entre dans
-## l'apercu avec l'echelle libre du cadrage, c'est-a-dire avec les coutures qu'on vient
-## precisement de venir chercher.
-func set_preview(on: bool) -> void:
-	if preview_only == on:
+## ⚠ PARCE QUE LA CACHER RECALE L'ECHELLE, et que ca doit se faire au moment du geste. Sans
+## ce recalage, masquer la grille laisse voir les coutures de l'echelle libre -- exactement
+## ce qu'on vient de masquer la grille pour ne plus voir. On ne recale QUE dans ce sens : en
+## remontrant la grille, rien ne presse de defaire un cadrage qui, lui, n'a rien de faux.
+func set_grid(on: bool) -> void:
+	if show_grid == on:
 		return
-	preview_only = on
-	if on:
-		if _stroke != 0:
-			_stroke = 0
-			_stroke_tile = NOWHERE
-			if _painting != null:
-				_painting.end_stroke()
-		if _hover != NOWHERE:
-			_hover = NOWHERE
-			hover_changed.emit(NOWHERE)
+	show_grid = on
+	if not on:
 		_tile_px = _crisp(_tile_px, false)
 	queue_redraw()
 
@@ -716,7 +704,7 @@ func fit() -> void:
 	# diviseurs entiers, et `_crisp` rend toujours une echelle plus PETITE que demandee quand on
 	# retrecit -- le guide continue donc de tenir dans le cadre.
 	_tile_px = minf(usable / float(columns), size.y / float(rows)) * 0.94
-	if preview_only:
+	if not show_grid:
 		_tile_px = _crisp(clampf(_tile_px, MIN_TILE_PX, MAX_TILE_PX), false)
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	_origin = Vector2(reserved_left + (usable - span.x) * 0.5, (size.y - span.y) * 0.5)
@@ -741,11 +729,10 @@ func _draw() -> void:
 	if columns <= 0:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
-	# ⚠ L'APERCU EST UN REMONTAGE QUI VA PLUS LOIN. `bare` porte ce que les deux ont en commun
-	# -- plus de fond de guide, et la pile sous TOUTE case posee au lieu des seules commencees.
-	# `helpers` rassemble les trois aides qui suivent deja la grille. Ce qui n'appartient qu'a
-	# l'apercu se teste sur `preview_only`, plus bas, d'un seul `return`.
-	var bare: bool = assembled or preview_only
+	# `bare` : le remontage, ou l'on efface tout ce qui n'est pas les tuiles peintes.
+	# `helpers` : les trois aides qui suivent la grille -- le cerne des cases peintes, les
+	# hachures du fond decouvert, et la grille elle-meme.
+	var bare: bool = assembled
 	var helpers: bool = show_grid and not bare
 	# LE VIDE, POSE EN PREMIER. Il ne se voit nulle part -- c'est deja la couleur du fond du
 	# programme -- mais il donne a l'efface d'en dessous une source unique : ce qu'on
@@ -845,12 +832,6 @@ func _draw() -> void:
 
 	if helpers:
 		_draw_grid(pixel_px)
-
-	# ⚠ L'APERCU NE PORTE AUCUN REPERE, PAS MEME LE CURSEUR. Une marque designe du travail, et
-	# ici il n'y a pas de travail a designer : on regarde. Le cadre blanc pose sur une case est
-	# une couture de plus, a l'endroit exact ou l'on vient pour n'en plus voir.
-	if preview_only:
-		return
 
 	_draw_shape_preview(pixel_px)
 
@@ -1091,13 +1072,9 @@ func _gui_input(event: InputEvent) -> void:
 				_panning = button.pressed
 			MOUSE_BUTTON_LEFT:
 				# Bouton gauche : on pose. Bouton droit : on efface.
-				# ⚠ ET DANS L'APERCU, NI L'UN NI L'AUTRE. La molette et le clic milieu
-				# restent : regarder demande de se deplacer et de s'approcher.
-				if not preview_only:
-					_begin_or_end(button.pressed, 1, button.position)
+				_begin_or_end(button.pressed, 1, button.position)
 			MOUSE_BUTTON_RIGHT:
-				if not preview_only:
-					_begin_or_end(button.pressed, -1, button.position)
+				_begin_or_end(button.pressed, -1, button.position)
 		accept_event()
 		return
 	if event is InputEventMouseMotion:
@@ -1105,8 +1082,6 @@ func _gui_input(event: InputEvent) -> void:
 		if _panning:
 			_origin += motion.relative
 			queue_redraw()
-			return
-		if preview_only:
 			return
 		var moved: bool = _set_hover(motion.position)
 		if _stroke != 0:
@@ -1295,10 +1270,10 @@ func _crisp(wanted: float, growing: bool) -> float:
 	if per >= 1.0:
 		var steps: float = ceilf(per) if growing else floorf(per)
 		return clampf(steps, 1.0, floorf(MAX_TILE_PX / side)) * side
-	# EN PEIGNANT, ON REND LA MAIN SOUS LE PIXEL -- voir plus haut.
-	if not preview_only:
+	# GRILLE VISIBLE, ON REND LA MAIN SOUS LE PIXEL -- voir plus haut.
+	if show_grid:
 		return wanted
-	# ⚠ DANS L'APERCU, ON DESCEND PAR DIVISEURS ENTIERS. Sous un pixel d'ecran par faux pixel,
+	# ⚠ GRILLE MASQUEE, ON DESCEND PAR DIVISEURS ENTIERS. Sous un pixel d'ecran par faux pixel,
 	# caler « vers le haut » n'a plus de sens : il n'y a plus de multiple a viser. Mais la
 	# couture, elle, est toujours la -- `_cell_box` arrondit chaque case, donc une echelle libre
 	# fait retomber la grille des faux pixels d'aplomb A CHAQUE BORDURE. Prendre exactement un

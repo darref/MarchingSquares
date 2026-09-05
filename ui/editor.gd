@@ -88,7 +88,6 @@ func _ready() -> void:
 	_fill_families()
 	_fill_styles()
 	_fill_inks()
-	_fill_decors()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	work.loading_progress.connect(_on_loading_progress)
@@ -134,15 +133,9 @@ func _ready() -> void:
 	ticker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	ticker.tooltip_text = "Mode d'emploi"
 	ticker.gui_input.connect(_on_ticker_input)
-	(%PreviewOnlyCheck as CheckBox).toggled.connect(_on_preview_only_toggled)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
-	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
 	(%WorkCheck as CheckBox).toggled.connect(_on_work_hidden)
-	(%LightCheck as CheckBox).toggled.connect(_on_light_hidden)
-	(%MarksCheck as CheckBox).toggled.connect(_on_marks_hidden)
-	(%DecorChoice as OptionButton).item_selected.connect(_on_decor_selected)
-	work.painting_changed.connect((%PreviewPanel as Control).mark_dirty)
 	work.painting_changed.connect((%NeighboursPanel as Control).mark_dirty)
 	(%ExportButton as Button).pressed.connect(_on_export_pressed)
 	(%PackedButton as Button).pressed.connect(_on_packed_pressed)
@@ -384,9 +377,7 @@ func _load_current_mode() -> void:
 	work.guide_purpose = picked["purpose"]
 	work.guide_example = picked["example"]
 	work.show_guide(_heights, _painting)
-	(%PreviewPanel as Control).show_guide(_heights, _painting)
 	(%NeighboursPanel as Control).show_guide(_painting, work.ground_stacks())
-	_apply_decor()
 	_refresh_counters()
 
 
@@ -506,8 +497,8 @@ func _busy(title: String, note: String, done: int = 0, total: int = 0) -> void:
 
 ## ⚠ FERMER, C'EST LACHER SA PRISE -- PAS ETEINDRE L'ECRAN. Le panneau reste tant qu'un fond est
 ## en cours : sinon la premiere annonce venue le referme sous le travail qui n'a pas fini. C'est
-## exactement ce qui supprimait la barre au demarrage -- le fond s'annoncait, puis `_apply_decor`
-## annoncait son decor et refermait le panneau dans la MEME image, donc il ne se peignait jamais.
+## exactement ce qui supprimait la barre au demarrage -- le fond s'annoncait, puis une autre
+## annonce refermait le panneau dans la MEME image, donc il ne se peignait jamais.
 func _idle() -> void:
 	_busy_held = false
 	(%LoadingPanel as Control).visible = (%WorkArea as Control).is_busy()
@@ -556,30 +547,13 @@ func _apply_margins() -> void:
 ## cochee est un mensonge d'ergonomie : elle donne a croire qu'on ajoute quelque chose alors
 ## qu'on en retire. Les trois retirent une couche -- la grille, le guide, le travail -- et
 ## elles partent toutes decochees, l'ecran complet.
-## ⚠ CE N'EST PAS UNE COQUETTERIE, C'EST UN OUTIL DE VERITE. Les ombres portees tombent sur
-## des cases de PLAINE, et la plaine n'est pas une tuile du tileset : aucune tuile exportee
-## ne peut les porter. Sans elles, on voit ce que le tileset sait reellement produire.
-## ⚠ LES MARQUES, C'EST AUSSI L'EPAISSEUR DU TRAIT. Ce ne sont pas seulement les marqueurs
-## de coin et les tirets de rangee : la levre grossie et les bandes de flanc elargies sont
-## des marques elles aussi. Elles n'existent pas pour etre belles, elles existent pour rendre
-## la specification lisible d'un coup d'oeil. Les masquer toutes ensemble donne le dessin nu,
-## tel que le tileset le montrera une fois assemble.
-func _on_marks_hidden(pressed: bool) -> void:
-	var work: Control = %WorkArea
-	work.guide_marks = not pressed
-	work.refresh_background()
-	_announce("Marques masquees : le dessin nu, sans exageration." if pressed
-			else "Marques revenues.")
-
-
-func _on_light_hidden(pressed: bool) -> void:
-	var work: Control = %WorkArea
-	work.hide_cast_light = pressed
-	work.queue_redraw()
-	_announce("Lumiere portee masquee : ce que le tileset sait vraiment rendre." if pressed
-			else "Lumiere portee revenue.")
-
-
+##
+## ⚠ ET ELLES NE SONT PLUS QUE TROIS -- « masquer les marques » et « masquer les ombres » ont
+## ete retirees (decision utilisateur du 05/09/2026), parce qu'elles ne masquaient plus rien.
+## Les deux appartenaient a l'ancien modele : le dessin des massifs ne pose ni marqueur de
+## coin ni tiret de rangee, et il n'a pas de lumiere portee a eteindre -- `_background_flat`
+## y EST `_background`. Une case qui ne change rien a l'ecran est pire qu'absente : on la
+## coche, on ne voit aucun effet, et l'on cherche la panne.
 func _on_work_hidden(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.hide_work = pressed
@@ -587,96 +561,22 @@ func _on_work_hidden(pressed: bool) -> void:
 	_announce("Travail masque : le guide seul." if pressed else "Travail revenu.")
 
 
-## L'APERCU DANS LE LOGICIEL — on regarde le rendu final, on ne peint plus.
+## MASQUER LA GRILLE — et avec elle, ce qui empechait de juger le rendu.
 ##
-## ⚠ ET LE CRAYON SE VOIT RANGE. Un mode qui coupe la peinture sans le montrer est un refus
-## muet : l'artiste clique, rien ne se passe, et il cherche la panne. La section « Pinceau »
-## se grise donc en entier -- outils, taille, couleurs, cases a cocher -- et les lettres
-## d'outil cessent de repondre. C'est le meme geste que le crayon qui refuse une case non
-## couverte : le refus se voit AVANT le clic.
+## ⚠ ELLE FAIT DEUX CHOSES, ET LA SECONDE N'ETAIT PAS FAITE. Retirer les traits ne suffisait
+## pas : sous un pixel d'ecran par faux pixel, l'echelle libre recoupe la tuile et l'on voyait
+## apparaitre des coutures a chaque bordure -- qui etaient la avant, cachees par la grille
+## elle-meme. `set_grid` recale donc l'echelle sur un multiple ou un diviseur entier de la
+## resolution, et le rendu devient exactement ce qui sortira.
 ##
-## ⚠ ET LES DEUX CASES QU'IL SUBSUME SE GRISENT AVEC LUI. « Masquer la grille » et « Masquer
-## le guide » sont deja comprises dans l'apercu ; les laisser vives donnerait a croire qu'il
-## reste quelque chose a decocher pour voir le rendu final. Leur etat, lui, est garde : il
-## revient tel quel en sortant.
-func _on_preview_only_toggled(pressed: bool) -> void:
-	var work: Control = %WorkArea
-	work.set_preview(pressed)
-	_pencil_ready(not pressed)
-	(%GridCheck as CheckBox).disabled = pressed
-	(%AssembledCheck as CheckBox).disabled = pressed
-	(%ViewHint as Label).text = KEYS_PREVIEW if pressed else KEYS_PAINTING
-	if pressed:
-		(%HoverLabel as Label).text = "apercu : le crayon est range"
-	_announce("Apercu dans le logiciel : le rendu final, a l'echelle juste." if pressed
-			else "Retour au travail : le crayon est repris.")
-
-
-## Grise ou rend la section du pinceau. ⚠ ON PARCOURT L'ARBRE PLUTOT QUE DE NOMMER SIX
-## NOEUDS : une couleur ajoutee a la palette demain doit se griser sans qu'on y pense, et un
-## bouton oublie serait un bouton qui peint dans un mode ou rien ne peint.
-func _pencil_ready(on: bool) -> void:
-	var items: Control = (%ToolGrid as Control).get_parent()
-	items.modulate.a = 1.0 if on else 0.35
-	_set_disabled(items, not on)
-
-
-func _set_disabled(node: Node, off: bool) -> void:
-	for child: Node in node.get_children():
-		var button: BaseButton = child as BaseButton
-		if button != null:
-			button.disabled = off
-		_set_disabled(child, off)
-
-
+## ⚠ ET LE CRAYON RESTE EN MAIN. C'est ce qui a fait supprimer le mode d'apercu qui portait ça
+## d'abord (decision utilisateur) : si la nettete ne coute pas la peinture, elle n'a pas a se
+## payer d'un mode ou l'on ne peut plus rien faire.
 func _on_grid_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
-	work.show_grid = not pressed
-	work.queue_redraw()
-	_announce("Grille masquee : on juge la couleur sans rien par-dessus." if pressed
+	work.set_grid(not pressed)
+	_announce("Grille masquee : le rendu final, a l'echelle juste." if pressed
 			else "Grille revenue.")
-
-
-## L'APERCU EN JEU. Le guide est un banc d'epreuve -- lacs d'une case, pinacles isoles ; il
-## ne dira jamais si le tileset REND bien. Ce panneau montre les memes tuiles sur un petit
-## decor ordinaire. ⚠ Il n'invente rien : chaque case y emprunte, par index ou par role, ce
-## qui est peint dans le guide.
-## Les deux decors. ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT : ils repondent a deux questions
-## differentes -- « comment ca rend » et « est-ce que rien ne manque » -- et ni l'un ni
-## l'autre ne change d'un iota ce qui sort a l'export.
-func _fill_decors() -> void:
-	var choice: OptionButton = %DecorChoice
-	choice.clear()
-	choice.add_item("Decor : la colline")
-	choice.set_item_metadata(0, "colline")
-	choice.add_item("Decor : la preuve")
-	choice.set_item_metadata(1, "preuve")
-	choice.selected = 0
-
-
-func _on_decor_selected(_index: int) -> void:
-	_apply_decor()
-
-
-func _apply_decor() -> void:
-	var choice: OptionButton = %DecorChoice
-	var wanted: String = String(choice.get_item_metadata(choice.selected))
-	var panel: Control = %PreviewPanel
-	if wanted == "preuve":
-		panel.set_scene(ProofScene.relief())
-		_announce("La planche de preuve : un ilot par index, aucun ne manque.")
-	else:
-		panel.set_scene(HeightMask.read(panel.SCENE_PATH))
-		_announce("La colline : comment vos tuiles rendent dans un decor ordinaire.")
-
-
-func _on_preview_toggled(pressed: bool) -> void:
-	var panel: Control = %PreviewPanel
-	panel.visible = pressed
-	if pressed:
-		panel.mark_dirty()
-	_announce("Apercu en jeu : vos tuiles dans un decor ordinaire." if pressed
-			else "Retour au guide seul.")
 
 
 ## ⚠ MASQUER LE GUIDE NE TOUCHE A RIEN DE CE QUI SORT. C'est une facon de regarder, au meme
@@ -742,7 +642,7 @@ func _build_dialogs() -> void:
 			PackedStringArray())
 	_export_dialog.dir_selected.connect(_on_export_chosen)
 	_packed_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
-			"Exporter la feuille packed", PackedStringArray())
+			"Exporter le tileset packe", PackedStringArray())
 	_packed_dialog.dir_selected.connect(_on_packed_chosen)
 	_plugin_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
 			"Choisir un projet Godot", PackedStringArray())
@@ -796,7 +696,6 @@ func _on_open_chosen(path: String) -> void:
 		return
 	_painting = report["painting"]
 	(%WorkArea as Control).show_guide(_heights, _painting)
-	(%PreviewPanel as Control).show_guide(_heights, _painting)
 	(%NeighboursPanel as Control).show_guide(_painting,
 			(%WorkArea as Control).ground_stacks())
 	_work_path = path
@@ -874,7 +773,7 @@ func _on_packed_pressed() -> void:
 
 
 func _on_packed_chosen(folder: String) -> void:
-	await _show_then("Export de la feuille packed", "une seule image, et sa legende")
+	await _show_then("Export du tileset packe", "une seule image, et sa legende")
 	if _painting == null:
 		return
 	var basename: String = _work_path.get_file().get_basename()
@@ -1023,26 +922,6 @@ func _announce(text: String) -> void:
 ## perdre du travail par la main de l'utilisateur lui-meme.
 ## Une lettre par outil, et les crochets pour la taille. ⚠ SANS MODIFICATEUR : Ctrl+S et
 ## Ctrl+O sont pris au-dessus, et une lettre avec Ctrl ne doit pas changer d'outil.
-## LES DEUX LISTES DE RACCOURCIS. ⚠ ET C'EST POUR CA QU'ELLES SONT DEUX : dans l'apercu, la
-## moitie de la liste est FAUSSE -- le clic gauche ne peint pas, les lettres ne changent rien.
-## Une aide qui promet ce qui n'existe pas envoie chercher une panne. Elle dit donc ce qui
-## reste, et pourquoi le reste est parti.
-const KEYS_PAINTING: String = """Molette : zoom
-Clic milieu : deplacer
-Clic gauche : peindre
-Clic droit : effacer
-Ctrl+Z : annuler
-P B A G L R I E : les outils
-[ et ] : la taille"""
-const KEYS_PREVIEW: String = """Molette : zoom
-Clic milieu : deplacer
-
-Le crayon est range :
-dans l'apercu, rien ne peint.
-L'echelle se cale a chaque cran
-pour qu'aucune bordure ne se voie."""
-
-
 const TOOL_KEYS: Dictionary = {
 	KEY_P: 0, KEY_B: 1, KEY_A: 2, KEY_G: 3, KEY_L: 4, KEY_R: 5, KEY_I: 6, KEY_E: 7,
 }
@@ -1061,11 +940,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if key.alt_pressed or key.meta_pressed:
-		return
-	# ⚠ LES LETTRES SUIVENT LA SECTION GRISEE. Changer d'outil dans l'apercu ne casserait
-	# rien -- rien n'y peint -- mais le bouton s'allumerait sous une section grisee, et
-	# l'ecran dirait deux choses a la fois.
-	if (%PreviewOnlyCheck as CheckBox).button_pressed:
 		return
 	if TOOL_KEYS.has(key.keycode):
 		_press_meta(%ToolGrid, "tool", int(TOOL_KEYS[key.keycode]))

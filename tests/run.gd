@@ -68,7 +68,7 @@ func _initialize() -> void:
 	_test_bucket()
 	_test_surface_map()
 	_test_work_area()
-	_test_preview_scale()
+	_test_seamless_scale()
 	_test_symmetry()
 	_test_work_io()
 	_test_export()
@@ -996,20 +996,20 @@ func _test_work_area() -> void:
 	dual.free()
 
 
-## L'ECHELLE DE L'APERCU — celle qui ne peut pas faire de couture.
+## L'ECHELLE QUE LA GRILLE MASQUEE IMPOSE — celle qui ne peut pas faire de couture.
 ##
-## ⚠ ET C'EST UN TEST QUI SE MESURE, PAS QUI SE REGARDE. Une couture ne se voit qu'a
-## l'ecran, et l'ecran ne ment pas mais ne dit pas non plus POURQUOI. La propriete, elle,
-## se nomme : `_tile_px` doit etre un ENTIER, et un multiple entier de la resolution ou un
-## de ses diviseurs. Tant qu'elle tient, chaque case subit exactement le meme
-## echantillonnage que sa voisine, et aucune bordure de tuile ne peut se distinguer de son
-## interieur -- ce qui est la definition meme de la couture qu'on chasse.
+## ⚠ ET C'EST UN TEST QUI SE MESURE, PAS QUI SE REGARDE. Une couture ne se voit qu'a l'ecran,
+## et l'ecran ne ment pas mais ne dit pas non plus POURQUOI. La propriete, elle, se nomme :
+## `_tile_px` doit etre un ENTIER, et un multiple entier de la resolution ou un de ses
+## diviseurs. Tant qu'elle tient, chaque case subit exactement le meme echantillonnage que sa
+## voisine, et aucune bordure de tuile ne peut se distinguer de son interieur -- ce qui est la
+## definition meme de la couture qu'on chasse.
 ##
-## ⚠ ET ON VERIFIE L'ALLER-RETOUR. Un cran en avant suivi d'un cran en arriere doit revenir
-## a la meme echelle : sans ca la molette derive, et l'artiste ne retrouve jamais le cadrage
-## qu'il vient de quitter.
-func _test_preview_scale() -> void:
-	print("l apercu dans le logiciel : une echelle qui ne peut pas coudre")
+## ⚠ ET ON VERIFIE QUE LE CRAYON RESTE EN MAIN. C'est la raison d'etre de tout ceci : la
+## nettete ne se paie pas d'un mode ou l'on ne peut plus peindre. Un test qui ne verifierait
+## que l'echelle laisserait passer une regression qui rendrait la case inutilisable.
+func _test_seamless_scale() -> void:
+	print("grille masquee : une echelle qui ne peut pas coudre, sans lacher le crayon")
 	var heights: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.MINIMAL))
 	var work: Control = WorkArea.new()
 	root.add_child(work)
@@ -1017,7 +1017,7 @@ func _test_preview_scale() -> void:
 	var painting: RefCounted = Painting.new(16)
 	work.show_guide(heights, painting)
 	work._job = null
-	work.set_preview(true)
+	work.set_grid(false)
 
 	# On balaie toute la course du zoom, dans les deux sens, en partant du cadrage.
 	work.fit()
@@ -1039,7 +1039,7 @@ func _test_preview_scale() -> void:
 		var down: float = side / at
 		if absf(up - roundf(up)) > 0.0001 and absf(down - roundf(down)) > 0.0001:
 			laddered = false
-	_check(whole, "dans l apercu, une case fait un nombre ENTIER de pixels d ecran")
+	_check(whole, "grille masquee, une case fait un nombre ENTIER de pixels d ecran")
 	_check(laddered, "et c est un multiple ou un diviseur de la resolution -- jamais entre")
 
 	# ⚠ L ALLER-RETOUR. On monte d un cran, on redescend, on doit etre revenu.
@@ -1051,7 +1051,7 @@ func _test_preview_scale() -> void:
 	_check(up_one > start, "un cran de molette monte vraiment d un cran")
 	_check_equal(work._tile_px, start, "et le cran inverse revient exactement au meme")
 
-	# ⚠ ET LE CRAYON EST RANGE : un clic dans l apercu ne doit RIEN poser.
+	# ⚠ ET LE CRAYON PEINT TOUJOURS, grille masquee. C est tout l objet du changement.
 	work._tile_px = 160.0
 	var target: Vector2i = Vector2i.ZERO
 	for cell: Vector2i in work._paintable.keys():
@@ -1060,13 +1060,15 @@ func _test_preview_scale() -> void:
 	work._origin = -Vector2(target) * work._tile_px
 	work._gui_input(_click_at(Vector2(80.0, 80.0), true))
 	work._gui_input(_click_at(Vector2(80.0, 80.0), false))
-	_check(not painting.is_painted(target), "un clic dans l apercu ne peint rien")
+	_check(painting.is_painted(target), "et grille masquee, le crayon peint quand meme")
 
-	# ⚠ ET LA SORTIE REND LE CRAYON. Sans quoi le mode serait un aller simple.
-	work.set_preview(false)
-	work._gui_input(_click_at(Vector2(80.0, 80.0), true))
-	work._gui_input(_click_at(Vector2(80.0, 80.0), false))
-	_check(painting.is_painted(target), "et en sortant, le crayon repeint")
+	# ⚠ GRILLE VISIBLE, L ECHELLE GARDE SA LIBERTE SOUS LE PIXEL : la vue d ensemble en a
+	# besoin, et c est la qu on cerne les cases plutot que de pretendre les montrer.
+	work.set_grid(true)
+	work.fit()
+	_check(work._tile_px / side < 1.0, "grille visible, le cadrage reste sous le pixel")
+	_check(absf(work._tile_px - roundf(work._tile_px)) > 0.0001,
+			"et il garde sa liberte : l echelle n y est pas calee")
 	root.remove_child(work)
 	work.free()
 
