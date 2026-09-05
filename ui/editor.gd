@@ -24,6 +24,7 @@ const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const MassifTileset := preload("res://exporters/massif_tileset.gd")
 const PackedPNG := preload("res://exporters/packed_png.gd")
 const ProofScene := preload("res://core/proof_scene.gd")
+const Examples := preload("res://core/examples.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
 const MANUAL := preload("res://ui/manual.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
@@ -238,12 +239,26 @@ func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
 	choice.add_item("Notre dessin")
-	choice.set_item_metadata(0, GuideImage.Purpose.REPRESENTATIVE)
-	# ⚠ LE BANC D'ESSAI NE S'OUVRE QUE SI SATYRON EST LA. On lit son tileset chez lui, on ne
-	# le copie pas : sur une machine sans lui, la technique reste fermee (charte, regle 5).
-	choice.add_item("Example")
-	choice.set_item_metadata(1, GuideImage.Purpose.EXAMPLE)
-	choice.set_item_disabled(1, not Satyron.is_available())
+	choice.set_item_metadata(0, "")
+	# ⚠ UN EXEMPLE N'EST PAS UN STYLE, C'EST UNE PREUVE. « Notre dessin » est la SPECIFICATION :
+	# calculee depuis le relief, elle ne peut pas mentir sur ce que le guide contient -- et elle
+	# a donc toujours l'air juste. Un exemple, lui, est du VRAI trait remonte en paysage : c'est
+	# la seule vue ou l'on voit ce que l'outil rend vraiment. Le cisaillement du massif 21 a ete
+	# releve comme ca, et par aucun autre moyen.
+	#
+	# ⚠ ET UN EXEMPLE ABSENT SE MONTRE QUAND MEME, GRISE. Une place vide dit « ceci viendra » ;
+	# une absence ne dit rien, et l'acheteur ne cherche pas ce qu'il ne voit pas.
+	for id: StringName in Examples.ids():
+		var at: int = choice.item_count
+		choice.add_item("%s -- %s" % [Examples.label(id), Examples.note(id)])
+		choice.set_item_metadata(at, id)
+		choice.set_item_disabled(at, not Examples.is_available(id))
+	# ⚠ LE BANC SATYRON NE S'OUVRE QUE S'IL EST LA. On lit son tileset chez lui, on ne le copie
+	# pas : sa licence autorise l'usage et interdit la redistribution (charte, regle 5).
+	var bench: int = choice.item_count
+	choice.add_item("Banc Satyron")
+	choice.set_item_metadata(bench, "satyron")
+	choice.set_item_disabled(bench, not Satyron.is_available())
 	choice.select(0)
 
 
@@ -268,11 +283,15 @@ func _on_style_selected(_index: int) -> void:
 func _apply_background_style() -> void:
 	var technic: OptionButton = %StyleChoice
 	var style: OptionButton = %InkChoice
-	var purpose: GuideImage.Purpose = technic.get_item_metadata(technic.selected)
-	# ⚠ LE STYLE N'A PAS DE SENS SUR LE BANC D'ESSAI : ce ne sont ni nos aplats ni nos traits,
-	# ce sont les tuiles de quelqu'un d'autre. On ferme le choix plutot que de l'ignorer.
-	style.disabled = purpose == GuideImage.Purpose.EXAMPLE
-	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected), purpose)
+	var pick: StringName = StringName(technic.get_item_metadata(technic.selected))
+	var purpose: GuideImage.Purpose = GuideImage.Purpose.EXAMPLE if pick == &"satyron" \
+			else GuideImage.Purpose.REPRESENTATIVE
+	var example: StringName = pick if Examples.CATALOGUE.has(pick) else &""
+	# ⚠ L'ENCRE N'A PAS DE SENS SUR UN TRAIT PEINT : ce ne sont ni nos aplats ni nos traits, ce
+	# sont des pixels poses a la main. On ferme le choix plutot que de l'ignorer.
+	style.disabled = pick != &""
+	(%WorkArea as Control).set_guide_style(style.get_item_metadata(style.selected), purpose,
+			example)
 
 
 ## La famille de surface choisie. ⚠ ELLE SE CHOISIT AVANT DE DESSINER, comme le paysage et
@@ -312,7 +331,9 @@ func _refresh_family_availability() -> void:
 
 
 func _on_family_selected(_index: int) -> void:
+	await _show_then("Changement de reseau", "on recalcule les tuiles")
 	_load_current_mode()
+	_idle()
 
 
 func _current_family() -> StringName:
@@ -357,7 +378,9 @@ func _load_current_mode() -> void:
 
 
 func _on_mode_selected(_index: int) -> void:
+	await _show_then("Chargement du paysage", "le relief et ses tuiles")
 	_load_current_mode()
+	_idle()
 
 
 func _on_resolution_selected(_index: int) -> void:
@@ -421,12 +444,46 @@ func _on_swatch_pressed(button: Button) -> void:
 ## ⚠ LA VALEUR AFFICHEE EST CELLE DU TRAVAIL REEL : des tuiles dessinees sur des tuiles a
 ## dessiner. Pas un compte a rebours, pas une animation qui tourne pendant qu'on attend.
 func _on_loading_progress(done: int, total: int) -> void:
-	var panel: Control = %LoadingPanel
-	panel.visible = done < total
+	if done < total:
+		_busy("Dessin du fond du guide", "%d / %d tuiles" % [done, total], done, total)
+	else:
+		_idle()
+
+
+## L'ATTENTE SE MONTRE, PARTOUT OU ELLE EST IMPOSEE.
+##
+## ⚠ ET C'EST UNE DECISION PRISE CONTRE UNE REGLE DU DOSSIER, DONC ELLE SE JUSTIFIE. Le dossier
+## dit : « chercher la cause avant de decorer le symptome -- une barre de progression aurait
+## MONTRE l'attente au lieu de la supprimer, et rendu le defaut acceptable ». C'est vrai d'une
+## lenteur qu'on peut corriger. Ce n'en est pas une ici : composer une planche ou relire un
+## carnet de cinquante-cinq images PREND du temps, et une fenetre figee pendant ce temps est le
+## pire des deux maux -- elle ne dit meme pas qu'elle travaille. Decision utilisateur.
+##
+## ⚠ ET ELLE EST HONNETE : du VRAI avancement la ou il existe (le fond du guide compte ses
+## tuiles), un etat NOMME sinon. Jamais un pourcentage invente -- une jauge qui ne mesure pas ce
+## qu'elle pretend mesurer est pire que pas de jauge.
+func _busy(title: String, note: String, done: int = 0, total: int = 0) -> void:
+	(%LoadingPanel as Control).visible = true
+	(%LoadingTitle as Label).text = title
 	var bar: ProgressBar = %LoadingBar
+	# ⚠ SANS COMPTE CONNU, LA BARRE SE REMPLIT ENTIEREMENT plutot que de rester a zero. Une
+	# barre vide se lit comme « bloque » ; une barre pleine sous un etat nomme se lit comme
+	# « en cours », ce qui est la verite.
 	bar.max_value = float(maxi(total, 1))
-	bar.value = float(done)
-	(%LoadingCount as Label).text = "%d / %d tuiles" % [done, total]
+	bar.value = float(total if total > 0 else 1) if done <= 0 and total <= 0 else float(done)
+	(%LoadingCount as Label).text = note
+
+
+func _idle() -> void:
+	(%LoadingPanel as Control).visible = false
+
+
+## ⚠ IL FAUT RENDRE LA MAIN A L'ECRAN POUR QU'IL PEIGNE. Poser le panneau puis travailler dans
+## la meme image ne montre rien du tout : Godot ne dessine qu'entre deux images. Un `await` sur
+## la suivante coute une image et rend la barre reelle.
+func _show_then(title: String, note: String) -> void:
+	_busy(title, note)
+	await get_tree().process_frame
 
 
 func _on_twins_toggled(_pressed: bool) -> void:
@@ -637,6 +694,7 @@ func _on_open_pressed() -> void:
 ## peint ; il faut charger ce paysage AVANT de pouvoir y reposer quoi que ce soit. D'ou
 ## l'en-tete d'abord, le guide ensuite, les tuiles en dernier.
 func _on_open_chosen(path: String) -> void:
+	await _show_then("Ouverture du travail", path.get_file())
 	var header: Dictionary = WorkIO.peek(path)
 	if int(header["error"]) != OK:
 		_announce("Ce fichier n'est pas un travail SoluTiles.")
@@ -664,6 +722,7 @@ func _on_open_chosen(path: String) -> void:
 				% [int(report["placed"]), orphans])
 	else:
 		_announce("%d tuiles reposees." % int(report["placed"]))
+	_idle()
 
 
 func _on_save_pressed() -> void:
@@ -690,6 +749,7 @@ func _on_export_pressed() -> void:
 
 
 func _on_export_chosen(folder: String) -> void:
+	await _show_then("Export du tileset", "planche et manifeste")
 	if _painting == null:
 		return
 	var basename: String = _work_path.get_file().get_basename()
@@ -728,6 +788,7 @@ func _on_packed_pressed() -> void:
 
 
 func _on_packed_chosen(folder: String) -> void:
+	await _show_then("Export de la feuille packed", "une seule image, et sa legende")
 	if _painting == null:
 		return
 	var basename: String = _work_path.get_file().get_basename()
@@ -772,6 +833,7 @@ func _on_trial_pressed() -> void:
 
 
 func _on_trial_folder_chosen(folder: String) -> void:
+	await _show_then("Ecriture de l'essai", "notre propre trace, livree comme tileset")
 	# ⚠ L'ESSAI SUIT LE MODELE, comme l'export : celui des massifs livre une planche unique et
 	# un manifeste v9, l'ancien deux planches. Les faire passer par le meme exportateur
 	# demanderait de couper en deux un massif qui se dessine entier.
@@ -791,6 +853,7 @@ func _on_trial_folder_chosen(folder: String) -> void:
 ## Ecrire six fichiers dans les documents de quelqu'un sans que rien ne les lise jamais
 ## serait pire qu'un refus : ca ressemblerait a une reussite.
 func _on_plugin_folder_chosen(folder: String) -> void:
+	await _show_then("Installation de SoluPaint", "le plugin et de quoi peindre")
 	var report: Dictionary = PluginInstall.install(folder)
 	var said: String = PluginInstall.summary(report)
 	if int(report["error"]) == OK:
@@ -861,6 +924,11 @@ func _select_metadata(choice: OptionButton, value: Variant) -> void:
 
 
 func _announce(text: String) -> void:
+	# ⚠ ANNONCER UN RESULTAT, C'EST QUE L'ATTENTE EST FINIE. Refermer le panneau ici plutot qu'a
+	# chaque sortie de fonction evite l'oubli : ces chemins ont des `return` precoces -- dossier
+	# refuse, feuille incomplete, ecriture impossible -- et il suffirait d'en manquer un pour
+	# laisser l'ecran bloque sous un panneau qui ne partira plus.
+	_idle()
 	(%Ticker as Label).text = text
 	_elapsed = 0.0
 

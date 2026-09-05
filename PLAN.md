@@ -4129,6 +4129,19 @@ C'est plus fort qu'avant le cisaillement.
 - **`find_worlds.gd` jalonne** : il écrit à chaque prise. Trois heures de chasse ont été perdues
   d'un coup faute de jalons ; ça ne se reproduira pas.
 
+## ⚠ UN DERNIER CYCLE EST DÛ — LE COIN HAUT DU CISAILLEMENT
+
+**Relevé par l'utilisateur le 05/09/2026, et DIFFÉRÉ par lui : le montage du produit passe
+d'abord.** Une tuile (ou plusieurs) du **coin haut** du cisaillement reste fausse. Le reste est
+jugé bon.
+
+Ce que ça veut probablement dire, à vérifier avant de toucher quoi que ce soit : là où le
+cisaillement rencontre la **lèvre**, deux traits constants se croisent — celui du chapiteau à sa
+rangée du haut, et celui du cisaillement sur son bord latéral. Leur rencontre au coin n'a été ni
+mesurée ni regardée. ⚠ **Ne pas partir du dessin : partir de l'endroit.** L'utilisateur l'a vu sur
+SON trait remonté, comme la première fois ; le dessin calculé a toujours l'air juste.
+`tools/tile_situations.gd` et l'aperçu `ART=` sont les instruments.
+
 ## CE QUI RESTE
 
 1. **17 tuiles à peindre** — l'utilisateur a 38 des 55. Les 14 cisaillées plus 3 tuiles de base.

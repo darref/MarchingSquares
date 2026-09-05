@@ -8,6 +8,8 @@ extends RefCounted
 const HeightMask := preload("res://core/height_mask.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifTiles := preload("res://render/massif_tiles.gd")
+const Families := preload("res://core/families.gd")
+const WorkIO := preload("res://core/work_io.gd")
 
 const RES: int = MassifTiles.RES
 
@@ -73,3 +75,77 @@ static func _inner_edges(image: Image, seen: Dictionary) -> void:
 			continue
 		for y: int in range(RES):
 			image.set_pixel(near.x * RES, cell.y * RES + y, MassifTiles.OUTLINE)
+
+
+## LE PAYSAGE REMONTE AVEC UN CARNET PEINT — le meme chemin que le jeu.
+##
+## ⚠ CHAQUE CASE EMPRUNTE, ELLE NE FABRIQUE RIEN (charte, regle 3), et TOUJOURS LA PREMIERE
+## OCCURRENCE PEINTE : c'est deja la regle de l'export et celle de l'apercu en jeu. Une autre
+## occurrence rendrait une autre image pour la meme tuile, et le paysage scintillerait d'une
+## execution a l'autre.
+##
+## ⚠ ET L'ORDRE DE POSE FAIT TOUT. On ne trie rien ici : `Massifs.poses` rend deja les poses dans
+## l'ordre de dessin -- par rangee, puis par etage -- et la derniere gagne. C'est de la que vient
+## l'occlusion, et c'est ce qu'on vient regarder.
+##
+## ⚠ ET CE QUI N'EST PAS PEINT RESTE TRANSPARENT, jamais bouche. Un exemple incomplet doit se
+## voir incomplet : le combler donnerait a croire qu'il est fini.
+static func compose_painted(world: PackedStringArray, painting: RefCounted) -> Image:
+	return compose_with(world, art_of(world, painting))
+
+
+## L'ART D'UN CARNET : `{cle de tuile: Image}`, la PREMIERE occurrence peinte de chacune.
+##
+## ⚠ TOUJOURS LA PREMIERE, ET C'EST DEJA LA REGLE DE L'EXPORT. Une autre occurrence rendrait une
+## autre image pour la meme tuile, et le decor scintillerait a chaque coup de crayon.
+##
+## ⚠ ET ON GARDE LE PLUS PETIT RANG, pas le premier rencontre : un dictionnaire ne promet aucun
+## ordre, et une vue qui changerait d'une fois sur l'autre serait indefendable.
+static func art_of(guide: PackedStringArray, painting: RefCounted) -> Dictionary:
+	var out: Dictionary = {}
+	if painting == null:
+		return out
+	var by_key: Dictionary = WorkIO.cells_by_key(guide, Families.BY_MASSIF)
+	var rank_of: Dictionary = {}
+	for key: String in by_key.keys():
+		var slot: Dictionary = WorkIO.describe(key)
+		if String(slot["family"]) != "M":
+			continue
+		var tile: int = int(slot["index"])
+		var rank: int = int(slot["rank"])
+		if rank_of.has(tile) and int(rank_of[tile]) <= rank:
+			continue
+		var drawn: Image = painting.image_of(by_key[key])
+		if drawn != null:
+			rank_of[tile] = rank
+			out[tile] = drawn
+	return out
+
+
+## UN DECOR POSE AVEC CET ART — et le decor n'est pas forcement le guide.
+##
+## ⚠ C'EST TOUT L'INTERET DE LA SEPARATION. L'apercu en jeu emprunte l'art du GUIDE et le pose
+## sur un AUTRE relief : un decor calme, qui ressemble a une carte de jeu. Le guide, lui, est un
+## banc d'epreuve -- il ne dira jamais si le tileset REND bien.
+##
+## ⚠ ET CE QUI N'EST PAS PEINT RESTE UN TROU, jamais bouche. Le decor se remplit au fur et a
+## mesure du travail, et ce qui manque se voit DANS SON CONTEXTE -- ce qu'aucune jauge ne montre.
+static func compose_with(world: PackedStringArray, art: Dictionary, side: int = 0) -> Image:
+	var wide: int = HeightMask.width(world)
+	var tall: int = HeightMask.height(world)
+	var edge: int = side
+	if edge <= 0:
+		for one: Variant in art.values():
+			edge = (one as Image).get_width()
+			break
+	if edge <= 0 or wide <= 0:
+		return null
+	var canvas: Image = Image.create_empty(wide * edge, tall * edge, false, Image.FORMAT_RGBA8)
+	canvas.fill(Color(0, 0, 0, 0))
+	for pose: Dictionary in Massifs.poses(world):
+		var tile2: int = Massifs.key_of(pose)
+		if not art.has(tile2):
+			continue
+		canvas.blend_rect(art[tile2] as Image, Rect2i(0, 0, edge, edge),
+				(pose["cell"] as Vector2i) * edge)
+	return canvas

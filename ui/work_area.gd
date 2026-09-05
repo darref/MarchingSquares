@@ -26,6 +26,7 @@ const Walls := preload("res://core/walls.gd")
 const Painting := preload("res://core/painting.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const GuideImage := preload("res://render/guide_image.gd")
+const Examples := preload("res://core/examples.gd")
 const Families := preload("res://core/families.gd")
 const Seams := preload("res://core/seams.gd")
 const RenderJob := preload("res://render/guide_render_job.gd")
@@ -153,6 +154,10 @@ var guide_ink: GuideImage.Ink = GuideImage.Ink.PAINTED
 
 ## A quoi le fond sert : montrer le resultat, ou porter les marques de travail.
 var guide_purpose: GuideImage.Purpose = GuideImage.Purpose.REPRESENTATIVE
+## L'exemple montre en fond, s'il y en a un. Vide = notre dessin calcule.
+## ⚠ IL EST A PART DE `guide_purpose`, qui appartient a l'ancien modele : un exemple se designe
+## par son NOM, pas par une valeur d'enumeration qu'il faudrait etendre a chaque nouveau.
+var guide_example: StringName = &""
 
 ## La famille de surface : par case (blob 47) ou a cheval (reseau dual, 15).
 ##
@@ -554,11 +559,13 @@ func set_fill_rules(symmetry: bool) -> void:
 	_targets.clear()
 
 
-func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose) -> void:
-	if ink == guide_ink and purpose == guide_purpose:
+func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
+		example: StringName = &"") -> void:
+	if ink == guide_ink and purpose == guide_purpose and example == guide_example:
 		return
 	guide_ink = ink
 	guide_purpose = purpose
+	guide_example = example
 	_redraw_background()
 	queue_redraw()
 
@@ -578,9 +585,9 @@ func refresh_background() -> void:
 func _redraw_background() -> void:
 	if _heights.is_empty():
 		return
-	_cache_key = "%s:%d:%d:%d:%d:%d" % [guide_family, "
+	_cache_key = "%s:%d:%d:%d:%d:%d:%s" % [guide_family, "
 ".join(_heights).hash(), GUIDE_TILE, int(guide_ink), int(guide_purpose),
-			1 if guide_marks else 0]
+			1 if guide_marks else 0, guide_example]
 	if _cache.has(_cache_key):
 		var pair: Array = _cache[_cache_key]
 		_background = pair[0]
@@ -594,8 +601,18 @@ func _redraw_background() -> void:
 	# part : le modele ne pose aucune ombre portee, donc rien a masquer -- l ancien en avait
 	# une parce que ses ombres tombaient sur des cases de plaine qu aucune tuile ne porte.
 	if guide_family == Families.BY_MASSIF:
-		var made: Image = MassifScene.compose(_heights, 1,
-			MassifTiles.CONTOUR if guide_ink == GuideImage.Ink.WIREFRAME else MassifTiles.PEINT)
+		# ⚠ UN EXEMPLE N'EST PAS UNE ENCRE, C'EST UNE AUTRE SOURCE. « Notre dessin » se CALCULE
+		# depuis le relief -- il ne peut pas mentir sur ce que le guide contient, donc il a
+		# toujours l'air juste. Un exemple, lui, est du VRAI trait remonte : c'est la seule vue
+		# ou l'on voit ce que l'outil rend vraiment, et c'est la que les defauts se trouvent.
+		var made: Image = null
+		if Examples.CATALOGUE.has(guide_example):
+			var art: RefCounted = Examples.painting(guide_example, _heights)
+			made = MassifScene.compose_painted(_heights, art) if art != null else null
+		if made == null:
+			made = MassifScene.compose(_heights, 1,
+				MassifTiles.CONTOUR if guide_ink == GuideImage.Ink.WIREFRAME
+				else MassifTiles.PEINT)
 		_background = ImageTexture.create_from_image(made)
 		_background_flat = _background
 		_cache[_cache_key] = [_background, _background_flat]
@@ -658,7 +675,13 @@ func _draw() -> void:
 	# ⚠ UNE TEXTURE PAR TUILE, DESSINEE A CHAQUE JUMELLE. C'est l'ecran qui repete, pas la
 	# memoire : le carnet n'a qu'une image par groupe, et chaque case du groupe la montre.
 	var frame: Rect2i = _visible_cells()
-	var ring: bool = not assembled and pixel_px < TOUCHED_FROM
+	# ⚠ LE CERNE ET LES HACHURES SONT DE LA GRILLE, ET ILS NE LA SUIVAIENT PAS. « Masquer la
+	# grille » retirait les traits de case et la grille fine, mais laissait le cerne ambre de
+	# chaque case peinte -- qui, sur un guide entierement peint et vu de loin, EST une grille
+	# complete -- et les hachures du fond decouvert. Or la case existe pour une seule raison :
+	# quand on juge une COULEUR, toute aide a viser gene. Elles sont donc de la meme famille et
+	# suivent la meme case (releve par l'utilisateur).
+	var ring: bool = show_grid and not assembled and pixel_px < TOUCHED_FROM
 	# LE REMONTAGE EMPILE, comme le jeu : sous chaque robe, le sol qu'elle couvre. Sans ce
 	# fond, un pixel de robe laisse transparent -- l'arete deplacee, un coin -- montrait le
 	# fond du programme la ou le jeu montrera l'etage d'en bas : le remontage mentait par
@@ -707,7 +730,8 @@ func _draw() -> void:
 			# ⚠ ET SEULEMENT LA OU IL Y A QUELQUE CHOSE DERRIERE. Sur une case qui n'a
 			# qu'une pose, ce qu'on voit par la transparence est le vide : hachurer toute
 			# la plaine crierait plus fort que l'information.
-			if not assembled and (_stack_below.has(under) or _under_roles.has(under)):
+			if show_grid and not assembled \
+					and (_stack_below.has(under) or _under_roles.has(under)):
 				_draw_hatch(box)
 	for holder: Vector2i in (_textures.keys() if not hide_work else []):
 		var texture: ImageTexture = _textures[holder]

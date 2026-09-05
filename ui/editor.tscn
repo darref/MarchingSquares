@@ -1221,6 +1221,7 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="LoadingTitle" type="Label" parent="Layout/Body/LoadingPanel/LoadingMargin/LoadingBox" unique_id=779401552]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
 text = "Dessin du fond du guide"
