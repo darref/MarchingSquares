@@ -49,7 +49,12 @@ static func _static_init() -> void:
 			"closed": true,
 		},
 		MASSIFS: {
-			"label": "Massifs",
+			# ⚠ LE LIBELLE CHANGE, PAS L'IDENTIFIANT (decision utilisateur du 05/09/2026).
+			# `massifs` est ecrit dans l'en-tete de chaque `.solutiles` et dans le chemin du
+			# guide : le renommer rendrait illisible tout travail deja enregistre. Ce qu'on
+			# nomme ici est ce que l'artiste LIT -- et ce qu'il voit est bien un damier de
+			# specimens, un ilot par tuile, pas encore un paysage.
+			"label": "Damier",
 			"guide_path": "res://guides/massifs.txt",
 			"surface_tiles": _massif_count(Massifs.SURFACE, true),
 			"wall_tiles": _massif_count(Massifs.SURFACE, false),

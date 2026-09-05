@@ -267,7 +267,12 @@ func _test_modes_catalogue() -> void:
 	_check_equal(open_modes[0], Modes.MASSIFS, "et c est massifs")
 	_check(Modes.is_closed(Modes.EPAIS), "epais est ferme, pas retire : il reste un temoin")
 	_check(not Modes.is_available(Modes.EPAIS), "et il ne se choisit plus")
-	_check_equal(Modes.label(Modes.MASSIFS), "Massifs", "libelle du mode livre")
+	# ⚠ LE LIBELLE ET L'IDENTIFIANT SE VERIFIENT SEPAREMENT, ET C'EST TOUT L'INTERET. Le libelle
+	# est ce que l'artiste LIT, il peut changer ; l'identifiant est ecrit dans l'en-tete de chaque
+	# `.solutiles`, il ne peut PAS changer sans rendre illisible tout travail deja enregistre.
+	_check_equal(Modes.label(Modes.MASSIFS), "Damier", "libelle du mode livre")
+	_check_equal(String(Modes.MASSIFS), "massifs",
+			"et son identifiant ne bouge pas : il est ecrit dans les fichiers de travail")
 	_check(FileAccess.file_exists(Modes.guide_path(Modes.MASSIFS)),
 			"massifs a son guide, il se choisit")
 

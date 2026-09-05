@@ -541,27 +541,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 clip_text = true
 
-[node name="InkRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection/Content/Items" unique_id=1443381052]
-layout_mode = 2
-
-[node name="InkLabel" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection/Content/Items/InkRow" unique_id=1522730310]
-custom_minimum_size = Vector2(74, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Style"
-
-[node name="InkChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection/Content/Items/InkRow" unique_id=859853664]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-clip_text = true
-
 [node name="BackgroundHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection/Content/Items" unique_id=451559316]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "La technique dit d'ou vient le fond,
-le style de quoi notre dessin est fait."
+text = "Le contour de base est calcule depuis
+le relief : il ne peut pas mentir."
 
 [node name="EngineSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=3100020]
 layout_mode = 2

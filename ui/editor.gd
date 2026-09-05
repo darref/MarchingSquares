@@ -100,7 +100,6 @@ func _ready() -> void:
 	_fill_resolutions()
 	_fill_families()
 	_fill_styles()
-	_fill_inks()
 	var work: Control = %WorkArea
 	work.painting_changed.connect(_refresh_counters)
 	work.painting_changed.connect(_on_painting_changed)
@@ -126,7 +125,6 @@ func _ready() -> void:
 		if button != null:
 			button.pressed.connect(_on_swatch_pressed.bind(button))
 	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
-	(%InkChoice as OptionButton).item_selected.connect(_on_style_selected)
 	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%LockCheck as CheckBox).toggled.connect(_on_lock_toggled)
 	for child: Node in %ToolGrid.get_children():
@@ -254,7 +252,7 @@ func _fill_resolutions() -> void:
 func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
-	choice.add_item("Notre dessin")
+	choice.add_item("Contour de base")
 	choice.set_item_metadata(0, "")
 	# ⚠ UN EXEMPLE N'EST PAS UN STYLE, C'EST UNE PREUVE. « Notre dessin » est la SPECIFICATION :
 	# calculee depuis le relief, elle ne peut pas mentir sur ce que le guide contient -- et elle
@@ -272,23 +270,6 @@ func _fill_styles() -> void:
 	choice.select(0)
 
 
-func _fill_inks() -> void:
-	var choice: OptionButton = %InkChoice
-	choice.clear()
-	choice.add_item("Peint")
-	choice.set_item_metadata(0, GuideImage.Ink.PAINTED)
-	choice.add_item("Fil de fer")
-	choice.set_item_metadata(1, GuideImage.Ink.WIREFRAME)
-	# ⚠ LE CONTOUR PROUVE N'EST PAS UN STYLE, C'EST UN AUTRE MODELE -- et il est dans la meme
-	# liste pour qu'on puisse les comparer a l'ecran, ce qu'aucun chiffre ne remplace.
-	choice.add_item("Contour prouve")
-	choice.set_item_metadata(2, GuideImage.Ink.CONTOUR)
-	choice.select(0)
-
-
-## ⚠ CHANGER DE TECHNIQUE OU DE STYLE RECOMPOSE LE FOND ENTIER, et ce n'est pas instantane :
-## le modele des massifs pose le paysage d'un coup. Les deux listes tombent ici -- c'est la meme
-## poignee -- donc la meme attente, donc la meme barre.
 func _on_style_selected(_index: int) -> void:
 	await _show_then("Changement de fond", "on recompose le paysage")
 	_apply_background_style()
@@ -297,9 +278,6 @@ func _on_style_selected(_index: int) -> void:
 
 func _apply_background_style() -> void:
 	var picked: Dictionary = _style_pick()
-	# ⚠ L'ENCRE N'A PAS DE SENS SUR UN TRAIT PEINT : ce ne sont ni nos aplats ni nos traits, ce
-	# sont des pixels poses a la main. On ferme le choix plutot que de l'ignorer.
-	(%InkChoice as OptionButton).disabled = StringName(picked["example"]) != &"" 			or int(picked["purpose"]) == GuideImage.Purpose.EXAMPLE
 	(%WorkArea as Control).set_guide_style(picked["ink"], picked["purpose"], picked["example"])
 
 
@@ -311,10 +289,13 @@ func _apply_background_style() -> void:
 ## coerce en silence -- et surtout il PERDAIT l'exemple choisi des qu'on changeait de paysage.
 func _style_pick() -> Dictionary:
 	var technic: OptionButton = %StyleChoice
-	var style: OptionButton = %InkChoice
 	var pick: StringName = StringName(technic.get_item_metadata(technic.selected))
 	return {
-		"ink": style.get_item_metadata(style.selected),
+		# ⚠ LA RUBRIQUE « STYLE » A ETE SUPPRIMEE (decision utilisateur du 05/09/2026), donc
+		# l'encre n'est plus un choix : c'est le dessin peint, celui qu'on regardait par defaut.
+		# Les deux autres vues -- fil de fer, contour prouve -- appartenaient a l'ancien modele
+		# et servaient a comparer deux modeles a l'ecran ; il n'y en a plus qu'un.
+		"ink": GuideImage.Ink.PAINTED,
 		"purpose": GuideImage.Purpose.REPRESENTATIVE,
 		"example": pick if Examples.CATALOGUE.has(pick) else &"",
 	}

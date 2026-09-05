@@ -753,6 +753,16 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   recherche**, à la condition que le vocabulaire soit clos — il l'est bien plus depuis le vivier
   commun. Les fluides comme les grottes en dépendent : ils demandent tous deux « et en paysage,
   comment ? ».
+- **⚠ ET LA RUBRIQUE « STYLE » EST SUPPRIMÉE EN ENTIER** (décision utilisateur du 05/09/2026).
+  Le fond n'a plus qu'une encre : le dessin **peint**, celui qu'on regardait par défaut. Les
+  deux autres vues — *fil de fer*, *contour prouvé* — appartenaient à l'ancien modèle et
+  vivaient dans la même liste pour qu'on puisse comparer **deux modèles** à l'écran ; il n'y en
+  a plus qu'un. La technique s'appelle désormais **« Contour de base »**.
+- **⚠ LE LIBELLÉ D'UN MODE N'EST PAS SON IDENTIFIANT.** « Massifs » se lit désormais
+  **« Damier »** — c'est ce que l'artiste voit, et c'en est un : un îlot par tuile, pas encore
+  un paysage. L'identifiant `massifs`, lui, **ne bouge pas** : il est écrit dans l'en-tête de
+  chaque `.solutiles` et dans le chemin du guide, le renommer rendrait illisible tout travail
+  déjà enregistré. Les deux se vérifient **séparément** au banc.
 - **⚠ LES DEUX STYLES DE TRAIT SONT RETIRÉS** (décision utilisateur du 05/09/2026). F2 — le trait
   qui ondule entre deux rendez-vous — est supprimé. Il ne coûtait aucune tuile, c'était le même
   vocabulaire ; mais **le dessin calculé ne sert que d'aperçu**, l'artiste peint par-dessus et son
