@@ -510,6 +510,39 @@ theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 text = "La technique dit d'ou vient le fond,
 le style de quoi notre dessin est fait."
 
+[node name="Rule2" type="HSeparator" parent="Layout/Body/Sidebar/Column" unique_id=3100025]
+layout_mode = 2
+
+[node name="Shortcuts" type="MarginContainer" parent="Layout/Body/Sidebar/Column" unique_id=3100026]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="ShortcutsBox" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/Shortcuts" unique_id=3100027]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ShortcutsTitle" type="Label" parent="Layout/Body/Sidebar/Column/Shortcuts/ShortcutsBox" unique_id=3100028]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "LES RACCOURCIS"
+
+[node name="ViewHint" type="Label" parent="Layout/Body/Sidebar/Column/Shortcuts/ShortcutsBox" unique_id=658502172]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "Molette : zoom
+Clic milieu : deplacer
+Clic gauche : peindre
+Clic droit : effacer
+Ctrl+Z : annuler
+P B A G L R I E : les outils
+[ et ] : la taille"
+
 [node name="Toolbar" type="PanelContainer" parent="Layout/Body" unique_id=133062991]
 unique_name_in_owner = true
 layout_mode = 0
@@ -1016,6 +1049,12 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 6
 
+[node name="PreviewOnlyCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100024]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Le rendu final, tel qu'il sortira : plus de guide, plus de grille, plus de curseur -- et le crayon est range. L'echelle s'y cale a tous les crans, sinon la grille des faux pixels se remet d'aplomb a chaque bordure de tuile et l'on croit voir des coutures."
+text = "Apercu dans le logiciel"
+
 [node name="GridCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1040001326]
 unique_name_in_owner = true
 layout_mode = 2
@@ -1071,18 +1110,6 @@ theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.949, 0.792, 0.475, 1)
 autowrap_mode = 2
 text = "survolez une case"
-
-[node name="ViewHint" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=658502172]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Molette : zoom
-Clic milieu : deplacer
-Clic gauche : peindre
-Clic droit : effacer
-Ctrl+Z : annuler
-P B A G L R I E : les outils
-[ et ] : la taille"
 
 [node name="WorkSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3100001]
 layout_mode = 2

@@ -8,6 +8,9 @@ var _ink: int = -1
 var _work: String = ""
 var _assembled: bool = false
 var _preview: bool = false
+## L'apercu DANS LE LOGICIEL -- a ne pas confondre avec `apercu`, qui ouvre le petit
+## panneau du decor. Celui-ci prend toute la zone de travail.
+var _bare: bool = false
 var _marks: bool = true
 ## ⚠ POUR REGARDER LES COUTURES. Grille en place, ses traits les couvrent : c'est exactement
 ## pourquoi elles ne se voyaient pas avant qu'on puisse la masquer.
@@ -62,6 +65,8 @@ func _initialize() -> void:
 				_manual = true
 			"apercu":
 				_preview = true
+			"rendu":
+				_bare = true
 			"preuve":
 				_preview = true
 				_decor = 1
@@ -135,6 +140,12 @@ func _process(_delta: float) -> bool:
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.pressed = true
 			ticker.gui_input.emit(click)
+		# ⚠ APRES L'OUVERTURE DU TRAVAIL, ET C'EST L'ORDRE QUI COMPTE : l'apercu recale
+		# l'echelle, et rouvrir un travail derriere lui la reprendrait du cadrage libre.
+		if _bare:
+			var bare: CheckBox = _editor.get_node("%PreviewOnlyCheck")
+			bare.button_pressed = true
+			bare.toggled.emit(true)
 		if _preview:
 			var preview: CheckBox = _editor.get_node("%PreviewCheck")
 			preview.button_pressed = true

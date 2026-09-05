@@ -195,6 +195,28 @@ var show_grid: bool = true
 ## trou est la verite, et c'est exactement ce qu'on veut voir.
 var assembled: bool = false
 
+## L'APERCU DANS LE LOGICIEL : on regarde le rendu final, on ne peint plus.
+##
+## Il va plus loin que « Masquer le guide », qui laisse le crayon en main. Ici le crayon est
+## RANGE, et tout ce qui designe du travail disparait avec lui : la grille, les cernes, les
+## hachures, les liees du survol, et le curseur lui-meme. Il ne reste que les tuiles posees,
+## empilees comme le moteur les posera.
+##
+## ⚠ ET SURTOUT, L'ECHELLE S'Y CALE A TOUS LES CRANS. C'est la vraie raison d'etre du mode.
+## En peignant, le zoom ne se cale qu'au-dessus d'un pixel d'ecran par faux pixel -- en
+## dessous, la vue d'ensemble a besoin de sa liberte, et l'on cerne les cases plutot que de
+## les montrer. Mais une echelle libre RECOUPE la tuile : `_cell_box` arrondit chaque case a
+## des pixels entiers, donc la grille des faux pixels se remet d'aplomb A CHAQUE BORDURE.
+## L'interieur bave, la bordure reste franche, et ce contraste EST la couture qu'on voit des
+## qu'on masque la grille. Dans l'apercu on ne peut donc pas laisser l'echelle libre : elle
+## monte par multiples entiers de la resolution et descend par DIVISEURS entiers -- 1/2, 1/4,
+## 1/8. Dans les deux sens chaque faux pixel est traite exactement comme son voisin, d'un
+## bout du monde a l'autre, et aucune bordure de tuile ne peut plus se voir.
+##
+## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT. Rien de ce qui sort a l'export n'en depend, coche
+## ou non -- c'est une facon de regarder, au meme titre que la grille.
+var preview_only: bool = false
+
 ## L'inverse de `assembled` : on efface ce qui est peint et on ne garde que le guide.
 ## ⚠ LES DEUX SE COCHENT EN MEME TEMPS SANS SE CONTREDIRE : il ne reste alors rien du tout,
 ## et c'est une reponse honnete plutot qu'un cas interdit.
@@ -655,6 +677,31 @@ func _compose_massifs() -> void:
 	queue_redraw()
 
 
+## ON ENTRE ET ON SORT DE L'APERCU PAR ICI, jamais en posant le drapeau a la main.
+##
+## ⚠ TROIS CHOSES A FAIRE, ET AUCUNE N'EST FACULTATIVE. Une passe en cours se ferme -- sinon
+## le journal garde un trait ouvert que rien ne fermera jamais, et « annuler » defait deux
+## coups de crayon d'un coup. Le survol se rend -- sinon le releve de case et les voisines
+## montrent une case qu'on ne designe plus. Et l'echelle se recale -- sinon on entre dans
+## l'apercu avec l'echelle libre du cadrage, c'est-a-dire avec les coutures qu'on vient
+## precisement de venir chercher.
+func set_preview(on: bool) -> void:
+	if preview_only == on:
+		return
+	preview_only = on
+	if on:
+		if _stroke != 0:
+			_stroke = 0
+			_stroke_tile = NOWHERE
+			if _painting != null:
+				_painting.end_stroke()
+		if _hover != NOWHERE:
+			_hover = NOWHERE
+			hover_changed.emit(NOWHERE)
+		_tile_px = _crisp(_tile_px, false)
+	queue_redraw()
+
+
 ## Recadre le guide entier dans la fenetre.
 func fit() -> void:
 	var columns: int = HeightMask.width(_heights)
@@ -662,10 +709,15 @@ func fit() -> void:
 	if columns <= 0 or rows <= 0 or size.x <= 0.0:
 		return
 	var usable: float = maxf(size.x - reserved_left - reserved_right, 1.0)
-	# ⚠ LE CADRAGE NE SE CALE PAS, ET C'EST VOULU. Il vise la vue d'ensemble, ou un faux pixel
-	# mesure moins d'un pixel d'ecran : rien n'y peut etre net, et forcer une echelle entiere y
-	# ferait perdre la moitie du guide pour un gain nul. `_crisp` s'en charge des qu'on zoome.
+	# ⚠ LE CADRAGE NE SE CALE PAS EN PEIGNANT, ET C'EST VOULU. Il vise la vue d'ensemble, ou un
+	# faux pixel mesure moins d'un pixel d'ecran : rien n'y peut etre net, et forcer une echelle
+	# entiere y ferait perdre la moitie du guide pour un gain nul. `_crisp` s'en charge des
+	# qu'on zoome. ⚠ MAIS DANS L'APERCU IL SE CALE, comme tout le reste : on y descend par
+	# diviseurs entiers, et `_crisp` rend toujours une echelle plus PETITE que demandee quand on
+	# retrecit -- le guide continue donc de tenir dans le cadre.
 	_tile_px = minf(usable / float(columns), size.y / float(rows)) * 0.94
+	if preview_only:
+		_tile_px = _crisp(clampf(_tile_px, MIN_TILE_PX, MAX_TILE_PX), false)
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
 	_origin = Vector2(reserved_left + (usable - span.x) * 0.5, (size.y - span.y) * 0.5)
 	_needs_fit = false
@@ -689,12 +741,18 @@ func _draw() -> void:
 	if columns <= 0:
 		return
 	var span: Vector2 = Vector2(float(columns), float(rows)) * _tile_px
+	# ⚠ L'APERCU EST UN REMONTAGE QUI VA PLUS LOIN. `bare` porte ce que les deux ont en commun
+	# -- plus de fond de guide, et la pile sous TOUTE case posee au lieu des seules commencees.
+	# `helpers` rassemble les trois aides qui suivent deja la grille. Ce qui n'appartient qu'a
+	# l'apercu se teste sur `preview_only`, plus bas, d'un seul `return`.
+	var bare: bool = assembled or preview_only
+	var helpers: bool = show_grid and not bare
 	# LE VIDE, POSE EN PREMIER. Il ne se voit nulle part -- c'est deja la couleur du fond du
 	# programme -- mais il donne a l'efface d'en dessous une source unique : ce qu'on
 	# retire sous une tuile commencee et ce qu'on voit a cote du monde sont la meme
 	# constante, donc ils ne peuvent pas diverger.
 	draw_rect(Rect2(Vector2.ZERO, size), VOID)
-	if _background != null and not assembled:
+	if _background != null and not bare:
 		# Un TRACE se lit presque opaque ; un aplat se laisse traverser pour qu'on voie
 		# son propre travail par-dessus.
 		var tint: Color = GUIDE_TINT_WIRE if guide_ink != GuideImage.Ink.PAINTED \
@@ -714,7 +772,7 @@ func _draw() -> void:
 	# complete -- et les hachures du fond decouvert. Or la case existe pour une seule raison :
 	# quand on juge une COULEUR, toute aide a viser gene. Elles sont donc de la meme famille et
 	# suivent la meme case (releve par l'utilisateur).
-	var ring: bool = show_grid and not assembled and pixel_px < TOUCHED_FROM
+	var ring: bool = helpers and pixel_px < TOUCHED_FROM
 	# LE REMONTAGE EMPILE, comme le jeu : sous chaque robe, le sol qu'elle couvre. Sans ce
 	# fond, un pixel de robe laisse transparent -- l'arete deplacee, un coin -- montrait le
 	# fond du programme la ou le jeu montrera l'etage d'en bas : le remontage mentait par
@@ -730,7 +788,7 @@ func _draw() -> void:
 			# le socle ne se pose que sous une tuile COMMENCEE ; une tuile vierge garde
 			# sa consigne, sans quoi l'herbe pleine d'en dessous effacerait le dessin
 			# de ce qu'il reste a faire.
-			if not assembled and not _painting.is_painted(under):
+			if not bare and not _painting.is_painted(under):
 				continue
 			var box: Rect2 = _cell_box(under)
 			# ⚠ ON EFFACE LE GUIDE AVANT D'EMPILER, ET SUR TOUTE CASE POSEE. « Jamais le
@@ -763,7 +821,7 @@ func _draw() -> void:
 			# ⚠ ET SEULEMENT LA OU IL Y A QUELQUE CHOSE DERRIERE. Sur une case qui n'a
 			# qu'une pose, ce qu'on voit par la transparence est le vide : hachurer toute
 			# la plaine crierait plus fort que l'information.
-			if show_grid and not assembled \
+			if helpers \
 					and (_stack_below.has(under) or _under_roles.has(under)):
 				_draw_hatch(box)
 	for holder: Vector2i in (_textures.keys() if not hide_work else []):
@@ -785,8 +843,14 @@ func _draw() -> void:
 			if painted and _paintable.has(cell):
 				draw_rect(rect, TOUCHED_MARK, false, 1.0)
 
-	if show_grid and not assembled:
+	if helpers:
 		_draw_grid(pixel_px)
+
+	# ⚠ L'APERCU NE PORTE AUCUN REPERE, PAS MEME LE CURSEUR. Une marque designe du travail, et
+	# ici il n'y a pas de travail a designer : on regarde. Le cadre blanc pose sur une case est
+	# une couture de plus, a l'endroit exact ou l'on vient pour n'en plus voir.
+	if preview_only:
+		return
 
 	_draw_shape_preview(pixel_px)
 
@@ -795,7 +859,7 @@ func _draw() -> void:
 				LOCK_RING, false, 3.0)
 	if _hover != NOWHERE:
 		var accepted: bool = _is_paintable(_hover)
-		if accepted and not assembled:
+		if accepted and not bare:
 			_draw_linked(frame)
 		draw_rect(_cell_box(_hover),
 				HOVER_OK if accepted else HOVER_REFUSED, false, 2.0)
@@ -1027,9 +1091,13 @@ func _gui_input(event: InputEvent) -> void:
 				_panning = button.pressed
 			MOUSE_BUTTON_LEFT:
 				# Bouton gauche : on pose. Bouton droit : on efface.
-				_begin_or_end(button.pressed, 1, button.position)
+				# ⚠ ET DANS L'APERCU, NI L'UN NI L'AUTRE. La molette et le clic milieu
+				# restent : regarder demande de se deplacer et de s'approcher.
+				if not preview_only:
+					_begin_or_end(button.pressed, 1, button.position)
 			MOUSE_BUTTON_RIGHT:
-				_begin_or_end(button.pressed, -1, button.position)
+				if not preview_only:
+					_begin_or_end(button.pressed, -1, button.position)
 		accept_event()
 		return
 	if event is InputEventMouseMotion:
@@ -1037,6 +1105,8 @@ func _gui_input(event: InputEvent) -> void:
 		if _panning:
 			_origin += motion.relative
 			queue_redraw()
+			return
+		if preview_only:
 			return
 		var moved: bool = _set_hover(motion.position)
 		if _stroke != 0:
@@ -1219,13 +1289,32 @@ func _crisp(wanted: float, growing: bool) -> float:
 		return wanted
 	var side: float = float(_painting.resolution)
 	var per: float = wanted / side
-	if per < 1.0:
-		return wanted
 	# ⚠ ON BORNE LES CRANS, PAS LE PRODUIT. Borner `steps * side` entre les deux limites rendrait
 	# une valeur qui n'est plus un multiple des le premier ecretage -- 32 x 63 = 2016 devient 2000,
 	# et le zoom le plus profond, celui ou la faute se voit le mieux, redeviendrait baveux.
-	var steps: float = ceilf(per) if growing else floorf(per)
-	return clampf(steps, 1.0, floorf(MAX_TILE_PX / side)) * side
+	if per >= 1.0:
+		var steps: float = ceilf(per) if growing else floorf(per)
+		return clampf(steps, 1.0, floorf(MAX_TILE_PX / side)) * side
+	# EN PEIGNANT, ON REND LA MAIN SOUS LE PIXEL -- voir plus haut.
+	if not preview_only:
+		return wanted
+	# ⚠ DANS L'APERCU, ON DESCEND PAR DIVISEURS ENTIERS. Sous un pixel d'ecran par faux pixel,
+	# caler « vers le haut » n'a plus de sens : il n'y a plus de multiple a viser. Mais la
+	# couture, elle, est toujours la -- `_cell_box` arrondit chaque case, donc une echelle libre
+	# fait retomber la grille des faux pixels d'aplomb A CHAQUE BORDURE. Prendre exactement un
+	# faux pixel sur D la supprime pour la meme raison qu'un multiple entier la supprimait :
+	# chaque case subit le meme echantillonnage, et `_tile_px` reste un ENTIER.
+	#
+	# ⚠ ET D EST UNE PUISSANCE DE DEUX, parce que les resolutions le sont (16 a 256) : c'est la
+	# seule facon que `side / D` tombe juste. Un D de 3 rendrait 5,33 pixels par case, et
+	# l'arrondi de `_cell_box` recreerait exactement la couture qu'on chasse.
+	var rank: float = log(side / wanted) / log(2.0)
+	rank = floorf(rank) if growing else ceilf(rank)
+	# ⚠ ET C'EST L'EXPOSANT QU'ON BORNE, PAS LE DIVISEUR -- la lecon d'un cran plus bas.
+	# Ecreter D a trois rendrait 5,33 pixels par case : un non-entier, donc la couture
+	# rentrerait par la porte qu'on vient de fermer.
+	rank = clampf(rank, 0.0, floorf(log(side / MIN_TILE_PX) / log(2.0)))
+	return side / pow(2.0, rank)
 
 
 ## Trace du dernier point au point courant. Sans ce segment, un geste rapide laisserait des

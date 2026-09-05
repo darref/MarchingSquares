@@ -18,7 +18,6 @@ const BlobIndex := preload("res://core/blob_index.gd")
 const GuideImage := preload("res://render/guide_image.gd")
 const Symmetry := preload("res://core/symmetry.gd")
 const Families := preload("res://core/families.gd")
-const Satyron := preload("res://render/satyron_tiles.gd")
 const WorkIO := preload("res://core/work_io.gd")
 const TilesetPNG := preload("res://exporters/tileset_png.gd")
 const MassifTileset := preload("res://exporters/massif_tileset.gd")
@@ -135,6 +134,7 @@ func _ready() -> void:
 	ticker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	ticker.tooltip_text = "Mode d'emploi"
 	ticker.gui_input.connect(_on_ticker_input)
+	(%PreviewOnlyCheck as CheckBox).toggled.connect(_on_preview_only_toggled)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
 	(%PreviewCheck as CheckBox).toggled.connect(_on_preview_toggled)
@@ -229,6 +229,14 @@ func _fill_resolutions() -> void:
 ##   le STYLE     -- de quoi notre dessin est fait : des aplats, ou des traits.
 ## Les deux derniers sont des aides a la vue : rien de ce qui sort n en depend.
 ##
+## ⚠ ET « BANC SATYRON » A DISPARU AUSSI -- decision utilisateur : le libelle ne dit rien a
+## personne. C'etait le guide assemble avec un VRAI tileset achete, lu chez lui, pour comparer
+## notre dessin a du trait de metier ; il ne s'ouvrait que sur la machine ou ce projet est
+## installe, et restait grise partout ailleurs. Une entree grisee ne dit « ceci viendra » que
+## si l'on sait ce qu'est « ceci » -- ici l'acheteur lisait un nom propre qui ne le concerne
+## pas. Le code de rendu reste (`render/guide_render_job.gd`, `render/satyron_tiles.gd`) : il
+## sert de reference quand un doute survient sur une falaise, et se rappelle d'un outil.
+##
 ## ⚠ « UTILISABLE » A DISPARU DE CETTE LISTE, ET C'EST UN GAIN. Il n'etait rien d'autre que
 ## le representatif SANS SES MARQUES -- ni marqueurs, ni traits epaissis. Or l'epaississement
 ## est lui-meme une marque de travail : la levre grossie et le trait large n'existent pas
@@ -253,12 +261,6 @@ func _fill_styles() -> void:
 		choice.add_item("%s -- %s" % [Examples.label(id), Examples.note(id)])
 		choice.set_item_metadata(at, id)
 		choice.set_item_disabled(at, not Examples.is_available(id))
-	# ⚠ LE BANC SATYRON NE S'OUVRE QUE S'IL EST LA. On lit son tileset chez lui, on ne le copie
-	# pas : sa licence autorise l'usage et interdit la redistribution (charte, regle 5).
-	var bench: int = choice.item_count
-	choice.add_item("Banc Satyron")
-	choice.set_item_metadata(bench, "satyron")
-	choice.set_item_disabled(bench, not Satyron.is_available())
 	choice.select(0)
 
 
@@ -300,8 +302,7 @@ func _style_pick() -> Dictionary:
 	var pick: StringName = StringName(technic.get_item_metadata(technic.selected))
 	return {
 		"ink": style.get_item_metadata(style.selected),
-		"purpose": GuideImage.Purpose.EXAMPLE if pick == &"satyron"
-				else GuideImage.Purpose.REPRESENTATIVE,
+		"purpose": GuideImage.Purpose.REPRESENTATIVE,
 		"example": pick if Examples.CATALOGUE.has(pick) else &"",
 	}
 
@@ -584,6 +585,48 @@ func _on_work_hidden(pressed: bool) -> void:
 	work.hide_work = pressed
 	work.queue_redraw()
 	_announce("Travail masque : le guide seul." if pressed else "Travail revenu.")
+
+
+## L'APERCU DANS LE LOGICIEL — on regarde le rendu final, on ne peint plus.
+##
+## ⚠ ET LE CRAYON SE VOIT RANGE. Un mode qui coupe la peinture sans le montrer est un refus
+## muet : l'artiste clique, rien ne se passe, et il cherche la panne. La section « Pinceau »
+## se grise donc en entier -- outils, taille, couleurs, cases a cocher -- et les lettres
+## d'outil cessent de repondre. C'est le meme geste que le crayon qui refuse une case non
+## couverte : le refus se voit AVANT le clic.
+##
+## ⚠ ET LES DEUX CASES QU'IL SUBSUME SE GRISENT AVEC LUI. « Masquer la grille » et « Masquer
+## le guide » sont deja comprises dans l'apercu ; les laisser vives donnerait a croire qu'il
+## reste quelque chose a decocher pour voir le rendu final. Leur etat, lui, est garde : il
+## revient tel quel en sortant.
+func _on_preview_only_toggled(pressed: bool) -> void:
+	var work: Control = %WorkArea
+	work.set_preview(pressed)
+	_pencil_ready(not pressed)
+	(%GridCheck as CheckBox).disabled = pressed
+	(%AssembledCheck as CheckBox).disabled = pressed
+	(%ViewHint as Label).text = KEYS_PREVIEW if pressed else KEYS_PAINTING
+	if pressed:
+		(%HoverLabel as Label).text = "apercu : le crayon est range"
+	_announce("Apercu dans le logiciel : le rendu final, a l'echelle juste." if pressed
+			else "Retour au travail : le crayon est repris.")
+
+
+## Grise ou rend la section du pinceau. ⚠ ON PARCOURT L'ARBRE PLUTOT QUE DE NOMMER SIX
+## NOEUDS : une couleur ajoutee a la palette demain doit se griser sans qu'on y pense, et un
+## bouton oublie serait un bouton qui peint dans un mode ou rien ne peint.
+func _pencil_ready(on: bool) -> void:
+	var items: Control = (%ToolGrid as Control).get_parent()
+	items.modulate.a = 1.0 if on else 0.35
+	_set_disabled(items, not on)
+
+
+func _set_disabled(node: Node, off: bool) -> void:
+	for child: Node in node.get_children():
+		var button: BaseButton = child as BaseButton
+		if button != null:
+			button.disabled = off
+		_set_disabled(child, off)
 
 
 func _on_grid_toggled(pressed: bool) -> void:
@@ -980,6 +1023,26 @@ func _announce(text: String) -> void:
 ## perdre du travail par la main de l'utilisateur lui-meme.
 ## Une lettre par outil, et les crochets pour la taille. ⚠ SANS MODIFICATEUR : Ctrl+S et
 ## Ctrl+O sont pris au-dessus, et une lettre avec Ctrl ne doit pas changer d'outil.
+## LES DEUX LISTES DE RACCOURCIS. ⚠ ET C'EST POUR CA QU'ELLES SONT DEUX : dans l'apercu, la
+## moitie de la liste est FAUSSE -- le clic gauche ne peint pas, les lettres ne changent rien.
+## Une aide qui promet ce qui n'existe pas envoie chercher une panne. Elle dit donc ce qui
+## reste, et pourquoi le reste est parti.
+const KEYS_PAINTING: String = """Molette : zoom
+Clic milieu : deplacer
+Clic gauche : peindre
+Clic droit : effacer
+Ctrl+Z : annuler
+P B A G L R I E : les outils
+[ et ] : la taille"""
+const KEYS_PREVIEW: String = """Molette : zoom
+Clic milieu : deplacer
+
+Le crayon est range :
+dans l'apercu, rien ne peint.
+L'echelle se cale a chaque cran
+pour qu'aucune bordure ne se voie."""
+
+
 const TOOL_KEYS: Dictionary = {
 	KEY_P: 0, KEY_B: 1, KEY_A: 2, KEY_G: 3, KEY_L: 4, KEY_R: 5, KEY_I: 6, KEY_E: 7,
 }
@@ -998,6 +1061,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if key.alt_pressed or key.meta_pressed:
+		return
+	# ⚠ LES LETTRES SUIVENT LA SECTION GRISEE. Changer d'outil dans l'apercu ne casserait
+	# rien -- rien n'y peint -- mais le bouton s'allumerait sous une section grisee, et
+	# l'ecran dirait deux choses a la fois.
+	if (%PreviewOnlyCheck as CheckBox).button_pressed:
 		return
 	if TOOL_KEYS.has(key.keycode):
 		_press_meta(%ToolGrid, "tool", int(TOOL_KEYS[key.keycode]))

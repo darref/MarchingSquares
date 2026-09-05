@@ -474,7 +474,11 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 
 ### L'écran
 
-- **Deux barres : à gauche les options, à droite le travail.** À gauche **ce qu'on fabrique** et
+- **Deux barres : à gauche les options, à droite le travail.** ⚠ **Et la liste des raccourcis
+  vit à GAUCHE, tout en bas** : la barre de droite est pleine — jauges, export, huit outils,
+  palette, voisines, vue, travail, moteur — pendant que la gauche a de la place sous « Fond du
+  guide ». Une aide qu'on ne lit qu'une fois n'a pas à disputer sa place à ce qu'on utilise
+  cent fois. À gauche **ce qu'on fabrique** et
   **ce qu'on regarde** ; à droite **tout ce qui sert à peindre**. Mélangées, on cherche ;
   séparées, on trouve sans lire.
 - **La barre est posée SUR la zone de travail, et translucide au repos** — c'est ce qui donne
@@ -505,6 +509,26 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   pas au même endroit ; **on borne les crans, jamais le produit** — écrêter 32 × 63 à 2000 rendrait
   baveux le zoom le plus profond, celui où la faute se voit le mieux. Le **cadrage** garde sa
   liberté : il vise la vue d'ensemble, où rien ne peut être net de toute façon.
+- **L'APERÇU DANS LE LOGICIEL : on regarde le rendu final, on ne peint plus.** Il va plus loin
+  que « Masquer le guide », qui laisse le crayon en main : ici le crayon est **rangé**, et tout
+  ce qui désigne du travail part avec lui — grille, cernes, hachures, liées, et **le curseur
+  lui-même**, qui est une couture de plus à l'endroit exact où l'on vient pour n'en plus voir.
+  ⚠ **Et l'échelle s'y cale à TOUS les crans** : elle monte par multiples entiers de la
+  résolution et descend par **diviseurs** entiers — et **c'est l'exposant qu'on borne, pas le
+  diviseur**, sinon écrêter D à 3 rend 5,33 pixels par case et la couture rentre par la porte
+  qu'on vient de fermer. ⚠ **Et un mode qui coupe la peinture doit le MONTRER** : la section du
+  pinceau se grise en entier, les lettres d'outil se taisent, et la liste des raccourcis dit ce
+  qui reste — une aide qui promet ce qui n'existe pas envoie chercher une panne.
+- **⚠ ET LE PARTAGE DES BORDS N'ÉTAIT PAS LA CAUSE.** `core/seams.gd` — les pixels que le modèle
+  prouve identiques d'une tuile à l'autre — repose sur `Walls`, donc sur l'**ancien** modèle :
+  dans la famille des massifs `_wall_roles` est vide et `_echo_seams` rend `false` au premier
+  test. Il n'y a **plus rien à débrancher** ; ce qu'on voyait était l'échelle libre, et c'est
+  elle que l'aperçu cale.
+- **⚠ ET LE « BANC SATYRON » A QUITTÉ LA LISTE DES FONDS** (décision utilisateur du 05/09/2026) :
+  le libellé ne dit rien à personne. Une entrée grisée ne dit « ceci viendra » que si l'on sait
+  ce qu'est « ceci » ; ici l'acheteur lisait un nom propre qui ne le concerne pas. Le code de
+  rendu reste (`render/guide_render_job.gd`, `render/satyron_tiles.gd`) — il sert de référence
+  quand un doute survient sur une falaise, et se rappelle d'un outil.
 - **⚠ ET LA BOÎTE D'UNE CASE SE POSE SUR DES PIXELS ENTIERS, pas à la fraction.** Les deux bords
   se calculent par la même formule puis s'arrondissent : la frontière droite d'une case **est** la
   frontière gauche de sa voisine, par construction et à tout zoom. Sans ça l'efface du vide et la
