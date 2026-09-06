@@ -133,6 +133,7 @@ core/            logique pure, zéro dépendance UI, utilisable en headless
   gesture.gd         la règle du geste : ce qu'un relief a le droit d'être, écrit UNE fois
   signing.gd         le sceau : ce qu'on scelle, et pourquoi ce n'est pas une serrure
   found_worlds.gd    GENERE — les mondes gardés, témoins de ce qu'aucun vivier n'atteint
+  weld_witnesses.gd  GENERE — les témoins qui tiennent une fois soudés à la plaine
   domain.gd          le domaine : quels reliefs l'acheteur a le droit de bâtir
   blob_index.gd      voisinage 8 bits, canonicalisation, les 47 index
   height_mask.gd     le guide en relief : `~` le vide, `.`/`0` la plaine, `1..9` les plateaux
@@ -168,7 +169,7 @@ examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, re
   low_res.solutiles  le tileset peint à la main, 16 px, 55/55 (revu le 06/09/2026)
 guides/          guides au format texte
   massifs.txt        LE DAMIER LIVRÉ : 152x248, un îlot par tuile
-  terrain.txt        LE PAYSAGE, en chantier : 209x151, 53 tuiles sur 55 — pas encore livrable
+  terrain.txt        LE PAYSAGE LIVRÉ : 249x159, les 55 tuiles, soudées sur une plaine
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -187,6 +188,7 @@ tests/run.gd     runner headless, code de sortie non nul en cas d'échec
 tools/           outils de fabrication, jamais lus par le logiciel
   build_massifs.gd     LE GUIDE DU DAMIER : un îlot par tuile, revérifié dans le guide assemblé
   build_terrain.gd     LE GUIDE DU PAYSAGE : les mêmes témoins, SOUDÉS sur une plaine continue
+  weld_witnesses.gd    la chasse aux témoins qui SUPPORTENT la soudure — construits, pas tirés
   massif_witnesses.gd  la chasse aux témoins (`PART=i/n`, puis `--fusion`)
   preview_massifs.gd   l'image, pour la regarder (`GUIDE=` `F=` `GRILLE=`)
   brush_census.gd      ce que le geste atteint, et ce qu'il fabrique hors de la forme
@@ -237,6 +239,9 @@ $GODOT --headless --path . --script res://tools/build_massifs.gd -- res://guides
 
 # rebâtir le paysage — arguments : sortie, écart latéral, écart vertical, tirages du vivier
 $GODOT --headless --path . --script res://tools/build_terrain.gd -- res://guides/terrain.txt
+
+# et la chasse dont il dépend, quand une tuile n'a pas de témoin soudable
+$GODOT --headless --path . --script res://tools/weld_witnesses.gd
 
 # le regarder
 GUIDE=res://guides/massifs.txt F=1 GRILLE=1 $GODOT --headless --path . \
@@ -309,14 +314,26 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   209×151 et son 1,38 — et pourtant la case y est **plus petite**, parce que c'est
   `min(largeur/colonnes, hauteur/rangées)` qui décide. Mesuré : **6,2 px la case** contre **3,8**
   pour le damier, soit **+63 %**, dans un guide qui a 16 % de cases en moins.
-- **⚠ ET LE MODE NE S'OUVRE PAS ENCORE** (charte, règle 5) : le paysage porte **53 tuiles sur
-  55**. `PIED 21 au ras` et `PIED 69 au ras, cisaillé à l'ouest` n'ont aucun témoin — ni bloc
-  chassé, ni monde du vivier qui **supporte la soudure**. ⚠ Et « au ras » est justement la
-  propriété qui ne supporte pas d'être soudée : elle décrit un massif *vis-à-vis de son porteur*,
-  et combler le vide d'un monde change précisément ce qui le porte. C'est la seule chose qui
-  reste avant que le mode puisse être proposé. **Ce qui reste après, c'est l'œil** : le paysage
-  se lit encore comme des accidents éparpillés sur une pelouse, pas comme une carte — et ça, ça
-  ne se prouve pas, ça se regarde.
+- **⚠ ET LES DEUX DERNIÈRES TUILES ONT DEMANDÉ UNE AUTRE CHASSE.** `PIED 21 au ras` et `PIED 69
+  au ras, cisaillé à l'ouest` n'avaient aucun témoin qui **supporte la soudure** — et la raison
+  est dans le modèle, pas dans le hasard : « au ras » décrit un massif **vis-à-vis de son
+  porteur**, et dans un monde tiré au sort ce porteur est souvent **le bord du monde**. Combler
+  ce vide de plaine lui retire précisément ce qui le rendait au ras. ⚠ **Chercher plus longtemps
+  dans le vivier ne pouvait pas aider** : c'est la forme du monde qui était en cause, pas le
+  nombre de tirages. `tools/weld_witnesses.gd` **construit** donc au lieu de tirer — un vrai
+  plateau porteur d'étage 1, un massif d'étage 2 qui le chevauche — et l'épreuve est celle du
+  bâtisseur, pas une approximation : le monde est reposé dans le cadre exact qu'il recevra.
+- **⚠ ET LA FORME DU MASSIF SE LIT DANS LA SILHOUETTE.** Les rectangles rencontraient quatorze
+  tuiles au ras — donc la battue cherchait au bon endroit — et **aucune des deux visées**. Le L a
+  donné `PIED 69 cisaillé ouest` ; `PIED 21` vaut **N+E+S sans W**, donc une **poche fermée sur
+  trois côtés**, donc un **C**. Une famille qui demanderait une forme par tuile ne serait pas une
+  famille, ce serait une liste : les deux sortent de la même pièce.
+- **LE PAYSAGE PORTE LES 55 TUILES ET LE MODE EST OUVERT.** `guides/terrain.txt`, 249×159, légal,
+  chaque témoin à sa case, vérifié au banc. ⚠ **Même vocabulaire, même modèle, autre
+  disposition** — rien de ce qui sort à l'export n'en dépend, et un travail commencé sur l'un se
+  recharge sur l'autre, puisque le carnet range par **tuile**. **Ce qui reste, c'est l'œil** : le
+  paysage se lit encore comme des accidents éparpillés sur une pelouse, pas comme une carte — et
+  ça ne se prouve pas, ça se regarde.
 - **Le guide livré est encore une planche de spécimens, pas un paysage.** Décidé ainsi, et dans
   cet ordre : d'abord la justesse.
 
@@ -768,27 +785,37 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   plugin SoluPaint. Ce qui reste de l'ancien noyau (`Walls`, `Coverage`, `CornerIndex`, `Brink*`,
   `Thickness`) n'est plus lu par le produit : il vit comme **témoin**, avec le guide `epais.txt`,
   jusqu'au démontage. Reste donc :
-  0. **solder la première partie** — le **coin haut du cisaillement** (relevé puis différé par
-     l'utilisateur : là où le trait du cisaillement croise celui de la lèvre, une tuile reste
-     fausse ; ⚠ **à regarder sur SON trait remonté, jamais sur le dessin calculé**, qui est la
-     spécification et a toujours l'air juste) ; la **version 11.0.0**, majeure, puisque le sens de
-     la clé a changé ; `PIED 21 au ras`, qu'un monde porte mais qu'aucune fenêtre ne sait
-     découper en îlot ; et la fusion de la chasse, qui **ne relit pas l'existant**.
   1. **le cadre des rooms** — une grille de boutons en haut de la barre de gauche ; ⚠ **il ne
      coûte ni version de fichier, ni tuile, ni bit dans la clé** ;
   2. **la room de test** — poser un vrai relief au pinceau du moteur et le voir rendu avec SES
      tuiles ; ⚠ **elle pose avec `addons/solupaint/rules.gd`, jamais avec `core/massifs.gd`**,
-     sinon elle prouve que le noyau s'accorde avec lui-même. Elle ne coûte rien non plus, et elle
-     devient le **banc de recette** de tout ce qui suit ;
-  3. **l'axe** — ⚠ **une SEULE refonte du carnet** : la frame *et* le calque d'un coup
-     (`work_io` v6, manifeste v11), parce qu'une cascade demande les deux ensemble ;
-  4. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
-  5. **la couche** — les fluides, puis les **cascades**, puis les entrées de grotte : même
-     mécanisme, hors de la clé du terrain ;
-  6. **le creux** — les trous, et ⚠ **ce qu'ils coûtent est une face NORD**, matière que le
-     modèle n'a jamais dessinée ;
-  7. **plus loin** : les deux dispositions, l'Exemple High Res, le plugin Unity, la suite de la
-     signature.
+     sinon elle prouve que le noyau s'accorde avec lui-même. Elle ne coûte rien non plus, elle
+     devient le **banc de recette** de tout ce qui suit, et ⚠ **c'est elle qui débloque le
+     solde** — le coin haut se regarde sur du trait remonté, au clic ;
+  3. **solder la première partie** — le **coin haut du cisaillement** (relevé puis différé par
+     l'utilisateur : là où le trait du cisaillement croise celui de la lèvre, une tuile reste
+     fausse ; ⚠ **à regarder sur SON trait remonté, jamais sur le dessin calculé**, qui est la
+     spécification et a toujours l'air juste) ; la **version 11.0.0**, majeure, puisque le sens de
+     la clé a changé ; `PIED 21 au ras` ; la fusion de la chasse, qui **ne relit pas l'existant** ;
+     et la tuile `132095`, que le pinceau livré atteint et que la planche ne porte pas.
+     ⚠ **Il passe APRÈS les deux rooms** — décision utilisateur du 2026-09-06, qui renverse
+     l'ordre du 05/09. ⚠ **Et c'est TOUT ce qui reste du terrain** : rien de ce qui suit ne
+     l'agrandit ;
+  4. **l'axe** — ⚠ **une SEULE refonte du carnet, tranchée le 2026-09-06** : la frame *et* le
+     calque d'un coup (`work_io` v6, manifeste v11), parce que le **bassin d'eau** demande les
+     deux ensemble — c'est un calque, et ses trois zones sont animées ;
+  5. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
+  6. **le patch** — le mécanisme (placement **propre à chaque type**, vocabulaire propre), et le
+     premier d'entre eux : les **bassins d'eau**, dont la bordure est dans l'empreinte ;
+  7. **les trous** — un patch, pas un creux, et **collables au bord** ;
+  8. **les matières de surface** — ⚠ **ce que les « chemins » sont vraiment** : n'importe quel
+     art, n'importe quelle forme, largeur minimale 3 ;
+  9. **les grottes** — le premier patch de **façade**, en deux types (au pied ; en hauteur avec
+     balcon) ;
+  10. **le paysage** — la seconde disposition ;
+  11. **les cascades et les rivières** — ⚠ **les seuls patchs qui TRAVERSENT**, donc les plus
+      compliqués, et ils demandent le paysage ;
+  12. **plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce
@@ -848,45 +875,82 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   liberté dès qu'elle est disponible** : le fond n'est pas une décoration,
   c'est la spécification, et une liberté qu'on ne montre pas est une liberté que personne
   n'utilisera.
-- **LES FLUIDES** (l'eau, et n'importe quel liquide) : un masque binaire, donc **uniquement une
-  SURFACE bordée** — pas de falaise, donc pas de bande, donc pas de chute, et c'est ce qui les
-  rend beaucoup moins chers que le terrain. Ils vivent dans des **mondes réservés**, à côté de
-  ceux du terrain et de la même structure. Trois tuiles sont réservées pour l'animation (déclaré
-  par l'utilisateur) : herbe → bordure, bordure → eau, eau pleine. Deux conditions qui sont des
-  décisions — les matières sont **ordonnées** (sable sur herbe, eau sur sable), et une matière
-  **ne touche ni la lèvre ni le bord** de son étage, sinon c'est une cascade, qui est un autre
-  sujet. ⚠ **Le vocabulaire se calcule, il ne s'estime pas.** ⚠ Et le guide se compose **par
-  combinaison**, pas en un guide géant grisé : à 14,6 px la case, le guide cesse de montrer ce
-  qu'il existe pour montrer. ⚠ **En mode paysage il faudra faire autrement** : les accidents de
-  fluide devront y être **placés**, pas juxtaposés.
-- **LES CASCADES** — *demandées par l'utilisateur le 2026-09-06*. ⚠ **UNE CASCADE N'EST PAS UN
-  FLUIDE QUI DÉBORDE** : la clause « ni la lèvre ni le bord » est ce qui achète les deux bits de
-  contexte et fixe le fluide à 8 tuiles ; la lever ferait revenir *au ras* et *cisaillement* sur
-  le fluide. Une cascade se **déclare**, comme `~` et comme le trou, et c'est une **marque sur une
-  façade** — une couche posée par-dessus, dehors transparent, **hors de la clé du terrain**, comme
-  l'entrée de grotte. Elle **emprunte la bande du terrain** (chapiteau / corps / pied), donc une
-  chute de plusieurs étages est gratuite, et une cascade qui tombe dans le vide **ne pose pas son
-  pied**. Le bassin est du fluide ordinaire de l'étage du bas — déjà gratuit. ⚠ **Une cascade fixe
-  est morte** : elle dépend de l'axe des frames, et c'est la seconde raison de faire l'animation
-  avant les matières. ⚠ **Son vocabulaire se MESURE** (`tools/cascade_census.gd`), il ne s'estime
-  pas.
-- **Les escaliers et les pentes douces** : un **troisième** vocabulaire, pas une matière — et il
-  ne se déduit pas, il se **déclare**, comme `~` l'a été pour le vide.
-- **LES GROTTES ET LES TROUS**, dans le damier **et** dans le paysage. ⚠ **UN TROU N'EST PAS UN
-  MASSIF EN CREUX** : un massif est une composante connexe de ce qui est *au moins* à l'étage L,
-  un trou y ferait un **anneau** dont le bord intérieur se creuserait — exactement la faute déjà
-  payée. Un trou se **déclare** donc, comme les escaliers. Une **entrée de grotte**, elle, est une
-  tuile de façade (`CHAPITEAU`/`CORPS`/`PIED`) qui ne change pas la silhouette : c'est une
-  **marque**, et la question « dans la clé ou en couche ? » se referme le 06/09 — **en couche**,
-  pour la même raison que les fluides et les cascades, donc gratuite. ⚠ **Et le PASSAGE est hors
-  sujet** : SoluTiles livre une façade, pas un jeu. ⚠ **LE TROU, LUI, COÛTE UNE FACE NORD** — tout
-  le modèle repose sur « la falaise pend sous chaque bord SUD », et regarder dans un puits montre
-  la paroi d'en face : de la matière qu'aucune tuile ne porte. C'est ce qui en fait le chantier le
-  plus cher, et pourquoi il vient en dernier. ⚠ **Un creux n'occulte rien, on voit à travers** :
-  la réponse « en couche » des trois chantiers précédents ne se recopie donc pas ici, elle se
-  mesure (`tools/hole_census.gd`). Ce que le modèle porte déjà : une chute sans palier **ne pose
-  pas son pied** (un puits sans fond, c'est cette règle), et min trois donne le plus petit trou —
-  **3×3**, soit exactement le tampon d'effacement du pinceau.
+- **LE TERRAIN EST FINI : TOUT CE QUI SUIT EST UN PATCH** (décision utilisateur du 2026-09-06, et
+  c'est le cadre de toute la seconde partie). Le modèle ne gagne plus une tuile. Un **patch** est
+  une matière posée **SUR** la surface d'un étage : il a son **vocabulaire propre**, il ne touche
+  jamais à celui du terrain (occlusion par ordre de rendu), et la seule question qu'il pose est
+  celle du **PLACEMENT**. ⚠ **ET IL N'Y A PAS DE MARGE UNIVERSELLE** : chaque type a **sa** règle,
+  décidée avec lui — le bassin porte sa **bordure dans son empreinte**, le trou peut être **collé
+  au bord**, la matière de surface a une **largeur minimale de 3**, la grotte demande **assez de
+  roche** (un refus, pas un calcul). ⚠ **Et le carnet le disait déjà** (ARCHIVE, « LES MATIÈRES
+  BORDÉES ») : *une matière est un étage sans falaise* — les étages s'**empilent**, les matières
+  sont **côte à côte**, donc **aucune tuile de façade en plus**, et `BlobIndex.canonicalize` s'y
+  applique sans une ligne de code. ⚠ **TOUT EST PENSÉ POUR ÊTRE DESSINÉ DE N'IMPORTE QUELLE
+  MANIÈRE**, et le carnet dit comment on paie ça : **en RÉSERVANT** — *« c'est le “strictement
+  réservé” qui rend le geste possible »*. **En damier**, un patch se montre par des **témoins
+  réservés** ; **en paysage** il faut l'**incorporer**, et c'est le difficile. L'ordre décidé :
+  **bassins d'eau → trous → matières de surface → grottes → le paysage → les cascades et les
+  rivières.**
+- **LES BASSINS D'EAU** — le premier patch, et ⚠ **SA BORDURE D'UNE TUILE FAIT PARTIE DE SON
+  EMPREINTE** (décision du 06/09). C'est **la même loi que la falaise** : l'empreinte d'un massif
+  est *surface ∪ falaise* et la silhouette se lit dessus ; celle d'un bassin est *eau ∪ bordure*.
+  Deux conséquences gratuites — les **trois zones réservées** pour l'animation (herbe → bordure,
+  bordure → eau, eau pleine) **sont** les trois anneaux de cette empreinte, pas trois tuiles
+  ajoutées ; et ⚠ **« pas d'océan » cesse d'être une interdiction pour devenir une conséquence** :
+  le bassin ne touche pas le bord parce que sa bordure doit tenir dans la surface. Le reste tient :
+  **une seule matière** (la couleur appartient au peintre), **de l'eau sur la plaine** (jumelle,
+  donc gratuite), **l'eau au pied d'une falaise gratuite** — le pied se pose après la couche d'en
+  dessous. ⚠ **Et la bordure sera PERCÉE par les rivières**, seul endroit où l'anneau s'ouvre.
+- **LES TROUS** — un patch, **pas un creux dans le relief**, et ⚠ **ILS PEUVENT ÊTRE COLLÉS AU
+  BORD** (décision du 06/09). C'est leur seul coût, et il est réel : une case de terrain au bord
+  porte le trait de sa lèvre, un trou posé dessus le **remplace**, donc **le trou est le seul patch
+  dont le vocabulaire connaît le bord** — à mesurer avant de dessiner. ⚠ **L'autre voie a été
+  mesurée avant d'être fermée** (`tools/hole_probe.gd`) : un trou *creusé* ne coûterait rien non
+  plus — zéro tuile absente sur une cuvette 5×5, un trou de deux étages, un puits jusqu'au vide ;
+  une seule sur 21 reliefs troués. Le patch est retenu **pas pour le coût** mais parce que creuser
+  rouvrirait `Gesture.chasms()`, la grammaire de profondeur (`FALL = 3` impose un trou *court ou
+  franc*) et le pinceau du moteur. ⚠ **La dette qu'a laissée la mesure est du TERRAIN** : la battue
+  ne creuse jamais jusqu'à la plaine (`Gesture.walk` tire l'effacement dans `randi_range(1, …)`,
+  `_where` exige un centre d'étage ≥ 1) alors que le pinceau livré offre **0..N** *et* « Vide » —
+  la tuile `132095` manque donc à la planche. Réparation au **solde de la première partie**.
+- **LES MATIÈRES DE SURFACE** — ⚠ **ET CE NE SONT PAS DES « CHEMINS »** (correction utilisateur du
+  06/09) : elles **modifient la surface**, avec n'importe quel art, n'importe quelle forme et
+  n'importe quelle étendue, là où il y a la place. Un chemin est une matière **étroite qui
+  serpente** ; une tache, du sable, de la neige, une clairière : le même vocabulaire. **Largeur
+  minimale 3** — la tuile pleine et ses deux bords ; en dessous il n'y a plus de tuile pleine, donc
+  plus une matière mais une *direction*, et c'est un autre objet. ⚠ **Le vocabulaire prévoit
+  TOUT** : serpentements, **coudes**, **bouts**, **embranchements** — c'est une exigence de
+  complétude, donc la battue doit les atteindre tous les quatre et l'assertion doit le dire. Borne
+  haute connue : **27 index** (théorème des 256 fenêtres sous min trois). ⚠ **Les matières restent
+  ORDONNÉES** (sable sur herbe, eau sur sable), sinon un jeu de transition **par paire** ; l'ordre
+  est l'ordre de création. ⚠ **Et les MOTIFS CARRÉS attendent ici** : une matière étendue répète son
+  intérieur pur, exactement là où le carnet avait noté le motif `N × N` indexé par
+  `(x mod N, y mod N)` — ce n'est pas une variante, la position décide.
+- **Les escaliers et les pentes douces** : un **troisième** vocabulaire, pas un patch — ils
+  touchent au relief, et ça se **déclare**, comme `~` l'a été pour le vide.
+- **LES GROTTES — DEUX TYPES** (précision utilisateur du 06/09), et la fiche du 31/08 tient
+  entière : **la grotte de PIED**, au pied d'une falaise avec assez de place à droite et à gauche
+  dans la falaise ; et **la grotte EN HAUTEUR**, dans la hauteur de la falaise, avec un **petit
+  BALCON au perron**. ⚠ **LE NEUF-TRANCHES : 4 coins + 4 côtés + 1 milieu = 9 tuiles quelle que
+  soit la taille** — le plafond est la tranche du haut, le **perron** celle du bas. ⚠ **L'anneau est
+  STRICTEMENT RÉSERVÉ, et c'est ce qui autorise à peindre un plafond** : partagé avec les corps
+  ordinaires, il apparaîtrait sur toutes les parois du monde. La place se calcule (des rangées de
+  **CORPS** consécutives : une chute de trois n'en a qu'une, donc une grotte en hauteur demande
+  **deux étages** de falaise ; trois colonnes de la **même face**, jamais à cheval sur deux lèvres),
+  et ⚠ **« assez de place » est un REFUS, pas un calcul**, dit au relâchement. Dedans : **un trou
+  noir est gratuit**, un intérieur qui laisse voir est une matière. ⚠ **À trancher : le balcon
+  est-il une tranche de plus, ou le perron qui change de dessin ?** — la seconde garde le
+  neuf-tranches intact. ⚠ **Et le PASSAGE est hors sujet** : SoluTiles livre une façade, pas un jeu.
+- **LES CASCADES ET LES RIVIÈRES** — *les plus compliquées, donc à la fin* (décision du 06/09 : les
+  cascades quittent les fluides pour rejoindre les rivières). ⚠ **CE SONT LES SEULS PATCHS QUI
+  TRAVERSENT** : une cascade franchit la lèvre, descend la falaise et rejoint le bassin d'en bas ;
+  une rivière traverse le paysage au lieu de s'y poser. ⚠ **Le premier article de leur règle de
+  continuité est donné : LA RIVIÈRE PERCE LA BORDURE DU BASSIN** — l'anneau, fermé partout
+  ailleurs, s'ouvre là, et le vocabulaire du bassin gagne ses tuiles de **percée**. Déjà acquis :
+  la cascade **emprunte la bande du terrain**, donc une chute de plusieurs étages est gratuite et
+  une cascade qui tombe dans le vide ne pose pas son pied ; le bassin au pied est un patch d'eau
+  ordinaire ; ⚠ **une cascade fixe est morte**, elle demande l'axe des frames. ⚠ **Et le reste ne se
+  mesure pas tant que le paysage n'est pas là** : une rivière sans paysage n'a rien à traverser.
 - **La signature, suite.** Le sceau **existe** (`core/signing.gd`, `addons/solupaint/signature.gd`,
   manifeste v10) : il porte les pixels et **dit** la provenance, il ne bloque pas. Ce qui reste :
   poser la **clé publique définitive**, et sauvegarder la privée **ailleurs que sur la machine**.

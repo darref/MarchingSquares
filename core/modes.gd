@@ -25,6 +25,13 @@ const EPAIS: StringName = &"epais"
 ## Il ne montre a l'artiste que ce que le pinceau saura faire.
 const MASSIFS: StringName = &"massifs"
 
+## LE PAYSAGE. ⚠ MEME VOCABULAIRE, MEME MODELE, AUTRE DISPOSITION -- et c'est tout. Les 55 tuiles
+## sont les memes, leurs temoins sont les memes ; ce qui change est qu'ils sont SOUDES sur une
+## plaine continue au lieu d'etre isoles chacun dans son lisere de vide. Rien de ce qui sort a
+## l'export n'en depend, et un travail commence sur l'un se recharge sur l'autre : le carnet
+## range par TUILE, pas par case.
+const TERRAIN: StringName = &"terrain"
+
 ## L'ancien nom du mode par defaut, garde comme alias le temps que tout le monde parle
 ## epais. Il pointe le MEME mode : il n'y en a qu'un.
 const MINIMAL: StringName = EPAIS
@@ -47,6 +54,13 @@ static func _static_init() -> void:
 			# encore comme TEMOIN -- le demontage de l'ancien noyau viendra apres le portage
 			# du remontage, de l'apercu et de la planche de preuve.
 			"closed": true,
+		},
+		TERRAIN: {
+			"label": "Paysage",
+			"guide_path": "res://guides/terrain.txt",
+			"surface_tiles": _massif_count(Massifs.SURFACE, true),
+			"wall_tiles": _massif_count(Massifs.SURFACE, false),
+			"min_occurrences": 1,
 		},
 		MASSIFS: {
 			# ⚠ LE LIBELLE CHANGE, PAS L'IDENTIFIANT (decision utilisateur du 05/09/2026).

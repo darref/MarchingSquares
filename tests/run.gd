@@ -29,6 +29,7 @@ const PluginTileSet := preload("res://addons/solupaint/tileset.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 const Massifs := preload("res://core/massifs.gd")
 const Gesture := preload("res://core/gesture.gd")
+const Brush := preload("res://core/brush_vocabulary.gd")
 const MassifTileset := preload("res://exporters/massif_tileset.gd")
 const MassifTrial := preload("res://exporters/massif_trial.gd")
 const Thickness := preload("res://core/thickness.gd")
@@ -263,8 +264,13 @@ func _test_modes_catalogue() -> void:
 	for id: StringName in Modes.ids():
 		if Modes.is_available(id):
 			open_modes.append(id)
-	_check_equal(open_modes.size(), 1, "un seul paysage se choisit")
-	_check_equal(open_modes[0], Modes.MASSIFS, "et c est massifs")
+	# ⚠ DEUX PAYSAGES DESORMAIS, ET C'EST LA MEME CHOSE VUE AUTREMENT. Damier et Paysage portent
+	# le MEME vocabulaire -- memes tuiles, memes temoins -- et ne different que par la
+	# disposition : isoles dans leur lisere de vide d'un cote, soudes sur une plaine continue de
+	# l'autre. Rien de ce qui sort a l'export n'en depend.
+	_check_equal(open_modes.size(), 2, "deux paysages se choisissent")
+	_check(open_modes.has(Modes.MASSIFS) and open_modes.has(Modes.TERRAIN),
+			"le damier et le paysage")
 	_check(Modes.is_closed(Modes.EPAIS), "epais est ferme, pas retire : il reste un temoin")
 	_check(not Modes.is_available(Modes.EPAIS), "et il ne se choisit plus")
 	# ⚠ LE LIBELLE ET L'IDENTIFIANT SE VERIFIENT SEPAREMENT, ET C'EST TOUT L'INTERET. Le libelle
@@ -273,6 +279,20 @@ func _test_modes_catalogue() -> void:
 	_check_equal(Modes.label(Modes.MASSIFS), "Damier", "libelle du mode livre")
 	_check_equal(String(Modes.MASSIFS), "massifs",
 			"et son identifiant ne bouge pas : il est ecrit dans les fichiers de travail")
+
+	# ⚠ ET LE PAYSAGE DOIT PORTER LE VOCABULAIRE ENTIER, sinon il n'a rien a faire dans la liste
+	# (charte, regle 5). C'est la seule chose qui l'a tenu ferme jusqu'ici : il sortait a 53 sur
+	# 55, faute de temoin SOUDABLE pour deux tuiles au ras.
+	var scene: PackedStringArray = HeightMask.read(Modes.guide_path(Modes.TERRAIN))
+	_check(Gesture.legal(scene), "le paysage est un relief que le pinceau produit")
+	var borne: Dictionary = {}
+	for tile: Variant in Massifs.paintable(scene).values():
+		borne[int(tile)] = true
+	var absent: int = 0
+	for wanted: int in Brush.tiles():
+		if not borne.has(wanted):
+			absent += 1
+	_check_equal(absent, 0, "et il porte les %d tuiles du geste" % Brush.tiles().size())
 	_check(FileAccess.file_exists(Modes.guide_path(Modes.MASSIFS)),
 			"massifs a son guide, il se choisit")
 

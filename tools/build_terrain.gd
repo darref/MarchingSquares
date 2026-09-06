@@ -43,6 +43,7 @@ const Massifs := preload("res://core/massifs.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
 const Brush := preload("res://core/brush_vocabulary.gd")
 const Lab := preload("res://tools/relief_lab.gd")
+const Welded := preload("res://core/weld_witnesses.gd")
 
 ## L'ECART LATERAL ENTRE DEUX TEMOINS. ⚠ MESURE, PAS CHOISI : c'est min trois.
 const GAP: int = 3
@@ -79,7 +80,16 @@ func _initialize() -> void:
 	var down: int = args[2].to_int() if args.size() > 2 else VGAP
 	var draws: int = args[3].to_int() if args.size() > 3 else POOL_DRAWS
 
+	# ⚠ DEUX SOURCES DE TEMOINS, ET LA SECONDE PASSE EN PREMIER. `massif_witnesses` cherche un
+	# relief qui porte une tuile ; `weld_witnesses` en cherche un qui la porte ENCORE UNE FOIS
+	# SOUDE. Pour deux tuiles AU RAS, le premier ne rend que des reliefs dont le porteur est le
+	# BORD DU MONDE -- combler ce vide de plaine leur retire precisement ce qui les rendait au
+	# ras. Le second construit un vrai plateau porteur, donc sa reponse tient a la soudure.
 	var blocks: Dictionary = Witnesses.blocks()
+	var seats_of: Dictionary = {}
+	for tile9: Variant in Welded.blocks().keys():
+		blocks[int(tile9)] = Welded.blocks()[tile9]
+		seats_of[int(tile9)] = Welded.seats()[tile9]
 	var whole: Array[int] = Brush.tiles()
 	var pieces: Array[int] = []
 	var orphans: Array[int] = []
@@ -96,9 +106,9 @@ func _initialize() -> void:
 	# `PIED 21 au ras` n'existe dans le guide livre que par l'un d'eux. Les chercher ici est donc
 	# la meme reponse, pas une rustine -- et c'est LE VIVIER COMMUN qu'on interroge, jamais un
 	# tirage a nous : deux battues qui ne cherchent pas au meme endroit ne peuvent pas s'accorder.
-	var seats_of: Dictionary = {}
 	for tile0: int in pieces:
-		seats_of[tile0] = Witnesses.AT
+		if not seats_of.has(tile0):
+			seats_of[tile0] = Witnesses.AT
 	# ⚠ LE VIVIER SE TIRE UNE FOIS, PAS PAR ORPHELIN. Ecrit d'abord dans la boucle, il rejouait
 	# quatre cents mondes a chaque tuile cherchee et le batisseur ne rendait plus la main. C'est
 	# la carte couteuse recalculee a chaque tour, deja payee sept fois au dossier -- et elle ne
