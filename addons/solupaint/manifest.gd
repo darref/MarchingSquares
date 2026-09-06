@@ -131,15 +131,15 @@ static func parse(text: String) -> Dictionary:
 
 	var lines: PackedStringArray = text.split("\n")
 	if lines.is_empty() or not lines[0].begins_with(MAGIC + " "):
-		return _refuse(result, "Ce fichier n'est pas un manifeste SoluTiles.")
+		return _refuse(result, "This file is not a SoluTiles manifest.")
 	result["version"] = lines[0].get_slice(" ", 1).to_int()
 	if int(result["version"]) > READS_UP_TO:
-		return _refuse(result, "Manifeste en version %d ; ce plugin lit jusqu'a %d."
+		return _refuse(result, "Manifest is version %d; this plugin reads up to %d."
 				% [int(result["version"]), READS_UP_TO])
 	if int(result["version"]) < READS_FROM:
-		return _refuse(result, "Manifeste en version %d ; ce plugin lit a partir de %d. "
+		return _refuse(result, "Manifest is version %d; this plugin reads from %d on. "
 				% [int(result["version"]), READS_FROM]
-				+ "Reexportez le tileset : la regle de pose a change de sens depuis.")
+				+ "Export the tileset again: the placement rule has changed meaning since.")
 
 	var fall: int = -1
 	var counted: int = -1
@@ -179,22 +179,22 @@ static func parse(text: String) -> Dictionary:
 	# reviendrait a le croire sur parole. Et le message doit envoyer au bon geste -- reexporter
 	# -- plutot que d annoncer « -1 rangees par etage », qui n aide personne.
 	if fall < 0 or counted < 0:
-		return _refuse(result, "Ce manifeste ne declare ni sa hauteur d'etage ni son "
-				+ "vocabulaire : il vient d'une version anterieure. Reexportez-le depuis "
+		return _refuse(result, "This manifest declares neither its level height nor its "
+				+ "vocabulary: it comes from an earlier version. Export it again from "
 				+ "SoluTiles.")
 	if fall != Rules.FALL:
-		return _refuse(result, ("Ce tileset compte %d rangees par etage ; ce plugin en pose %d."
+		return _refuse(result, ("This tileset has %d rows per level; this plugin places %d."
 				% [fall, Rules.FALL]))
 	if counted != MASSIF_TILES:
-		return _refuse(result, ("Ce tileset annonce %d tuiles ; ce plugin en pose %d. "
+		return _refuse(result, ("This tileset announces %d tiles; this plugin places %d. "
 				% [counted, MASSIF_TILES])
-				+ "Le vocabulaire a change : mettez le plugin a jour.")
+				+ "The vocabulary has changed: update the plugin.")
 	if result["family"] != BY_MASSIF:
-		return _refuse(result, "Famille inconnue : '%s'." % result["family"])
+		return _refuse(result, "Unknown family: '%s'." % result["family"])
 	if result["sheet"] == "":
-		return _refuse(result, "Le manifeste ne nomme pas sa planche.")
+		return _refuse(result, "The manifest does not name its sheet.")
 	if result["slots"].is_empty():
-		return _refuse(result, "Le manifeste ne place aucune tuile.")
+		return _refuse(result, "The manifest places no tile.")
 	return result
 
 
@@ -202,7 +202,7 @@ static func read(path: String) -> Dictionary:
 	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		var failed: Dictionary = _blank()
-		return _refuse(failed, "Manifeste illisible : %s" % path)
+		return _refuse(failed, "Manifest cannot be read: %s" % path)
 	var text: String = file.get_as_text()
 	file.close()
 	var result: Dictionary = parse(text)

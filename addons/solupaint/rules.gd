@@ -74,7 +74,7 @@ const SURFACE: int = 0
 const CHAPITEAU: int = 1
 const CORPS: int = 2
 const PIED: int = 3
-const BAND_NAMES: Array[String] = ["SURFACE", "CHAPITEAU", "CORPS", "PIED"]
+const BAND_NAMES: Array[String] = ["SURFACE", "CAP", "BODY", "FOOT"]
 
 ## La hauteur d'un etage, en rangees de tuiles. ⚠ LE MANIFESTE LA REDIT, ET LE LECTEUR LA
 ## COMPARE A CELLE-CI : un tileset dont l'etage descend de quatre rangees, pose par un moteur
@@ -153,17 +153,17 @@ static func cut_of(tile: int) -> int:
 
 static func describe(tile: int) -> String:
 	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
-			"au ras" if flush_of(tile) else "libre"]
+			"flush" if flush_of(tile) else "free"]
 	var cut: int = cut_of(tile)
 	var sides: PackedStringArray = PackedStringArray()
 	if (cut & CUT_WEST) != 0:
-		sides.append("a l ouest")
+		sides.append("west")
 	if (cut & CUT_EAST) != 0:
-		sides.append("a l est")
+		sides.append("east")
 	if (cut & CUT_NORTH) != 0:
-		sides.append("au nord")
+		sides.append("north")
 	if not sides.is_empty():
-		said += ", cisaille " + " et ".join(sides)
+		said += ", sheared " + " and ".join(sides)
 	return said
 
 

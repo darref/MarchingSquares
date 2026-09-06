@@ -204,7 +204,7 @@ const SURFACE: int = 0
 const CHAPITEAU: int = 1
 const CORPS: int = 2
 const PIED: int = 3
-const BAND_NAMES: Array[String] = ["SURFACE", "CHAPITEAU", "CORPS", "PIED"]
+const BAND_NAMES: Array[String] = ["SURFACE", "CAP", "BODY", "FOOT"]
 
 ## La hauteur d'une falaise, en tuiles. ⚠ FIXE, ET C'EST TOUT LE MODELE : plus de chute
 ## quantifiee par etage, plus d'ecretage, plus de pose arriere. Un massif porte une jupe de
@@ -487,17 +487,17 @@ static func cut_of(tile: int) -> int:
 ## Le nom d'une tuile, en clair.
 static func describe(tile: int) -> String:
 	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
-			"au ras" if flush_of(tile) else "libre"]
+			"flush" if flush_of(tile) else "free"]
 	var cut: int = cut_of(tile)
 	var sides: PackedStringArray = PackedStringArray()
 	if (cut & CUT_WEST) != 0:
-		sides.append("a l ouest")
+		sides.append("west")
 	if (cut & CUT_EAST) != 0:
-		sides.append("a l est")
+		sides.append("east")
 	if (cut & CUT_NORTH) != 0:
-		sides.append("au nord")
+		sides.append("north")
 	if not sides.is_empty():
-		said += ", cisaille " + " et ".join(sides)
+		said += ", sheared " + " and ".join(sides)
 	return said
 
 
