@@ -22,6 +22,7 @@ const Gesture := preload("res://core/gesture.gd")
 const Massifs := preload("res://core/massifs.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
+const Welded := preload("res://core/weld_witnesses.gd")
 const Lab := preload("res://tools/relief_lab.gd")
 const Brush := preload("res://core/brush_vocabulary.gd")
 
@@ -72,7 +73,17 @@ func _initialize() -> void:
 	var whole: Array[int] = Brush.tiles()
 	var wits: Dictionary = MassifForm.sources(false)
 	var wits_ras: Dictionary = MassifForm.sources(true)
+	# ⚠ LES DEUX CHASSES, PAS UNE SEULE -- ET LE COMPTEUR EN DEPENDAIT. `weld_witnesses` construit
+	# ce que `massif_witnesses` ne trouve pas, et le damier l'ignorait : `PIED 21 au ras` tombait
+	# donc dans « hors de portee », alors que les mondes retenus la portaient. Deux consequences,
+	# et la seconde est la grave : le guide s'annoncait a 59 sur 59 en en portant 60, et surtout
+	# RIEN N'EXIGEAIT plus qu'un monde la porte -- un tirage suivant pouvait la perdre sans un mot.
+	# « Un compteur qui ne mesure pas ce qu'il pretend mesurer est pire que pas de compteur. »
 	var blocks: Dictionary = Witnesses.blocks()
+	var seats_of: Dictionary = {}
+	for tile8: Variant in Welded.blocks().keys():
+		blocks[int(tile8)] = Welded.blocks()[tile8]
+		seats_of[int(tile8)] = Welded.seats()[tile8]
 	var wanted: Array[int] = []
 	var out_of_reach: Array[int] = []
 	for tile: int in whole:
@@ -218,8 +229,20 @@ func _initialize() -> void:
 			centres.append(Vector2i(bx + 3 + PAD + MassifForm.CX,
 					by + 3 + PAD + MassifForm.CY))
 		else:
-			_place(grid, blocks[todo[at2]] as PackedStringArray, bx + 2, by + 2)
-			centres.append(Vector2i(bx + 2, by + 2) + Witnesses.AT)
+			var block: PackedStringArray = blocks[todo[at2]]
+			# ⚠ UN BLOC QUI DEBORDE DE SA CASE RECOUVRE SON VOISIN, ET EN SILENCE. Les blocs
+			# soudes ne sont pas taillees a la fenetre etiree : on refuse a voix haute plutot
+			# que de laisser deux temoins se manger.
+			if block[0].length() + 2 > BLOCK_W or block.size() + 2 > BLOCK_H:
+				printerr("damier : le temoin de %s fait %dx%d, la case d'ilot %dx%d."
+						% [Massifs.describe(todo[at2]), block[0].length(), block.size(),
+						BLOCK_W - 2, BLOCK_H - 2])
+				quit(1)
+				return
+			_place(grid, block, bx + 2, by + 2)
+			centres.append(Vector2i(bx + 2, by + 2)
+					+ (seats_of[todo[at2]] as Vector2i if seats_of.has(todo[at2])
+					else Witnesses.AT))
 		kinds.append(todo[at2])
 
 	# ⚠ ET LE GUIDE PASSE PAR LA REPARATION DU GESTE AVANT D'ETRE ECRIT. Chaque ilot est verifie

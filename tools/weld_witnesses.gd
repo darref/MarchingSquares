@@ -10,6 +10,13 @@ extends SceneTree
 ## vocabulaire n'ont aucun temoin de cette sorte -- `PIED 21 au ras` et `PIED 69 au ras, cisaille
 ## a l'ouest` -- et le paysage sort donc a 53 sur 55.
 ##
+## ⚠ ET AGRANDIR LA DECOUPE NE PEUT RIEN, C'EST MESURE (`tools/weld_reach.gd`). Le seul monde du
+## vivier qui porte `PIED 21 au ras` la perd A TOUTES LES TAILLES -- 11x11, 23x21, le monde
+## ENTIER -- et toujours de la meme facon : elle devient `PIED 31 libre`. La silhouette ne bouge
+## pas (au ras, `Massifs.key` ne garde que les cardinaux : 31 & CARDINALS = 21, c'est la MEME
+## tuile) ; c'est le bit `COVERS` qui tombe. Aucune fenetre, aussi large soit-elle, ne rend le
+## vide qu'on vient de combler -- la decoupe n'y etait pour rien.
+##
 ## ⚠ ET LA RAISON EST DANS LE MODELE, PAS DANS LE HASARD. Les deux sont AU RAS, et « au ras »
 ## decrit un massif VIS-A-VIS DE SON PORTEUR : une partie dedans, une partie dehors. Dans un monde
 ## du vivier, ce qui joue le porteur est souvent le BORD DU MONDE -- le massif deborde dans le
@@ -33,6 +40,7 @@ const Massifs := preload("res://core/massifs.gd")
 const Brush := preload("res://core/brush_vocabulary.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
 const Lab := preload("res://tools/relief_lab.gd")
+const Welded := preload("res://core/weld_witnesses.gd")
 
 ## Le cadre de l'epreuve -- les memes nombres que `tools/build_terrain.gd`, et pour la meme
 ## raison. ⚠ S'ILS Y CHANGENT, ILS CHANGENT ICI : un temoin juge sous d'autres marges que celles
@@ -68,43 +76,72 @@ func _initialize() -> void:
 		print("   %s" % Massifs.describe(tile0))
 
 	var found: Dictionary = {}
+	# ⚠ ON RELIT L'EXISTANT D'ABORD, ET ON LE REVALIDE. Une battue qui repart de zero jette les
+	# temoins deja trouves des qu'une source coute trop cher pour etre rejouee -- et c'est
+	# exactement la faute que `massif_witnesses._fuse()` a payee. On garde ce qui TIENT ENCORE,
+	# jamais ce qui est simplement ecrit : quand la cle change de sens, une entree d'avant ne
+	# designe plus rien, et `_survives` est le seul juge.
+	var kept: int = 0
+	var stale: int = 0
+	for tile5: Variant in Welded.blocks().keys():
+		var was: PackedStringArray = Welded.blocks()[tile5]
+		var sat: Vector2i = Welded.seats()[tile5]
+		if wanted.has(int(tile5)) and _survives(was, sat, int(tile5)):
+			found[int(tile5)] = [was, sat]
+			kept += 1
+		else:
+			stale += 1
+	print("l'existant : %d temoin(s) gardes, %d perimes" % [kept, stale])
+
 	var worlds: int = 0
 	var legal: int = 0
 	# ⚠ UNE BATTUE DOIT AVOIR VRAIMENT CHERCHE, et ca se compte. Une famille qui ne rencontre
-	# aucune tuile AU RAS ne prouve rien sur les deux qu'on cherche : son silence dirait
-	# seulement qu'elle regardait ailleurs. On publie donc ce qu'elle a vu.
+	# aucune tuile AU RAS ne prouve rien sur celles qu'on cherche : son silence dirait seulement
+	# qu'elle regardait ailleurs. On publie donc ce qu'elle a vu.
 	var seen: Dictionary = {}
-	# ⚠ ET LE VIVIER COMMUN PASSE EN PREMIER, PARCE QU IL EN FAIT PARTIE. Cette battue
-	# construisait sa PROPRE famille et ne regardait pas `Lab.ground()` : elle cherchait donc
-	# ailleurs que les deux autres, et c est exactement la faute que le dossier nomme -- « les
-	# battues partagent un seul vivier ; deux battues qui ne cherchent pas au meme endroit ne
-	# peuvent pas s accorder ». Mesure : `PIED 21 au ras` resistait a 48 formes en C construites
-	# a la main, a 3 000 mondes tires, puis a 4 x 3 000 -- et le vivier la portait depuis le
-	# debut, dans un monde qui SURVIT A LA SOUDURE.
-	var sources: Array[PackedStringArray] = Lab.ground()
-	sources.append_array(_family())
-	for world: PackedStringArray in sources:
-		worlds += 1
-		if not Gesture.legal(world):
-			continue
-		legal += 1
-		var posed: Dictionary = Massifs.paintable(world)
-		for tile3: Variant in posed.values():
-			seen[int(tile3)] = true
-		for cell: Vector2i in posed.keys():
-			var tile1: int = int(posed[cell])
-			if found.has(tile1) or not wanted.has(tile1):
+	# LES SOURCES, DE LA MOINS CHERE A LA PLUS CHERE, ET ON S'ARRETE DES QU'IL NE MANQUE RIEN.
+	# ⚠ ET CE N'EST PAS UN CONFORT : la famille en L pese pres de vingt mille reliefs, et la payer
+	# pour une tuile que quatre-vingt-seize formes construites portent deja rendait la chasse
+	# injouable -- dix minutes sans rendre la main. Une carte couteuse ne se calcule pas quand la
+	# reponse est deja la ; la lecon est au dossier, payee sept fois.
+	var sources: Array[String] = ["le C construit", "le vivier commun", "la famille en L"]
+	for which: int in range(sources.size()):
+		if found.size() >= wanted.size():
+			break
+		var batch: Array[PackedStringArray] = _c_family() if which == 0 else (
+				Lab.ground() if which == 1 else _family())
+		print("%s : %d relief(s)" % [sources[which], batch.size()])
+		for world: PackedStringArray in batch:
+			worlds += 1
+			if not Gesture.legal(world):
 				continue
-			if not _survives(world, cell, tile1):
-				continue
-			found[tile1] = [world, cell]
-			print("  TROUVE : %s -- a la case %s" % [Massifs.describe(tile1), cell])
+			legal += 1
+			var posed: Dictionary = Massifs.paintable(world)
+			for tile3: Variant in posed.values():
+				seen[int(tile3)] = true
+			for cell: Vector2i in posed.keys():
+				var tile1: int = int(posed[cell])
+				if found.has(tile1) or not wanted.has(tile1):
+					continue
+				# ⚠ ON RANGE LE BLOC, PAS LE MONDE QUI L'A PORTE. Le paysage paie chaque rangee
+				# et chaque colonne d'un temoin, et le monde d'un vivier est large de son bord de
+				# vide. On rogne donc jusqu'a la matiere, PUIS on reverifie -- « on ne coupe jamais
+				# sans reverifier, et dans le contexte ou le temoin sera pose ».
+				var trimmed: Array = _trim(world, cell)
+				if _survives(trimmed[0], trimmed[1], tile1):
+					found[tile1] = trimmed
+				elif _survives(world, cell, tile1):
+					found[tile1] = [world, cell]
+				else:
+					continue
+				print("  TROUVE : %s -- a la case %s" % [Massifs.describe(tile1),
+						(found[tile1] as Array)[1]])
 	var flush: Array[String] = []
 	for tile4: int in seen.keys():
 		if Massifs.flush_of(tile4):
 			flush.append(Massifs.describe(tile4))
 	flush.sort()
-	print("%d mondes construits, %d legaux -- la famille rencontre %d tuiles, dont %d AU RAS :"
+	print("%d reliefs parcourus, %d legaux -- ils portent %d tuiles, dont %d AU RAS :"
 			% [worlds, legal, seen.size(), flush.size()])
 	for name: String in flush:
 		print("    %s" % name)
@@ -117,6 +154,104 @@ func _initialize() -> void:
 		quit(1)
 	_write(out, found)
 	quit(0 if found.size() == wanted.size() else 1)
+
+
+## LE C OUVERT A L'OUEST, PORTE PAR UN VRAI PLATEAU -- le temoin de `PIED 21 au ras`.
+##
+## ⚠ ON LE CONSTRUIT PARCE QUE LE MODELE DIT QUOI CONSTRUIRE, pas parce que le hasard a echoue.
+## Trois exigences, et chacune fixe une piece :
+##
+##   · AU RAS SANS AUCUN VIDE. Un massif d'etage 2 dont le bord sud donne sur la plaine descend
+##     SIX rangees, quand le massif d'etage 1 qui le porte n'en descend que TROIS : son empreinte
+##     deborde de celle de son hote par construction. C'est « une partie dedans, une partie
+##     dehors » obtenue sans le bord du monde -- donc ca survit a la soudure, ce qu'aucun temoin
+##     tire au sort ne pouvait faire.
+##   · PIED. `landed = ground == 0` : la face doit atteindre LA PLAINE. Le creux ou elle tombe est
+##     donc un CANAL D'ETAGE 0 qui traverse le plateau, jamais un palier d'etage 1 -- sur un
+##     palier la face ne pose pas son pied, elle disparait derriere ce qu'elle rencontre.
+##   · SILHOUETTE 21 = N + E + S, SANS W. Du massif SOUS le pied (S) : une barre qui repasse au
+##     sud du canal. Rien a l'ouest (W) : le canal OUVRE a l'ouest -- d'ou le C. Ferme, sa paroi
+##     serait de la roche du meme massif et le bit W serait mis.
+##     ⚠ Et les diagonales ne se discutent pas : au ras, `Massifs.key` ne garde que les cardinaux,
+##     donc `PIED 31` et `PIED 21` sont la MEME tuile. C'est ce qui a fait croire une fois que le
+##     temoin changeait de silhouette alors que seul le bit `COVERS` tombait.
+func _c_family() -> Array[PackedStringArray]:
+	var made: Array[PackedStringArray] = []
+	for bar_h: int in [3, 4]:
+		for notch_w: int in [3, 4]:
+			for arm_w: int in [3, 4]:
+				for west: int in [3, 4, 5]:
+					for north: int in [3, 4]:
+						for south: int in [3, 4]:
+							made.append(_c_one(bar_h, notch_w, arm_w, west, north, south))
+	return made
+
+
+## UN PLATEAU D'ETAGE 1 traverse d'ouest en est par un canal de plaine ; un massif d'etage 2 pose
+## dessus, en C, dont le bras est enjambe le canal. La face de la barre nord tombe DANS le canal,
+## six rangees plus bas, et pose son pied sur la plaine, sans rien a l'ouest.
+func _c_one(bar_h: int, notch_w: int, arm_w: int, west: int, north: int,
+		south: int) -> PackedStringArray:
+	var chan_h: int = 2 * Massifs.FALL
+	var wide: int = west + notch_w + arm_w + 4
+	var tall: int = north + bar_h + chan_h + bar_h + south
+	var grid: Array[PackedByteArray] = []
+	for y: int in range(tall):
+		var line: PackedByteArray = PackedByteArray()
+		line.resize(wide)
+		line.fill(2)
+		grid.append(line)
+	var c_w: int = notch_w + arm_w
+	for y1: int in range(bar_h):
+		for x1: int in range(c_w):
+			_c_raise(grid, west + x1, north + y1, tall, wide)
+			_c_raise(grid, west + x1, north + bar_h + chan_h + y1, tall, wide)
+	for y2: int in range(chan_h):
+		for x2: int in range(arm_w):
+			_c_raise(grid, west + notch_w + x2, north + bar_h + y2, tall, wide)
+		for x3: int in range(west + notch_w):
+			grid[north + bar_h + y2][x3] = 1
+	return Gesture.text(grid)
+
+
+func _c_raise(grid: Array[PackedByteArray], x: int, y: int, tall: int, wide: int) -> void:
+	if y < 0 or y >= tall or x < 0 or x >= wide:
+		return
+	var line: PackedByteArray = grid[y]
+	line[x] = 3
+	grid[y] = line
+
+
+## ROGNER LE MONDE JUSQU'A SA MATIERE. ⚠ LE PAYSAGE PAIE CHAQUE RANGEE D'UN TEMOIN : un monde du
+## vivier traine son bord de vide, et le poser tel quel c'est poser vingt colonnes de plaine.
+## On rogne, et l'appelant REVERIFIE -- la decoupe ment, et c'est deja au dossier.
+func _trim(world: PackedStringArray, cell: Vector2i) -> Array:
+	var x0: int = world[0].length()
+	var y0: int = world.size()
+	var x1: int = -1
+	var y1: int = -1
+	for y: int in range(world.size()):
+		var row: String = world[y]
+		for x: int in range(row.length()):
+			var c: String = row[x]
+			if c == "~" or c == "." or c == "0":
+				continue
+			x0 = mini(x0, x)
+			y0 = mini(y0, y)
+			x1 = maxi(x1, x)
+			y1 = maxi(y1, y)
+	if x1 < 0:
+		return [world, cell]
+	# ⚠ ON GARDE LA CASE CHERCHEE DANS LE BLOC, meme si elle tombe hors de la matiere : un pied
+	# est de la falaise, et une falaise pend SOUS la surface qui la porte.
+	x0 = mini(x0, cell.x)
+	y0 = mini(y0, cell.y)
+	x1 = maxi(x1, cell.x)
+	y1 = maxi(y1, cell.y)
+	var out: PackedStringArray = PackedStringArray()
+	for y2: int in range(y0, y1 + 1):
+		out.append(world[y2].substr(x0, x1 - x0 + 1))
+	return [out, cell - Vector2i(x0, y0)]
 
 
 ## LA FAMILLE CONSTRUITE : un plateau d'etage un, et un massif d'etage deux qui le chevauche.

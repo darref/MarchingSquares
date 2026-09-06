@@ -208,8 +208,8 @@ ui/              l'éditeur
 examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, redistribuables
   low_res.solutiles  le tileset peint à la main, 16 px, 55/58 depuis le 06/09 : trois tuiles a peindre
 guides/          guides au format texte
-  massifs.txt        LE DAMIER LIVRÉ : 152x248, un îlot par tuile
-  terrain.txt        LE PAYSAGE LIVRÉ : 249x173, les 58 tuiles, soudées sur une plaine
+  massifs.txt        LE DAMIER LIVRÉ : 176x272, un îlot par tuile
+  terrain.txt        LE PAYSAGE LIVRÉ : 258x167, les 60 tuiles, soudées sur une plaine
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -354,6 +354,31 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   209×151 et son 1,38 — et pourtant la case y est **plus petite**, parce que c'est
   `min(largeur/colonnes, hauteur/rangées)` qui décide. Mesuré : **6,2 px la case** contre **3,8**
   pour le damier, soit **+63 %**, dans un guide qui a 16 % de cases en moins.
+- **⚠ ET AGRANDIR LA DÉCOUPE NE PEUT RIEN QUAND C'EST LE VIDE QUI MANQUE** (mesuré le 07/09,
+  `tools/weld_reach.gd`). Le seul monde du vivier qui portait `PIED 21 au ras` la perdait **à
+  toutes les tailles** — 11×11, 23×21, le monde **entier** — et toujours de la même façon : elle
+  devenait `PIED 31 libre`. ⚠ **Et la silhouette ne bougeait pas** : au ras, `Massifs.key` ne
+  garde que les cardinaux (`31 & CARDINALS = 21`), donc c'est la **même** tuile — seul le bit
+  `COVERS` tombait. Le massif y était au ras parce que sa jupe **débordait dans le vide du bord du
+  monde** ; souder, c'est combler ce vide de plaine, donc lui retirer précisément ce qui le rendait
+  au ras. Aucune fenêtre ne rend le vide qu'on vient de combler.
+- **✔ ET `PIED 21 AU RAS` A SON TÉMOIN : LE C SUR SON PLATEAU** (`_c_family`, 07/09). Trois
+  exigences, chacune fixant une pièce : · **au ras sans aucun vide** — un massif d'étage 2 dont le
+  bord sud donne sur la plaine descend **six** rangées quand son hôte d'étage 1 n'en descend que
+  **trois**, donc son empreinte déborde par construction ; · **pied** — `landed = ground == 0`, donc
+  le creux où la face tombe est un **canal d'étage 0** qui traverse le plateau, jamais un palier ;
+  · **sans ouest** — le canal **ouvre à l'ouest**, d'où le C : fermé, sa paroi serait la roche du
+  même massif et le bit W serait mis. **48 formes légales sur 48 la portent.**
+- **⚠ ET UNE BATTUE RELIT SON PROPRE FICHIER AVANT DE REPARTIR.** `weld_witnesses` repartait de
+  zéro : la famille en L pèse près de **vingt mille reliefs**, et la payer pour une tuile que
+  quatre-vingt-seize formes construites portent déjà rendait la chasse **injouable** — dix minutes
+  sans rendre la main. On relit, on **revalide** (`_survives`, seul juge : quand la clé change de
+  sens, une entrée d'avant ne désigne plus rien), puis on prend les sources **de la moins chère à
+  la plus chère** et **on s'arrête dès qu'il ne manque rien**. Mesuré : **10 min → 8 s**.
+- **⚠ ET LE DAMIER LIT LES DEUX CHASSES, PAS UNE.** Il ignorait `weld_witnesses` : `PIED 21 au ras`
+  tombait donc dans « hors de portée » alors que les mondes retenus la portaient. Le guide
+  s'annonçait **59 sur 59 en en portant 60** — et surtout **rien n'exigeait plus** qu'un monde la
+  porte : un tirage suivant pouvait la perdre sans un mot.
 - **⚠ ET LES DEUX DERNIÈRES TUILES ONT DEMANDÉ UNE AUTRE CHASSE.** `PIED 21 au ras` et `PIED 69
   au ras, cisaillé à l'ouest` n'avaient aucun témoin qui **supporte la soudure** — et la raison
   est dans le modèle, pas dans le hasard : « au ras » décrit un massif **vis-à-vis de son
@@ -883,9 +908,10 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   3. **solder la première partie** — le **coin haut du cisaillement** (relevé puis différé par
      l'utilisateur : là où le trait du cisaillement croise celui de la lèvre, une tuile reste
      fausse ; ⚠ **à regarder sur SON trait remonté, jamais sur le dessin calculé**, qui est la
-     spécification et a toujours l'air juste) ; la **version 11.0.0**, majeure, puisque le sens de
-     la clé a changé ; `PIED 21 au ras` ; la fusion de la chasse, qui **ne relit pas l'existant** ;
-     et la tuile `132095`, que le pinceau livré atteint et que la planche ne porte pas.
+     spécification et a toujours l'air juste) ; la **version 12.0.0**, majeure, puisque le sens de
+     la clé a changé ; et la tuile `132095`, que le pinceau livré atteint et que la planche ne
+     porte pas. ✔ `PIED 21 au ras` **est soldé** (le C sur son plateau), ✔ la fusion **relit
+     l'existant**, et ⚠ **il reste LA JUPE DU BORD DU MONDE** — voir la fiche ci-dessous.
      ⚠ **Il passe APRÈS les deux rooms** — décision utilisateur du 2026-09-06, qui renverse
      l'ordre du 05/09. ⚠ **Et c'est TOUT ce qui reste du terrain** : rien de ce qui suit ne
      l'agrandit ;
@@ -907,6 +933,30 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   12. **les cascades et les rivières** — ⚠ **les seuls patchs qui TRAVERSENT**, donc les plus
       compliqués, et ils demandent le paysage ;
   13. **plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
+- **⚠ LA JUPE DU BORD DU MONDE — LA SEULE CHOSE QUI TIENT ENCORE LA SUITE EN ROUGE** (mesuré le
+  07/09, `tools/edge_tiles.gd`). **Une décision de modèle attend l'utilisateur.** Depuis que le
+  pied ne se pose qu'au vrai fond, une face qui tombe dans le **vide** ne pose plus de pied : sa
+  dernière rangée est un **CORPS**. La falaise du bord du monde — celle de la **plaine** — tombe
+  précisément dans le vide, donc elle se termine désormais par `CORPS 7 / 193 / 199 libre` là où
+  elle posait `PIED 7 / 193 / 199 libre`, qui, eux, étaient au vocabulaire. ⚠ **Et ces trois-là ne
+  sont posées QUE par la plaine, à l'étage 0** — 635 mondes du vivier, aucun massif d'étage ≥ 1 ne
+  les porte — c'est-à-dire là où **le crayon ne va pas**. Le carnet range `Massifs.visible` (qui
+  garde l'étage 0), le vocabulaire sort de `Massifs.paintable` (qui l'efface) : le guide **livre**
+  63 tuiles et le pinceau n'en atteint que 60. **Une tuile que le carnet range et qu'aucun crayon
+  n'atteint est un trou dans la planche que rien ne peut combler**, et c'est exactement ce que les
+  neuf échecs de la suite disent. ⚠ **Et le moteur les pose aussi** : son monde n'est pas borné,
+  mais `rules.gd` sonde `level_at`, qui rend VOID hors carte — au bord de la carte de l'acheteur,
+  la plaine pose la même jupe sans pied. ⚠ **Et la voie « construire un témoin » a été mesurée puis
+  fermée** : une face qui n'atterrit pas tombe dans le vide, donc dépasse la jupe de la plaine,
+  donc **son massif est AU RAS** — seule la plaine, qui n'a pas d'hôte, peut tomber dans le vide en
+  restant `libre`. Les faces **écrêtées** ne comblent pas non plus : sur trente-six constructions,
+  celles qui sont légales **atterrissent** au lieu d'être coupées. Les trois pistes ouvertes, et
+  aucune n'est gratuite : · **ne pas livrer la jupe du bord du monde** (le moteur perdrait trois
+  tuiles au bord de la carte, signalées par `last_warning`) ; · **rendre le pied à la seule plaine**
+  (`level == 0`), un cas particulier que la charte n'aime pas mais que le modèle justifie — le vide
+  y est le **bord de la carte**, pas un gouffre ; · **mettre la plaine au ras**, ce qui replierait
+  `7/193/199` sur `5/65/69` déjà connues, mais changerait **toutes** ses tuiles, pas seulement sa
+  jupe.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce
