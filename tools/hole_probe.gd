@@ -50,39 +50,39 @@ func _initialize() -> void:
 	# ce qui manque : une tuile absente sur un seul carre serait un accident, la meme absente sur
 	# toute une famille est un defaut du recensement.
 	print("")
-	print("=== BALAYAGE : trous carres de 3 a 9, plateaux d'etage 1 a 3 ===")
+	print("=== BALAYAGE : cuvettes RECTANGULAIRES, tous fonds, etages 1 a 3 ===")
 	var short: Dictionary = {}
 	var refused: int = 0
 	var tried: int = 0
 	for top: int in range(1, 4):
-		for hole: int in range(3, 10):
-			var world: PackedStringArray = _dug(top, top - 1, 21, hole)
-			tried += 1
-			var faults: Array[String] = Gesture.faults(world)
-			if not faults.is_empty():
-				refused += 1
-				print("    REFUSE  etage %d, trou %dx%d : %s" % [top, hole, hole,
-						", ".join(faults)])
-				continue
-			for pose: Dictionary in Massifs.poses(world):
-				var tile4: int = Massifs.key_of(pose)
-				if not known.has(tile4):
-					var seen_in: Array = short.get(tile4, []) as Array
-					seen_in.append("etage %d, trou %dx%d" % [top, hole, hole])
-					short[tile4] = seen_in
+		for floor_at: int in range(-1, top):
+			for wide: int in range(3, 9):
+				for tall: int in range(3, 9):
+					var world: PackedStringArray = _dug_box(top, floor_at, 21, wide, tall)
+					tried += 1
+					if not Gesture.faults(world).is_empty():
+						refused += 1
+						continue
+					for pose: Dictionary in Massifs.poses(world):
+						var tile4: int = Massifs.key_of(pose)
+						if not known.has(tile4):
+							var seen_in: Array = short.get(tile4, []) as Array
+							seen_in.append("etage %d, fond %d, trou %dx%d"
+									% [top, floor_at, wide, tall])
+							short[tile4] = seen_in
 	print("    %d reliefs, %d refuses par le geste" % [tried, refused])
 	if short.is_empty():
-		print("    AUCUNE tuile manquante : le trou carre est gratuit sur toute la famille")
+		print("    AUCUNE tuile manquante sur toute la famille")
 	else:
 		var order: Array[int] = []
 		for tile5: Variant in short.keys():
 			order.append(int(tile5))
 		order.sort()
+		print("    %d TUILE(S) QUE LE VOCABULAIRE LIVRE NE PORTE PAS :" % order.size())
 		for tile6: int in order:
 			var cases_of: Array = short[tile6] as Array
 			print("    %d  %s" % [tile6, Massifs.describe(tile6)])
-			print("        vue dans %d relief(s), dont : %s" % [cases_of.size(),
-					String(cases_of[0])])
+			print("        %d relief(s), dont : %s" % [cases_of.size(), String(cases_of[0])])
 	quit(0)
 
 
@@ -140,3 +140,27 @@ static func _report(title: String, world: PackedStringArray, known: Dictionary,
 		print("    I8         : %d tuile(s) HORS DE LA FORME CLOSE :" % outside.size())
 		for tile3: int in outside:
 			print("        %d  %s" % [tile3, Massifs.describe(tile3)])
+
+
+
+## Un plateau creuse d'un RECTANGLE, pas seulement d'un carre : un trou plus large que haut
+## ne montre pas les memes bords qu'un trou plus haut que large.
+static func _dug_box(top: int, floor_level: int, side: int, hole_w: int,
+		hole_h: int) -> PackedStringArray:
+	var span: int = side + 2 * EDGE
+	var rows: PackedStringArray = PackedStringArray()
+	var left: int = EDGE + (side - hole_w) / 2
+	var top_at: int = EDGE + (side - hole_h) / 2
+	for y: int in range(span):
+		var line: String = ""
+		for x: int in range(span):
+			var inside: bool = x >= EDGE and y >= EDGE and x < EDGE + side and y < EDGE + side
+			if not inside:
+				line += HeightMask.VOID_CHAR
+				continue
+			var dug: bool = x >= left and y >= top_at and x < left + hole_w \
+					and y < top_at + hole_h
+			var level: int = floor_level if dug else top
+			line += HeightMask.VOID_CHAR if level < 0 else String.num_int64(level)
+		rows.append(line)
+	return rows

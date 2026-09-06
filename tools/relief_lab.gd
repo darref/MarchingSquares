@@ -222,6 +222,22 @@ static func ground(draws: int = 400) -> Array[PackedStringArray]:
 			var landed: PackedStringArray = landings(steps, high)
 			if Gesture.legal(landed):
 				out.append(landed)
+	# ⚠ ET LES CUVETTES, PARCE QUE LA BATTUE NE CREUSE JAMAIS JUSQU'A LA PLAINE. Dans
+	# `Gesture.walk`, l'effacement tire son etage dans `randi_range(1, ...)` et `_where` n'accepte
+	# pour centre qu'une case d'etage >= 1 : aucun monde du vivier n'avait donc de creux a fond de
+	# PLAINE. Or le pinceau livre, lui, offre les etages 0..N *et* « Vide »
+	# (`addons/solupaint/dock.gd`) : l'acheteur pose un 0 au coeur d'un plateau en un geste.
+	# Mesure (`tools/hole_probe.gd`, 324 cuvettes rectangulaires) : UNE tuile manquait au
+	# vocabulaire livre pour cette seule raison -- `PIED 255 libre, cisaille a l ouest` -- et
+	# cinquante-quatre reliefs la portent. Meme famille de faute que les marches, les terrasses et
+	# les sols etages : une source construite pour ce qu'aucune autre ne fabrique.
+	for top: int in [1, 2, 3]:
+		for floor_at: int in ([0] if top == 1 else [0, top - 1]):
+			for wide: int in [3, 6]:
+				for tall: int in [3, 6]:
+					var basin: PackedStringArray = basins(top, floor_at, wide, tall)
+					if Gesture.legal(basin):
+						out.append(basin)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = GROUND_SEED
 	var drawn: int = 0
@@ -254,6 +270,34 @@ static func stairs(deep: Array[int], top_level: int) -> PackedStringArray:
 		var bottom: int = 10 + deep[mini((x2 - 6) / 3, 2)]
 		for y3: int in range(6, mini(bottom + 1, GROUND_H - 4)):
 			grid[y3][x2] = top_level + 1
+	return text(grid)
+
+
+## UN PLATEAU CREUSE : une cuvette rectangulaire au coeur d'une masse.
+##
+## ⚠ C'EST LE SEUL RELIEF DU VIVIER OU DE L'HERBE BORDE UN CREUX PAR LE SUD. Ailleurs, un bord
+## sud donne sur du vide ou sur un etage plus bas atteint par une marche ; ici la surface du
+## fond REMONTE aussitot de l'autre cote, et la case d'herbe qui la borde est cisaillee par sa
+## propre falaise. C'est ce que le geste d'effacement produit chez l'acheteur, et ce que la
+## battue ne produisait pas.
+##
+## ⚠ ET LA MARGE EST CALCULEE, PAS SUPPOSEE : le trou reste a au moins trois cases du bord du
+## plateau, sinon min trois refuse la bande d'herbe qui l'entoure.
+static func basins(top: int, floor_at: int, hole_w: int, hole_h: int) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for _y: int in range(GROUND_H):
+		var row: PackedByteArray = PackedByteArray()
+		row.resize(GROUND_W)
+		row.fill(0)
+		grid.append(row)
+	for y2: int in range(4, GROUND_H - 4):
+		for x: int in range(4, GROUND_W - 4):
+			grid[y2][x] = top + 1
+	var left: int = (GROUND_W - hole_w) / 2
+	var high: int = (GROUND_H - hole_h) / 2
+	for y3: int in range(high, high + hole_h):
+		for x2: int in range(left, left + hole_w):
+			grid[y3][x2] = floor_at + 1
 	return text(grid)
 
 

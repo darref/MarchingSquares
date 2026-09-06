@@ -120,6 +120,27 @@ func _initialize() -> void:
 func _fuse() -> void:
 	var wanted: Array[int] = MassifForm.vocabulary()
 	var found: Dictionary = {}
+	# ⚠ ON RELIT L'EXISTANT D'ABORD, SINON LA FUSION PERD CE QU'ELLE N'A PAS RETROUVE. Elle
+	# repartait des SEULES parts : une part absente, une chasse plus courte, une graine moins
+	# heureuse, et un temoin trouve la veille disparaissait sans un mot. Elle a cru la derniere
+	# fois ; rien ne le garantissait.
+	#
+	# ⚠ ET L'EXISTANT PASSE PAR LE MEME CONTROLE QUE LES PARTS. « Ce qui a ete trouve reste
+	# trouve » ne vaut qu'A MODELE CONSTANT : quand la cle change de sens, un bloc d'avant ne
+	# porte plus la tuile qu'il annonce, et le garder serait inscrire un temoin faux. `_carries`
+	# tranche, et le compte des perimes est DIT -- une disparition silencieuse est precisement ce
+	# qu'on repare ici.
+	var kept: int = 0
+	var stale: int = 0
+	if FileAccess.file_exists(OUT):
+		var had: Dictionary = _read(OUT)
+		for tile0: Variant in had.keys():
+			var block0: PackedStringArray = had[tile0]
+			if _carries(block0, int(tile0)):
+				found[int(tile0)] = block0
+				kept += 1
+			else:
+				stale += 1
 	for part: int in range(16):
 		var path: String = "%s.part%d" % [OUT, part]
 		if not FileAccess.file_exists(path):
@@ -136,6 +157,8 @@ func _fuse() -> void:
 		if not found.has(tile2):
 			missing.append(Massifs.describe(tile2))
 	print("fusion : %d/%d tuiles portees" % [found.size(), wanted.size()])
+	print("  %d repris de l'existant, %d perimes (ne portent plus leur tuile), %d ajoutes"
+			% [kept, stale, found.size() - kept])
 	if not missing.is_empty():
 		print("  manquantes : %s" % " | ".join(missing))
 	_write(OUT, found)

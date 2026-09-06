@@ -4621,7 +4621,45 @@ Ce qu'elle demande :
 - ⚠ **la carte d'essai ne va PAS dans le `.solutiles` tant que le format n'est pas ouvert.** Elle
   vit dans `user://` jusqu'au chantier 4 ; l'y faire entrer ensuite est gratuit. *(à trancher)*
 
-## 3 · SOLDER LA PREMIÈRE PARTIE
+## 3 · SOLDER LA PREMIÈRE PARTIE — *entamé le 2026-09-06*
+
+✔ **LA TUILE `132095` EST ENTRÉE, ET LA CAUSE EST RÉPARÉE À LA SOURCE.** Une cinquième source
+construite au vivier — **les cuvettes** (`Lab.basins`), un plateau creusé d'un rectangle — parce que
+la battue ne creusait jamais jusqu'à la plaine. Mesure préalable (`tools/hole_probe.gd`, **324**
+cuvettes rectangulaires, 180 acceptées par le geste) : **une seule** tuile manquait, portée par
+**54** reliefs. Après : vocabulaire **55 → 56**, aucune perdue ; `guides/massifs.txt` rebâti
+(152×248 → **152×278**) et `guides/terrain.txt` avec lui ; banc **VERT** (I1 I2 I6 à zéro sur
+48 079 poses, I7 sur 60 dessins).
+
+⚠ **ET LE GARDE-FOU DU PLUGIN A FAIT SON TRAVAIL, EXACTEMENT COMME ANNONCÉ.** `MASSIF_TILES = 55`
+portait ce commentaire : *« le jour où le vocabulaire grandit — il ne peut que grandir — la suite le
+dit ici, et non chez l'acheteur »*. La suite a rendu **onze échecs**, tous du même refus : *« ce
+tileset annonce 56 tuiles ; ce plugin en pose 55 »*. C'est un contrôle croisé qui prouve sa valeur
+le jour où il sert, pas le jour où on l'écrit.
+
+✔ **LA FUSION DE LA CHASSE RELIT L'EXISTANT** (`massif_witnesses --fusion`). Elle repartait des
+seules parts : une part absente et un témoin trouvé la veille disparaissait sans un mot. ⚠ **Et
+l'existant passe par le MÊME contrôle que les parts** (`_carries`) — « ce qui a été trouvé reste
+trouvé » ne vaut qu'à modèle constant, et le compte des périmés est **dit**. Vérifié par un no-op :
+relancée sans aucune part, elle réécrit les 58 blocs **à l'identique**, là où elle les aurait effacés.
+
+⚠ **CE QUE ÇA COÛTE, ET QUI EST DIT** : `examples/low_res.solutiles` se recharge intact (55
+reposées, 0 rendue) mais il lui manque désormais **une tuile à peindre** — `PIED 255 libre,
+cisaillé à l'ouest` — donc **il n'est plus exportable**. C'est la règle du carnet appliquée, pas un
+accident : *la liste ne peut que croître*. Et le guide a **grandi de 30 rangées**, donc la case
+rétrécit à l'écran.
+
+**Reste au chantier** : `PIED 21 au ras` sans îlot propre (le guide le nomme à chaque
+construction), le **coin haut du cisaillement** (voir ci-dessous), et la **version 11.0.0**, à
+poser en dernier.
+
+⚠ **LE COIN HAUT DU CISAILLEMENT EST LOCALISÉ, ET LA COMPARAISON TRANCHE.** Instrument : un bord
+sud **en marches** (le relief qui fabrique le cisaillement), rendu deux fois au même cadrage à 40× —
+une fois en dessin calculé, une fois en `ART=`. Résultat : **au même endroit, le calculé est net et
+c'est le trait remonté qui porte un fragment orphelin**. Le défaut est donc dans l'**art**, pas dans
+le modèle — une tuile à reprendre, ou un rendez-vous que le modèle ne fixe pas à ce coin.
+⚠ **Ça ne se tranche pas sans l'œil qui l'a relevé** : c'est l'utilisateur qui a vu le défaut, sur
+son trait, et le carnet lui confie la décision.
 
 Le détail est dans la section précédente : le **coin haut du cisaillement**, la version **11.0.0**
 (majeure, le sens de la clé a changé), `PIED 21 au ras` sans îlot propre, et la fusion de la chasse

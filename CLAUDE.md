@@ -91,7 +91,7 @@ sans quoi `CORPS 255 cisaillé ouest` rendait exactement `CORPS 21 au ras`.
    ornement, c'est ce qui les sépare : F0 vaut un pixel.
 
 **Le vocabulaire livré est celui du GESTE, pas la forme close.** `core/brush_vocabulary.gd`
-(généré) porte les **55 tuiles** que le pinceau atteint.
+(généré) porte les **56 tuiles** que le pinceau atteint.
 `core/massif_form.gd` reste la **borne haute** : elle garde l'invariant I8, elle n'est plus la
 cible. ⚠ **La liste ne peut que croître — À MODÈLE CONSTANT.** C'est la précision qui manquait, et
 elle a coûté un cycle entier. Quand la **clé change de sens**, une entrée d'avant ne désigne plus
@@ -103,6 +103,14 @@ une case fine, combler un gouffre — ce qui n'est pas un tampon : le monde qui 
 sans être *reconstructible au pinceau*. Le recenseur l'appelait après chaque coup jusqu'au
 05/09/2026 : **six tuiles fantômes** en sont sorties, qu'aucun geste n'atteint. `mend` sert au
 pinceau, qui répare le geste de l'artiste. Jamais à une battue.
+
+⚠ **ET LE VIVIER A UNE CINQUIEME SOURCE DEPUIS LE 06/09 : LES CUVETTES** (`Lab.basins`), un
+plateau creuse d'un rectangle. Raison mesuree : **la battue ne creusait jamais jusqu'a la
+plaine** -- dans `Gesture.walk` l'effacement tire son etage dans `randi_range(1, ...)` et `_where`
+exige un centre d'etage >= 1 -- alors que le pinceau livre offre **0..N** *et* « Vide ». Une tuile
+y manquait, `PIED 255 libre cisaille a l'ouest`, portee par 54 reliefs sur les 324 mesures.
+⚠ **Meme famille de faute que les marches, les terrasses et les sols etages** : on construit ce
+qu'aucune autre source ne fabrique, on ne l'espere pas du hasard.
 
 ⚠ **ET LES BATTUES PARTAGENT UN SEUL VIVIER** (`Lab.ground()`). Le recenseur tirait ses mondes, le
 bâtisseur les siens : le premier écrivait au vocabulaire ce que le second ne savait pas porter, et
@@ -166,10 +174,10 @@ ui/              l'éditeur
   manual.gd          le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd      capture la fenêtre, pour se relire
 examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, redistribuables
-  low_res.solutiles  le tileset peint à la main, 16 px, 55/55 (revu le 06/09/2026)
+  low_res.solutiles  le tileset peint à la main, 16 px, 55/56 depuis le 06/09 : une tuile a peindre
 guides/          guides au format texte
   massifs.txt        LE DAMIER LIVRÉ : 152x248, un îlot par tuile
-  terrain.txt        LE PAYSAGE LIVRÉ : 249x159, les 55 tuiles, soudées sur une plaine
+  terrain.txt        LE PAYSAGE LIVRÉ : 249x159, les 56 tuiles, soudées sur une plaine
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -328,7 +336,7 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   donné `PIED 69 cisaillé ouest` ; `PIED 21` vaut **N+E+S sans W**, donc une **poche fermée sur
   trois côtés**, donc un **C**. Une famille qui demanderait une forme par tuile ne serait pas une
   famille, ce serait une liste : les deux sortent de la même pièce.
-- **LE PAYSAGE PORTE LES 55 TUILES ET LE MODE EST OUVERT.** `guides/terrain.txt`, 249×159, légal,
+- **LE PAYSAGE PORTE LES 56 TUILES ET LE MODE EST OUVERT.** `guides/terrain.txt`, 249×159, légal,
   chaque témoin à sa case, vérifié au banc. ⚠ **Même vocabulaire, même modèle, autre
   disposition** — rien de ce qui sort à l'export n'en dépend, et un travail commencé sur l'un se
   recharge sur l'autre, puisque le carnet range par **tuile**. **Ce qui reste, c'est l'œil** : le
@@ -880,7 +888,7 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   Elle coûte `work_io` **v6** (les v5 se traduisent : non animée = une frame) et manifeste **v11**
   (⚠ le lecteur doit pouvoir **refuser**, donc le nombre de frames en clair, comme `fall_rows`).
 - **L'exemple, peint à la main. LE LOW RES EST LIVRÉ** — `examples/low_res.solutiles`, 16 px,
-  **55 tuiles sur 55**, et il se reprend au fil des passes de peinture. Reste l'**Exemple High Res**,
+  **55 tuiles sur 56** depuis le 06/09 (une tuile est entrée au vocabulaire), et il se reprend au fil des passes de peinture. Reste l'**Exemple High Res**,
   dont la place est déjà tenue et grisée, et le passage en conditions réelles dans l'addon, par
   tâtonnements successifs. Le banc où chaque itération se regarde : `tools/make_trial_scene.gd`.
 - **Deux modes de disposition : paysage et damier de spécimens.** La résolution de la double

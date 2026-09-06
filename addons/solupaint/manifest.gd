@@ -60,7 +60,7 @@ const BY_MASSIF: StringName = &"massif"
 ## suite verifie qu'il dit la meme chose que `Families.massif_tiles()`. Le jour ou le
 ## vocabulaire grandit -- il ne peut que grandir -- la suite le dit ici, et non chez
 ## l'acheteur.
-const MASSIF_TILES: int = 55
+const MASSIF_TILES: int = 56
 
 ## Le suffixe qui reconnait un manifeste sans l'ouvrir.
 const SUFFIX: String = "_tileset.txt"
