@@ -86,6 +86,7 @@ func _initialize() -> void:
 		var ends: int = 0
 		var pave: int = 0
 		var holes: int = 0
+		var mute: int = 0
 		var poses: int = 0
 		var worst: String = ""
 		var species: Dictionary = {}
@@ -99,13 +100,14 @@ func _initialize() -> void:
 			ends += int(got["ends"])
 			pave += int(got["pave"])
 			holes += int(got["holes"])
+			mute += int(got["mute"])
 			if worst.is_empty() and (int(got["ends"]) > 0 or int(got["pave"]) > 0
-					or int(got["holes"]) > 0):
+					or int(got["holes"]) > 0 or int(got["mute"]) > 0):
 				worst = "%s : %s" % [entry["name"], got["where"]]
-		var ok: bool = ends == 0 and pave == 0 and holes == 0
+		var ok: bool = ends == 0 and pave == 0 and holes == 0 and mute == 0
 		green = green and ok
-		print("F%d  %s   I1 extremites %-5d I2 paves %-5d I6 trous %-5d  (%d poses)"
-				% [freedom, "VERT " if ok else "ROUGE", ends, pave, holes, poses])
+		print("F%d  %s   I1 extremites %-5d I2 paves %-5d I6 trous %-5d I10 anneau %-5d  (%d poses)"
+				% [freedom, "VERT " if ok else "ROUGE", ends, pave, holes, mute, poses])
 		if not worst.is_empty():
 			print("      premier defaut : %s" % worst)
 			# ⚠ ET ON NOMME L'ESPECE, PAS SEULEMENT LE PIXEL. Un compte dit qu'il y a une
@@ -311,7 +313,74 @@ func _measure(image: Image, world: PackedStringArray, species: Dictionary,
 				holes += 1
 				if where.is_empty():
 					where = "case percee en %d,%d" % [cx, cy]
-	return {"ends": ends, "pave": pave, "holes": holes, "where": where}
+
+	# --- I10 : L'ANNEAU ---------------------------------------------------------------
+	#
+	# LE TRAIT QUI BORDE UNE SURFACE EST UN ANNEAU DEFORME CONTINU (formulation de
+	# l'utilisateur, 06/09).
+	#
+	# ⚠ ET IL EST EPROUVE PAR SON ECHEC, PAS PAR SON SUCCES. Un invariant vert du premier coup ne
+	# prouve rien : on a donc DESACTIVE `CUT_NORTH` le temps d'un banc, et I10 a compte QUATRE
+	# anneaux coupes -- « guide : anneau coupe en 34,44 vers 0,-1 » -- pendant qu'I1, I2 et I6
+	# restaient a zero. C'est la mesure qui montre que les cinq invariants d'avant ne voyaient
+	# rien, et c'est la seule facon de savoir qu'un controle controle.
+	#
+	# ⚠ ET IL MANQUAIT, ALORS QUE LE BANC ETAIT VERT. I1 ne compte que les extremites QUI
+	# TOUCHENT DU FOND -- « une extremite noyee dans la matiere n'est pas un trou : le trait
+	# passe derriere une couche et reprend de l'autre cote » -- donc une coupure du trait AU
+	# MILIEU DE L'HERBE lui echappe. C'est exactement ce qui s'est passe au coude du
+	# cisaillement : la case rendait la tuile pleine, aucun pixel de trait, et les cinq
+	# invariants restaient verts pendant que le contour s'interrompait.
+	#
+	# ⚠ ON NE PARCOURT PAS UN CYCLE, ON VERIFIE SES SEGMENTS -- et c'est ce qui rend la mesure
+	# simple. La frontiere d'une surface est DEJA un cycle ferme par topologie : c'est le bord
+	# d'un ensemble de cases. Si chaque segment porte du trait, l'anneau est continu ; il n'y a
+	# donc rien a suivre, seulement a compter les segments MUETS.
+	#
+	# ⚠ ET LA FRONTIERE SE LIT SUR CE QUI SE VOIT, PAS SUR L'EMPREINTE. Une frontiere recouverte
+	# par un troisieme massif n'a pas a etre tracee : c'est de l'occlusion, pas un trou. On ne
+	# compte donc que les segments dont les DEUX cotes montrent des tuiles du MEME massif -- et
+	# c'est la que le coude tombe, puisque ses deux cotes sont a lui.
+	var mute: int = 0
+	for cell: Vector2i in top.keys():
+		var here: Dictionary = top[cell]
+		if int(here["band"]) != Massifs.SURFACE:
+			continue
+		for step: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var near: Dictionary = top.get(cell + step, {})
+			if near.is_empty():
+				continue
+			if int(near["massif"]) != int(here["massif"]):
+				continue
+			# Une frontiere : de l'herbe d'un cote, de la roche de l'autre, dans le meme massif.
+			if int(near["band"]) == Massifs.SURFACE:
+				continue
+			# ⚠ LE SUD EST EXCLU, ET CE N'EST PAS UNE FAVEUR. Sous une surface, la roche est sa
+			# propre falaise : le trait de la levre est porte par le CHAPITEAU, une rangee plus
+			# bas, et le demander a la surface reviendrait a le tracer deux fois -- ce qu'I2
+			# refuse.
+			if step == Vector2i.DOWN:
+				continue
+			var inked: bool = false
+			for along: int in range(RES):
+				var ax: int = cell.x * RES + (along if step.y != 0 else (
+						0 if step.x < 0 else RES - 1))
+				var ay: int = cell.y * RES + (along if step.x != 0 else (
+						0 if step.y < 0 else RES - 1))
+				var bx: int = ax + step.x
+				var by: int = ay + step.y
+				if stroke[ay][ax] == 1:
+					inked = true
+					break
+				if by >= 0 and by < height and bx >= 0 and bx < width and stroke[by][bx] == 1:
+					inked = true
+					break
+			if not inked:
+				mute += 1
+				if where.is_empty():
+					where = "anneau coupe en %d,%d vers %d,%d" % [cell.x, cell.y, step.x, step.y]
+
+	return {"ends": ends, "pave": pave, "holes": holes, "mute": mute, "where": where}
 
 
 func _say(pose: Variant) -> String:

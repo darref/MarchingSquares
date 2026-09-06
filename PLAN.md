@@ -4665,14 +4665,29 @@ au bord ouest d'un massif qui en recouvre un autre — n'est apparue ni à 300 g
 vivier, `Lab.perched_basin`, dont les rangées se comptent une par une (premier essai refusé pour
 sept fautes de marge de pied).
 
-⚠ **ET LA MESURE A DÉCOUVERT UN INVARIANT MANQUANT.** I1 ne compte que les extrémités **qui
+✔ **ET L'INVARIANT MANQUANT EST ÉCRIT — I10, L'ANNEAU.** I1 ne comptait que les extrémités **qui
 touchent du fond** — « une extrémité noyée dans la matière n'est pas un trou » — donc une coupure
-du trait **au milieu de l'herbe** lui échappe. C'est exactement le coude : le banc était vert
-pendant que le trait s'interrompait. La bonne formulation est celle de l'utilisateur : *le trait
-qui borde une surface est un anneau déformé continu*. **L'invariant reste à écrire.**
+du trait **au milieu de l'herbe** lui échappait. C'est exactement le coude : le banc était vert
+pendant que le trait s'interrompait. L'invariant reprend la formulation de l'utilisateur — *le
+trait qui borde une surface est un anneau déformé continu* — et se mesure ainsi :
 
-**Reste au chantier** : `PIED 21 au ras` sans îlot propre (le guide le nomme à chaque
-construction), et **l'invariant de l'anneau**.
+- ⚠ **on ne parcourt pas le cycle, on compte ses segments MUETS.** La frontière d'une surface est
+  déjà un cycle fermé par topologie (c'est le bord d'un ensemble de cases) : si chaque segment
+  porte du trait, l'anneau est continu. Rien à suivre, seulement à compter ;
+- ⚠ **la frontière se lit sur ce qui SE VOIT**, jamais sur l'empreinte : un segment recouvert par
+  un troisième massif est de l'occlusion, pas un trou. On ne compte que les segments dont les deux
+  côtés montrent des tuiles du **même** massif — et c'est là que le coude tombe ;
+- ⚠ **le SUD est exclu, et ce n'est pas une faveur** : sous une surface, la roche est sa propre
+  falaise, et le trait de la lèvre est porté par le **chapiteau** une rangée plus bas. Le demander
+  aussi à la surface le tracerait deux fois, ce qu'I2 refuse.
+
+⚠ **ET IL EST ÉPROUVÉ PAR SON ÉCHEC, PAS PAR SON SUCCÈS.** Un invariant vert du premier coup ne
+prouve rien : `CUT_NORTH` a donc été **désactivé le temps d'un banc**, et I10 a compté **4 anneaux
+coupés** en les nommant (« guide : anneau coupé en 34,44 vers 0,-1 ») **pendant qu'I1, I2 et I6
+restaient à zéro**. C'est la mesure qui montre que les cinq invariants d'avant ne voyaient rien.
+
+**Reste au chantier** : `PIED 21 au ras` sans îlot propre — le guide le nomme à chaque
+construction.
 
 ⚠ **LE COIN HAUT DU CISAILLEMENT EST LOCALISÉ, ET LA COMPARAISON TRANCHE.** Instrument : un bord
 sud **en marches** (le relief qui fabrique le cisaillement), rendu deux fois au même cadrage à 40× —

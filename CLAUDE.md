@@ -79,12 +79,18 @@ bit S est mis et elle ne dessine aucun bord bas. Aucun risque de pavé 2×2 pour
 n'y a pas de second trait. ⚠ **Et la lumière distingue, comme aux côtés** : un trait seul rendait
 `SURFACE 255 cisaillé nord` identique à une silhouette sans voisine au nord, et I7 le disait.
 
-⚠ **ET L'ANNEAU DE BORDURE N'EST PROUVÉ PAR RIEN — c'est ce que la mesure a découvert au
-passage.** I1 ne compte que les extrémités **qui touchent du fond** (« une extrémité noyée dans la
+✔ **ET L'ANNEAU A MAINTENANT SON INVARIANT — I10, écrit le 06/09.** I1 ne compte que les extrémités **qui touchent du fond** (« une extrémité noyée dans la
 matière n'est pas un trou »), donc une coupure du trait **au milieu de l'herbe** lui échappe :
 c'est exactement le coude, et c'est pourquoi le banc était vert pendant que le trait s'interrompait.
 La bonne formulation est celle de l'utilisateur : *le trait qui borde une surface est un anneau
-déformé continu*. Il manque l'invariant qui le dit.
+déformé continu*. ⚠ **ET ON NE PARCOURT PAS LE CYCLE, ON COMPTE SES SEGMENTS MUETS** : la frontière
+d'une surface est déjà un cycle fermé par topologie — c'est le bord d'un ensemble de cases — donc
+si chaque segment porte du trait, l'anneau est continu. ⚠ **La frontière se lit sur ce qui SE VOIT,
+pas sur l'empreinte** : un segment recouvert par un troisième massif est de l'occlusion, pas un
+trou. ⚠ **Et le SUD est exclu** — sous une surface la roche est sa propre falaise, et le trait de la
+lèvre est porté par le chapiteau ; le demander deux fois est ce qu'I2 refuse. ⚠ **ET IL EST ÉPROUVÉ
+PAR SON ÉCHEC** : `CUT_NORTH` désactivé le temps d'un banc, I10 compte **4 anneaux coupés** et les
+nomme, pendant qu'I1, I2 et I6 restent à **zéro**. Un invariant vert du premier coup ne prouve rien.
 
 **Et un seul côté trace.** La roche marque sa fin (loi de la lèvre, couchée sur le côté), l'herbe
 prend une **ombre** — deux traits dos à dos feraient le pavé 2×2 qu'I2 refuse. ⚠ Et **la lumière
@@ -154,6 +160,7 @@ BAS (mesuré : 55 tuiles, puis 50 au tour suivant).
 | **I6 VÉRITÉ** | aucun pixel de fond là où le monde a de la matière |
 | **I7 UNICITÉ** | deux tuiles ne rendent jamais la même image |
 | **I8 FORME** | toute tuile posée est dans la forme close |
+| **I10 ANNEAU** | le trait qui borde une surface ne s'interrompt jamais |
 
 ## Structure du dépôt
 
