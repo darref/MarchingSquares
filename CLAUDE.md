@@ -25,12 +25,15 @@ Ces règles arbitrent toutes les décisions techniques.
 
 ## Où vit quoi
 
-- **`PLAN.md` gouverne l'ordre du travail.** Sa **dernière section** — « LA SECONDE PARTIE DU
-  PROJET », organisée le 2026-09-05 — est la liste de ce qui reste, **et c'est un ordre, pas une
-  liste de souhaits** : chaque chantier y dit de quoi il dépend, et sépare ce qui est *décidé par
-  l'utilisateur* de ce qui reste **à trancher**. La section « LE CISAILLEMENT, ET CE QU'IL A
-  RÉVÉLÉ » qui la précède est l'état du modèle au même jour. Tout ce qui précède encore est de
-  l'**histoire** : vrai comme récit, périmé comme spécification.
+- **`PLAN.md` gouverne l'ordre du travail.** Sa **dernière section** — « LE PLAN DE LA SECONDE
+  PARTIE », arrêté le 2026-09-06 — est **l'ORDRE** : les sept chantiers demandés (fluides, trous,
+  grottes, animation, rooms, cascades, room de test) y sont ramenés à **trois mécanismes** — la
+  room, la couche, le creux — chacun disant ce qu'il coûte au format, à la clé et au vocabulaire.
+  ⚠ **Elle remplace la précédente comme ordre, PAS comme spécification** : « LA SECONDE PARTIE DU
+  PROJET » (2026-09-05) garde les **décisions utilisateur** en long — les fluides surtout — et
+  n'est pas recopiée. La section « LE CISAILLEMENT, ET CE QU'IL A RÉVÉLÉ » est l'état du modèle au
+  05/09. Tout ce qui précède encore est de l'**histoire** : vrai comme récit, périmé comme
+  spécification.
 - **`ARCHIVE.md`** est l'ancien `CLAUDE.md`, gardé entier le jour où il a été compacté
   (2026-09-03). On y va pour retrouver *pourquoi* une règle a été prise et ce qu'elle a
   coûté — jamais pour appliquer une règle telle quelle. En cas de contradiction, ce
@@ -142,6 +145,7 @@ core/            logique pure, zéro dépendance UI, utilisable en headless
                      l'ANCIEN export ; le produit ne la montre plus, le guide EST la planche
   surface_demos.gd / wall_demos.gd   GENERES — les îlots découpés dans le guide
   modes.gd           catalogue des modes (guide + règles d'exportation)
+  examples.gd        les exemples livrés : nos tilesets peints à la main, montrés en fond
   delivery.gd        quelles cases peintes deviennent des tuiles
   plugin_install.gd  copier SoluPaint dans un projet Godot
   ...                le reste (walls, coverage, corner_index, brink*, thickness, junctions,
@@ -160,8 +164,11 @@ ui/              l'éditeur
   neighbours_panel.gd  la case survolée et ses voisines
   manual.gd          le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd      capture la fenêtre, pour se relire
+examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, redistribuables
+  low_res.solutiles  le tileset peint à la main, 16 px, 55/55 (revu le 06/09/2026)
 guides/          guides au format texte
-  massifs.txt        LE GUIDE LIVRÉ : 152x248, un îlot par tuile
+  massifs.txt        LE DAMIER LIVRÉ : 152x248, un îlot par tuile
+  terrain.txt        LE PAYSAGE, en chantier : 209x151, 53 tuiles sur 55 — pas encore livrable
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -178,11 +185,13 @@ addons/solupaint/    LE PLUGIN MOTEUR — ce qui part chez l'acheteur
   tileset.gd, world.gd, dock.gd, plugin.gd, README.md
 tests/run.gd     runner headless, code de sortie non nul en cas d'échec
 tools/           outils de fabrication, jamais lus par le logiciel
-  build_massifs.gd     LE GUIDE : un îlot par tuile, calculé, revérifié dans le guide assemblé
+  build_massifs.gd     LE GUIDE DU DAMIER : un îlot par tuile, revérifié dans le guide assemblé
+  build_terrain.gd     LE GUIDE DU PAYSAGE : les mêmes témoins, SOUDÉS sur une plaine continue
   massif_witnesses.gd  la chasse aux témoins (`PART=i/n`, puis `--fusion`)
   preview_massifs.gd   l'image, pour la regarder (`GUIDE=` `F=` `GRILLE=`)
   brush_census.gd      ce que le geste atteint, et ce qu'il fabrique hors de la forme
-  reload_work.gd       relire un vrai fichier de session sans le réécrire
+  reload_work.gd       relire un vrai fichier de session sans le réécrire — le paysage se lit
+                       dans l'en-tête, et le compte est celui du bouton « Exporter »
   shear.gd             le cisaillement : plancher, plafond, et ce qu'il coûterait
   find_worlds.gd       les mondes qui portent ce que le vivier n'atteint pas (jalonné)
   make_key.gd          la paire de clés de signature — la privée reste HORS du dépôt
@@ -223,8 +232,11 @@ $GODOT --headless --path . --script res://tests/run.gd
 # le banc du modèle
 $GODOT --headless --path . --script res://proof/massif_ladder.gd -- 25
 
-# rebâtir le guide (il s'auto-vérifie)
+# rebâtir le damier (il s'auto-vérifie)
 $GODOT --headless --path . --script res://tools/build_massifs.gd -- res://guides/massifs.txt
+
+# rebâtir le paysage — arguments : sortie, écart latéral, écart vertical, tirages du vivier
+$GODOT --headless --path . --script res://tools/build_terrain.gd -- res://guides/terrain.txt
 
 # le regarder
 GUIDE=res://guides/massifs.txt F=1 GRILLE=1 $GODOT --headless --path . \
@@ -277,6 +289,34 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   guide qui se **couche** (plus large que haut) épouse le cadre de travail et gagne 30 % sur le
   côté de la case. L'acheteur doit voir, d'un coup d'œil et en temps réel, un grand nombre de
   tuiles se remplir sous son crayon — pour comprendre le peu qu'il aura à dessiner.
+- **LE MODE PAYSAGE EST COMMENCÉ, ET IL N'Y AVAIT RIEN À CHERCHER.** Le damier a déjà résolu la
+  question dure : chaque tuile du geste a son **témoin** — un relief calculé qui la porte à une
+  case connue, 53 blocs chassés dans `core/massif_witnesses.gd`. Un paysage n'est donc pas un
+  problème de couverture à résoudre, c'est le **même jeu de pièces posé autrement** : collées sur
+  une plaine continue au lieu d'être isolées chacune dans son liseré de vide.
+- **⚠ ET LES TROIS ÉCARTS SE MESURENT, ILS NE SE DÉDUISENT PAS.** Chacun a coûté un essai :
+  · **latéral 3** — à deux, le relief devient illégal alors que les témoins sont intacts : c'est
+  **min trois**, lu au compteur.
+  · **vertical 12** — une falaise descend *sous* son bloc, et le PIED réclame trois rangées de
+  surface porteuse visible. Sans rab, **19 témoins sur 53** rendent un relief illégal ; à douze,
+  aucun.
+  · **le bord du monde est un voisin comme un autre** — collé contre le liseré de vide, un témoin
+  changeait de tuile (`CHAPITEAU 241 libre` devenait `CHAPITEAU 81 au ras`). ⚠ Il a fallu poser
+  **le bloc SEUL dans la carte entière** pour le voir : ni le voisinage, ni la réparation, ni la
+  distance à la plaine n'y étaient pour rien.
+- **⚠ ET ON VISE LA TAILLE DE LA CASE, PAS LE RAPPORT DU GUIDE.** Ce sont deux grandeurs
+  différentes et s'y tromper coûte : 245×151 affiche un rapport de 1,62, plus proche du cadre que
+  209×151 et son 1,38 — et pourtant la case y est **plus petite**, parce que c'est
+  `min(largeur/colonnes, hauteur/rangées)` qui décide. Mesuré : **6,2 px la case** contre **3,8**
+  pour le damier, soit **+63 %**, dans un guide qui a 16 % de cases en moins.
+- **⚠ ET LE MODE NE S'OUVRE PAS ENCORE** (charte, règle 5) : le paysage porte **53 tuiles sur
+  55**. `PIED 21 au ras` et `PIED 69 au ras, cisaillé à l'ouest` n'ont aucun témoin — ni bloc
+  chassé, ni monde du vivier qui **supporte la soudure**. ⚠ Et « au ras » est justement la
+  propriété qui ne supporte pas d'être soudée : elle décrit un massif *vis-à-vis de son porteur*,
+  et combler le vide d'un monde change précisément ce qui le porte. C'est la seule chose qui
+  reste avant que le mode puisse être proposé. **Ce qui reste après, c'est l'œil** : le paysage
+  se lit encore comme des accidents éparpillés sur une pelouse, pas comme une carte — et ça, ça
+  ne se prouve pas, ça se regarde.
 - **Le guide livré est encore une planche de spécimens, pas un paysage.** Décidé ainsi, et dans
   cet ordre : d'abord la justesse.
 
@@ -334,6 +374,15 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   conséquences, et la seconde vaut la première : elle **ne peut pas mentir** sur ce que le guide
   contient, et elle est **entièrement à nous** — donc redistribuable, ce qu'un guide fait
   d'assets tiers ne serait jamais.
+- **⚠ ET C'EST POUR ÇA QU'UN EXEMPLE N'EST PAS UN STYLE, MAIS UNE PREUVE.** Le dessin calculé est
+  la **spécification** : il a donc toujours l'air juste. Un exemple est du **vrai trait remonté en
+  paysage**, et c'est la seule vue où l'on voit ce que l'outil rend vraiment — le cisaillement du
+  massif 21 a été relevé comme ça, et par aucun autre moyen. ⚠ **Il se relit contre le guide DU
+  JOUR** (`core/examples.gd` passe par `WorkIO.read`, comme l'ouverture d'un travail) : un exemple
+  peint hier retombe sur ses pieds aujourd'hui, et ce qui ne retombe pas est **dit**, jamais jeté.
+  ⚠ **Le remplacer, c'est copier le `.solutiles` puis le relire** — `tools/reload_work.gd` dit en
+  une ligne combien de tuiles retombent, combien sont rendues, et si le compte est exportable ;
+  un exemple incomplet montrerait des trous en fond de guide sans qu'aucun test ne s'en plaigne.
 - **Le rendu va du bas vers le haut**, chaque couche recouvrant la précédente : les coins
   arrondis laissent voir ce qui est dessous sans qu'on ait rien à calculer.
 - **Chaque tuile est dessinée trois fois trop grand puis réduite**, et tamponnée. ⚠ Le
@@ -701,8 +750,9 @@ Quand la monter, et je le proposerai le moment venu :
   éprouvé sur une vraie carte. À lire quand un doute survient sur le comportement d'une falaise :
   `WORLD/cliffs.gd`, `WORLD/tiles/cliff_kit.gd`, `DEV_TOOLS/make_cliff_kits.py`, et la section
   « Les colonnes » de son `CLAUDE.md`. ⚠ **On lit, on ne copie pas** : le pack est acheté, sa
-  licence autorise l'usage et interdit la redistribution — sur une machine où le projet n'est pas
-  là, la technique `example` reste **fermée** dans la liste (règle 5).
+  licence autorise l'usage et interdit la redistribution — et c'est pour ça qu'il a quitté la
+  liste des fonds le 05/09/2026. Les exemples livrés sont **les nôtres**, donc ils s'ouvrent
+  partout ; le code de rendu Satyron reste, comme référence quand un doute survient.
 - **`ARCHIVE.md`** — le dossier long des modèles antérieurs, et le détail de tout ce qui est
   résumé ici.
 
@@ -724,10 +774,20 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
      spécification et a toujours l'air juste) ; la **version 11.0.0**, majeure, puisque le sens de
      la clé a changé ; `PIED 21 au ras`, qu'un monde porte mais qu'aucune fenêtre ne sait
      découper en îlot ; et la fusion de la chasse, qui **ne relit pas l'existant**.
-  1. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
-  2. **les fluides** — décidés et spécifiés ;
-  3. **les grottes et les trous** — décidés et spécifiés ;
-  4. **plus loin** : les deux dispositions, l'Exemple High Res, le plugin Unity, la suite de la
+  1. **le cadre des rooms** — une grille de boutons en haut de la barre de gauche ; ⚠ **il ne
+     coûte ni version de fichier, ni tuile, ni bit dans la clé** ;
+  2. **la room de test** — poser un vrai relief au pinceau du moteur et le voir rendu avec SES
+     tuiles ; ⚠ **elle pose avec `addons/solupaint/rules.gd`, jamais avec `core/massifs.gd`**,
+     sinon elle prouve que le noyau s'accorde avec lui-même. Elle ne coûte rien non plus, et elle
+     devient le **banc de recette** de tout ce qui suit ;
+  3. **l'axe** — ⚠ **une SEULE refonte du carnet** : la frame *et* le calque d'un coup
+     (`work_io` v6, manifeste v11), parce qu'une cascade demande les deux ensemble ;
+  4. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
+  5. **la couche** — les fluides, puis les **cascades**, puis les entrées de grotte : même
+     mécanisme, hors de la clé du terrain ;
+  6. **le creux** — les trous, et ⚠ **ce qu'ils coûtent est une face NORD**, matière que le
+     modèle n'a jamais dessinée ;
+  7. **plus loin** : les deux dispositions, l'Exemple High Res, le plugin Unity, la suite de la
      signature.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
@@ -735,6 +795,17 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   qu'une tuile a le droit de savoir* — et il se paie en contours ouverts. ⚠ **Les chutes de
   plusieurs étages sont non négociables** (décision utilisateur) : toute clause qui les
   limiterait est écartée d'office.
+- **LA ROOM DE TEST** — *demandée par l'utilisateur le 2026-09-06*. On pose un vrai relief au
+  **pinceau du moteur** (le tampon 3×3 de `core/gesture.gd`) et on le voit rendu avec **ses
+  propres tuiles**. ⚠ **ELLE POSE AVEC `addons/solupaint/rules.gd`, JAMAIS AVEC
+  `core/massifs.gd`** : branchée sur le noyau, elle prouverait que le noyau s'accorde avec
+  lui-même ; branchée sur la copie qui part chez l'acheteur, elle est un **contrôle croisé
+  vivant**, sur le trait de l'artiste, avant livraison. ⚠ **Ce n'est PAS l'aperçu supprimé le
+  05/09** — celui-là reposait tout seul les mêmes tuiles sur une colline fixe, et disait ce que le
+  guide dit déjà ; ici l'artiste pose le relief, et il voit ses tuiles **voisines**, dans des
+  combinaisons que le damier juxtapose sans les composer. ⚠ **Le cisaillement du massif 21 a été
+  relevé exactement comme ça.** Elle ne coûte ni version, ni tuile, ni bit : elle vient donc tôt,
+  et elle devient le banc de recette des fluides, des cascades, des grottes et des trous.
 - **L'ANIMATION PAR FRAME.** Des **rooms** en haut de la barre de gauche (Dessin, Animation), un
   nombre de frames **global au guide** mais utilisé par les seules tuiles *déclenchées*, et un
   outil « Frame List » sous « Voisines ». ⚠ **Elle rouvre la décision la plus structurante du
@@ -743,8 +814,9 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   frames sont N instants du **même** dessin, et la règle des jumelles doit continuer de tenir.
   Elle coûte `work_io` **v6** (les v5 se traduisent : non animée = une frame) et manifeste **v11**
   (⚠ le lecteur doit pouvoir **refuser**, donc le nombre de frames en clair, comme `fall_rows`).
-- **L'exemple, peint à la main.** L'utilisateur peint lui-même un tileset, qui deviendra le choix
-  « Example » et devra passer en conditions réelles dans le soft **et** dans l'addon, par
+- **L'exemple, peint à la main. LE LOW RES EST LIVRÉ** — `examples/low_res.solutiles`, 16 px,
+  **55 tuiles sur 55**, et il se reprend au fil des passes de peinture. Reste l'**Exemple High Res**,
+  dont la place est déjà tenue et grisée, et le passage en conditions réelles dans l'addon, par
   tâtonnements successifs. Le banc où chaque itération se regarde : `tools/make_trial_scene.gd`.
 - **Deux modes de disposition : paysage et damier de spécimens.** La résolution de la double
   injonction — *demander à un seul dessin d'être à la fois beau et exhaustif*. C'est l'axe du
@@ -769,9 +841,11 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   trait remplace le nôtre. Soigner un aperçu que personne ne livre est du travail pour rien.
   **F0 reste** : ce n'est pas un style, c'est le plancher — la profondeur d'un pixel — et le banc
   doit prouver que les invariants y tiennent aussi.
-- **L'arbre des fonds de guide** : `Technique = computed | example`, `computed = wireframe |
-  painted`. ⚠ **Plus de `straight | ondulated`** — F2 est retiré, voir la ligne ci-dessus. ⚠ **Et
-  tout doit montrer la liberté dès qu'elle est disponible** : le fond n'est pas une décoration,
+- **L'arbre des fonds de guide** : « Contour de base » — notre dessin calculé, une seule encre
+  depuis la suppression de la rubrique « Style » — puis **un exemple par résolution**, listés par
+  `core/examples.gd`. ⚠ **Plus de `wireframe`, plus de `straight | ondulated`** : les deux
+  appartenaient à l'ancien modèle, voir les lignes ci-dessus. ⚠ **Et tout doit montrer la
+  liberté dès qu'elle est disponible** : le fond n'est pas une décoration,
   c'est la spécification, et une liberté qu'on ne montre pas est une liberté que personne
   n'utilisera.
 - **LES FLUIDES** (l'eau, et n'importe quel liquide) : un masque binaire, donc **uniquement une
@@ -785,6 +859,17 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   combinaison**, pas en un guide géant grisé : à 14,6 px la case, le guide cesse de montrer ce
   qu'il existe pour montrer. ⚠ **En mode paysage il faudra faire autrement** : les accidents de
   fluide devront y être **placés**, pas juxtaposés.
+- **LES CASCADES** — *demandées par l'utilisateur le 2026-09-06*. ⚠ **UNE CASCADE N'EST PAS UN
+  FLUIDE QUI DÉBORDE** : la clause « ni la lèvre ni le bord » est ce qui achète les deux bits de
+  contexte et fixe le fluide à 8 tuiles ; la lever ferait revenir *au ras* et *cisaillement* sur
+  le fluide. Une cascade se **déclare**, comme `~` et comme le trou, et c'est une **marque sur une
+  façade** — une couche posée par-dessus, dehors transparent, **hors de la clé du terrain**, comme
+  l'entrée de grotte. Elle **emprunte la bande du terrain** (chapiteau / corps / pied), donc une
+  chute de plusieurs étages est gratuite, et une cascade qui tombe dans le vide **ne pose pas son
+  pied**. Le bassin est du fluide ordinaire de l'étage du bas — déjà gratuit. ⚠ **Une cascade fixe
+  est morte** : elle dépend de l'axe des frames, et c'est la seconde raison de faire l'animation
+  avant les matières. ⚠ **Son vocabulaire se MESURE** (`tools/cascade_census.gd`), il ne s'estime
+  pas.
 - **Les escaliers et les pentes douces** : un **troisième** vocabulaire, pas une matière — et il
   ne se déduit pas, il se **déclare**, comme `~` l'a été pour le vide.
 - **LES GROTTES ET LES TROUS**, dans le damier **et** dans le paysage. ⚠ **UN TROU N'EST PAS UN
@@ -792,8 +877,16 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   un trou y ferait un **anneau** dont le bord intérieur se creuserait — exactement la faute déjà
   payée. Un trou se **déclare** donc, comme les escaliers. Une **entrée de grotte**, elle, est une
   tuile de façade (`CHAPITEAU`/`CORPS`/`PIED`) qui ne change pas la silhouette : c'est une
-  **marque**. Reste à décider si elle entre dans la clé (coûteux) ou si elle est une **couche**
-  posée par-dessus (gratuit).
+  **marque**, et la question « dans la clé ou en couche ? » se referme le 06/09 — **en couche**,
+  pour la même raison que les fluides et les cascades, donc gratuite. ⚠ **Et le PASSAGE est hors
+  sujet** : SoluTiles livre une façade, pas un jeu. ⚠ **LE TROU, LUI, COÛTE UNE FACE NORD** — tout
+  le modèle repose sur « la falaise pend sous chaque bord SUD », et regarder dans un puits montre
+  la paroi d'en face : de la matière qu'aucune tuile ne porte. C'est ce qui en fait le chantier le
+  plus cher, et pourquoi il vient en dernier. ⚠ **Un creux n'occulte rien, on voit à travers** :
+  la réponse « en couche » des trois chantiers précédents ne se recopie donc pas ici, elle se
+  mesure (`tools/hole_census.gd`). Ce que le modèle porte déjà : une chute sans palier **ne pose
+  pas son pied** (un puits sans fond, c'est cette règle), et min trois donne le plus petit trou —
+  **3×3**, soit exactement le tampon d'effacement du pinceau.
 - **La signature, suite.** Le sceau **existe** (`core/signing.gd`, `addons/solupaint/signature.gd`,
   manifeste v10) : il porte les pixels et **dit** la provenance, il ne bloque pas. Ce qui reste :
   poser la **clé publique définitive**, et sauvegarder la privée **ailleurs que sur la machine**.
