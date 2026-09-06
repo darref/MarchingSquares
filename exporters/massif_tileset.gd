@@ -34,7 +34,11 @@ const MAGIC: String = "solutiles-tileset"
 ## d'herbe qui a la falaise de son PROPRE massif au-dessus d'elle -- le coude -- ne rend plus la
 ## tuile d'interieur : elle a la sienne, et elle trace son bord. Un lecteur v10 poserait
 ## l'interieur a ces endroits, donc un trait qui s'arrete net, SANS UNE SEULE ERREUR.
-const VERSION: int = 11
+## ⚠ VERSION 12 : LE PIED NE SE POSE PLUS QUE SUR UN VRAI FOND. Une face qui rencontre le toit
+## d un autre massif ne se termine pas la -- elle disparait derriere lui -- donc elle reste du
+## CORPS. Un lecteur v11 poserait un pied a ces endroits, c est-a-dire le trait du bas d une
+## falaise au milieu d une paroi qui continue, SANS UNE SEULE ERREUR.
+const VERSION: int = 12
 
 const COLUMNS: int = 8
 const SUFFIX_SHEET: String = "_massifs.png"

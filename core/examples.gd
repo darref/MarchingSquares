@@ -24,14 +24,14 @@ const HIGH: StringName = &"high_res"
 
 const CATALOGUE: Dictionary = {
 	LOW: {
-		"label": "Exemple Low Res",
+		"label": "Low Res example",
 		"path": "res://examples/low_res.solutiles",
-		"note": "16 px par tuile",
+		"note": "16 px per tile",
 	},
 	HIGH: {
-		"label": "Exemple High Res",
+		"label": "High Res example",
 		"path": "res://examples/high_res.solutiles",
-		"note": "a venir",
+		"note": "coming",
 	},
 }
 

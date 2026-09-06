@@ -278,9 +278,25 @@ func _test_modes_catalogue() -> void:
 	# ⚠ LE LIBELLE ET L'IDENTIFIANT SE VERIFIENT SEPAREMENT, ET C'EST TOUT L'INTERET. Le libelle
 	# est ce que l'artiste LIT, il peut changer ; l'identifiant est ecrit dans l'en-tete de chaque
 	# `.solutiles`, il ne peut PAS changer sans rendre illisible tout travail deja enregistre.
-	_check_equal(Modes.label(Modes.MASSIFS), "Damier", "libelle du mode livre")
+	_check_equal(Modes.label(Modes.MASSIFS), "Specimens", "libelle du mode livre")
 	_check_equal(String(Modes.MASSIFS), "massifs",
 			"et son identifiant ne bouge pas : il est ecrit dans les fichiers de travail")
+
+	# ⚠ ET LA LONGUEUR DU LIBELLE SE MESURE ICI AUSSI, PAS SEULEMENT POUR LES ROOMS. La borne
+	# existait pour `Rooms.LABEL_MAX` et pas pour les modes -- si bien que « Specimen board »,
+	# quatorze caracteres, est passe et s est affiche TRONQUE en « Specimen boar » dans la liste
+	# deroulante. Releve a la capture par la session anglaise, par aucun banc.
+	# ⚠ UN COMPTEUR QUI NE COUVRE QU UNE FAMILLE NE MESURE PAS CE QU IL PRETEND MESURER : la loi
+	# du dossier est « un libelle qui s allonge impose sa largeur a toute la barre », et elle ne
+	# parle pas que des rooms.
+	var too_long: PackedStringArray = PackedStringArray()
+	for id: StringName in Modes.ids():
+		var text: String = Modes.label(id)
+		if text.length() > Rooms.LABEL_MAX:
+			too_long.append("%s (%d)" % [text, text.length()])
+	_check_equal(too_long.size(), 0,
+			"aucun libelle de mode ne depasse %d caracteres : il serait tronque a l ecran"
+				% Rooms.LABEL_MAX)
 
 	# ⚠ ET LE PAYSAGE DOIT PORTER LE VOCABULAIRE ENTIER, sinon il n'a rien a faire dans la liste
 	# (charte, regle 5). C'est la seule chose qui l'a tenu ferme jusqu'ici : il sortait a 53 sur

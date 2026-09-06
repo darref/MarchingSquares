@@ -100,7 +100,7 @@ func _reload() -> void:
 	# export honnete ; s'il en manque une ici, c'est que le fichier a ete retouche a la main, et
 	# poser les autres laisserait un trou qu'on decouvrirait dans le jeu.
 	if not Manifest.is_complete(_manifest):
-		last_error = "Ce manifeste place %d tuiles ; il en faut %d." % [
+		last_error = "This manifest places %d tiles; %d are needed." % [
 				_manifest["slots"].size(), Manifest.MASSIF_TILES]
 		push_warning("SoluPaint: %s" % last_error)
 		_clear_layers()
@@ -169,10 +169,10 @@ func rebuild() -> void:
 		layer2.set_cell(at, _source, slots[tile])
 	var said: PackedStringArray = PackedStringArray()
 	if unknown > 0:
-		said.append("%d case(s) demandent une tuile que la planche n'a pas." % unknown)
+		said.append("%d cell(s) ask for a tile the sheet does not have." % unknown)
 	if covered > 0:
-		said.append(("%d pose(s) en recouvrent une autre : ce relief a des bandes de moins "
-				+ "de trois cases.") % covered)
+		said.append(("%d placement(s) cover another: this relief has bands thinner "
+				+ "than three cells.") % covered)
 	last_warning = " ".join(said)
 
 

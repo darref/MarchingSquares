@@ -44,7 +44,7 @@ static func _static_init() -> void:
 	# que CANONICAL_INDICES : une liste ecrite a la main est un endroit ou mentir.
 	MODES = {
 		EPAIS: {
-			"label": "Epais",
+			"label": "Thick",
 			"guide_path": "res://guides/epais.txt",
 			"surface_tiles": Thickness.SURFACE_INDICES.size(),
 			"wall_tiles": Thickness.wall_roles().size(),
@@ -56,7 +56,7 @@ static func _static_init() -> void:
 			"closed": true,
 		},
 		TERRAIN: {
-			"label": "Paysage",
+			"label": "Landscape",
 			"guide_path": "res://guides/terrain.txt",
 			"surface_tiles": _massif_count(Massifs.SURFACE, true),
 			"wall_tiles": _massif_count(Massifs.SURFACE, false),
@@ -68,7 +68,7 @@ static func _static_init() -> void:
 			# guide : le renommer rendrait illisible tout travail deja enregistre. Ce qu'on
 			# nomme ici est ce que l'artiste LIT -- et ce qu'il voit est bien un damier de
 			# specimens, un ilot par tuile, pas encore un paysage.
-			"label": "Damier",
+			"label": "Specimens",
 			"guide_path": "res://guides/massifs.txt",
 			"surface_tiles": _massif_count(Massifs.SURFACE, true),
 			"wall_tiles": _massif_count(Massifs.SURFACE, false),

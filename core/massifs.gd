@@ -266,7 +266,20 @@ static func footprint(world: PackedStringArray, cells: Array, level: int,
 				break
 			fall = k
 			if k % FALL == 0 and ground == bottom:
-				landed = true
+				# UN PIED SEULEMENT AU VRAI FOND, PAS LA OU LA FACE EST CACHEE (decision utilisateur
+				# du 06/09) : « le massif de derriere se fait cacher par celui de devant, donc ses
+				# tuiles de falaise qui arrivent juste avant d etre cachees n ont pas besoin d etre un
+				# pied ». Une face qui rencontre le TOIT D UN AUTRE MASSIF ne se termine pas la : elle
+				# disparait derriere lui. Le PIED est la preuve d un FOND atteint, et un fond est la
+				# PLAINE, et rien d autre -- 386 poses sur 12 658 levres portaient un pied qui ne prouvait
+				# rien. ⚠ ET LE VIDE N EST PAS UN FOND NON PLUS : « on ne touche pas le fond d un
+				# gouffre ». Ecrit `ground <= 0`, le banc a rendu DEUX extremites ouvertes -- un
+				# pied pose sur du vide trace le bas d une falaise qui ne s arrete nulle part.
+				#
+				# ⚠ ET SON DESSIN CESSE DE SERVIR A DEUX CHOSES. Une meme tuile devait convenir au bas
+				# REEL d une falaise ET a une simple rencontre ; c est l artiste qui payait la
+				# difference, en cherchant un trait qui aille aux deux.
+				landed = ground == 0
 				break
 		for step: int in range(1, fall + 1):
 			var below: Vector2i = at + Vector2i(0, step)

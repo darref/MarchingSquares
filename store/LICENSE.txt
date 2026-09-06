@@ -1,0 +1,96 @@
+SoluTiles — Licence
+===================
+
+Version du 2026-09-06. Ce fichier accompagne le logiciel dans son archive.
+
+⚠ CE TEXTE N'EST PAS UN AVIS JURIDIQUE. Il est écrit en langage clair pour être compris
+sans avocat, et il dit ce que nous avons l'intention d'accorder. Avant la première vente,
+le faire relire par quelqu'un dont c'est le métier — surtout la clause de garantie, dont
+la validité dépend du pays de l'acheteur.
+
+
+CE QUE VOUS ACHETEZ
+-------------------
+
+Une licence d'utilisation de SoluTiles, personnelle ou pour votre entreprise. Vous pouvez
+l'installer sur les machines dont vous vous servez pour travailler. Il n'y a pas de compte,
+pas d'activation, pas de connexion réseau : le logiciel fonctionne hors ligne.
+
+
+CE QUE VOUS PRODUISEZ EST À VOUS — SANS RÉSERVE
+-----------------------------------------------
+
+Les tilesets que vous peignez avec SoluTiles vous appartiennent entièrement.
+
+  · usage commercial inclus, sans limite de chiffre d'affaires ;
+  · aucune redevance, aucun pourcentage, jamais ;
+  · aucune mention obligatoire — citer SoluTiles fait plaisir, ne se réclame pas ;
+  · vous pouvez livrer les planches exportées à l'intérieur de vos jeux et projets ;
+  · vous pouvez livrer le greffon SoluPaint à l'intérieur de vos projets, y compris
+    pour un projet commercial ou distribué à une équipe.
+
+⚠ Cette clause est le cœur du produit : SoluTiles ne fabrique aucun pixel à votre place.
+Tout ce qui sort a été peint par vous, donc tout ce qui sort est à vous.
+
+
+CE QUE VOUS NE POUVEZ PAS FAIRE
+-------------------------------
+
+  · revendre, relouer ou redistribuer SoluTiles lui-même ;
+  · le publier sur une place de marché ou un dépôt public ;
+  · en retirer le sceau de provenance pour présenter un tileset comme signé par un autre.
+
+Le greffon SoluPaint fait exception à la première ligne, et c'est voulu : il part en
+GDScript lisible, il est fait pour vivre dans votre projet, vous pouvez le livrer avec.
+
+
+LE TILESET D'ESSAI
+------------------
+
+L'archive contient un tileset d'essai, fait du dessin calculé du guide lui-même. Il est
+là pour éprouver la chaîne entière sans avoir peint. Il vous est fourni sous les mêmes
+conditions que vos propres tilesets — vous pouvez le livrer dans un projet — mais il n'est
+pas de l'art : c'est un dessin de spécification, et il se voit.
+
+
+ACCÈS ANTICIPÉ
+--------------
+
+SoluTiles est vendu en accès anticipé. À ce jour il construit le TERRAIN : surfaces,
+falaises, chutes de plusieurs étages, massifs qui se chevauchent — un vocabulaire prouvé
+complet, avec le greffon Godot qui le pose.
+
+Ce qui n'y est pas encore : l'eau, les trous, les grottes, les matières de surface, les
+pentes. Ces chantiers sont en cours. AUCUNE DATE N'EST PROMISE, et c'est délibéré : nous
+préférons ne rien annoncer plutôt que de tenir mal.
+
+Les mises à jour sont incluses, sans supplément, aussi longtemps que le produit vit.
+Le prix de l'accès anticipé ne baissera pas ; il montera.
+
+
+REMBOURSEMENT
+-------------
+
+Quatorze jours, sans avoir à se justifier. Écrivez-nous, c'est tout. Un outil qui ne
+convient pas à votre façon de travailler n'a pas à être défendu.
+
+
+GARANTIE
+--------
+
+Le logiciel est fourni tel quel. Nous le vérifions par un banc d'essai à chaque
+modification — la couverture du vocabulaire est prouvée par programme, pas promise — mais
+aucun logiciel n'est sans défaut, et nous ne pouvons pas garantir qu'il conviendra à un
+usage particulier ni qu'il fonctionnera sans interruption.
+
+Notre responsabilité, si elle devait être engagée, ne dépasse pas le prix que vous avez
+payé.
+
+⚠ Selon votre pays, la loi peut vous accorder des droits que cette clause ne peut pas
+réduire. Dans ce cas, la loi l'emporte.
+
+
+CONTACT
+-------
+
+    [à remplir avant publication]

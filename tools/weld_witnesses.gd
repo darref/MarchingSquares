@@ -32,6 +32,7 @@ const Gesture := preload("res://core/gesture.gd")
 const Massifs := preload("res://core/massifs.gd")
 const Brush := preload("res://core/brush_vocabulary.gd")
 const Witnesses := preload("res://core/massif_witnesses.gd")
+const Lab := preload("res://tools/relief_lab.gd")
 
 ## Le cadre de l'epreuve -- les memes nombres que `tools/build_terrain.gd`, et pour la meme
 ## raison. ⚠ S'ILS Y CHANGENT, ILS CHANGENT ICI : un temoin juge sous d'autres marges que celles
@@ -73,7 +74,16 @@ func _initialize() -> void:
 	# aucune tuile AU RAS ne prouve rien sur les deux qu'on cherche : son silence dirait
 	# seulement qu'elle regardait ailleurs. On publie donc ce qu'elle a vu.
 	var seen: Dictionary = {}
-	for world: PackedStringArray in _family():
+	# ⚠ ET LE VIVIER COMMUN PASSE EN PREMIER, PARCE QU IL EN FAIT PARTIE. Cette battue
+	# construisait sa PROPRE famille et ne regardait pas `Lab.ground()` : elle cherchait donc
+	# ailleurs que les deux autres, et c est exactement la faute que le dossier nomme -- « les
+	# battues partagent un seul vivier ; deux battues qui ne cherchent pas au meme endroit ne
+	# peuvent pas s accorder ». Mesure : `PIED 21 au ras` resistait a 48 formes en C construites
+	# a la main, a 3 000 mondes tires, puis a 4 x 3 000 -- et le vivier la portait depuis le
+	# debut, dans un monde qui SURVIT A LA SOUDURE.
+	var sources: Array[PackedStringArray] = Lab.ground()
+	sources.append_array(_family())
+	for world: PackedStringArray in sources:
 		worlds += 1
 		if not Gesture.legal(world):
 			continue

@@ -59,10 +59,10 @@ static func analyse(project_folder: String) -> Dictionary:
 	if project_folder == "":
 		return _verdict(false, false, "Aucun dossier choisi.")
 	if not DirAccess.dir_exists_absolute(project_folder):
-		return _verdict(false, false, "Ce dossier n'existe pas.")
+		return _verdict(false, false, "This folder does not exist.")
 	if not FileAccess.file_exists(project_folder.path_join(PROJECT_FILE)):
 		return _verdict(false, false,
-				"Ce dossier n'est pas un projet Godot : pas de %s a la racine." % PROJECT_FILE)
+				"This is not a Godot project: no %s at its root." % PROJECT_FILE)
 	var replaces: bool = DirAccess.dir_exists_absolute(project_folder.path_join(TARGET))
 	return _verdict(true, replaces, "")
 
@@ -83,7 +83,7 @@ static func install(project_folder: String) -> Dictionary:
 	var destination: String = project_folder.path_join(TARGET)
 	if DirAccess.make_dir_recursive_absolute(destination) != OK 			and not DirAccess.dir_exists_absolute(destination):
 		report["error"] = ERR_CANT_CREATE
-		report["reason"] = "Impossible de creer %s." % TARGET
+		report["reason"] = "Cannot create %s." % TARGET
 		return report
 
 	# ⚠ ON LIT EN OCTETS, PAS EN TEXTE. Un `.gd` relu comme texte puis reecrit changerait ses
@@ -93,13 +93,13 @@ static func install(project_folder: String) -> Dictionary:
 		var bytes: PackedByteArray = _read(SOURCE.path_join(file_name))
 		if bytes.is_empty():
 			report["error"] = ERR_FILE_NOT_FOUND
-			report["reason"] = "Fichier du plugin introuvable : %s" % file_name
+			report["reason"] = "Plugin file not found: %s" % file_name
 			return report
 		var out_path: String = destination.path_join(file_name)
 		var out: FileAccess = FileAccess.open(out_path, FileAccess.WRITE)
 		if out == null:
 			report["error"] = FileAccess.get_open_error()
-			report["reason"] = "Ecriture impossible : %s" % out_path
+			report["reason"] = "Cannot write: %s" % out_path
 			return report
 		out.store_buffer(bytes)
 		out.close()
@@ -115,7 +115,7 @@ static func summary(report: Dictionary) -> String:
 	if int(report["error"]) != OK:
 		return String(report["reason"])
 	var verb: String = "remplace" if bool(report["replaces"]) else "installe"
-	return "SoluPaint %s (%d fichiers). Reste a le cocher : Projet > Parametres > Extensions." 			% [verb, PackedStringArray(report["written"]).size()]
+	return "SoluPaint %s (%d files). You still have to tick it: Project > Settings > Plugins." 			% [verb, PackedStringArray(report["written"]).size()]
 
 
 static func _read(path: String) -> PackedByteArray:

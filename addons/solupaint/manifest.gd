@@ -49,8 +49,8 @@ const MAGIC: String = "solutiles-tileset"
 ## deux planches, sept bits de contexte, des poses arriere. Le modele des massifs pose un
 ## massif ENTIER, une tuile est le couple (silhouette d'empreinte, bande), et il n'y a plus
 ## qu'un bit. Un lecteur qui poserait un v8 avec ces regles-ci fabriquerait un autre monde.
-const READS_FROM: int = 11
-const READS_UP_TO: int = 11
+const READS_FROM: int = 12
+const READS_UP_TO: int = 12
 
 ## La seule famille du modele.
 const BY_MASSIF: StringName = &"massif"
@@ -60,7 +60,7 @@ const BY_MASSIF: StringName = &"massif"
 ## suite verifie qu'il dit la meme chose que `Families.massif_tiles()`. Le jour ou le
 ## vocabulaire grandit -- il ne peut que grandir -- la suite le dit ici, et non chez
 ## l'acheteur.
-const MASSIF_TILES: int = 58
+const MASSIF_TILES: int = 60
 
 ## Le suffixe qui reconnait un manifeste sans l'ouvrir.
 const SUFFIX: String = "_tileset.txt"

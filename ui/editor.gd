@@ -42,24 +42,24 @@ const WINDOW_SCREEN_SHARE: float = 0.95
 ## ⚠ ET ON PEUT CLIQUER DESSUS. Un conseil qui passe en six secondes est un conseil qu'on
 ## rate : la zone entiere ouvre le mode d'emploi, ou tout est ecrit et rien ne defile.
 const PROMISES: Array[String] = [
-	"Le guide est prouve complet avant que vous ne posiez un pixel.",
-	"On dessine, on ne configure pas.",
-	"Un seul passage, du debut a la fin. Pas de boucle essai-export-correction.",
-	"Rien n'est fabrique a votre place : ni composition, ni miroir, ni IA.",
-	"L'exactitude se prouve, elle ne se promet pas.",
-	"Ce qui n'est pas garanti est interdit : le crayon refuse le reste.",
-	"47 tuiles de surface, 12 de mur. Le compte est tenu a l'ecran.",
-	"Une case laissee vierge n'est pas utilisee. Peindre, c'est choisir.",
-	"Cliquez ici : le mode d'emploi s'ouvre en grand.",
-	"Clic gauche pose, clic droit efface. Ctrl+Z defait un trait entier.",
-	"Huit outils, une touche chacune : P B A G L R I E. Les crochets changent la taille.",
-	"Contraindre a la tuile : le trait ne deborde plus sur la voisine.",
-	"Les cases cerclees d'ambre n'ont pas de jumelle : personne d'autre ne les portera.",
-	"Peindre une case en remplit toutes les jumelles : c'est la meme tuile, vue ailleurs.",
-	"Le paysage, la taille et le reseau se choisissent AVANT de dessiner.",
-	"Installer le plugin : ciblez la racine du projet, celle qui contient project.godot.",
-	"Un tileset part avec le plugin -- le votre s'il est complet, son essai sinon.",
-	"Dans Godot : bouton SoluPaint dans la barre du haut, et tout est deja propose.",
+	"The guide is proven complete before you place a single pixel.",
+	"You draw. You do not configure.",
+	"One pass, start to finish. No try-export-fix loop.",
+	"Nothing is made for you: no compositing, no mirroring, no AI.",
+	"Correctness is proven, not promised.",
+	"What is not guaranteed is forbidden: the pencil refuses the rest.",
+	"47 surface tiles, 12 cliff tiles. The count is kept on screen.",
+	"A cell left blank is not used. Painting is choosing.",
+	"Click here: the user guide opens full size.",
+	"Left click paints, right click erases. Ctrl+Z undoes a whole stroke.",
+	"Eight tools, one key each: P B A G L R I E. The brackets change the size.",
+	"Keep inside the tile: the stroke no longer spills onto the neighbour.",
+	"Cells ringed in amber have no twin: nobody else will carry them.",
+	"Painting one cell fills all its twins: it is the same tile, seen elsewhere.",
+	"The landscape, the size and the layout are chosen BEFORE you draw.",
+	"Installing the plugin: point at the project root, the folder holding project.godot.",
+	"A tileset ships with the plugin -- yours if it is complete, the trial otherwise.",
+	"In Godot: the SoluPaint button in the top bar, and everything is already offered.",
 ]
 const PROMISE_SECONDS: float = 6.0
 
@@ -153,7 +153,7 @@ func _ready() -> void:
 	var ticker: Label = %Ticker
 	ticker.mouse_filter = Control.MOUSE_FILTER_STOP
 	ticker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	ticker.tooltip_text = "Mode d'emploi"
+	ticker.tooltip_text = "User guide"
 	ticker.gui_input.connect(_on_ticker_input)
 	(%GridCheck as CheckBox).toggled.connect(_on_grid_toggled)
 	(%AssembledCheck as CheckBox).toggled.connect(_on_assembled_toggled)
@@ -202,7 +202,7 @@ func _apply_window_size() -> void:
 			int(float(usable.size.y) * WINDOW_SCREEN_SHARE))
 	window.size = target
 	window.position = usable.position + (usable.size - target) / 2
-	print("SoluTiles : fenetre %dx%d, ecran utile %dx%d" % [
+	print("SoluTiles: window %dx%d, usable screen %dx%d" % [
 			window.size.x, window.size.y, usable.size.x, usable.size.y])
 
 
@@ -222,9 +222,9 @@ func _apply_window_size() -> void:
 ## l'incomplet est utile a voir ; l'export, lui, refuse toujours (charte, regle 5).
 func _on_test_report(drawn: int, missing: int) -> void:
 	if missing == 0:
-		_announce("Essai : %d tuiles posees, aucun trou." % drawn)
+		_announce("Trial: %d tiles placed, no gap." % drawn)
 		return
-	_announce("Essai : %d tuiles posees, %d pose(s) sans dessin -- elles restent en vide."
+	_announce("Trial: %d tiles placed, %d placement(s) with no drawing -- they stay empty."
 			% [drawn, missing])
 
 
@@ -239,6 +239,11 @@ func _fill_rooms() -> void:
 		button.toggle_mode = true
 		button.button_group = group
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# ⚠ LE BOUTON PORTE SON IDENTIFIANT, PAS SEULEMENT SON LIBELLE. Le libelle se traduit --
+		# « Dessin » est devenu « Draw » a la passe anglaise -- et tout ce qui chercherait le
+		# bouton par son texte casserait ce jour-la, en silence. Meme lecon que le mode : son
+		# identifiant ne bouge pas, son libelle si.
+		button.set_meta("room", id)
 		button.button_pressed = id == _room
 		button.pressed.connect(_on_room_pressed.bind(id))
 		grid.add_child(button)
@@ -343,7 +348,7 @@ func _fill_resolutions() -> void:
 func _fill_styles() -> void:
 	var choice: OptionButton = %StyleChoice
 	choice.clear()
-	choice.add_item("Contour de base")
+	choice.add_item("Base outline")
 	choice.set_item_metadata(0, "")
 	# ⚠ UN EXEMPLE N'EST PAS UN STYLE, C'EST UNE PREUVE. « Notre dessin » est la SPECIFICATION :
 	# calculee depuis le relief, elle ne peut pas mentir sur ce que le guide contient -- et elle
@@ -362,7 +367,7 @@ func _fill_styles() -> void:
 
 
 func _on_style_selected(_index: int) -> void:
-	await _show_then("Changement de fond", "on recompose le paysage")
+	await _show_then("Changing the backdrop", "recomposing the landscape")
 	_apply_background_style()
 	_idle()
 
@@ -429,7 +434,7 @@ func _refresh_family_availability() -> void:
 
 
 func _on_family_selected(_index: int) -> void:
-	await _show_then("Changement de reseau", "on recalcule les tuiles")
+	await _show_then("Changing the layout", "recomputing the tiles")
 	_load_current_mode()
 	_idle()
 
@@ -455,7 +460,7 @@ func _load_current_mode() -> void:
 	var id: StringName = _current_mode()
 	var path: String = Modes.guide_path(id)
 	if not FileAccess.file_exists(path):
-		push_error("editor: guide introuvable pour le mode '%s' : %s" % [id, path])
+		push_error("editor: no guide for mode '%s': %s" % [id, path])
 		return
 	_heights = HeightMask.read(path)
 	_refresh_family_availability()
@@ -474,7 +479,7 @@ func _load_current_mode() -> void:
 
 
 func _on_mode_selected(_index: int) -> void:
-	await _show_then("Chargement du paysage", "le relief et ses tuiles")
+	await _show_then("Loading the landscape", "the relief and its tiles")
 	_load_current_mode()
 	_idle()
 
@@ -483,7 +488,7 @@ func _on_mode_selected(_index: int) -> void:
 ## C'est la meme attente que « Chargement du paysage », et elle se disait pour l'un, pas pour
 ## l'autre.
 func _on_resolution_selected(_index: int) -> void:
-	await _show_then("Changement de la taille des pixels", "le relief et ses tuiles")
+	await _show_then("Changing the pixel size", "the relief and its tiles")
 	_load_current_mode()
 	_idle()
 
@@ -556,8 +561,8 @@ func _on_loading_progress(done: int, total: int) -> void:
 		# tuile, et sa jauge disait un vrai avancement. Le modele des massifs compose D'UN SEUL
 		# TENANT : annoncer « 0 / 1 tuiles » serait un compteur qui ne mesure rien. On nomme
 		# alors l'etat, ce qui est vrai, plutot que d'inventer une fraction.
-		_busy("Dessin du fond du guide",
-				"%d / %d tuiles" % [done, total] if total > 1 else "le paysage entier",
+		_busy("Drawing the guide backdrop",
+				"%d / %d tiles" % [done, total] if total > 1 else "the whole landscape",
 				done, total)
 	elif not _busy_held:
 		_idle()
@@ -638,7 +643,7 @@ func _apply_fill_rules() -> void:
 	var note: Label = %ModeNote
 	note.visible = rotations
 	if rotations:
-		note.text = "Rotations : les orbites se remplissent seules, %d tuiles a peindre au lieu de %d." % [
+		note.text = "Rotations: the orbits fill themselves, %d tiles to paint instead of %d." % [
 				Symmetry.surface_work_count() + Symmetry.wall_work_count(),
 				Modes.tile_count(_current_mode())]
 
@@ -666,7 +671,7 @@ func _on_work_hidden(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.hide_work = pressed
 	work.queue_redraw()
-	_announce("Travail masque : le guide seul." if pressed else "Travail revenu.")
+	_announce("Work hidden: the guide alone." if pressed else "Work back.")
 
 
 ## MASQUER LA GRILLE — et avec elle, ce qui empechait de juger le rendu.
@@ -683,8 +688,8 @@ func _on_work_hidden(pressed: bool) -> void:
 func _on_grid_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.set_grid(not pressed)
-	_announce("Grille masquee : le rendu final, a l'echelle juste." if pressed
-			else "Grille revenue.")
+	_announce("Grid hidden: the final render, at true scale." if pressed
+			else "Grid back.")
 
 
 ## ⚠ MASQUER LE GUIDE NE TOUCHE A RIEN DE CE QUI SORT. C'est une facon de regarder, au meme
@@ -693,7 +698,7 @@ func _on_assembled_toggled(pressed: bool) -> void:
 	var work: Control = %WorkArea
 	work.assembled = pressed
 	work.queue_redraw()
-	_announce("Guide masque : vos tuiles seules." if pressed else "Guide revenu.")
+	_announce("Guide hidden: your tiles alone." if pressed else "Guide back.")
 
 
 ## LE RELEVE DE LA CASE SURVOLEE. Savoir QUELLE tuile on s'apprete a peindre est utile en
@@ -705,7 +710,7 @@ func _on_hover_changed(cell: Vector2i) -> void:
 	(%NeighboursPanel as Control).look_at_cell(cell)
 	var label: Label = %HoverLabel
 	if cell.x < 0:
-		label.text = "survolez une case"
+		label.text = "hover a cell"
 		return
 	var work: Control = %WorkArea
 	var roles: Dictionary = work.wall_roles()
@@ -721,14 +726,14 @@ func _on_hover_changed(cell: Vector2i) -> void:
 		label.text = "(%d, %d)  index %d = %s%s" % [at.x, at.y, index,
 				Families.describe(family, index), _lonely_note(cell)]
 		return
-	label.text = "(%d, %d)  la plaine : rien a peindre" % [cell.x, cell.y]
+	label.text = "(%d, %d)  the plain: nothing to paint" % [cell.x, cell.y]
 
 
 ## ⚠ « SEULE OCCURRENCE » N'EST PAS UN DETAIL. Cette tuile n'apparait qu'ici dans tout le
 ## guide : aucune jumelle ne la portera, et l'oublier bloque l'export. Le contour ambre de la
 ## case le dit d'ensemble, ce releve le dit au survol.
 func _lonely_note(cell: Vector2i) -> String:
-	return "   [SEULE OCCURRENCE]" if (%WorkArea as Control).is_lonely(cell) else ""
+	return "   [ONLY OCCURRENCE]" if (%WorkArea as Control).is_lonely(cell) else ""
 
 
 func _on_fit_pressed() -> void:
@@ -742,25 +747,25 @@ func _on_fit_pressed() -> void:
 func _build_dialogs() -> void:
 	var work_filter: PackedStringArray = PackedStringArray(
 			["*.%s ; Travail SoluTiles" % WorkIO.EXTENSION])
-	_open_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_FILE, "Ouvrir un travail", work_filter)
+	_open_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_FILE, "Open a work file", work_filter)
 	_open_dialog.file_selected.connect(_on_open_chosen)
-	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Enregistrer le travail", work_filter)
+	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Save the work file", work_filter)
 	_save_dialog.file_selected.connect(_write_work)
 	# ⚠ ANNULER L'ENREGISTREMENT ANNULE AUSSI CE QUI DEVAIT LE SUIVRE. Sans ca, le drapeau
 	# resterait leve et le PROCHAIN enregistrement, sans rapport, effacerait le travail.
 	_save_dialog.canceled.connect(_forget_reset)
 	_build_new_dialog()
-	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Exporter le tileset",
+	_export_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR, "Export the tileset",
 			PackedStringArray())
 	_export_dialog.dir_selected.connect(_on_export_chosen)
 	_packed_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
-			"Exporter le tileset packe", PackedStringArray())
+			"Export the packed tileset", PackedStringArray())
 	_packed_dialog.dir_selected.connect(_on_packed_chosen)
 	_plugin_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
-			"Choisir un projet Godot", PackedStringArray())
+			"Choose a Godot project", PackedStringArray())
 	_plugin_dialog.dir_selected.connect(_on_plugin_folder_chosen)
 	_trial_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_DIR,
-			"Ou ecrire l essai", PackedStringArray())
+			"Where to write the trial", PackedStringArray())
 	_trial_dialog.dir_selected.connect(_on_trial_folder_chosen)
 
 
@@ -784,10 +789,10 @@ func _make_dialog(mode: FileDialog.FileMode, title: String,
 ## sous le pouce ferait perdre du travail a la main de l'utilisateur lui-meme.
 func _build_new_dialog() -> void:
 	_new_dialog = ConfirmationDialog.new()
-	_new_dialog.title = "Nouveau projet"
-	_new_dialog.ok_button_text = "Enregistrer, puis recommencer"
-	_new_dialog.get_cancel_button().text = "Annuler"
-	_new_dialog.add_button("Recommencer sans enregistrer", false, "jeter")
+	_new_dialog.title = "New project"
+	_new_dialog.ok_button_text = "Save, then start over"
+	_new_dialog.get_cancel_button().text = "Cancel"
+	_new_dialog.add_button("Start over without saving", false, "jeter")
 	_new_dialog.confirmed.connect(_on_new_saved_first)
 	_new_dialog.custom_action.connect(_on_new_discarded)
 	add_child(_new_dialog)
@@ -824,8 +829,8 @@ func _on_new_pressed() -> void:
 	var count: int = _painting.painted_cells().size()
 	# ⚠ ON DIT COMBIEN, PAS « DES MODIFICATIONS ». Un nombre se pese ; « des modifications » se
 	# lit sans rien apprendre, et c'est ce qui fait cliquer sans lire.
-	var where: String = ("Le dernier enregistrement est %s." % _work_path.get_file()
-			if _work_path != "" else "Ce travail n'a jamais ete enregistre.")
+	var where: String = ("The last save is %s." % _work_path.get_file()
+			if _work_path != "" else "This work has never been saved.")
 	_new_dialog.dialog_text = ("%d cases peintes ne sont pas enregistrees.
 %s"
 			% [count, where])
@@ -849,16 +854,16 @@ func _on_new_discarded(action: StringName) -> void:
 ## rejetterait tout le travail. Sans « nouveau projet », le seul moyen d'en changer d'avis
 ## etait de relancer le logiciel.
 func _new_project() -> void:
-	await _show_then("Nouveau projet", "on repart d'un guide vierge")
+	await _show_then("New project", "starting again from a blank guide")
 	_work_path = ""
-	(%WorkHint as Label).text = "Rien d'enregistre pour l'instant."
+	(%WorkHint as Label).text = "Nothing saved yet."
 	_load_current_mode()
 	_dirty = false
 	# ⚠ ET LA ROOM DE TEST OUBLIE CE QU'ELLE AVAIT SOUS LA MAIN. Sans ca, elle continuerait de
 	# poser les tuiles du travail precedent sur un projet vierge -- un ecran qui ment sur ce
 	# qu'on a peint est pire qu'un ecran vide.
 	_apply_room()
-	_announce("Nouveau projet : le guide est vierge, et les choix sont rouverts.")
+	_announce("New project: the guide is blank, and the choices are reopened.")
 
 
 func _on_open_pressed() -> void:
@@ -873,23 +878,23 @@ func _on_open_chosen(path: String) -> void:
 	# quel paysage il a ete peint, et il faut charger ce paysage AVANT de pouvoir y reposer quoi
 	# que ce soit -- puis il faut remonter l'ecran. Ce sont trois attentes distinctes, de durees
 	# tres differentes : les nommer vaut mieux qu'un pourcentage invente.
-	await _show_then("Ouverture du travail", "1/3  on lit l'en-tete")
+	await _show_then("Opening the work file", "1/3  reading the header")
 	var header: Dictionary = WorkIO.peek(path)
 	if int(header["error"]) != OK:
-		_announce("Ce fichier n'est pas un travail SoluTiles.")
+		_announce("This file is not a SoluTiles work file.")
 		return
 	_select_metadata(%ModeChoice, header["mode"])
 	_select_metadata(%SizeChoice, int(header["resolution"]))
 	_select_metadata(%FamilyChoice, header["family"])
-	_busy("Ouverture du travail", "2/3  le paysage : %s" % header["mode"], 1, 3)
+	_busy("Opening the work file", "2/3  the landscape: %s" % header["mode"], 1, 3)
 	await get_tree().process_frame
 	_load_current_mode()
 
-	_busy("Ouverture du travail", "3/3  on repose les tuiles", 2, 3)
+	_busy("Opening the work file", "3/3  placing the tiles back", 2, 3)
 	await get_tree().process_frame
 	var report: Dictionary = WorkIO.read(path, _heights)
 	if int(report["error"]) != OK:
-		_announce("Fichier illisible.")
+		_announce("File cannot be read.")
 		return
 	_painting = report["painting"]
 	(%WorkArea as Control).show_guide(_heights, _painting)
@@ -905,10 +910,10 @@ func _on_open_chosen(path: String) -> void:
 
 	var orphans: int = PackedStringArray(report["unplaced"]).size()
 	if orphans > 0:
-		_announce("%d tuiles reposees ; %d n'ont pas de place dans ce paysage."
+		_announce("%d tiles placed back; %d have no place in this landscape."
 				% [int(report["placed"]), orphans])
 	else:
-		_announce("%d tuiles reposees." % int(report["placed"]))
+		_announce("%d tiles placed back." % int(report["placed"]))
 	_idle()
 
 
@@ -926,14 +931,14 @@ func _on_save_pressed() -> void:
 func _write_work(path: String) -> void:
 	if _painting == null:
 		return
-	await _show_then("Enregistrement du travail", path.get_file())
+	await _show_then("Saving the work file", path.get_file())
 	if WorkIO.write(path, _painting, _heights, _current_mode(), _current_family()) != OK:
-		_announce("Enregistrement impossible.")
+		_announce("Could not save.")
 		return
 	_work_path = path
 	_dirty = false
 	(%WorkHint as Label).text = path.get_file()
-	_announce("Enregistre dans %s" % path.get_file())
+	_announce("Saved to %s" % path.get_file())
 	if _reset_after_save:
 		_reset_after_save = false
 		await _new_project()
@@ -944,7 +949,7 @@ func _on_export_pressed() -> void:
 
 
 func _on_export_chosen(folder: String) -> void:
-	await _show_then("Export du tileset", "planche et manifeste")
+	await _show_then("Exporting the tileset", "sheet and manifest")
 	if _painting == null:
 		return
 	var basename: String = _work_path.get_file().get_basename()
@@ -957,21 +962,21 @@ func _on_export_chosen(folder: String) -> void:
 		var done: Dictionary = MassifTileset.write(_painting, _heights, _current_mode(),
 				folder, basename)
 		if String(done["error"]) != "":
-			_announce("Rien n'est ecrit : %s." % String(done["error"]))
+			_announce("Nothing was written: %s." % String(done["error"]))
 			return
-		_announce("Exporte dans %s : une planche et son manifeste." % folder.get_file())
+		_announce("Exported to %s: one sheet and its manifest." % folder.get_file())
 		return
 	var report: Dictionary = TilesetPNG.write(folder, basename, _painting, _heights,
 			_current_mode(), _current_family())
 	if int(report["error"]) == ERR_UNAVAILABLE:
 		# Le bouton est cense etre grise ; si on arrive ici, c'est qu'il ne l'etait pas.
 		var left: int = report["missing_surface"].size() + report["missing_wall"].size()
-		_announce("Il manque %d tuiles : rien n'est ecrit." % left)
+		_announce("%d tiles are missing: nothing was written." % left)
 		return
 	if int(report["error"]) != OK:
-		_announce("Export impossible dans ce dossier.")
+		_announce("Cannot export into this folder.")
 		return
-	_announce("Exporte dans %s : deux planches et leur manifeste." % folder.get_file())
+	_announce("Exported to %s: two sheets and their manifest." % folder.get_file())
 
 
 ## ⚠ LA FEUILLE PACKED EST POUR LA VENTE, PAS POUR LE MOTEUR, et le bouton doit le dire.
@@ -983,7 +988,7 @@ func _on_packed_pressed() -> void:
 
 
 func _on_packed_chosen(folder: String) -> void:
-	await _show_then("Export du tileset packe", "une seule image, et sa legende")
+	await _show_then("Exporting the packed tileset", "one image, and its legend")
 	if _painting == null:
 		return
 	var basename: String = _work_path.get_file().get_basename()
@@ -999,12 +1004,12 @@ func _on_packed_chosen(folder: String) -> void:
 			left2 = int(report["missing"].size())
 		else:
 			left2 = report["missing_surface"].size() + report["missing_wall"].size()
-		_announce("Il manque %d tuiles : rien n'est ecrit." % left2)
+		_announce("%d tiles are missing: nothing was written." % left2)
 		return
 	if int(report["error"]) != OK:
-		_announce("Export impossible dans ce dossier.")
+		_announce("Cannot export into this folder.")
 		return
-	_announce("Feuille packed ecrite dans %s, avec sa legende." % folder.get_file())
+	_announce("Packed sheet written to %s, with its legend." % folder.get_file())
 
 
 # --- Installer le plugin moteur ---------------------------------------------
@@ -1028,7 +1033,7 @@ func _on_trial_pressed() -> void:
 
 
 func _on_trial_folder_chosen(folder: String) -> void:
-	await _show_then("Ecriture de l'essai", "notre propre trace, livree comme tileset")
+	await _show_then("Writing the trial", "our own line work, delivered as a tileset")
 	# ⚠ L'ESSAI SUIT LE MODELE, comme l'export : celui des massifs livre une planche unique et
 	# un manifeste v9, l'ancien deux planches. Les faire passer par le meme exportateur
 	# demanderait de couper en deux un massif qui se dessine entier.
@@ -1036,19 +1041,19 @@ func _on_trial_folder_chosen(folder: String) -> void:
 			if _current_family() == Families.BY_MASSIF \
 			else Trial.write(folder, _current_mode(), _current_resolution())
 	if _failed(report):
-		_announce("L essai n a pas pu s ecrire.")
+		_announce("The trial could not be written.")
 		return
 	var written: PackedStringArray = report["written"]
-	_announce("Essai ecrit : %d fichiers dans %s." % [written.size(), folder])
+	_announce("Trial written: %d files in %s." % [written.size(), folder])
 	(%PluginHint as Label).text = \
-			"L essai est ecrit. Ouvrez-le avec SoluPaint pour poser un monde tout de suite."
+			"The trial is written. Open it with SoluPaint to place a world right away."
 
 
 ## ⚠ ON REFUSE UN DOSSIER QUI N'EST PAS UN PROJET GODOT (charte, regle 5), et on le DIT.
 ## Ecrire six fichiers dans les documents de quelqu'un sans que rien ne les lise jamais
 ## serait pire qu'un refus : ca ressemblerait a une reussite.
 func _on_plugin_folder_chosen(folder: String) -> void:
-	await _show_then("Installation de SoluPaint", "le plugin et de quoi peindre")
+	await _show_then("Installing SoluPaint", "the plugin and something to paint with")
 	var report: Dictionary = PluginInstall.install(folder)
 	var said: String = PluginInstall.summary(report)
 	if int(report["error"]) == OK:
@@ -1079,25 +1084,25 @@ func _install_tileset(folder: String) -> String:
 			var done: Dictionary = MassifTileset.write(_painting, _heights, _current_mode(),
 					into, "mon_tileset")
 			if not _failed(done):
-				return "Votre tileset est parti avec, dans solutiles/."
-			return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
+				return "Your tileset went with it, in solutiles/."
+			return "The plugin is installed, but your tileset could not be written."
 		var essai: Dictionary = MassifTrial.write(into, _current_mode())
 		if not _failed(essai):
-			return "L'essai est parti avec, dans solutiles/ : de quoi poser un monde tout " \
-					+ "de suite, sans avoir peint."
-		return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
+			return "The trial went with it, in solutiles/: enough to place a world right " \
+					+ "away, without having painted."
+		return "The plugin is installed, but the trial could not be written."
 	var old_ready: Dictionary = TilesetPNG.analyse(_painting, _heights, _current_family())
 	if bool(old_ready["is_exportable"]):
 		var done2: Dictionary = TilesetPNG.write(into, "mon_tileset", _painting, _heights,
 				_current_mode(), _current_family())
 		if int(done2["error"]) == OK:
-			return "Votre tileset est parti avec, dans solutiles/."
-		return "Le plugin est installe, mais votre tileset n'a pas pu s'ecrire."
+			return "Your tileset went with it, in solutiles/."
+		return "The plugin is installed, but your tileset could not be written."
 	var trial: Dictionary = Trial.write(into, _current_mode())
 	if int(trial["error"]) == OK:
-		return "L'essai est parti avec, dans solutiles/ : de quoi poser un monde tout " \
-				+ "de suite, sans avoir peint."
-	return "Le plugin est installe, mais l'essai n'a pas pu s'ecrire."
+		return "The trial went with it, in solutiles/: enough to place a world right " \
+				+ "away, without having painted."
+	return "The plugin is installed, but the trial could not be written."
 
 
 ## ⚠ LES DEUX EXPORTATEURS NE DISENT PAS L'ECHEC DE LA MEME FACON : l'ancien rend un `Error`,
@@ -1190,7 +1195,7 @@ func _refresh_counters() -> void:
 	(%SurfaceLabel as Label).text = "Surfaces     %d / %d" % [surface_done, surface_total]
 	(%SurfaceBar as ProgressBar).max_value = float(surface_total)
 	(%SurfaceBar as ProgressBar).value = float(surface_done)
-	(%WallLabel as Label).text = "Falaises     %d / %d" % [wall_done, wall_total]
+	(%WallLabel as Label).text = "Cliffs       %d / %d" % [wall_done, wall_total]
 	(%WallBar as ProgressBar).max_value = float(wall_total)
 	(%WallBar as ProgressBar).value = float(wall_done)
 
@@ -1201,7 +1206,7 @@ func _refresh_counters() -> void:
 	# qu'un export moteur a moitie peint : elle part chez un acheteur.
 	(%PackedButton as Button).disabled = not complete
 	var left: int = (surface_total - surface_done) + (wall_total - wall_done)
-	(%RemainingLabel as Label).text = "pret a exporter" if complete else "%d tuiles a peindre" % left
+	(%RemainingLabel as Label).text = "ready to export" if complete else "%d tiles left to paint" % left
 
 	# ⚠ LA TAILLE DES PIXELS SE CHOISIT AVANT DE DESSINER, pas apres : en changer
 	# rejetterait tout ce qui est peint. Le choix se ferme au premier pixel pose.

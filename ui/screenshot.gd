@@ -25,7 +25,7 @@ var _zoom_at: Vector2 = Vector2.ZERO
 var _mode: StringName = &""
 ## L'atelier a capturer. ⚠ ON PASSE PAR LE BOUTON, PAS PAR LA VARIABLE : un outil de
 ## relecture qui prendrait un raccourci ne relirait pas ce que l'utilisateur voit.
-var _room: String = ""
+var _room: StringName = &""
 var _zoom_steps: int = 0
 var _zoomed: bool = false
 
@@ -66,8 +66,11 @@ func _initialize() -> void:
 				_mode = &"massifs"
 			"trait":
 				_strokes = true
-			"essai":
-				_room = "Test"
+			# ⚠ LES DEUX MOTS, parce que l interface est passee a l anglais et que le mot-cle,
+			# lui, etait reste francais. Une relecture qui refuse le mot qu on a sous les yeux
+			# n aide personne.
+			"essai", "test":
+				_room = &"test"
 			_:
 				if argument.begins_with("zoom="):
 					# ⚠ POUR REGARDER LE TRAIT, PAS LE PAYSAGE. En vue d'ensemble un faux pixel
@@ -84,6 +87,12 @@ func _initialize() -> void:
 						_hover = Vector2i(at[0].to_int(), at[1].to_int())
 				elif argument.ends_with(".solutiles"):
 					_work = argument
+				else:
+					# ⚠ UN ARGUMENT INCONNU SE DIT. Il etait avale en silence : on demandait une
+					# room, on recevait une capture de la room par defaut, « sans une seule
+					# erreur » -- et on cherchait la panne dans le logiciel. Releve par la session
+					# anglaise, qui a tape `test` quand le mot-cle etait `essai`.
+					printerr("capture : argument inconnu « %s » -- ignore." % argument)
 
 
 ## ⚠ ON N'AGIT PAS SUR LA SCENE DEPUIS _initialize(). A ce moment l'arbre n'a pas encore
@@ -122,10 +131,11 @@ func _process(_delta: float) -> bool:
 		# raccourci ne relirait pas ce que l'utilisateur voit.
 		if _work != "":
 			_editor.call("_on_open_chosen", _work)
-		if _room != "":
+		if _room != &"":
 			for child: Node in _editor.get_node("%RoomGrid").get_children():
 				var button: Button = child as Button
-				if button != null and button.text == _room:
+				# ⚠ PAR L IDENTIFIANT, PAS PAR LE LIBELLE : celui-ci se traduit.
+				if button != null and button.get_meta("room", &"") == _room:
 					button.button_pressed = true
 					button.pressed.emit()
 			# ⚠ ON POSE DU RELIEF PAR DE VRAIS CLICS, pas en appelant le tampon. Une relecture

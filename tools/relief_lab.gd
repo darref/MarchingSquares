@@ -173,6 +173,22 @@ const GROUND_SEED: int = 0x475549
 ## puis 50 au tour suivant, parce qu'un guide qui avait rate neuf tuiles les retirait du vivier
 ## qui les lui aurait rendues. Un vivier doit etre CONSTRUIT, donc independant de ce qu'il sert
 ## a construire.
+## ⚠ ET UN MONDE DONT LES POSES SORTENT DE SA GRILLE N EN EST PAS UN. Le banc ecarte deja ses
+## tirages ainsi (`_contained`) ; le vivier, lui, les gardait -- et tant que les faces
+## s arretaient tot, cela ne se voyait pas. Depuis que le PIED ne se pose qu au vrai fond, une
+## face descend plus loin : posee dans le guide, elle deborde de son monde, sort du cadre, et
+## son trait s arrete dans le vide. Le banc l a dit en deux extremites ouvertes -- I1 -- a la
+## derniere rangee du guide.
+static func contained(world: PackedStringArray) -> bool:
+	var wide: int = HeightMask.width(world)
+	var tall: int = HeightMask.height(world)
+	for one: Dictionary in Massifs.poses(world):
+		var cell: Vector2i = one["cell"]
+		if cell.x < 0 or cell.y < 0 or cell.x >= wide or cell.y >= tall:
+			return false
+	return true
+
+
 static func ground(draws: int = 400) -> Array[PackedStringArray]:
 	var out: Array[PackedStringArray] = []
 	for top_level: int in [1, 2]:

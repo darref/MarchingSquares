@@ -244,7 +244,7 @@ func _draw_invite() -> void:
 	var font: Font = get_theme_default_font()
 	if font == null:
 		return
-	var text: String = "Cliquez pour poser du relief : gauche monte d'un etage, droite abaisse."
+	var text: String = "Click to lay relief: left raises one level, right lowers it."
 	var line: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14)
 	draw_string(font, ((size - line) * 0.5).floor(), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14,
 			Color(0.74, 0.77, 0.74))

@@ -337,7 +337,7 @@ size_flags_horizontal = 3
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Le guide est prouve complet avant que vous ne posiez un pixel."
+text = "The guide is proven complete before you place a single pixel."
 horizontal_alignment = 2
 
 [node name="Body" type="Control" parent="Layout" unique_id=1967879852]
@@ -389,7 +389,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "ATELIER"
+text = "WORKSPACE"
 
 [node name="RoomGrid" type="GridContainer" parent="Layout/Body/Sidebar/Column/Rooms/RoomsBox" unique_id=3300004]
 unique_name_in_owner = true
@@ -415,7 +415,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "CE QU'ON FABRIQUE"
+text = "WHAT YOU ARE MAKING"
 
 [node name="ModeRow" type="HBoxContainer" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox" unique_id=1953071573]
 layout_mode = 2
@@ -424,7 +424,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(62, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Paysage"
+text = "Landscape"
 
 [node name="ModeChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/ModeRow" unique_id=2103694837]
 unique_name_in_owner = true
@@ -454,13 +454,13 @@ layout_mode = 2
 custom_minimum_size = Vector2(62, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Reseau"
+text = "Layout"
 
 [node name="FamilyChoice" type="OptionButton" parent="Layout/Body/Sidebar/Column/Globals/GlobalsBox/FamilyRow" unique_id=3100023]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Par case : la tuile occupe une case, 47 tuiles de surface. A cheval : elle occupe le croisement de quatre cases, 15 tuiles. Les falaises ne changent pas -- 36 dans les deux cas."
+tooltip_text = "Per cell: the tile fills one cell, 47 surface tiles. Straddling: it fills the crossing of four cells, 15 tiles. Cliffs do not change -- 36 either way."
 clip_text = true
 
 [node name="Rule" type="HSeparator" parent="Layout/Body/Sidebar/Column" unique_id=505386271]
@@ -481,7 +481,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Projet"
+title = "Project"
 
 [node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection" unique_id=3100002]
 layout_mode = 2
@@ -490,7 +490,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Projet"
+text = "▾  Project"
 flat = true
 alignment = 0
 
@@ -508,20 +508,20 @@ theme_override_constants/separation = 6
 [node name="NewButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100029]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Repartir d'un guide vierge. Ce qui est peint est perdu -- et la question ne se pose que s'il y a quelque chose a perdre. Rouvre aussi les choix que le premier pixel avait fermes : la taille des faux pixels et le reseau."
-text = "Nouveau projet"
+tooltip_text = "Start over from a blank guide. Anything painted is lost -- and the question is only asked when there is something to lose. It also reopens the choices the first pixel closed: fake pixel size and layout."
+text = "New project"
 
 [node name="OpenButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100005]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Reprendre un travail. Il se repose par tuile : le guide a pu changer entre-temps."
-text = "Ouvrir"
+tooltip_text = "Pick up earlier work. It is placed back tile by tile: the guide may have changed since."
+text = "Open"
 
 [node name="SaveButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100006]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Ctrl+S"
-text = "Enregistrer"
+text = "Save"
 
 [node name="WorkHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/WorkSection/Content/Items" unique_id=3100007]
 unique_name_in_owner = true
@@ -529,13 +529,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
-text = "Rien d'enregistre pour l'instant."
+text = "Nothing saved yet."
 
 [node name="BackgroundSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=1800221902]
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Fond du guide"
+title = "Guide backdrop"
 expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/BackgroundSection" unique_id=194400331]
@@ -545,7 +545,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Fond du guide"
+text = "▾  Guide backdrop"
 flat = true
 alignment = 0
 
@@ -579,14 +579,14 @@ clip_text = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Le contour de base est calcule depuis
-le relief : il ne peut pas mentir."
+text = "The base outline is computed from
+the relief: it cannot lie."
 
 [node name="EngineSection" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections" unique_id=3100020]
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Moteur"
+title = "Engine"
 expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/EngineSection" unique_id=3100021]
@@ -596,7 +596,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Moteur"
+text = "▾  Engine"
 flat = true
 alignment = 0
 
@@ -614,14 +614,14 @@ theme_override_constants/separation = 6
 [node name="InstallPluginButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100024]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Copie SoluPaint dans un projet Godot. Reste a le cocher dans Projet > Parametres > Extensions."
-text = "Installer le plugin Godot"
+tooltip_text = "Copies SoluPaint into a Godot project. You still have to tick it in Project > Settings > Plugins."
+text = "Install the Godot plugin"
 
 [node name="TrialButton" type="Button" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100026]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Ecrit un tileset complet fait du dessin du guide lui-meme, sans peindre un pixel. De quoi essayer la chaine entiere : le plugin le pose comme n importe quel autre. Ce n est pas de l art, c est un dessin de specification."
-text = "Exporter l essai"
+tooltip_text = "Writes a complete tileset made from the guide's own drawing, without painting a pixel. Enough to try the whole chain: the plugin places it like any other. This is not art, it is a specification drawing."
+text = "Export the trial"
 
 [node name="PluginHint" type="Label" parent="Layout/Body/Sidebar/Column/ToolsScroll/Sections/EngineSection/Content/Items" unique_id=3100025]
 unique_name_in_owner = true
@@ -629,7 +629,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
-text = "SoluPaint pose votre monde avec les tuiles peintes ici."
+text = "SoluPaint places your world with the tiles painted here."
 
 [node name="Rule2" type="HSeparator" parent="Layout/Body/Sidebar/Column" unique_id=3100025]
 layout_mode = 2
@@ -649,20 +649,20 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "LES RACCOURCIS"
+text = "SHORTCUTS"
 
 [node name="ViewHint" type="Label" parent="Layout/Body/Sidebar/Column/Shortcuts/ShortcutsBox" unique_id=658502172]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "Molette : zoom
-Clic milieu : deplacer
-Clic gauche : peindre
-Clic droit : effacer
-Ctrl+Z : annuler
-P B A G L R I E : les outils
-[ et ] : la taille"
+text = "Wheel: zoom
+Middle click: pan
+Left click: paint
+Right click: erase
+Ctrl+Z: undo
+P B A G L R I E: tools
+[ and ]: size"
 
 [node name="Toolbar" type="PanelContainer" parent="Layout/Body" unique_id=133062991]
 unique_name_in_owner = true
@@ -693,7 +693,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "CE QUI RESTE A PEINDRE"
+text = "LEFT TO PAINT"
 
 [node name="SurfaceLabel" type="Label" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=186337654]
 unique_name_in_owner = true
@@ -712,7 +712,7 @@ show_percentage = false
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
-text = "Falaises     0 / 12"
+text = "Cliffs       0 / 12"
 
 [node name="WallBar" type="ProgressBar" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=1863823334]
 unique_name_in_owner = true
@@ -734,24 +734,24 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "59 tuiles a peindre"
+text = "59 tiles left to paint"
 autowrap_mode = 3
 
 [node name="ExportButton" type="Button" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=902982335]
 unique_name_in_owner = true
 layout_mode = 2
 disabled = true
-text = "Exporter"
+text = "Export"
 clip_text = true
 
 [node name="PackedButton" type="Button" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=902982336]
 unique_name_in_owner = true
 layout_mode = 2
 disabled = true
-tooltip_text = "Une seule image, serree, avec sa legende -- le format des places de marche.
-Ce n'est pas un autre tileset : ce sont les memes tuiles, rangees autrement.
-Pour poser un monde dans un moteur, c'est l'autre bouton et son manifeste."
-text = "Exporter tileset packe"
+tooltip_text = "One image, tightly packed, with its legend -- the marketplace format.
+This is not another tileset: the same tiles, arranged differently.
+To place a world in an engine, use the other button and its manifest."
+text = "Export packed tileset"
 clip_text = true
 
 [node name="Rule" type="HSeparator" parent="Layout/Body/Toolbar/Column" unique_id=1427492152]
@@ -771,7 +771,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Outils"
+title = "Tools"
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection" unique_id=33830096]
 layout_mode = 2
@@ -780,7 +780,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Outils"
+text = "▾  Tools"
 flat = true
 alignment = 0
 
@@ -806,12 +806,12 @@ columns = 4
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Un faux pixel par point. Touche P."
+tooltip_text = "One fake pixel per point. Key P."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_pressed = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Crayon"
+text = "Pencil"
 clip_text = true
 metadata/tool = 0
 
@@ -819,11 +819,11 @@ metadata/tool = 0
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Un disque de la taille choisie. Touche B."
+tooltip_text = "A disc of the chosen size. Key B."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Brosse"
+text = "Brush"
 clip_text = true
 metadata/tool = 1
 
@@ -831,11 +831,11 @@ metadata/tool = 1
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Quelques pixels au hasard dans le disque, tant qu'on tient le bouton. Touche A."
+tooltip_text = "A few random pixels inside the disc, for as long as you hold the button. Key A."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Aero"
+text = "Spray"
 clip_text = true
 metadata/tool = 2
 
@@ -843,11 +843,11 @@ metadata/tool = 2
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Remplit la plage de meme couleur sous le clic, dans la tuile seulement. Touche G."
+tooltip_text = "Fills the patch of matching colour under the click, inside the tile only. Key G."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Pot"
+text = "Fill"
 clip_text = true
 metadata/tool = 3
 
@@ -855,11 +855,11 @@ metadata/tool = 3
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Du clic au relachement, a la taille choisie. Touche L."
+tooltip_text = "From click to release, at the chosen size. Key L."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Ligne"
+text = "Line"
 clip_text = true
 metadata/tool = 4
 
@@ -867,7 +867,7 @@ metadata/tool = 4
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Le contour du rectangle, du clic au relachement. Touche R."
+tooltip_text = "The outline of the rectangle, from click to release. Key R."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
@@ -879,11 +879,11 @@ metadata/tool = 5
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Prend la couleur du pixel sous le clic. Touche I."
+tooltip_text = "Takes the colour of the pixel under the click. Key I."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Pipette"
+text = "Picker"
 clip_text = true
 metadata/tool = 6
 
@@ -891,11 +891,11 @@ metadata/tool = 6
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Efface un disque de la taille choisie. Le clic droit efface aussi, avec n'importe quel outil. Touche E."
+tooltip_text = "Erases a disc of the chosen size. Right click erases too, with any tool. Key E."
 theme_override_font_sizes/font_size = 11
 toggle_mode = true
 button_group = SubResource("ButtonGroup_tools")
-text = "Gomme"
+text = "Eraser"
 clip_text = true
 metadata/tool = 7
 
@@ -909,8 +909,8 @@ custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-tooltip_text = "Le diametre, en faux pixels, de la brosse, de l'aerographe, de la gomme, de la ligne et du rectangle. Le crayon fait toujours un pixel."
-text = "Taille"
+tooltip_text = "The diameter, in fake pixels, of the brush, the spray, the eraser, the line and the rectangle. The pencil is always one pixel."
+text = "Size"
 
 [node name="Size1" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items/BrushRow" unique_id=3200012]
 custom_minimum_size = Vector2(0, 22)
@@ -1089,20 +1089,20 @@ metadata/color = Color(0.451, 0.588, 0.639, 1)
 [node name="LockCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=3200018]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Une passe reste dans la tuile ou elle a commence : ce qui deborde sur une voisine est ignore, pas ramene au bord. Pour travailler une tuile sans salir celles d'a cote."
-text = "Contraindre a la tuile"
+tooltip_text = "A stroke stays in the tile where it started: whatever spills onto a neighbour is ignored, not clamped to the edge. To work one tile without dirtying the ones next to it."
+text = "Keep inside the tile"
 
 [node name="RotationsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=542215267]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Remplit aussi les tuiles obtenues par rotation, et les robes par miroir. N a de sens que si votre dessin n a pas de direction d eclairage : une rotation tournerait ses hautes lumieres avec elle."
-text = "Peindre les rotations"
+tooltip_text = "Also fills the tiles obtained by rotation, and the cliff skirts by mirroring. Only makes sense if your drawing has no lighting direction: a rotation would turn its highlights with it."
+text = "Paint rotations too"
 
 [node name="NeighboursSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3200019]
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Voisines"
+title = "Neighbours"
 expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection" unique_id=3200020]
@@ -1111,7 +1111,7 @@ theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
-text = "▸  Voisines"
+text = "▸  Neighbours"
 flat = true
 alignment = 0
 
@@ -1132,20 +1132,20 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
 autowrap_mode = 2
-text = "Les voisines de la case survolee, collees."
+text = "The neighbours of the hovered cell, edge to edge."
 
 [node name="NeighboursPanel" type="Control" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/NeighboursSection/Content/Items" unique_id=3100020]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 212)
 layout_mode = 2
-tooltip_text = "La case survolee et ses voisines reelles, a la meme echelle et COLLEES. Le raccord se juge pendant le geste, pas apres l'export."
+tooltip_text = "The hovered cell and its real neighbours, at the same scale and EDGE TO EDGE. A seam is judged during the stroke, not after the export."
 script = ExtResource("6_nghb")
 
 [node name="ViewSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=582321380]
 layout_mode = 2
 theme_override_constants/separation = 0
 script = ExtResource("4_cwcei")
-title = "Vue"
+title = "View"
 expanded = false
 
 [node name="Header" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection" unique_id=1667700995]
@@ -1155,7 +1155,7 @@ theme_override_colors/font_pressed_color = Color(0.878, 0.878, 0.851, 1)
 theme_override_colors/font_hover_color = Color(0.706, 0.741, 0.522, 1)
 toggle_mode = true
 button_pressed = true
-text = "▾  Vue"
+text = "▾  View"
 flat = true
 alignment = 0
 
@@ -1173,25 +1173,25 @@ theme_override_constants/separation = 6
 [node name="GridCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=1040001326]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "La grille des tuiles, et celle des faux pixels quand le zoom la rend lisible. Une grille est une aide a viser : quand on juge une couleur, elle gene."
-text = "Masquer la grille"
+tooltip_text = "The tile grid, and the fake pixel grid once zoom makes it readable. A grid helps you aim: when you judge a colour, it gets in the way."
+text = "Hide the grid"
 
 [node name="AssembledCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100011]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Efface le fond du guide, les grilles et les reperes : il ne reste que vos tuiles. Meme famille que la grille -- on ne juge pas une couleur a travers autre chose."
-text = "Masquer le guide"
+tooltip_text = "Clears the guide backdrop, the grids and the marks: only your tiles are left. Same family as the grid -- you do not judge a colour through something else."
+text = "Hide the guide"
 
 [node name="WorkCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100016]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Efface vos pixels et ne laisse que le guide. L'inverse de « Masquer le guide » : pour comparer ce que vous avez peint a ce qu'il fallait peindre."
-text = "Masquer le travail"
+tooltip_text = "Clears your pixels and leaves only the guide. The opposite of 'Hide the guide': to compare what you painted with what had to be painted."
+text = "Hide your work"
 
 [node name="FitButton" type="Button" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=794563993]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Recadrer le guide"
+text = "Fit the guide"
 
 [node name="HoverLabel" type="Label" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/ViewSection/Content/Items" unique_id=3100015]
 unique_name_in_owner = true
@@ -1199,7 +1199,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.949, 0.792, 0.475, 1)
 autowrap_mode = 2
-text = "survolez une case"
+text = "hover a cell"
 
 [node name="LoadingPanel" type="PanelContainer" parent="Layout/Body" unique_id=886349748]
 unique_name_in_owner = true
@@ -1230,7 +1230,7 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.878, 0.878, 0.851, 1)
-text = "Dessin du fond du guide"
+text = "Drawing the guide backdrop"
 
 [node name="LoadingBar" type="ProgressBar" parent="Layout/Body/LoadingPanel/LoadingMargin/LoadingBox" unique_id=222503579]
 unique_name_in_owner = true
@@ -1242,4 +1242,4 @@ show_percentage = false
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
-text = "0 / 0 tuiles"
+text = "0 / 0 tiles"

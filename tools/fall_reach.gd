@@ -41,6 +41,8 @@ func _initialize() -> void:
 	var short_of_plain: int = 0
 	var rows_missing: int = 0
 	var flush_short: int = 0
+	var by_short: Dictionary = {}
+	var on_level: Dictionary = {}
 	var example_massif: String = ""
 	var example_cropped: String = ""
 
@@ -83,8 +85,18 @@ func _initialize() -> void:
 					into_void += 1
 				else:
 					cropped += 1
+					# ⚠ ET ON DIT DE COMBIEN ELLE MANQUE, PAS SEULEMENT QU'ELLE EST ECRETEE.
+					# La hauteur DUE est celle du denivele reel -- `FALL x (mon etage - le sol
+					# que je rencontre)` -- et non `FALL x mon etage` : un massif porte a un
+					# denivele plus petit que son etage, et lui demander toute sa hauteur
+					# mentirait dans l'autre sens.
+					var owed: int = Massifs.FALL * (level - maxi(under, 0))
+					var short: int = maxi(0, owed - deep)
+					by_short[short] = int(by_short.get(short, 0)) + 1
+					on_level[under] = int(on_level.get(under, 0)) + 1
 					if example_cropped.is_empty():
-						example_cropped = "monde %d, levre %d,%d -- ecretee sur l'etage %d" 								% [index, at.x, at.y, under]
+						example_cropped = ("monde %d, levre %d,%d -- etage %d, ecretee sur "
+								+ "l'etage %d apres %d rangee(s), il en manque %d") 								% [index, at.x, at.y, level, under, deep, short]
 				# ⚠ ET CE QUE LA PROPOSITION COUTERAIT : descendre jusqu'au PIED DE LA PLAINE,
 				# c'est-a-dire `FALL * level` rangees, quoi qu'il y ait devant.
 				var full: int = Massifs.FALL * level
@@ -106,6 +118,22 @@ func _initialize() -> void:
 	if not example_cropped.is_empty():
 		print("      %s" % example_cropped)
 	print("  face qui tombe dans le VIDE, sans pied          : %d" % into_void)
+	print("")
+	print("LES ECRETEES, EN DETAIL -- de combien de rangees manquent-elles ?")
+	var shorts: Array[int] = []
+	for one: Variant in by_short.keys():
+		shorts.append(int(one))
+	shorts.sort()
+	for short2: int in shorts:
+		print("    il manque %d rangee(s) : %d face(s)%s" % [short2, int(by_short[short2]),
+				"   <- la face est DEJA a sa hauteur due" if short2 == 0 else ""])
+	print("  et sur quel sol elles s'arretent :")
+	var grounds: Array[int] = []
+	for two: Variant in on_level.keys():
+		grounds.append(int(two))
+	grounds.sort()
+	for ground2: int in grounds:
+		print("    etage %2d : %d face(s)" % [ground2, int(on_level[ground2])])
 	print("")
 	print("CE QUE « DESCENDRE JUSQU'AU PIED DE LA PLAINE » CHANGERAIT")
 	print("  levres qui s'arretent AVANT la plaine : %d sur %d" % [short_of_plain, lips])

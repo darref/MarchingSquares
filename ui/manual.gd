@@ -11,10 +11,7 @@
 extends Control
 
 const MassifTileset := preload("res://exporters/massif_tileset.gd")
-const Walls := preload("res://core/walls.gd")
-const BlobIndex := preload("res://core/blob_index.gd")
-const Thickness := preload("res://core/thickness.gd")
-const CornerIndex := preload("res://core/corner_index.gd")
+const Families := preload("res://core/families.gd")
 
 const VEIL: Color = Color(0.055, 0.063, 0.055, 0.82)
 const PAPER: Color = Color(0.118, 0.129, 0.118, 1.0)
@@ -70,7 +67,7 @@ func _build() -> void:
 	var head: HBoxContainer = HBoxContainer.new()
 	column.add_child(head)
 	var title: Label = Label.new()
-	title.text = "Mode d'emploi"
+	title.text = "User guide"
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", TITLE)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -78,7 +75,7 @@ func _build() -> void:
 	var shut: Button = Button.new()
 	shut.text = "✕"
 	shut.flat = true
-	shut.tooltip_text = "Fermer (Echap)"
+	shut.tooltip_text = "Close (Esc)"
 	shut.add_theme_font_size_override("font_size", 20)
 	shut.pressed.connect(close)
 	head.add_child(shut)
@@ -86,9 +83,9 @@ func _build() -> void:
 	var tabs: TabContainer = TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(tabs)
-	_page(tabs, "1 · Prise en main", _hands_on())
-	_page(tabs, "2 · Comment ça marche", _how_it_works())
-	_page(tabs, "3 · La règle de pose", "")
+	_page(tabs, "1 · Getting started", _hands_on())
+	_page(tabs, "2 · How it works", _how_it_works())
+	_page(tabs, "3 · The placement rule", "")
 
 
 ## Une page : du texte enrichi, qui defile.
@@ -139,158 +136,151 @@ func _titre(text: String) -> String:
 
 func _hands_on() -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("[i]Vous peignez un paysage une fois. Le logiciel en tire un tileset "
-			+ "complet, et le moteur le pose sans que vous ayez rien a regler.[/i]")
+	lines.append("[i]You paint one landscape, once. The software pulls a complete "
+			+ "tileset out of it, and the engine places it with nothing for you to set.[/i]")
 
-	lines.append(_titre("1. Choisir ce qu'on fabrique"))
-	lines.append("Dans la barre de gauche, trois choix, et ils se font [b]avant[/b] de "
-			+ "dessiner : le [b]paysage[/b], la [b]taille des faux pixels[/b], le "
-			+ "[b]reseau[/b].")
-	lines.append("Ils se ferment au premier pixel pose : en changer rejetterait le travail, "
-			+ "puisque ce ne seraient plus les memes tuiles.")
+	lines.append(_titre("1. Choose what you are making"))
+	lines.append("In the left bar, three choices, and they are made [b]before[/b] you "
+			+ "draw: the [b]landscape[/b], the [b]fake pixel size[/b], the "
+			+ "[b]layout[/b].")
+	lines.append("They close on the first pixel placed: changing one would throw the work away, "
+			+ "because they would no longer be the same tiles.")
 
-	lines.append(_titre("2. Peindre"))
-	lines.append("[b]Clic gauche[/b] pose, [b]clic droit[/b] efface. Choisissez une couleur "
-			+ "dans la palette de la section Outils.")
-	lines.append("Huit outils, une touche chacun : [b]crayon[/b] (P), [b]brosse[/b] (B), "
-			+ "[b]aerographe[/b] (A), [b]pot[/b] (G), [b]ligne[/b] (L), [b]rectangle[/b] (R), "
-			+ "[b]pipette[/b] (I), [b]gomme[/b] (E). La rangee [b]Taille[/b] -- ou les touches "
-			+ "[ et ] -- donne le diametre de la brosse, de l'aerographe, de la gomme, de la "
-			+ "ligne et du rectangle ; le crayon fait toujours un pixel.")
-	lines.append("[b]Contraindre a la tuile[/b] : une passe reste dans la tuile ou elle a "
-			+ "commence, ce qui deborde sur une voisine est ignore. Le pot s'arrete de "
-			+ "lui-meme au bord de la tuile.")
-	lines.append("Les cases qui portent [b]la meme tuile[/b] se remplissent ensemble : ce "
-			+ "n'est pas une autre tuile qui se ressemble, c'est la meme, vue a plusieurs "
-			+ "endroits. Un coup de crayon peut donc en toucher cent.")
-	lines.append("Les cases [color=#e1b360]cerclees d'ambre[/color] n'ont pas de jumelle : "
-			+ "personne d'autre ne portera leur tuile.")
-	lines.append("[b]Ctrl+Z[/b] defait un trait entier, [b]Ctrl+Y[/b] le refait. "
-			+ "[b]Ctrl+S[/b] enregistre, [b]Ctrl+O[/b] rouvre.")
-	lines.append("[color=#96a096]Les deux jauges en haut a droite disent ce qui reste. "
-			+ "Elles se recalculent a chaque coup de crayon, avec les memes fonctions que la "
-			+ "suite de tests : ce que l'ecran affiche est ce que les tests prouvent."
+	lines.append(_titre("2. Paint"))
+	lines.append("[b]Left click[/b] paints, [b]right click[/b] erases. Pick a colour "
+			+ "from the palette in the Tools section.")
+	lines.append("Eight tools, one key each: [b]pencil[/b] (P), [b]brush[/b] (B), "
+			+ "[b]spray[/b] (A), [b]fill[/b] (G), [b]line[/b] (L), [b]rectangle[/b] (R), "
+			+ "[b]picker[/b] (I), [b]eraser[/b] (E). The [b]Size[/b] row -- or the keys "
+			+ "[ and ] -- sets the diameter of the brush, the spray, the eraser, the "
+			+ "line and the rectangle; the pencil is always one pixel.")
+	lines.append("[b]Keep inside the tile[/b]: a stroke stays in the tile where it "
+			+ "started, whatever spills onto a neighbour is ignored. The fill stops "
+			+ "on its own at the tile edge.")
+	lines.append("Cells carrying [b]the same tile[/b] fill together: it is not another "
+			+ "tile that merely looks alike, it is the same one, seen in several "
+			+ "places. One stroke can therefore touch a hundred.")
+	lines.append("Cells [color=#e1b360]ringed in amber[/color] have no twin: "
+			+ "nobody else will carry their tile.")
+	lines.append("[b]Ctrl+Z[/b] undoes a whole stroke, [b]Ctrl+Y[/b] redoes it. "
+			+ "[b]Ctrl+S[/b] saves, [b]Ctrl+O[/b] reopens.")
+	lines.append("[color=#96a096]The two gauges at the top right say what is left. "
+			+ "They recompute at every stroke, with the same functions as the "
+			+ "test suite: what the screen shows is what the tests prove."
 			+ "[/color]")
 
-	lines.append(_titre("3. Exporter"))
-	lines.append("Le bouton [b]Exporter[/b] s'ouvre quand il ne manque plus une tuile, et "
-			+ "pas avant. Une feuille a moitie peinte n'est pas un tileset, c'est un piege : "
-			+ "des trous transparents qu'on decouvrirait dans le jeu.")
-	lines.append("Il ecrit [b]quatre fichiers[/b] : les deux planches, une planche de "
-			+ "[b]preuve[/b] -- chaque cas isole, a une place connue d'avance -- et le "
-			+ "[b]manifeste[/b], qui porte la regle de pose en entier.")
+	lines.append(_titre("3. Export"))
+	lines.append("The [b]Export[/b] button opens when not one tile is missing, and "
+			+ "not before. A half-painted sheet is not a tileset, it is a trap: "
+			+ "transparent holes you would only find in the game.")
+	lines.append("It writes [b]two files[/b]: the [b]sheet[/b] -- surfaces and cliff "
+			+ "faces together, one single vocabulary, tiles ordered by key -- and the "
+			+ "[b]manifest[/b], which says where the tiles are.")
 
-	lines.append(_titre("4. Installer dans votre moteur"))
-	lines.append("Bouton [b]Installer le plugin Godot[/b], puis choisissez [b]la racine du "
-			+ "projet[/b] : le dossier qui contient [code]project.godot[/code]. Pas "
-			+ "[code]addons/[/code], pas une sous-scene -- la racine.")
-	lines.append("Un [b]tileset part avec[/b], dans [code]solutiles/[/code] : le votre "
-			+ "s'il est complet, son [b]essai[/b] sinon. L'essai est fait du dessin du guide "
-			+ "lui-meme : de quoi poser un monde tout de suite, sans avoir peint.")
+	lines.append(_titre("4. Install into your engine"))
+	lines.append("The [b]Install the Godot plugin[/b] button, then choose [b]the project "
+			+ "root[/b]: the folder holding [code]project.godot[/code]. Not "
+			+ "[code]addons/[/code], not a sub-scene -- the root.")
+	lines.append("A [b]tileset ships with it[/b], in [code]solutiles/[/code]: yours "
+			+ "if it is complete, the [b]trial[/b] otherwise. The trial is made of the guide's own "
+			+ "drawing: enough to place a world right away, without having painted.")
 
-	lines.append(_titre("5. Peindre le monde, dans Godot"))
-	lines.append("[b]Projet → Parametres du projet → Extensions[/b], cochez "
+	lines.append(_titre("5. Paint the world, in Godot"))
+	lines.append("[b]Project → Project Settings → Plugins[/b], tick "
 			+ "[b]SoluPaint[/b].")
-	lines.append("Un bouton [b]SoluPaint[/b] apparait dans la barre du haut. Cliquez-le : "
-			+ "il ouvre son panneau, pose un monde dans la scene ouverte et vous y emmene.")
-	lines.append("Dans le panneau : choisissez un [b]etage[/b] (0 est du sol, 1 a 9 les "
-			+ "plateaux, [b]Vide[/b] retire la case du monde), [b]armez le pinceau[/b], et "
-			+ "peignez. Clic gauche pose, clic droit retire.")
-	lines.append("[color=#96a096]Vous n'avez aucun fichier a pointer : le panneau cherche "
-			+ "les tilesets du projet et les propose. S'il n'y en a qu'un, il le prend."
+	lines.append("A [b]SoluPaint[/b] button appears in the top bar. Click it: "
+			+ "it opens its panel, places a world in the open scene and takes you there.")
+	lines.append("In the panel: choose a [b]level[/b] (0 is ground, 1 to 9 the "
+			+ "plateaus, [b]Void[/b] removes the cell from the world), [b]arm the brush[/b], and "
+			+ "paint. Left click places, right click removes.")
+	lines.append("[color=#96a096]You have no file to point at: the panel searches "
+			+ "the project for tilesets and offers them. If there is only one, it takes it."
 			+ "[/color]")
-	lines.append("[color=#96a096]Le pinceau s'arme a la main, expres : tant qu'il est arme, "
-			+ "la souris peint au lieu de deplacer les noeuds.[/color]")
+	lines.append("[color=#96a096]The brush is armed by hand, on purpose: while it is armed, "
+			+ "the mouse paints instead of moving nodes.[/color]")
 	return "\n".join(lines)
 
 
 func _how_it_works() -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("[i]Ce niveau explique pourquoi l'outil refuse certaines choses. Rien ici "
-			+ "n'est necessaire pour peindre.[/i]")
+	lines.append("[i]This level explains why the tool refuses certain things. Nothing here "
+			+ "is needed in order to paint.[/i]")
 
-	lines.append(_titre("Le guide est prouve avant que vous ne peigniez"))
+	lines.append(_titre("The guide is proven before you paint"))
+	lines.append("A tile is not a picture you pick: it is [b]what its surroundings make it[/b]. "
+			+ "The tool knows every case that can occur, it lays them all out in the guide, and it "
+			+ "refuses whatever it cannot guarantee.")
+	lines.append("[b]Nothing is one cell thick.[/b] Spikes, isthmuses, islets and one-cell "
+			+ "holes do not exist -- not here, and not in the engine, whose brush refuses them as "
+			+ "you draw them, corner pinches included.")
 	# ⚠ ON FORME LA PHRASE PUIS ON LA REMPLIT. En GDScript, `%` mord sur le DERNIER
 	# fragment d'une concatenation, pas sur l'ensemble : ecrit d'un trait, il cherchait ses
 	# arguments dans un morceau qui n'en attendait aucun.
-	var count: int = Thickness.SURFACE_INDICES.size()
-	var neighbourhood: String = ("Une tuile de surface ne depend que du voisinage de sa "
-			+ "case : huit voisins, donc 256 configurations, qui se ramenent a %d une fois "
-			+ "qu'on jette les coins diagonaux isoles -- puis a [b]%d[/b] par la regle du "
-			+ "mode : [b]rien ne fait une tuile d'epaisseur[/b]. Pointes, isthmes, ilots et "
-			+ "trous d'une case n'existent pas, et le pinceau du moteur les refuse.")
-	lines.append(neighbourhood % [BlobIndex.CANONICAL_INDICES.size(), count])
-	var proven: String = ("Le guide livre contient les %d, verifie par programme. Ce n'est "
-			+ "pas une promesse : c'est un compte.")
-	lines.append(proven % count)
+	#
+	# ⚠ ET LE COMPTE SE LIT, IL NE S'ECRIT JAMAIS EN DUR. C'est l'expression dont l'export se
+	# sert pour la planche ET pour le manifeste : le manuel dit donc toujours ce que l'acheteur
+	# recoit vraiment. Un nombre ecrit ici mentirait des la tuile suivante -- le vocabulaire a
+	# bouge trois fois dans la seule journee du 06/09.
+	var proven: String = ("The guide you are given carries all [b]%d[/b] of them, verified by "
+			+ "program. That is not a promise: it is a count.")
+	lines.append(proven % Families.massif_tiles().size())
 
-	lines.append(_titre("Deux vocabulaires, jamais melanges"))
-	lines.append("Un terrain resout les coins d'un [b]plan[/b]. Une falaise [b]sort du "
-			+ "plan[/b] : sa face occupe des cases qui, vues de dessus, appartiennent au sol "
-			+ "d'en bas. Aucun systeme de terrain ne peut la poser.")
-	var families: String = ("D'ou deux familles : [b]%d[/b] tuiles de surface et [b]%d[/b] "
-			+ "de mur, soit [b]%d[/b] en tout -- et deux planches separees, pour qu'on sache "
-			+ "toujours ou l'une s'arrete.")
-	lines.append(families % [count, Thickness.wall_roles().size(),
-			count + Thickness.wall_roles().size()])
-	var astride: String = ("En reseau [b]a cheval[/b], une tuile est posee sur le croisement "
-			+ "de quatre cases : [b]%d[/b] tuiles de surface au lieu de %d, les murs ne "
-			+ "changeant pas.")
-	lines.append(astride % [CornerIndex.TILE_COUNT, count])
+	lines.append(_titre("Why a terrain system is not enough"))
+	lines.append("A terrain solves the corners of a [b]plane[/b]. A cliff [b]leaves the "
+			+ "plane[/b]: its face fills cells which, seen from above, belong to the ground "
+			+ "below. No terrain system can place it.")
+	lines.append("Here a massif is [b]one whole thing[/b] -- its surface, and the cliff hanging "
+			+ "under it -- and a tile is that one shape seen at a given height: [b]surface[/b], "
+			+ "[b]cap[/b], [b]body[/b] or [b]foot[/b]. One vocabulary, one sheet.")
 
-	lines.append(_titre("Ce que le crayon fait sans vous le demander"))
-	lines.append("[b]Les jumelles.[/b] Deux cases qui portent la meme tuile ne se "
-			+ "ressemblent pas : c'est la meme tuile. Les remplir ensemble ne peut donc "
-			+ "jamais etre faux, et ce n'est pas une option. Elles partagent d'ailleurs une "
-			+ "seule image : peindre l'une, c'est peindre l'autre, au sens propre.")
-	lines.append("[b]Une case sous une falaise porte la falaise.[/b] Sur la carte c'est du "
-			+ "sol d'en bas, mais on ne voit que la face : elle ne prend que la robe, jamais "
-			+ "la surface qu'elle recouvre.")
-	lines.append("[b]Les raccords obligatoires.[/b] Par endroits, deux tuiles de falaise "
-			+ "[b]sont la meme paroi[/b] : deux rangees qui se suivent dans une chute, deux "
-			+ "flancs muets face a face. Le pixel qui borde l'une borde l'autre -- on le "
-			+ "recopie la ou l'egalite est demontree, et nulle part ailleurs.")
-	lines.append("[color=#96a096]Sur les surfaces, aucune egalite n'est exigee : a la "
-			+ "frontiere entre une case dont le nord est plein et une case dont il est vide, "
-			+ "la levre eclairee s'arrete net, et elle a raison -- le terrain fait une marche "
-			+ "la.[/color]")
+	lines.append(_titre("What the pencil does without asking you"))
+	lines.append("[b]Twins.[/b] Two cells carrying the same tile do not "
+			+ "merely look alike: they are the same tile. Filling them together can therefore "
+			+ "never be wrong, and it is not an option. They share, in fact, a "
+			+ "single image: painting one is painting the other, literally.")
+	lines.append("[b]A cell under a cliff carries the cliff.[/b] On the map it is "
+			+ "ground from below, but only the face is visible: it takes the cliff alone, never "
+			+ "the surface it covers.")
+	lines.append("[color=#96a096]All the context a tile ever gets is four bits: whether its "
+			+ "massif overlaps another one, and whether grass and rock of the same massif meet on "
+			+ "its west, east or north side. Nothing else.[/color]")
 
-	lines.append(_titre("Le vide, la plaine, et le bord du monde"))
-	var plain: String = ("[b]La plaine est un plateau comme les autres.[/b] Elle a sa "
-			+ "silhouette, ses %d index, et ses falaises la ou elle borde le [b]vide[/b].")
-	lines.append(plain % count)
-	lines.append("Le vide n'est pas la plaine : c'est le hors-monde. Sans cette distinction "
-			+ "le moteur ne saurait pas ou le sol s'arrete, et ne poserait aucun etage 0.")
-	lines.append("Dans le plugin : une case [b]presente[/b] a l'etage 0 est du sol, une case "
-			+ "[b]absente[/b] n'est rien.")
+	lines.append(_titre("The void, the plain, and the world's edge"))
+	lines.append("[b]The plain is a massif like any other.[/b] It has its silhouette, and its "
+			+ "cliffs wherever it borders the [b]void[/b].")
+	lines.append("The void is not the plain: it is outside the world. Without that distinction "
+			+ "the engine would not know where the ground stops, and would place no level 0.")
+	lines.append("In the plugin: a cell [b]present[/b] at level 0 is ground, a cell "
+			+ "[b]absent[/b] is nothing.")
 
-	lines.append(_titre("Ce que l'export refuse, et pourquoi"))
-	lines.append("Une feuille incomplete. Un manifeste trop vieux ou trop recent pour le "
-			+ "lecteur -- une regle a pu changer de sens, et poser quand meme serait un "
-			+ "mensonge silencieux. Des constantes de falaise que le moteur ne sait pas "
-			+ "rejouer.")
-	lines.append("[color=#96a096]Un refus n'est pas une erreur : incomplet est l'etat normal "
-			+ "pendant tout le travail. Le bouton est grise, le compte s'affiche, et c'est "
-			+ "tout.[/color]")
+	lines.append(_titre("What the export refuses, and why"))
+	lines.append("An incomplete sheet. A manifest too old or too new for the "
+			+ "reader -- a rule may have changed meaning, and placing anyway would be a "
+			+ "silent lie. Cliff constants the engine does not know how to "
+			+ "replay.")
+	lines.append("[color=#96a096]A refusal is not an error: incomplete is the normal state "
+			+ "throughout the work. The button is greyed out, the count is shown, and that is "
+			+ "all.[/color]")
 
-	lines.append(_titre("Ce que le plugin fait de votre feuille"))
-	lines.append("Il lit le manifeste, fabrique un TileSet, et pose : les sommets de chaque "
-			+ "etage [b]du bas vers le haut[/b], puis les faces de falaise par-dessus.")
-	lines.append("[b]Il ne fabrique aucune tuile.[/b] Chaque case va chercher, dans la "
-			+ "planche, celle que la regle designe. Si la regle en designait une qui n'existe "
-			+ "pas, ce serait un trou -- et c'est exactement ce que le refus d'une feuille "
-			+ "incomplete rend impossible.")
+	lines.append(_titre("What the plugin does with your sheet"))
+	lines.append("It reads the manifest, builds a TileSet, and places [b]one layer per level, "
+			+ "from the bottom up[/b]. What is higher covers what is lower, and the drawing order "
+			+ "settles the rest -- there is nothing to assemble.")
+	lines.append("[b]It makes no tile.[/b] Every cell fetches, from the "
+			+ "sheet, the one the rule names. If the rule named one that did not "
+			+ "exist, there would be a hole -- and that is exactly what refusing an incomplete "
+			+ "sheet makes impossible.")
 	return "\n".join(lines)
 
 
 ## LA REGLE DE POSE, telle qu'elle part dans le manifeste. Pas une paraphrase : le texte.
 func _the_contract() -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("[i]Ce qui suit est [b]mot pour mot[/b] ce que votre moteur recoit, dans "
-			+ "le fichier [code]<nom>_tileset.txt[/code]. Quelqu'un qui n'a que ce fichier "
-			+ "et la planche doit pouvoir poser un monde correct : si une regle "
-			+ "manquait ici, elle vivrait dans la tete de celui qui a ecrit le premier "
-			+ "moteur, et le second divergerait sans que rien ne le dise.[/i]\n")
+	lines.append("[i]What follows is [b]word for word[/b] what your engine receives, in "
+			+ "the file [code]<name>_tileset.txt[/code]. Someone who has only this file "
+			+ "and the sheet must be able to place a correct world: if a rule "
+			+ "were missing here, it would live in the head of whoever wrote the first "
+			+ "engine, and the second would diverge with nothing to say so.[/i]\n")
 	lines.append("[code]")
 	for line: String in MassifTileset.placement_rules():
 		var clean: String = line.replace("[", "[lb]")

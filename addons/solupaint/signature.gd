@@ -78,8 +78,8 @@ static func judge(sheet: PackedByteArray, table: String, version: int, seal: Str
 static func say(verdict: int) -> String:
 	match verdict:
 		VALIDE:
-			return "tileset signe SoluTiles"
+			return "SoluTiles signed tileset"
 		INVALIDE:
-			return "sceau invalide : la planche ou la table a change depuis la signature"
+			return "invalid seal: the sheet or the table changed after signing"
 		_:
-			return "tileset non signe"
+			return "unsigned tileset"

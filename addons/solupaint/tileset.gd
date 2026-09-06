@@ -37,7 +37,7 @@ static func build(folder: String, report: Dictionary) -> Dictionary:
 	var side: int = int(report["tile_size"])
 	if side <= 0:
 		result["error"] = ERR_INVALID_DATA
-		result["reason"] = "Le manifeste n'annonce aucune taille de tuile."
+		result["reason"] = "The manifest announces no tile size."
 		return result
 
 	var made: Dictionary = _source(folder, String(report["sheet"]), side,
@@ -61,7 +61,7 @@ static func _source(folder: String, sheet: String, side: int, slots: Array) -> D
 	var texture: Texture2D = _texture(path)
 	if texture == null:
 		outcome["error"] = ERR_FILE_NOT_FOUND
-		outcome["reason"] = "Planche introuvable ou illisible : %s" % sheet
+		outcome["reason"] = "Sheet missing or unreadable: %s" % sheet
 		return outcome
 
 	var source: TileSetAtlasSource = TileSetAtlasSource.new()
@@ -75,8 +75,8 @@ static func _source(folder: String, sheet: String, side: int, slots: Array) -> D
 		# donnerait un monde troue dont personne ne saurait dire pourquoi.
 		if slot.x < 0 or slot.y < 0 or slot.x >= columns or slot.y >= rows:
 			outcome["error"] = ERR_INVALID_DATA
-			outcome["reason"] = ("Le manifeste place une tuile en %d,%d, hors de %s "
-					+ "(%d x %d cases).") % [slot.x, slot.y, sheet, columns, rows]
+			outcome["reason"] = ("The manifest places a tile at %d,%d, outside %s "
+					+ "(%d x %d cells).") % [slot.x, slot.y, sheet, columns, rows]
 			return outcome
 		source.create_tile(slot)
 	outcome["source"] = source

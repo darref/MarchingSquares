@@ -47,8 +47,8 @@ func _enter_tree() -> void:
 	_button.text = "SoluPaint"
 	_button.icon = icon
 	_button.flat = true
-	_button.tooltip_text = "Pose un monde SoluPaint dans la scene ouverte, et le\n" \
-			+ "selectionne. S'il y en a deja un, il vous y emmene."
+	_button.tooltip_text = "Places a SoluPaint world in the open scene, and\n" \
+			+ "selects it. If there is already one, it takes you there."
 	_button.pressed.connect(_on_pressed)
 	add_control_to_container(CONTAINER_TOOLBAR, _button)
 
@@ -98,9 +98,9 @@ func _on_pressed() -> void:
 	_reveal_dock()
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
-		_complain("Aucune scene ouverte",
-				"SoluPaint pose un monde DANS une scene.\n\n"
-				+ "Ouvrez ou creez une scene, puis recliquez sur SoluPaint.")
+		_complain("No scene open",
+				"SoluPaint places a world INSIDE a scene.\n\n"
+				+ "Open or create a scene, then click SoluPaint again.")
 		return
 	var world: Node = _find_world(root)
 	if world == null:
@@ -128,7 +128,7 @@ func _add_world(root: Node) -> Node:
 	var world: Node = (load(WORLD_SCRIPT) as GDScript).new()
 	world.name = NODE_NAME
 	var history: EditorUndoRedoManager = get_undo_redo()
-	history.create_action("Ajouter un monde SoluPaint")
+	history.create_action("Add a SoluPaint world")
 	history.add_do_method(root, "add_child", world)
 	history.add_do_property(world, "owner", root)
 	history.add_do_reference(world)
@@ -152,7 +152,7 @@ func _on_armed(armed: bool) -> void:
 		_complain(String(blocking[0]), String(blocking[1]))
 		return
 	_select(_world())
-	_say("Arme. Clic gauche pose, clic droit retire.")
+	_say("Armed. Left click places, right click removes.")
 
 
 ## CE QUI MANQUE POUR PEINDRE, DIT EN TOUTES LETTRES : [titre, quoi faire].
@@ -166,28 +166,28 @@ func _on_armed(armed: bool) -> void:
 ## quelqu'un qui n'a pas encore de scene ouverte l'enverrait resoudre le mauvais probleme.
 func _blocking() -> Array:
 	if EditorInterface.get_edited_scene_root() == null:
-		return ["Aucune scene ouverte",
-				"Le pinceau peint une scene.\n\n"
-				+ "Ouvrez ou creez une scene, puis cliquez SoluPaint dans la barre du haut."]
+		return ["No scene open",
+				"The brush paints a scene.\n\n"
+				+ "Open or create a scene, then click SoluPaint in the top bar."]
 	var world: Node = _world()
 	if world == null:
-		return ["Aucun monde dans cette scene",
-				"Il faut un noeud SoluPaintWorld pour peindre.\n\n"
-				+ "Cliquez le bouton SoluPaint de la barre du haut : il en pose un et vous "
-				+ "y emmene."]
+		return ["No world in this scene",
+				"You need a SoluPaintWorld node in order to paint.\n\n"
+				+ "Click the SoluPaint button in the top bar: it places one and takes "
+				+ "you there."]
 	if String(world.manifest_path).is_empty():
 		if Manifest.discover().is_empty():
-			return ["Aucun tileset dans ce projet",
-					"Le pinceau pose des tuiles : il lui en faut.\n\n"
-					+ "Dans SoluTiles, cliquez \u00ab Installer le plugin Godot \u00bb et ciblez CE "
-					+ "projet. Le tileset part avec l'extension -- le votre s'il est complet, "
-					+ "son essai sinon."]
-		return ["Aucun tileset choisi",
-				"Ce projet en contient plusieurs.\n\n"
-				+ "Prenez-en un dans la liste \u00ab Tileset \u00bb du panneau SoluPaint."]
+			return ["No tileset in this project",
+					"The brush places tiles: it needs some.\n\n"
+					+ "In SoluTiles, click \u00ab Install the Godot plugin \u00bb and point at THIS "
+					+ "project. A tileset ships with the plugin -- yours if it is complete, "
+					+ "the trial otherwise."]
+		return ["No tileset chosen",
+				"This project holds several.\n\n"
+				+ "Pick one from the \u00ab Tileset \u00bb list in the SoluPaint panel."]
 	if not String(world.last_error).is_empty():
-		return ["Ce tileset ne se lit pas",
-				"%s\n\nChoisissez-en un autre dans la liste, ou reexportez-le depuis "
+		return ["This tileset cannot be read",
+				"%s\n\nPick another one from the list, or export it again from "
 				% String(world.last_error) + "SoluTiles."]
 	return []
 
@@ -310,23 +310,23 @@ func _commit(world: Node) -> void:
 	# entree d'historique : un Ctrl+Z qui « defait » sans rien defaire desoriente.
 	if _redo_delta.is_empty():
 		_undo_delta = {}
-		_say("Rien a changer : ces cases portaient deja cet etage.")
+		_say("Nothing to change: those cells already carried that level.")
 		return
 	var history: EditorUndoRedoManager = get_undo_redo()
-	history.create_action("Peindre le relief (%d cases)" % _redo_delta.size())
+	history.create_action("Paint the relief (%d cells)" % _redo_delta.size())
 	history.add_do_method(world, "apply", _redo_delta.duplicate())
 	history.add_undo_method(world, "apply", _undo_delta.duplicate())
 	history.commit_action(false)
 	# ⚠ ET CE QUE LA POSE N'A PAS SU FAIRE SE DIT AUSSI. Un trait qui laisse des cases sans
 	# tuile doit le dire au relachement : un trou muet dans le monde est le pire des defauts.
 	if not String(world.last_warning).is_empty():
-		_say("%d cases posees. %s" % [_redo_delta.size(), String(world.last_warning)])
+		_say("%d cells placed. %s" % [_redo_delta.size(), String(world.last_warning)])
 	elif _refused > 0:
 		# ⚠ UN REFUS MUET EST LE PIRE DES REFUS : on dit ce qui a ete refuse, et pourquoi.
-		_say(("%d cases posees, %d tampon(s) refuses : rien ne fait moins de trois cases, "
-				+ "ni en largeur ni par un coin.") % [_redo_delta.size(), _refused])
+		_say(("%d cells placed, %d stamp(s) refused: nothing is thinner than three cells, "
+				+ "neither in width nor through a corner.") % [_redo_delta.size(), _refused])
 	else:
-		_say("%d cases posees." % _redo_delta.size())
+		_say("%d cells placed." % _redo_delta.size())
 	_undo_delta = {}
 	_redo_delta = {}
 
@@ -383,31 +383,31 @@ func _offer() -> void:
 	var current: String = "" if world == null else String(world.manifest_path)
 	_dock.fill_tilesets(found, current)
 	if world == null:
-		_say("Cliquez le bouton de la barre du haut pour poser un monde.")
+		_say("Click the button in the top bar to place a world.")
 		return
 	if current.is_empty() and found.size() == 1:
 		world.manifest_path = found[0]
-		_say("Tileset trouve et pose : %s" % found[0].get_file())
+		_say("Tileset found and placed: %s" % found[0].get_file())
 		return
 	if current.is_empty():
-		_say("Aucun tileset trouve dans ce projet." if found.is_empty()
-				else "Choisissez le tileset a peindre.")
+		_say("No tileset found in this project." if found.is_empty()
+				else "Choose the tileset to paint with.")
 		return
-	_say("Monde pret. Armez le pinceau.")
+	_say("World ready. Arm the brush.")
 
 
 func _on_tileset_chosen(path: String) -> void:
 	var world: Node = _world()
 	if world == null:
-		_complain("Aucun monde dans cette scene",
-				"Le tileset se pose sur un monde, et il n'y en a pas.\n\n"
-				+ "Cliquez le bouton SoluPaint de la barre du haut : il en pose un.")
+		_complain("No world in this scene",
+				"The tileset is placed on a world, and there is none.\n\n"
+				+ "Click the SoluPaint button in the top bar: it places one.")
 		return
 	world.manifest_path = path
 	if not String(world.last_error).is_empty():
-		_complain("Ce tileset ne se lit pas", String(world.last_error))
+		_complain("This tileset cannot be read", String(world.last_error))
 		return
-	_say("Tileset : %s" % path.get_file())
+	_say("Tileset: %s" % path.get_file())
 
 
 ## ⚠ LE PANNEAU EST UN ONGLET, ET UN ONGLET QU'ON NE VOIT PAS N'EXISTE PAS. Godot range

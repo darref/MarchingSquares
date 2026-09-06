@@ -34,7 +34,7 @@ func _build() -> void:
 	add_child(title)
 
 	var hint: Label = Label.new()
-	hint.text = "Clic gauche pose l'etage choisi.\nClic droit retire la case du monde."
+	hint.text = "Left click places the chosen level.\nRight click removes the cell from the world."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 11)
 	hint.modulate = Color(1, 1, 1, 0.65)
@@ -51,14 +51,14 @@ func _build() -> void:
 	add_child(sheet)
 	_tileset = OptionButton.new()
 	_tileset.clip_text = true
-	_tileset.tooltip_text = "Les tilesets SoluTiles trouves dans ce projet."
+	_tileset.tooltip_text = "The SoluTiles tilesets found in this project."
 	_tileset.item_selected.connect(_on_tileset_selected)
 	add_child(_tileset)
 
 	add_child(HSeparator.new())
 
 	var caption: Label = Label.new()
-	caption.text = "Etage"
+	caption.text = "Level"
 	add_child(caption)
 
 	# ⚠ DIX BOUTONS PLUTOT QU'UN COMPTEUR. Choisir l'etage EST le geste principal : le mettre
@@ -73,9 +73,9 @@ func _build() -> void:
 		row.add_child(_level_button(str(level), level))
 	# ⚠ LE VIDE EST UN CHOIX, PAS UNE ABSENCE DE CHOIX. L'etage 0 est du SOL -- il porte une
 	# tuile, et une falaise la ou il borde le vide. Retirer une case est un autre geste.
-	var nothing: Button = _level_button("Vide", VOID)
-	nothing.tooltip_text = "Retire la case du monde. Ce n'est pas la plaine :\n" \
-			+ "l'etage 0 est du sol, le vide est le bord du monde."
+	var nothing: Button = _level_button("Void", VOID)
+	nothing.tooltip_text = "Removes the cell from the world. This is not the plain:\n" \
+			+ "level 0 is ground, void is the world's edge."
 	row.add_child(nothing)
 
 	add_child(HSeparator.new())
@@ -84,9 +84,9 @@ func _build() -> void:
 	# intercepte la souris sans qu'on l'ait demande fait perdre le glisser-deposer des noeuds,
 	# et on met dix minutes a comprendre pourquoi l'editeur ne repond plus.
 	_arm = CheckButton.new()
-	_arm.text = "Armer le pinceau"
-	_arm.tooltip_text = "Tant qu'il est arme, la souris peint la carte au lieu de\n" \
-			+ "deplacer les noeuds."
+	_arm.text = "Arm the brush"
+	_arm.tooltip_text = "While it is armed, the mouse paints the map instead of\n" \
+			+ "moving nodes."
 	_arm.toggled.connect(_on_armed)
 	add_child(_arm)
 
@@ -139,7 +139,7 @@ func fill_tilesets(paths: PackedStringArray, current: String) -> void:
 		return
 	_tileset.clear()
 	if paths.is_empty():
-		_tileset.add_item("aucun tileset trouve")
+		_tileset.add_item("no tileset found")
 		_tileset.disabled = true
 		return
 	_tileset.disabled = false

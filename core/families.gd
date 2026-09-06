@@ -50,7 +50,7 @@ const FAMILIES: Dictionary = {
 	# plus proposees nulle part.
 	BY_MASSIF: {
 		"label": "Massifs",
-		"note": "un massif entier, surface et jupe",
+		"note": "a whole massif, surface and cliff",
 	},
 }
 

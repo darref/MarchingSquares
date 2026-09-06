@@ -45,7 +45,7 @@ static var ROOMS: Dictionary = {}
 static func _static_init() -> void:
 	ROOMS = {
 		DESSIN: {
-			"label": "Dessin",
+			"label": "Draw",
 			"sections": known_sections(),
 		},
 		TEST: {
@@ -59,7 +59,7 @@ static func _static_init() -> void:
 			"label": "Animation",
 			"sections": known_sections(),
 			"closed": true,
-			"why": "L'animation par frame demande d'abord l'axe des frames au carnet.",
+			"why": "Frame animation needs the frame axis in the sketchbook first.",
 		},
 	}
 
@@ -100,7 +100,7 @@ static func default_id() -> StringName:
 
 static func label(id: StringName) -> String:
 	if not ROOMS.has(id):
-		push_error("rooms: room inconnue '%s'." % id)
+		push_error("rooms: unknown room '%s'." % id)
 		return ""
 	return String(ROOMS[id]["label"])
 
@@ -116,7 +116,7 @@ static func why_closed(id: StringName) -> String:
 ## Les sections que cette room montre.
 static func sections(id: StringName) -> PackedStringArray:
 	if not ROOMS.has(id):
-		push_error("rooms: room inconnue '%s'." % id)
+		push_error("rooms: unknown room '%s'." % id)
 		return PackedStringArray()
 	return ROOMS[id]["sections"]
 

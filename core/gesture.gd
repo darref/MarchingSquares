@@ -80,10 +80,10 @@ static func faults(world: PackedStringArray) -> Array[String]:
 		out.append("%d gouffre(s) enclos" % holes)
 	var ribbons: int = thin_cells_visible(world, made).size()
 	if ribbons > 0:
-		out.append("%d case(s) d'herbe visible fine" % ribbons)
+		out.append("%d cell(s) of visible grass too thin" % ribbons)
 	var steps: int = narrow_lips(world, made).size()
 	if steps > 0:
-		out.append("%d bord(s) sud plus etroit(s) que trois" % steps)
+		out.append("%d south edge(s) thinner than three" % steps)
 	return out
 
 

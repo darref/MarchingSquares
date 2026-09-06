@@ -7,6 +7,11 @@
 # ⚠ ET IL NE MODIFIE RIEN. Le fichier n'est jamais reecrit -- on le lit, on repose son
 # contenu sur le guide courant, et on dit ce qui retombe et ce qui ne retombe pas.
 #
+# ⚠ ET LE PAYSAGE SE LIT DANS L'EN-TETE, IL NE SE SUPPOSE PAS. L'outil chargeait le guide
+# d'`epais` quel que soit le fichier : un travail de massifs y retombait sur le relief d'un
+# autre modele, et le compte qui en sortait ne mesurait rien. C'est pour ca que `peek()`
+# existe -- le fichier dit sur quoi il a ete peint, on l'ecoute.
+#
 #     godot --headless --path . --script res://tools/reload_work.gd -- <chemin.solutiles>
 extends SceneTree
 
@@ -14,6 +19,8 @@ const WorkIO := preload("res://core/work_io.gd")
 const HeightMask := preload("res://core/height_mask.gd")
 const Modes := preload("res://core/modes.gd")
 const Families := preload("res://core/families.gd")
+const Massifs := preload("res://core/massifs.gd")
+const MassifTileset := preload("res://exporters/massif_tileset.gd")
 const Walls := preload("res://core/walls.gd")
 const Thickness := preload("res://core/thickness.gd")
 const Painting := preload("res://core/painting.gd")
@@ -33,7 +40,13 @@ func _initialize() -> void:
 
 	var header: Dictionary = WorkIO.peek(path)
 	print("EN-TETE : %s" % str(header))
-	var guide_path: String = Modes.guide_path(Modes.EPAIS)
+	var mode: StringName = StringName(header.get("mode", Modes.EPAIS))
+	if not Modes.has(mode):
+		print("REFUS : mode inconnu '%s'." % mode)
+		quit(1)
+		return
+	var guide_path: String = Modes.guide_path(mode)
+	print("GUIDE   : %s" % guide_path)
 	var heights: PackedStringArray = HeightMask.read(guide_path)
 	var result: Dictionary = WorkIO.read(path, heights)
 	if int(result.get("error", OK)) != OK:
@@ -49,7 +62,29 @@ func _initialize() -> void:
 	for key: Variant in unplaced:
 		print("   %s" % str(key))
 
-	# Quelles TUILES du vocabulaire courant portent de la peinture ?
+	print("")
+	if mode == Modes.MASSIFS:
+		_report_massifs(painting, heights)
+	else:
+		_report_walls(painting, heights, header)
+	quit()
+
+
+## LE MODELE DU JOUR : on demande a l'EXPORTATEUR ce qui manque, on ne le recompte pas ici.
+## ⚠ Un outil qui rederiverait la formule qu'il controle ne controlerait rien -- il la
+## certifierait. Ce que cette ligne affiche est exactement ce que le bouton « Exporter » juge.
+func _report_massifs(painting: Painting, heights: PackedStringArray) -> void:
+	var report: Dictionary = MassifTileset.analyse(painting, heights)
+	var wanted: Array = report["wanted"]
+	var missing: Array = report["missing"]
+	print("TUILES peintes : %d / %d" % [int(report["delivered"]), wanted.size()])
+	for tile: int in missing:
+		print("   manquante : %s" % Massifs.describe(tile))
+	print("EXPORTABLE : %s" % ("oui" if bool(report["is_exportable"]) else "non"))
+
+
+## L'ANCIEN MODELE, garde pour le mode `epais` -- son guide reste au depot comme temoin.
+func _report_walls(painting: Painting, heights: PackedStringArray, header: Dictionary) -> void:
 	var family: StringName = StringName(header.get("family", Families.BY_CELL))
 	var slots: Dictionary = WorkIO.slots(heights, family)
 	var painted: Dictionary = {}
@@ -71,11 +106,9 @@ func _initialize() -> void:
 			surfaces += 1
 		else:
 			missing_surfaces.append(str(index))
-	print("")
 	print("SURFACES peintes : %d / %d" % [surfaces, wanted.size()])
 	if not missing_surfaces.is_empty():
 		print("   manquantes : %s" % ", ".join(missing_surfaces))
 	print("FALAISES peintes : %d / %d" % [walls, Thickness.wall_roles().size()])
 	if not missing_walls.is_empty():
 		print("   manquantes : %s" % ", ".join(missing_walls))
-	quit()

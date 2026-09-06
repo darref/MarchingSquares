@@ -40,7 +40,17 @@ const BLOCK_W: int = 19
 const BLOCK_H: int = 30
 const COLUMNS: int = 8
 ## La marge de vide autour du guide : la falaise du bord du monde y tombe.
-const RIM: int = 4
+## LA MARGE DU GUIDE, EN CASES.
+##
+## ⚠ ELLE VAUT UNE CHUTE ENTIERE DEPUIS L ETAGE LE PLUS HAUT, ET PAS QUATRE. Une face descend
+## `FALL x etage` rangees ; a quatre rangees de marge, celle d un massif d etage eleve pose en
+## bas du guide n avait plus de CASE ou se poser -- et « une tuile qui tombe hors de la grille
+## est une tuile qu on ne peut pas peindre ». Le banc l a dit en deux extremites ouvertes (I1) a
+## la derniere rangee, le jour ou le PIED a cesse de s arreter sur ce qu il rencontrait.
+##
+## ⚠ ET CE N EST PAS UNE QUESTION DE VUE : on se promene dans le soft, on zoome et on glisse.
+## C est la GRILLE qui est finie, pas l ecran.
+const RIM: int = 4 + Massifs.FALL * 4
 ## Le socle d'un ilot AU RAS : il deborde d'autant, et de quoi porter le pied.
 ## ⚠ ET LES MARGES DE L'ILOT SUIVENT LA REGLE DU GESTE, PAS L'INVERSE. Elles etaient calibrees
 ## pour une marge de pied d'UNE rangee ; depuis que min trois vaut aussi sur ce qui se voit, il

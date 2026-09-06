@@ -22,3 +22,6 @@ __pycache__/
 
 # Les cles de signature ne vivent JAMAIS dans le depot.
 *.pem
+
+# le binaire exporte : il se refabrique, il ne se commite pas
+build/
