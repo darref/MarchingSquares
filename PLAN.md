@@ -4369,3 +4369,561 @@ c'était le même vocabulaire. Mais **le dessin calculé ne sert que d'aperçu**
 spécification, l'artiste peint par-dessus et son trait remplace le nôtre. Soigner un aperçu que
 personne ne livre est du travail pour rien. **F0 reste** — ce n'est pas un style, c'est le
 plancher, la profondeur d'un pixel, et le banc doit prouver que les invariants y tiennent aussi.
+
+
+---
+
+# LE PLAN DE LA SECONDE PARTIE — l'ordre arrêté le 2026-09-06
+
+⚠ **CETTE SECTION REMPLACE LA PRÉCÉDENTE COMME ORDRE, PAS COMME SPÉCIFICATION.** Ce que « LA
+SECONDE PARTIE DU PROJET » (2026-09-05) porte de **décisions utilisateur** — les fluides en long,
+les trois zones réservées, l'ordre des matières, les rooms de l'animation — reste vrai et **n'est
+pas recopié ici**. Ce qui change, c'est le **découpage** et l'**ordre** : la liste demandée le
+2026-09-06 — fluides, trous, grottes, animation par frame, rooms, plus les **cascades**, la **room
+de test** et les **chemins** — se range sous **un seul mécanisme**, le patch, une fois qu'on a posé
+que le terrain, lui, est fini.
+
+## LE TERRAIN EST FINI. TOUT CE QUI SUIT EST UN PATCH.
+
+⚠ **RECADRÉ PAR L'UTILISATEUR LE 2026-09-06, ET C'EST LE CADRE DE TOUTE LA SUITE.** La première
+rédaction de cette section raisonnait encore en *vocabulaire du terrain* — ce que coûterait un
+trou, ce que coûterait un fluide, comme si le modèle devait s'agrandir. **Il ne doit pas.** Le
+terrain ne gagne plus une tuile. Tout ce qui vient ensuite est un **PATCH** posé sur la surface, là
+où il y a de la place.
+
+**Un patch est une matière posée SUR la surface d'un étage.** Il a son vocabulaire à lui, il ne
+touche jamais à celui du terrain, et la seule question qu'il pose est celle du **PLACEMENT** :
+*est-ce qu'il tient là où on essaie de le mettre ?*
+
+Quatre propriétés, et elles valent pour tous :
+
+1. **VOCABULAIRE PROPRE, ET IL SE CALCULE.** Un patch n'a ni bande, ni chute, ni « au ras », ni
+   cisaillement — ces quatre-là appartiennent au relief. ⚠ **Et le carnet le disait déjà** : *une
+   matière est un étage sans falaise* (ARCHIVE, fiche « LES MATIÈRES BORDÉES »). Les étages
+   s'**empilent**, les matières sont **côte à côte** : la transition d'une matière est son propre
+   bord, donc **aucune tuile de façade en plus**, et `BlobIndex.canonicalize` s'y applique sans une
+   ligne de code de plus.
+2. **IL NE TOUCHE JAMAIS L'IDENTITÉ D'UNE TUILE DE TERRAIN.** Occlusion par ordre de rendu, rien
+   d'autre : la case d'herbe sous une mare reste `SURFACE 255`. C'est la loi du modèle — *un massif
+   existe entièrement sous ce qui le recouvre* — appliquée une couche plus haut.
+3. **LA SEULE RÈGLE EST LE PLACEMENT, ET ELLE EST PROPRE À CHAQUE TYPE.** ⚠ **IL N'Y A PAS DE
+   MARGE UNIVERSELLE** — la première rédaction en avait fait une loi commune, l'utilisateur l'a
+   corrigée le 06/09. Chaque type dit où il a le droit de se poser, et cette règle se décide
+   **avec lui**, une fois, jamais au milieu du travail (règle 1) :
+
+   | patch | support | sa règle de placement |
+   |---|---|---|
+   | **bassins d'eau** | surface | ⚠ **sa bordure d'une tuile d'épaisseur FAIT PARTIE DE SON EMPREINTE** |
+   | **trous** | surface | **aucune** — ils peuvent être **collés au bord** de la surface |
+   | **matières de surface** | surface | **largeur minimale 3** : la tuile pleine et ses deux bords |
+   | **grottes** | façade | assez de roche autour — ⚠ **un REFUS, pas un calcul** |
+   | **cascades + rivières** | les deux | ⚠ elles **traversent** : la rivière **perce** la bordure du bassin |
+
+4. **TOUT EST PENSÉ POUR ÊTRE DESSINÉ DE N'IMPORTE QUELLE MANIÈRE**, comme le reste de SoluTiles
+   (décision utilisateur du 06/09). ⚠ **Et le carnet dit déjà comment on paie ça : en RÉSERVANT.**
+   *« C'est le “strictement réservé” qui rend le geste possible, pas un détail de rangement : si
+   l'anneau partageait ses tuiles avec les corps ordinaires, un plafond peint là apparaîtrait sur
+   toutes les parois du monde. »* Réserver les tuiles d'un patch, **c'est exactement ce qui
+   autorise l'artiste à y peindre ce qu'il veut**.
+
+**Et le refus se voit avant le clic** (règle 5), pour tous : là où un patch ne tient pas, il ne se
+pose pas, et cela se voit sans avoir cliqué.
+
+**Les deux dispositions ne coûtent pas la même chose :**
+
+- **en DAMIER, des TÉMOINS RÉSERVÉS.** Une zone du guide par type de patch, un îlot par tuile,
+  exactement comme le terrain montre les siennes. ⚠ **Et la loi déjà payée s'y applique** : *un
+  accident ne se pose pas sous un autre* — deux témoins trop proches changent le voisinage l'un de
+  l'autre, et la tuile visée disparaît du guide.
+- **en PAYSAGE, il faut les INCORPORER**, et c'est le difficile : on pose un paysage plausible, on
+  **vérifie par programme** ce qu'il porte, et là où une tuile manque on cherche l'accident qui la
+  produit. ⚠ **C'est pour ça que le paysage vient à la fin**, juste avant ce qui lui ressemble le
+  plus.
+- ⚠ **ET LE GUIDE SE COMPOSE PAR COMBINAISON, PAS EN UN GUIDE GÉANT GRISÉ** — c'est mesuré au
+  carnet, et la mesure tient : base seule **23,0 px** la case, base + 1 matière **18,9**, base + 2
+  matières **14,6**. À 14,6 px on ne distingue plus un dessin de 16 faux pixels : le guide cesse de
+  montrer ce qu'il existe pour montrer.
+
+⚠ **CE QUI RESTE DU TERRAIN NE CONCERNE QUE SON SOLDE.** Trois choses, toutes au chantier 3 : le
+coin haut du cisaillement, la version 11.0.0, et la tuile `132095` que le pinceau livré atteint
+déjà. Rien de ce qui suit n'agrandit le modèle.
+
+## ⚠ ET IL Y A UN SECOND AXE : L'ENSEMBLE
+
+**Un ENSEMBLE est un tileset complet — le terrain et tous ses patchs — peint dans son propre art**
+(décision utilisateur du 2026-09-06). Plusieurs ensembles vivent dans le **même monde** : un massif
+d'herbe à côté d'un massif de désert, chacun avec ses 55 tuiles et ses patchs à lui.
+
+⚠ **ET ÇA NE COÛTE PAS UNE TUILE AU MODÈLE.** Tous les ensembles partagent les mêmes clés ; seul
+l'art diffère. C'est un carnet de plus, jamais un vocabulaire de plus — et c'est l'argument de
+vente le moins cher du projet : qui a peint un ensemble sait en peindre un second, et les deux se
+mélangent.
+
+**Ce que ça sépare, et qui était mélangé dans `core/modes.gd`** : le **MODE** est une *disposition*
+(Damier, Paysage), l'**ENSEMBLE** est un *art*. Deux axes orthogonaux, chacun faisant une chose.
+
+**Les quatre décisions du 06/09 :**
+
+1. **ROOMS FIXES, ENSEMBLES ÉDITABLES.** Les rooms — Dessin, Animation, Test — font partie du
+   logiciel et vivent **dans la barre de gauche** ; les ensembles s'ajoutent, se suppriment et se
+   renomment, et vivent dans une **bande flottante au-dessus de la zone de dessin**, hors des deux
+   barres latérales. ⚠ **La raison est mesurable** : le nom d'un ensemble est du texte libre, donc
+   de longueur imprévisible, et *un libellé qui s'allonge impose sa largeur à toute la barre* —
+   piège payé deux fois. **Horizontalement, un nom qui s'allonge ne pousse rien.**
+   ⚠ **Et la même bande sert deux fois** : en room Dessin elle dit *sur quel ensemble je peins*, en
+   room Test *quel ensemble je pose*. Même geste, deux sens, aucun contrôle de plus — c'est ce qui
+   la justifie mieux qu'un emplacement.
+   Elle reprend le pattern des deux barres : posée **sur** la zone et translucide au repos (elle ne
+   réserve que son cadrage initial, donc elle ne coûte pas de zoom), `self_modulate` et non
+   `modulate`, survol testé sur le **rectangle** et non `mouse_entered`, les **quatre** bords de
+   l'ancre posés.
+2. **UN PATCH DE TYPE A NE SE POSE QUE DANS UN MASSIF DE TYPE A.** Une condition de plus dans la
+   fonction de placement, et rien d'autre. ⚠ **C'est pour ça que les ensembles passent AVANT le
+   patch** : écrite une fois dans `core/patch.gd`, elle n'est jamais à rajouter après.
+3. **LES COUTURES SONT L'AFFAIRE DE L'ARTISTE** (décision utilisateur), et le modèle doit les lui
+   laisser. Deux ajustements, tous deux petits :
+   - ⚠ **`footprint()` DOIT TESTER LE NIVEAU DU VOISIN SUD, PAS SON APPARTENANCE AU MASSIF.**
+     Aujourd'hui : `if surface.has(at + Vector2i.DOWN): continue`. Coupez les composantes par type,
+     et le massif du nord pose **deux rangées de roche sans pied** sur le terrain plat de son
+     voisin — vérifié en déroulant la boucle de chute : `bottom = level`, `ground = level`, donc
+     aucun `break` avant `k = 3`. Ça, aucune peinture ne le rattrape. ⚠ **Et le correctif est un
+     NO-OP AUJOURD'HUI** : les trois cas — vide, niveau inférieur, niveau supérieur — donnent le
+     même résultat tant qu'il n'y a pas de type. Il ne devient différent que le jour où deux
+     ensembles se touchent à la même altitude, et ce jour-là il est juste.
+   - ⚠ **UN SEUL CÔTÉ TRACE, ET L'ORDRE DES ENSEMBLES LE DIT.** Deux bords adjacents qui tracent
+     tous les deux font le pavé 2×2 que I2 refuse, et l'artiste ne choisit pas son voisin. La loi
+     existe déjà, écrite pour le cisaillement — *la roche marque sa fin, l'herbe prend une ombre* —
+     et l'ordre est celui des matières : **l'ordre de création**. Aucun bit de plus.
+   ⚠ **Le reste est bien de l'artiste** : la même tuile de bord sert déjà contre du vide et contre
+   autre chose, et c'est la loi *« on ne peint dans une tuile que ce qui est CONSTANT »*.
+4. **SUPPRIMER UN ENSEMBLE JETTE DU TRAVAIL PEINT**, donc c'est la règle de « Nouveau projet »,
+   telle quelle : on ne demande **que s'il y a à perdre**, on **dit combien de cases** sont en jeu,
+   trois issues avec la plus sûre en premier, ⚠ **et la règle vit dans une fonction à part**,
+   mesurable sans monter l'éditeur. **Le nom se donne à la création et nulle part ailleurs**
+   (règle 1, même arbitrage que pour nommer une matière).
+
+⚠ **CE QUE ÇA CHANGE TOUT DE SUITE : LA v6 PORTE TROIS AXES, PAS DEUX.** La clé devient
+`<ensemble>/<calque> M<tuile>:<rang>@<frame>`, avec les mêmes valeurs par défaut — donc **la
+relecture d'un v5 reste l'identité**, mot pour mot. L'ouvrir maintenant coûte quelques lignes ;
+l'ouvrir après coûte une migration de plus, et *un format qui change deux fois est deux fois
+l'occasion de perdre du travail*.
+
+## L'ORDRE
+
+⚠ **DÉCIDÉ PAR L'UTILISATEUR LE 2026-09-06 : ON COMMENCE PAR LES DEUX ROOMS**, et le solde de la
+première partie vient **ensuite**, l'instrument en main. C'est un renversement de l'ordre du
+05/09, et sa raison est écrite au chantier 2 : le coin haut du cisaillement se relève sur du trait
+remonté, et la room de test **est** l'endroit où l'on regarde du trait remonté.
+
+1. **Le cadre des rooms.**
+2. **La room de test.**
+3. **Solder la première partie** — le coin haut du cisaillement, la version **11.0.0**, `PIED 21
+   au ras`, la fusion de la chasse, et la tuile `132095`.
+4. **L'axe : une seule refonte du carnet** — les frames **et** les calques.
+5. **L'animation par frame.**
+6. **LES ENSEMBLES** — un tileset complet par art, plusieurs dans le même monde. ⚠ **Avant le
+   patch** : « un patch de type A ne va que dans un massif de type A » s'écrit alors une fois.
+7. **LE PATCH** — le mécanisme, et le premier d'entre eux : les **bassins d'eau**.
+8. **Les trous.**
+9. **Les matières de surface** — ⚠ **ce que les « chemins » sont vraiment** : elles modifient la
+   surface avec n'importe quel art, n'importe quelle forme, n'importe quelle étendue.
+10. **Les grottes** — le premier patch de **façade**, en **deux types** : au pied, et en hauteur
+    avec balcon.
+11. **Le paysage** — la seconde disposition.
+12. **Les cascades et les rivières** — les plus compliquées, et elles demandent le paysage.
+13. **Plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
+
+**Pourquoi cet ordre.** Les chantiers 7 à 10 sont **le même mécanisme quatre fois** : une fois le
+patch bâti, chaque nouveau type est un vocabulaire à recenser, un dessin, une règle de placement, et
+rien d'autre. Les mettre à la suite, c'est payer l'outillage une fois. Et la room de test passe
+devant tout parce qu'elle est le **banc de recette** de ces quatre-là : un patch se juge à *est-ce
+qu'il tient, là, sur mon terrain* — question à laquelle aucun damier ne répond.
+
+## 1 · LE CADRE DES ROOMS
+
+Une grille de boutons **en haut de la barre de GAUCHE** (spécifié par l'utilisateur), au-dessus
+d'« Options ». Une room n'est **pas un réglage** : c'est un atelier. Le travail — le carnet, le
+guide, le mode, la résolution — est **partagé** ; la room ne change que ce que le centre montre et
+les gestes qu'on y a en main.
+
+- `ui/rooms.gd` — le catalogue, sur le modèle de `core/modes.gd` : une table, aucun avis sur son
+  affichage. Chaque room déclare son libellé, sa disponibilité, et **les sections des deux barres
+  qu'elle montre**.
+- ⚠ **UNE SEULE `editor.tscn`, DES SECTIONS QUI SE MONTRENT.** Trois scènes divergeraient, et la
+  divergence ne se verrait qu'à l'usage.
+- ⚠ **UNE ROOM INDISPONIBLE DIT POURQUOI** (« un refus muet est le pire des refus »), et la règle
+  de disponibilité vit dans une **fonction à part**, mesurable sans monter l'éditeur — même leçon
+  que `must_confirm`, qui peut régresser dans les deux sens.
+- ⚠ **Un libellé qui s'allonge impose sa largeur à toute la barre** (payé deux fois) : boutons
+  courts, grille de deux colonnes.
+- ⚠ **Les quatre bords d'un panneau ancré se posent, pas un seul.**
+
+Livré seul, ce chantier ne change **rien** à l'écran sauf une rangée de boutons avec une seule
+entrée, **Dessin**. C'est voulu : il se relit et se prouve avant que quoi que ce soit n'en dépende.
+
+## 2 · LA ROOM DE TEST — *demandée par l'utilisateur le 2026-09-06*
+
+**On pose un vrai relief, au pinceau du moteur, et on le voit rendu avec SES PROPRES TUILES.**
+Clic gauche monte d'un étage, clic droit efface — le tampon 3×3 de `core/gesture.gd`, celui-là
+même que l'acheteur aura en main dans son projet.
+
+**⚠ ET ELLE POSE AVEC `addons/solupaint/rules.gd`, JAMAIS AVEC `core/massifs.gd`.** C'est le point
+qui la rend juste : une room qui poserait avec le noyau prouverait que le noyau s'accorde avec
+lui-même. Branchée sur la copie qui part chez l'acheteur, elle devient un **contrôle croisé
+vivant** — le désaccord, s'il existe, se voit à l'écran, sur le trait de l'artiste, avant d'être
+livré. `rules.gd` ne précharge rien et se lit en headless : rien n'empêche le produit de l'ouvrir.
+
+**⚠ CE N'EST PAS L'APERÇU SUPPRIMÉ LE 05/09.** Celui-là reposait **tout seul** les mêmes tuiles
+sur une colline **fixe**, et disait donc ce que le guide dit déjà en permanence. Ici c'est
+l'artiste qui pose le relief, et ce qu'il regarde est précisément ce qu'aucun damier ne montre :
+ses tuiles **voisines**, dans des combinaisons que le guide juxtapose sans les composer. ⚠ **Le
+cisaillement du massif 21 a été relevé exactement comme ça** — sur du trait remonté, en situation,
+et par aucun autre moyen. La room de test est le successeur de ce geste, sorti de la ligne de
+commande.
+
+⚠ **ET C'EST ELLE QUI DÉBLOQUE LE SOLDE DE LA PREMIÈRE PARTIE.** Le **coin haut du cisaillement**
+est différé faute d'instrument commode : il se relève « sur SON trait remonté », c'est-à-dire
+aujourd'hui par `tools/tile_situations.gd` et l'aperçu `ART=`, en ligne de commande, une image à
+la fois. La room de test est exactement cet instrument, à demeure et au clic. ⚠ **C'est pour ça
+qu'elle passe AVANT le solde** (décision utilisateur du 2026-09-06) : le chantier 3 se fait
+l'instrument en main, au lieu de se faire à l'aveugle une deuxième fois.
+
+Ce qu'elle demande :
+
+- une carte bornée, tenue en mémoire, **reposée en entier au relâchement du geste** — jamais à
+  chaque pixel. Mesures du plugin, qui repose tout lui aussi : **3 ms en 16×16, 14 en 32×32, 75 en
+  64×64, 209 en 96×96.** ⚠ **La taille se choisit APRÈS la mesure**, pas avant.
+- **le refus se voit avant le clic** — le curseur cerclé de rouge là où le tampon serait illégal
+  (min trois, pincement diagonal), exactement comme la case survolée de la zone de travail.
+- **les tuiles manquantes se montrent en VIDE, comptées et annoncées.** ⚠ **Un trou est noir, pas
+  couleur de sol** : peint à la teinte du terrain, un tileset à moitié peint aurait l'air de
+  marcher. Et c'est la seule vue du logiciel où l'incomplet est **utile à voir** — l'export, lui,
+  refuse toujours (charte, règle 5).
+- ⚠ **la carte d'essai ne va PAS dans le `.solutiles` tant que le format n'est pas ouvert.** Elle
+  vit dans `user://` jusqu'au chantier 4 ; l'y faire entrer ensuite est gratuit. *(à trancher)*
+
+## 3 · SOLDER LA PREMIÈRE PARTIE
+
+Le détail est dans la section précédente : le **coin haut du cisaillement**, la version **11.0.0**
+(majeure, le sens de la clé a changé), `PIED 21 au ras` sans îlot propre, et la fusion de la chasse
+qui **ne relit pas l'existant**. ⚠ **UN CINQUIÈME POINT S'Y AJOUTE, TROUVÉ LE 06/09 EN MESURANT
+LES TROUS** : la battue ne creuse jamais jusqu'à la plaine, donc une tuile que le **pinceau livré**
+atteint manque au vocabulaire (`132095`). Le détail et la cause sont au chantier 8 ; la réparation
+est ici, parce qu'elle ne concerne pas les trous — elle concerne ce qu'on livre aujourd'hui. ⚠ **Ce qui change, c'est seulement qu'on
+arrive ici avec la room de test en main** — donc le coin haut se regarde sur du trait remonté, au
+clic, au lieu d'une image à la fois en ligne de commande.
+
+## 4 · L'AXE : UNE SEULE REFONTE DU CARNET — *tranché par l'utilisateur le 2026-09-06*
+
+**On ouvre les TROIS axes du carnet d'un seul coup — la FRAME, le CALQUE et l'ENSEMBLE — même si
+les capacités arrivent après.**
+
+Deux raisons, et la seconde est décisive :
+
+1. « Un format qui change deux fois de suite est deux fois l'occasion de perdre du travail »
+   (écrit le 05/09, et la migration v3 → v4 l'a déjà prouvé : neuf pans ne rentrent pas dans
+   quatre sans que deux se rencontrent).
+2. ⚠ **LE BASSIN D'EAU A BESOIN DES DEUX À LA FOIS** : c'est un **calque**, et ses trois zones
+   sont **animées**. Le premier patch qu'on livre demande donc les deux axes ; ouvrir séparément,
+   c'est payer deux migrations pour un chantier qui les veut ensemble.
+
+**La forme, et elle est choisie pour que la traduction soit l'identité :**
+
+- la clé garde `M<tuile>:<rang>` ; la frame s'écrit en suffixe `@<frame>`, et ⚠ **la frame 0
+  s'écrit sans suffixe** ;
+- le calque et l'ensemble se mettent en **préfixe de ligne** (`herbe/terrain M255:0 …`), et ⚠ **une
+  ligne sans préfixe vaut « le calque terrain de l'ensemble par défaut »** ;
+- donc **un fichier v5 se relit mot pour mot** en v6. C'est ce qui rend la migration sûre : il n'y
+  a rien à traduire, il y a des défauts à honorer.
+- l'en-tête gagne `frames N`, la liste des tuiles **déclenchées**, la liste des calques et celle
+  des **ensembles**, chacune dans son ordre. ⚠ **`peek()` reste bon marché** : il ne lit toujours que l'en-tête, et une seule
+  ligne de tuile pèse plusieurs kilo-octets.
+- le manifeste passe **v11** et déclare `frames N` **en clair** ainsi que les calques et leur
+  ordre. ⚠ **Le lecteur doit pouvoir REFUSER** : deux moteurs qui n'empilent pas les calques dans
+  le même ordre font un monde faux **sans une seule erreur**. Et ⚠ **les deux bornes**,
+  `READS_FROM` autant que `READS_UP_TO`.
+- ⚠ **La traduction s'éprouve avant de servir** : `examples/low_res.solutiles` (55/55) relu par
+  `tools/reload_work.gd` doit rendre **exactement** le même carnet, et le test le dit en un
+  nombre.
+
+⚠ **ET CECI PÉRIME UNE LIGNE DE LA FICHE DU 05/09** : les fluides ne prennent **pas** `work_io`
+v7 ni le manifeste v12. Il n'y a **qu'une** v6 et **qu'un** v11, et ils portent les deux axes.
+C'est le seul point où cette section contredit la précédente, et c'est celui-ci qui vaut.
+
+## 5 · L'ANIMATION PAR FRAME
+
+La room **Animation**, le nombre de frames **global au guide**, la frame courante qui bascule pour
+tout le monde, et l'outil **« Frame List »** sous « Voisines ». Tout cela est déjà spécifié par
+l'utilisateur (section du 05/09) et ne change pas.
+
+Ce que ça demande, poste par poste :
+
+- **`core/painting.gd` : la valeur passe d'une image à un TABLEAU d'images.** ⚠ `share()` n'a
+  **rien** à changer — c'est la case porteuse qui tient tout, donc la règle des jumelles continue
+  de tenir sans une ligne de plus. Les compteurs deviennent un par frame ; le journal
+  d'annulation gagne la frame dans chaque entrée (`[case, frame, x, y, avant, après]`) ; ⚠ **et
+  ça se fait d'un bloc** — un `undo` qui se trompe de frame repeint la mauvaise et ne se voit pas.
+- **La règle de livraison :** une tuile **déclenchée** doit porter **toutes** ses frames, sinon
+  l'animation clignote sur du vide. Les jauges comptent ça. *(à confirmer)*
+- **La planche :** les tuiles fixes gardent leurs 8 colonnes ; les tuiles animées vont dans un
+  bloc en dessous, **une ligne par tuile, N cases**, et le manifeste dit `tile T slot x,y frames
+  N`. ⚠ **PARI À MESURER AVANT DE FIGER LA DISPOSITION** : `TileSetAtlasSource` étend une tuile
+  animée **à partir de sa case de base** (`set_tile_animation_frames_count`,
+  `set_tile_animation_columns`, `set_tile_animation_separation`) — il faut vérifier de ses yeux la
+  disposition attendue, et le fait que les cases suivantes doivent être libres.
+- **Le plugin :** si l'atlas déclare les frames, **`world.gd` ne change pas d'une ligne** — la
+  pose est la même, l'animation est une propriété du TileSet. Le coût côté moteur serait donc
+  **nul**. ⚠ **C'est un pari, il se mesure** ; c'est aussi le seul endroit où l'animation pourrait
+  coûter cher, donc on le mesure **en premier**.
+- ⚠ **ON NE DOIT PAS POUVOIR PEINDRE LA FRAME 2 EN CROYANT PEINDRE LA FRAME 0.** La room le dit
+  en permanence, et la room Dessin peint toujours la frame 0.
+
+## 6 · LES ENSEMBLES
+
+Ce que le chantier contient, une fois la v6 ouverte (chantier 4) et les rooms bâties (chantier 1) :
+
+- **LE MONDE GAGNE UNE SECONDE CARTE** — le type par case, à côté des hauteurs. ⚠ **Une seconde
+  carte, pas un alphabet surchargé** : le carnet a déjà tranché ce principe pour les matières, et
+  le parseur des hauteurs est strict — `#` est pris, `~` aussi.
+- **`footprint()` teste le NIVEAU** (voir la section ci-dessus). ⚠ **Il se livre AVANT le reste et
+  il se prouve** : la suite doit rester **exactement** verte, puisque c'est un no-op. Un correctif
+  qui change un chiffre du banc n'est pas celui qu'on croit avoir écrit.
+- **L'ORDRE DES ENSEMBLES DÉCIDE QUI TRACE** — l'ordre de création, comme les matières.
+- **L'EXPORT** : une planche par ensemble, et le manifeste les déclare **dans leur ordre**. ⚠ **Sans
+  l'ordre en clair, deux moteurs divergent** — exactement la raison qui a fait garder `fall_rows`
+  et `tiles` quand la règle de pose est sortie du manifeste.
+- **LE PLUGIN** : une couche par (ensemble × étage). ⚠ **Le nombre de POSES ne change pas** — une
+  case n'appartient qu'à un seul ensemble — c'est le nombre de `TileMapLayer` qui monte : du nœud,
+  pas du calcul. Le contrôle croisé s'étend, **dans les deux sens**.
+- **LES JAUGES COMPTENT PAR ENSEMBLE**, comme elles compteront par calque.
+- **LA ROOM DE TEST POSE PLUSIEURS ENSEMBLES**, et ⚠ **c'est le seul endroit où l'on voit deux
+  ensembles se rencontrer** : le raccord entre deux arts n'a été jugé à l'œil dans aucune room,
+  puisque chaque ensemble est peint dans la sienne. C'est ce qui fait passer la room de test de
+  confortable à **indispensable**.
+
+⚠ **ET LES CASCADES NE TRAVERSENT QU'ENTRE MASSIFS DU MÊME ENSEMBLE** (décision utilisateur du
+06/09). Plus général encore : **tout patch qui traverse reste dans un seul ensemble**, sinon deux
+arts se partagent la même colonne. C'est une condition de placement, donc gratuite — et elle est
+plus simple que la règle de continuité qu'il faudra écrire de toute façon au chantier 12.
+
+## 7 · LE PATCH — le mécanisme, et les BASSINS D'EAU
+
+**Le mécanisme se bâtit une fois ; les chantiers 8, 9 et 10 s'y branchent.** Ce qu'il demande :
+
+- **`core/patch.gd` — LE PLACEMENT**, une question posée une seule fois pour tous : *cette
+  empreinte tient-elle ici ?* ⚠ **Elle se lit sur la SURFACE PORTEUSE, pas sur ce qui se voit** :
+  le pied d'un massif voisin qui retombe sur cette surface la recouvre à l'écran, mais la case est
+  toujours de la surface. Sinon l'identité d'un patch dépendrait de ce qu'on pose autour —
+  exactement ce que le modèle refuse depuis le début.
+- **`core/patch_kinds.gd`** — le catalogue : un type, son support, sa règle de placement, son
+  vocabulaire. Comme `core/modes.gd` : une table, aucun avis sur son affichage.
+- **`core/<type>_vocabulary.gd`, GÉNÉRÉ** par une battue, un par type. ⚠ **La battue d'un patch
+  est bien plus simple que celle du terrain** : pas de bande, pas de chute, pas de palier, pas de
+  ras, pas de cisaillement. ⚠ **Et le vivier reste commun** — le recenseur et le bâtisseur du
+  guide tirent au même endroit, sinon le guide sort avec des tuiles que le second ne sait pas
+  porter.
+- **`render/patch_tiles.gd`** — dehors transparent ; `render/massif_scene.gd` empile terrain(L) →
+  patchs(L) dans l'ordre → terrain(L+1). La jupe d'un massif d'étage L+1 retombe donc **par-dessus**
+  les patchs de l'étage L, sans un mot de plus.
+- **un `Painting` par patch**, les jauges **par calque** (« terrain 42/55, eau 3/8 »), et
+  `addons/solupaint/rules.gd` qui gagne les couches — ⚠ **avec le contrôle croisé étendu DANS LES
+  DEUX SENS**, sinon un plugin qui ne poserait aucun patch passerait le contrôle.
+- **le guide gagne ses TÉMOINS RÉSERVÉS**, une zone par type. ⚠ **Ils se CHERCHENT, ils ne se
+  déduisent pas** : on balaie les positions et on juge, au milieu du contexte où le témoin servira.
+
+**LES BASSINS D'EAU — et leur bordure est DANS l'empreinte** (décision utilisateur du 06/09).
+
+⚠ **C'EST LA MÊME LOI QUE LA FALAISE, ET C'EST CE QUI LA REND SÛRE.** L'empreinte d'un massif est
+*surface ∪ falaise*, et la silhouette se lit **sur l'empreinte**, jamais sur la surface seule.
+L'empreinte d'un bassin est *eau ∪ bordure d'une tuile d'épaisseur*, et sa silhouette se lit
+dessus. Deux conséquences, toutes deux gratuites :
+
+- **les trois zones réservées du 05/09 sont exactement les trois anneaux de cette empreinte** —
+  herbe → bordure, bordure → eau, eau pleine. Elles ne sont pas trois tuiles ajoutées : elles sont
+  ce que l'empreinte contient.
+- ⚠ **« PAS D'OCÉAN » CESSE D'ÊTRE UNE INTERDICTION POUR DEVENIR UNE CONSÉQUENCE.** Le bassin ne
+  touche pas le bord de l'étage parce que **sa bordure doit tenir dans la surface**. Une règle qui
+  se déduit vaut mieux qu'une règle qu'on impose — et le carnet portait l'ancienne formulation
+  (« une matière ne touche ni la lèvre ni le bord ») comme une clause à asserter ; elle devient un
+  fait de construction.
+
+Le reste de la fiche du 05/09 tient : **une seule matière** (la couleur appartient au peintre :
+l'eau et la lave sont deux peintures du même jeu), **de l'eau sur la plaine** — jumelle de la même
+tuile sur un plateau, donc elle se remplit en peignant ailleurs — et **l'eau au pied d'une falaise
+gratuite**, puisque le pied du massif d'au-dessus se pose après la couche d'en dessous. ⚠ **Une
+permission qu'on ne montre pas est une permission que personne n'utilisera** : le guide doit la
+montrer.
+
+⚠ **ET LA BORDURE SERA PERCÉE — PAR LES RIVIÈRES, AU CHANTIER 12** (décision du 06/09). C'est le
+seul endroit où l'anneau s'ouvre, et c'est à noter maintenant pour que le vocabulaire du bassin
+sache qu'il aura un jour des tuiles de percée.
+
+## 8 · LES TROUS
+
+**Un trou est un patch, pas un creux dans le relief** (décision utilisateur du 06/09) : le terrain
+ne bouge pas, on pose un dessin de trou sur la surface et il occulte ce qu'il recouvre.
+
+⚠ **ET ILS PEUVENT ÊTRE COLLÉS AU BORD DE LA SURFACE** (décision du 06/09) — c'est ce qui les
+distingue de tous les autres patchs, et c'est leur seul coût. Une case de terrain au bord porte le
+trait de sa lèvre ; un trou posé dessus le **remplace**. Le vocabulaire du trou porte donc des
+configurations de bord que les autres patchs n'ont pas, ⚠ **et c'est exactement ce qu'il faut
+mesurer avant de dessiner quoi que ce soit** : combien de cas de bord, et lesquels. Le trou est le
+seul patch dont le vocabulaire **connaît le bord**.
+
+⚠ **L'AUTRE VOIE A ÉTÉ MESURÉE AVANT D'ÊTRE FERMÉE** (`tools/hole_probe.gd`, 06/09) : un trou
+*creusé dans le relief* ne coûterait rien non plus — zéro tuile absente sur une cuvette 5×5, un
+trou de deux étages et un puits jusqu'au vide ; une seule sur 21 reliefs troués. Le patch est
+retenu quand même, et **pas pour le coût** : creuser rouvrirait `Gesture.chasms()`, la grammaire de
+profondeur (`FALL = 3` impose un trou *court ou franc*) et le pinceau du moteur. Un patch ne rouvre
+rien.
+
+⚠ **MAIS LA MESURE A LAISSÉ UNE DETTE, ET ELLE EST DU TERRAIN** : la battue ne creuse jamais
+jusqu'à la plaine — `Gesture.walk` tire l'étage de l'effacement dans `randi_range(1, …)` et
+`_where` exige un centre d'étage ≥ 1 — alors que le pinceau livré offre les étages **0..N** *et*
+« Vide ». La tuile `132095` manque donc à la planche. **Réparation au chantier 3.**
+
+## 9 · LES MATIÈRES DE SURFACE — *et ce ne sont pas des « chemins »*
+
+⚠ **CORRIGÉ PAR L'UTILISATEUR LE 06/09, ET LA CORRECTION AGRANDIT LE CHANTIER EN LE SIMPLIFIANT** :
+« les chemins ne sont pas vraiment que des chemins, mais plutôt des **matières de surface** » —
+elles viennent **modifier la surface**, avec n'importe quel art, n'importe quelle forme et n'importe
+quelle étendue, **là où il y a la place**. Un chemin n'est donc pas un objet à part : c'est une
+matière **étroite qui serpente**. Une tache, une clairière, du sable, de la neige, un sentier : le
+même vocabulaire.
+
+⚠ **ET C'EST LA FICHE DU CARNET, MOT POUR MOT** (ARCHIVE, « LES MATIÈRES BORDÉES ») : *« une
+matière est un étage sans falaise »*, *« les étages s'empilent, les matières sont côte à côte »*,
+donc **aucune tuile de façade**. Ce qui était écrit pour l'ancien modèle vaut ici sans une
+retouche.
+
+**Les décisions de l'utilisateur (06/09) :**
+
+- **largeur minimale 3** — la tuile pleine et ses **deux bords**. En dessous, il n'y a plus de
+  tuile pleine, donc plus de matière : il y aurait une *direction*, et c'est un autre objet.
+- **le vocabulaire prévoit TOUT** : ça serpente, ça fait des **coudes**, des **bouts** et des
+  **embranchements**. ⚠ **C'est une exigence de complétude, pas une liste de cas** : la battue doit
+  atteindre les quatre, et l'assertion doit le dire.
+
+**Ce qu'on sait déjà du compte** : la borne haute est le **théorème des 256 fenêtres sous min
+trois — 27 index**, celui-là même qui borne les surfaces du terrain. Le compte exact se mesure ;
+le plafond, lui, est connu d'avance et il est petit.
+
+⚠ **ET LES MATIÈRES RESTENT ORDONNÉES** (carnet, et décision du 05/09) : sable sur herbe, eau sur
+sable ; chacune ne borde que ce qui est dessous. Sinon il faut un jeu de transition **par paire** —
+trois matières libres, ce sont six jeux et non trois. **L'ordre est l'ordre de création**, et rien
+d'autre : ajouter une matière est un geste, pas un panneau à réordonner.
+
+⚠ **ET LES MOTIFS CARRÉS ATTENDENT ICI.** Une matière étendue répète son **intérieur pur** case
+après case — exactement là où le carnet avait déjà noté le motif `N × N` indexé par
+`(x mod N, y mod N)`. Ce n'est pas une variante (la position décide, personne ne choisit), et ça ne
+coûte que sur les tuiles **sans aucun bord**. La demande revient donc au même endroit qu'en
+août ; c'est ici qu'elle se traitera.
+
+## 10 · LES GROTTES — deux types, et le carnet en tenait déjà un
+
+La fiche du 31/08 (ARCHIVE, « L'ENTRÉE DE GROTTE ») tient entière, et l'utilisateur la précise le
+06/09 : il y a **deux types**.
+
+1. **LA GROTTE DE PIED** — au pied d'une falaise, avec **assez de place à droite et à gauche dans
+   la falaise**.
+2. **LA GROTTE EN HAUTEUR** — dans la hauteur de la falaise, avec un **petit BALCON au perron**.
+
+Ce que le carnet porte déjà, et qui ne bouge pas :
+
+- ⚠ **LE NEUF-TRANCHES : 4 coins + 4 côtés + 1 milieu = 9 TUILES, quelle que soit la taille.** Les
+  côtés se répètent quand la grotte s'élargit : une grotte 3×3 et une grotte 8×5 coûtent le même
+  vocabulaire. Le plafond est la tranche du haut, le **PERRON** celle du bas, les côtés sont les
+  colonnes — chacun sa tuile, donc peignable comme ce qu'il est.
+- ⚠ **L'ANNEAU EST STRICTEMENT RÉSERVÉ, et c'est ce qui rend le geste possible** : s'il partageait
+  ses tuiles avec les corps ordinaires, un plafond peint là apparaîtrait sur toutes les parois du
+  monde. C'est la même loi que « tout doit pouvoir être dessiné de n'importe quelle manière » :
+  **on réserve, donc on peut peindre**.
+- **La place se calcule, elle ne se devine pas** : il faut des rangées de **CORPS** consécutives,
+  et une chute de trois n'en a qu'une (chapiteau, corps, pied). Une grotte en hauteur demande donc
+  une falaise d'**au moins deux étages**. En largeur, **trois colonnes de la MÊME face** : à cheval
+  sur deux lèvres elle se poserait sur deux parois, et c'est un refus.
+- ⚠ **« ASSEZ DE PLACE » EST UN REFUS, PAS UN CALCUL** — même famille que le pinceau qui refuse une
+  case fine, et il se dit au relâchement, jamais tu.
+- **Ce qu'on voit dedans** : un **trou noir est gratuit** ; un intérieur qui laisse voir quelque
+  chose est une matière, donc le chantier 9.
+
+**Ce que le balcon ajoute, et qui est neuf** : une saillie **devant le perron**, sur laquelle on se
+tient. ⚠ **À trancher : le balcon est-il une tranche de plus de l'anneau, ou le perron
+lui-même qui change de dessin selon le type ?** La seconde réponse garde le neuf-tranches intact et
+ne coûte rien ; la première le fait passer à douze. **À mesurer avant de choisir.**
+
+## 11 · LE PAYSAGE — la seconde disposition
+
+Le damier montre **une tuile par îlot**, le paysage montre **un monde**. C'est l'axe du **mode**,
+pas un réglage, et c'est **gratuit pour le travail en cours** : le carnet range par tuile, donc un
+travail commencé sur l'un se recharge sur l'autre.
+
+⚠ **Il est borné à sa propre recherche, à la condition que le vocabulaire soit clos** — il l'est
+bien plus depuis que le vivier est commun. ⚠ **Et les patchs y multiplient le problème sans
+l'inventer** : c'est déjà celui du terrain.
+
+## 12 · LES CASCADES ET LES RIVIÈRES — *les plus compliquées, et c'est pour ça qu'elles sont ici*
+
+⚠ **CE SONT LES SEULS PATCHS QUI TRAVERSENT.** Tous les autres tiennent parce qu'ils restent dans
+une surface ; une cascade franchit la **lèvre**, descend la **falaise** et rejoint le **bassin**
+d'en bas ; une rivière traverse le paysage au lieu de s'y poser.
+
+⚠ **ET LA RÈGLE DE CONTINUITÉ A DÉJÀ SON PREMIER ARTICLE, DONNÉ PAR L'UTILISATEUR LE 06/09 : LA
+RIVIÈRE PERCE LA BORDURE DU BASSIN.** L'anneau d'empreinte du bassin, fermé partout ailleurs,
+s'ouvre là où la rivière entre ou sort — et c'est le seul endroit où il s'ouvre. Le vocabulaire du
+bassin gagne donc ses tuiles de **percée**, et c'est ce qui raccorde les deux.
+
+Ce qui est déjà acquis et ne coûte rien :
+
+- **la cascade emprunte la bande du terrain** (chapiteau, corps, pied) : elle lit la pose de la
+  colonne qu'elle habille, donc une chute de plusieurs étages est gratuite, et une cascade qui
+  tombe dans le vide **ne pose pas son pied**, comme la falaise qu'elle habille ;
+- **le bassin au pied est déjà là** — un patch d'eau ordinaire à l'étage du bas ;
+- ⚠ **une cascade fixe est morte** : elle demande l'axe des frames, acquis au chantier 4.
+
+Ce qui reste, et qui est le vrai travail : **le reste de la continuité**. Où une rivière a-t-elle
+le droit de commencer, de finir, de se diviser ? Comment deux patchs qui se rejoignent ne se
+disputent-ils pas la même case ? ⚠ **Ça ne se mesure pas tant que le paysage n'est pas là** : une
+rivière sans paysage n'a rien à traverser.
+
+## LES PARIS À MESURER — publiés pour être reprochables
+
+1. **`set_tile_animation_frames_count` et la disposition des frames** dans un
+   `TileSetAtlasSource` : à regarder avant d'arrêter la forme de la planche. *(chantier 5)*
+2. **Le plugin ne change pas d'une ligne** si l'atlas porte les frames. *(chantier 5 — le seul
+   endroit où l'animation pourrait coûter cher : à mesurer en premier)*
+3. **Le coût de la repose complète** à la taille retenue pour la room de test — la mesure du
+   plugin sert de repère (3 / 14 / 75 / 209 ms), la taille se choisit après. *(chantier 2)*
+4. **Le vocabulaire de CHAQUE patch**, une battue chacun, jamais une estimation : bassin (avec sa
+   bordure dans l'empreinte), trou (⚠ **avec ses cas de bord**), matière de surface (⚠ **borne
+   haute connue : 27**, et la battue doit atteindre serpentements, coudes, bouts **et**
+   embranchements), grotte (le neuf-tranches, plus le balcon).
+5. **Le balcon** : tranche de plus, ou perron qui change de dessin ? *(chantier 10)*
+6. **`footprint()` au NIVEAU plutôt qu'à l'appartenance** : le pari est que la suite reste
+   **exactement** verte, puisque c'est un no-op tant qu'il n'y a pas d'ensembles. *(chantier 6)*
+7. **La tuile `132095`** : élargir la battue jusqu'à l'étage 0, relancer `brush_census`, et voir ce
+   qui entre avec elle. *(chantier 3)*
+
+## CE QUI RESTE À TRANCHER — nommé, jamais supposé
+
+- ✔ **TRANCHÉ LE 06/09 — LE TERRAIN EST FINI** : tout ce qui suit est un patch, avec son
+  vocabulaire propre et une règle de placement **propre à chaque type** — il n'y a pas de marge
+  universelle.
+- ✔ **TRANCHÉ LE 06/09 — UNE SEULE REFONTE DU CARNET** (chantier 4), parce que le bassin demande
+  les deux axes ensemble : c'est un calque, et ses trois zones sont animées.
+- ✔ **TRANCHÉ LE 06/09 — ON COMMENCE PAR LES DEUX ROOMS**, le solde de la première partie ensuite.
+- ✔ **TRANCHÉ LE 06/09** — bordure du bassin **dans l'empreinte** ; trous **collables au bord** ;
+  matières de surface de **largeur ≥ 3** prévoyant tout ; grottes en **deux types**, avec balcon.
+- ✔ **TRANCHÉ LE 06/09 — LES ENSEMBLES** : rooms **fixes** à gauche, ensembles **éditables** dans
+  une bande flottante au-dessus de la zone ; un patch ne va que dans un massif de son ensemble ;
+  les coutures sont **l'affaire de l'artiste**, à qui le modèle les laisse par deux ajustements
+  (le niveau dans `footprint`, l'ordre qui décide qui trace) ; les cascades ne traversent qu'entre
+  massifs du **même** ensemble ; et **la v6 porte trois axes**.
+- **Une matière de surface a-t-elle le droit de toucher la lèvre ?** L'eau ne le peut pas — sa
+  bordure ne tiendrait pas ; une matière sans bordure, peut-être. ⚠ **La réponse décide si son
+  vocabulaire connaît le bord**, comme celui du trou. *(à mesurer, chantier 9)*
+- **Une tuile déclenchée doit-elle porter toutes ses frames pour être livrable ?** Proposition :
+  oui — une frame vide fait clignoter le vide.
+- **La carte de la room de test entre-t-elle dans le `.solutiles` ?** Proposition : `user://`
+  d'abord, dans le projet une fois la v6 ouverte.
+- **Nommer un patch** : un nom libre **à la création**, et rien d'autre (règle 1).

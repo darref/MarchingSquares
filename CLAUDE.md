@@ -558,6 +558,14 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 
 ### L'écran
 
+- **⚠ ET UNE TROISIÈME BANDE VIENDRA, AU-DESSUS DE LA ZONE : LES ENSEMBLES** (décision utilisateur
+  du 06/09). Les **rooms** sont fixes et vivent à gauche — elles font partie du logiciel ; les
+  **ensembles** s'ajoutent et se suppriment, et leur nom est du **texte libre**. ⚠ **C'est
+  exactement pourquoi ils ne peuvent pas vivre dans une barre latérale** : *un libellé qui
+  s'allonge impose sa largeur à toute la barre*, payé deux fois. Horizontalement, un nom qui
+  s'allonge ne pousse rien. La bande reprend le pattern des deux autres : posée **sur** la zone,
+  translucide au repos, `self_modulate` et non `modulate`, survol testé sur le **rectangle**, les
+  **quatre** bords de l'ancre posés.
 - **Deux barres : à gauche les options, à droite le travail.** ⚠ **Et « Projet » — ouvrir,
   enregistrer — comme « Moteur » — installer le plugin, bâtir l'essai — vivent à GAUCHE**
   (décision utilisateur) : ni l'un ni l'autre n'est peindre. Ouvrir un travail, c'est décider
@@ -801,21 +809,24 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
      ⚠ **Il passe APRÈS les deux rooms** — décision utilisateur du 2026-09-06, qui renverse
      l'ordre du 05/09. ⚠ **Et c'est TOUT ce qui reste du terrain** : rien de ce qui suit ne
      l'agrandit ;
-  4. **l'axe** — ⚠ **une SEULE refonte du carnet, tranchée le 2026-09-06** : la frame *et* le
-     calque d'un coup (`work_io` v6, manifeste v11), parce que le **bassin d'eau** demande les
-     deux ensemble — c'est un calque, et ses trois zones sont animées ;
+  4. **l'axe** — ⚠ **une SEULE refonte du carnet, tranchée le 2026-09-06** : la frame, le calque
+     **et l'ensemble** d'un coup (`work_io` v6, manifeste v11) — le **bassin d'eau** demande déjà
+     les deux premiers (c'est un calque, et ses trois zones sont animées), et le troisième coûte
+     quelques lignes maintenant contre une migration plus tard ;
   5. **l'animation par frame** — décidée et spécifiée par l'utilisateur ;
-  6. **le patch** — le mécanisme (placement **propre à chaque type**, vocabulaire propre), et le
+  6. **les ensembles** — un tileset complet par art, plusieurs dans le même monde ; ⚠ **avant le
+     patch**, pour que « un patch de type A ne va que dans un massif de type A » s'écrive une fois ;
+  7. **le patch** — le mécanisme (placement **propre à chaque type**, vocabulaire propre), et le
      premier d'entre eux : les **bassins d'eau**, dont la bordure est dans l'empreinte ;
-  7. **les trous** — un patch, pas un creux, et **collables au bord** ;
-  8. **les matières de surface** — ⚠ **ce que les « chemins » sont vraiment** : n'importe quel
+  8. **les trous** — un patch, pas un creux, et **collables au bord** ;
+  9. **les matières de surface** — ⚠ **ce que les « chemins » sont vraiment** : n'importe quel
      art, n'importe quelle forme, largeur minimale 3 ;
-  9. **les grottes** — le premier patch de **façade**, en deux types (au pied ; en hauteur avec
-     balcon) ;
-  10. **le paysage** — la seconde disposition ;
-  11. **les cascades et les rivières** — ⚠ **les seuls patchs qui TRAVERSENT**, donc les plus
+  10. **les grottes** — le premier patch de **façade**, en deux types (au pied ; en hauteur avec
+      balcon) ;
+  11. **le paysage** — la seconde disposition ;
+  12. **les cascades et les rivières** — ⚠ **les seuls patchs qui TRAVERSENT**, donc les plus
       compliqués, et ils demandent le paysage ;
-  12. **plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
+  13. **plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce
@@ -891,6 +902,38 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   réservés** ; **en paysage** il faut l'**incorporer**, et c'est le difficile. L'ordre décidé :
   **bassins d'eau → trous → matières de surface → grottes → le paysage → les cascades et les
   rivières.**
+- **LES ENSEMBLES — un tileset complet par ART, plusieurs dans le même monde** (décision
+  utilisateur du 2026-09-06). Un **ensemble** est le terrain **et** tous ses patchs, peints dans un
+  art à eux : un massif d'herbe à côté d'un massif de désert. ⚠ **Ça ne coûte pas une tuile au
+  modèle** — tous les ensembles partagent les mêmes clés, seul l'art diffère : c'est un carnet de
+  plus, jamais un vocabulaire de plus. ⚠ **Et ça sépare enfin deux choses que `core/modes.gd`
+  mélange** : le **MODE** est une *disposition* (Damier, Paysage), l'**ENSEMBLE** est un *art*.
+  ⚠ **ROOMS FIXES À GAUCHE, ENSEMBLES DANS UNE BANDE FLOTTANTE AU-DESSUS DE LA ZONE** : les rooms
+  (Dessin, Animation, Test) font partie du logiciel ; les ensembles s'ajoutent, se suppriment et se
+  renomment. La raison est mesurable — le nom d'un ensemble est du **texte libre**, et *un libellé
+  qui s'allonge impose sa largeur à toute la barre* ; horizontalement, il ne pousse rien. ⚠ **Et la
+  même bande sert deux fois** : en room Dessin elle dit *sur quel ensemble je peins*, en room Test
+  *quel ensemble je pose*. **Un patch de type A ne se pose que dans un massif de type A** — une
+  condition dans la fonction de placement, donc gratuite, et c'est pourquoi les ensembles passent
+  **avant** le patch. **Supprimer un ensemble jette du travail** : c'est la règle de « Nouveau
+  projet », telle quelle, avec le nombre de cases en jeu et sa fonction à part. **Le nom se donne à
+  la création et nulle part ailleurs** (règle 1). ⚠ **La v6 porte donc TROIS axes** :
+  `<ensemble>/<calque> M<tuile>:<rang>@<frame>`, valeurs par défaut telles que la relecture d'un v5
+  reste l'identité.
+- **⚠ LES COUTURES ENTRE ENSEMBLES SONT L'AFFAIRE DE L'ARTISTE, ET LE MODÈLE DOIT LES LUI LAISSER**
+  (décision utilisateur du 06/09). Deux ajustements, tous deux petits. ⚠ **`footprint()` doit
+  tester le NIVEAU du voisin sud, pas son appartenance au massif** : aujourd'hui
+  `if surface.has(at + Vector2i.DOWN): continue` ; coupez les composantes par type et le massif du
+  nord pose **deux rangées de roche sans pied** sur le terrain plat de son voisin (vérifié en
+  déroulant la boucle de chute : `bottom = level`, `ground = level`, aucun `break` avant `k = 3`).
+  Aucune peinture ne rattrape ça. ⚠ **Et le correctif est un NO-OP aujourd'hui** — les trois cas
+  (vide, niveau inférieur, niveau supérieur) donnent le même résultat tant qu'il n'y a pas de type.
+  ⚠ **Puis UN SEUL CÔTÉ TRACE, et l'ordre des ensembles le dit** : deux bords adjacents qui tracent
+  tous les deux font le pavé 2×2 que I2 refuse, et l'artiste ne choisit pas son voisin. La loi est
+  déjà écrite pour le cisaillement — *la roche marque sa fin, l'herbe prend une ombre* — et l'ordre
+  est celui des matières, **l'ordre de création**. Le reste est bien de l'artiste : la même tuile de
+  bord sert déjà contre du vide et contre autre chose. ⚠ **Et les cascades ne traversent qu'entre
+  massifs du MÊME ensemble** — plus généralement, tout patch qui traverse reste dans un ensemble.
 - **LES BASSINS D'EAU** — le premier patch, et ⚠ **SA BORDURE D'UNE TUILE FAIT PARTIE DE SON
   EMPREINTE** (décision du 06/09). C'est **la même loi que la falaise** : l'empreinte d'un massif
   est *surface ∪ falaise* et la silhouette se lit dessus ; celle d'un bassin est *eau ∪ bordure*.
