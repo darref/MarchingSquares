@@ -100,7 +100,15 @@ const COVERS: int = 1 << 16
 ## pour interdire.
 const CUT_WEST: int = 1 << 17
 const CUT_EAST: int = 1 << 18
-const CUTS: int = CUT_WEST | CUT_EAST
+
+## LE CISAILLEMENT PAR LE NORD : de la roche du MEME massif au-dessus de l'herbe. Quand un
+## massif cisaille, la SURFACE aussi a son extremite nord, et la case du coude se croyait
+## pleine : le trait s'arretait net au lieu de se refermer.
+##
+## ⚠ IL NE SE LIT QUE POUR L'HERBE, PAS SYMETRIQUEMENT. Une falaise a toujours du massif
+## au-dessus d'elle, et la BANDE le dit deja -- chapiteau au premier pas, corps ensuite.
+const CUT_NORTH: int = 1 << 19
+const CUTS: int = CUT_WEST | CUT_EAST | CUT_NORTH
 
 ## Les quatre cardinaux, pour la cle au ras : au ras la profondeur est nulle, donc rien ne se
 ## creuse, pas meme les coins rentrants -- une tuile au ras ne depend que de ses cardinaux.
@@ -147,12 +155,15 @@ static func describe(tile: int) -> String:
 	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
 			"au ras" if flush_of(tile) else "libre"]
 	var cut: int = cut_of(tile)
-	if cut == CUT_WEST:
-		said += ", cisaille a l ouest"
-	elif cut == CUT_EAST:
-		said += ", cisaille a l est"
-	elif cut != 0:
-		said += ", cisaille des deux cotes"
+	var sides: PackedStringArray = PackedStringArray()
+	if (cut & CUT_WEST) != 0:
+		sides.append("a l ouest")
+	if (cut & CUT_EAST) != 0:
+		sides.append("a l est")
+	if (cut & CUT_NORTH) != 0:
+		sides.append("au nord")
+	if not sides.is_empty():
+		said += ", cisaille " + " et ".join(sides)
 	return said
 
 
@@ -359,6 +370,11 @@ static func poses(heights: Dictionary) -> Array[Dictionary]:
 			if print_of.has(cell + Vector2i.RIGHT) \
 					and (int(print_of[cell + Vector2i.RIGHT]) == SURFACE) != grass:
 				cut |= CUT_EAST
+			# ⚠ LE NORD NE SE LIT QUE POUR L'HERBE : la bande dit deja ce qu'une falaise a
+			# au-dessus d'elle.
+			if grass and print_of.has(cell + Vector2i.UP) \
+					and int(print_of[cell + Vector2i.UP]) != SURFACE:
+				cut |= CUT_NORTH
 			out.append({"cell": cell, "band": int(print_of[cell]), "level": levels[mark],
 					"sil": canonicalise(raw), "flush": covers[mark], "cut": cut,
 					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark})

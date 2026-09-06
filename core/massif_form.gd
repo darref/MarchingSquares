@@ -103,7 +103,7 @@ static func shear_vocabulary() -> Array[int]:
 		var cut: int = key >> 24
 		var band: int = (key >> 8) & 0xff
 		var sil: int = key & 0xff
-		var bits: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0)
+		var bits: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0) 				| (Massifs.CUT_NORTH if (cut & 4) != 0 else 0)
 		found[Massifs.key(band, sil, false, bits)] = true
 		found[Massifs.key(band, sil, true, bits)] = true
 	var out: Array[int] = []
@@ -172,7 +172,7 @@ static func sources(flush: bool) -> Dictionary:
 	var out: Dictionary = {}
 	for key: int in wits.keys():
 		var cut: int = key >> 24
-		var bits_of: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0)
+		var bits_of: int = (Massifs.CUT_WEST if (cut & 1) != 0 else 0) 				| (Massifs.CUT_EAST if (cut & 2) != 0 else 0) 				| (Massifs.CUT_NORTH if (cut & 4) != 0 else 0)
 		var tile: int = Massifs.key((key >> 8) & 0xff, key & 0xff, flush, bits_of)
 		if not out.has(tile):
 			out[tile] = [] as Array[int]
@@ -304,6 +304,9 @@ static func _couples_of(surface: Array[PackedByteArray], out: Dictionary,
 			# levre, qui est dans la fenetre.
 			var centre: Vector2i = Vector2i(CX, CY)
 			var grass: bool = int(band_of[centre]) == Massifs.SURFACE
+			# ⚠ TROIS DIRECTIONS, PAS DEUX, DEPUIS LE 06/09 : le nord aussi. Et il ne se lit
+			# que pour l'HERBE -- une falaise a toujours du massif au-dessus d'elle, et la
+			# bande le dit deja ; lire le nord des deux cotes marquerait tous les chapiteaux.
 			var cut: int = 0
 			for k: int in range(2):
 				var near2: Vector2i = centre + (Vector2i.LEFT if k == 0 else Vector2i.RIGHT)
@@ -311,6 +314,8 @@ static func _couples_of(surface: Array[PackedByteArray], out: Dictionary,
 					continue
 				if (int(band_of[near2]) == Massifs.SURFACE) != grass:
 					cut |= 1 << k
+			if grass and band_of.has(centre + Vector2i.UP) 					and int(band_of[centre + Vector2i.UP]) != Massifs.SURFACE:
+				cut |= 1 << 2
 			cuts[(cut << 24) | couple] = true
 
 

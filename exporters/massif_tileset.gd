@@ -30,7 +30,11 @@ const MAGIC: String = "solutiles-tileset"
 ## contexte au lieu de sept, une seule planche. Un lecteur v8 qui poserait un fichier v9
 ## fabriquerait un monde faux SANS UNE SEULE ERREUR, et c'est le pire des defauts. La v8 sera
 ## donc refusee nommement par le lecteur, comme la v7 l'etait par elle.
-const VERSION: int = 10
+## ⚠ VERSION 11 : LE CISAILLEMENT PAR LE NORD ENTRE DANS L'IDENTITE DE LA TUILE. Une case
+## d'herbe qui a la falaise de son PROPRE massif au-dessus d'elle -- le coude -- ne rend plus la
+## tuile d'interieur : elle a la sienne, et elle trace son bord. Un lecteur v10 poserait
+## l'interieur a ces endroits, donc un trait qui s'arrete net, SANS UNE SEULE ERREUR.
+const VERSION: int = 11
 
 const COLUMNS: int = 8
 const SUFFIX_SHEET: String = "_massifs.png"

@@ -35,7 +35,17 @@ const RIM: int = 4
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	var runs: int = args[0].to_int() if not args.is_empty() else 300
+	# ⚠ LE NOMBRE DE GESTES SE CHERCHE, IL NE SE PREND PAS EN POSITION ZERO. Lance
+	# `-- --ecrire --refaire`, l'ancien code lisait `"--ecrire".to_int()` = ZERO : la battue ne
+	# tirait plus un seul monde, le vocabulaire tombait de 56 a 53, et RIEN ne le disait. Un
+	# compteur qui ne mesure pas ce qu'il pretend mesurer est pire que pas de compteur -- et un
+	# drapeau qui devient silencieusement « zero geste » en est un.
+	var runs: int = 300
+	for argument: String in args:
+		if not argument.begins_with("--") and argument.to_int() > 0:
+			runs = argument.to_int()
+			break
+	print("  battue : %d gestes" % runs)
 	# ⚠ LE MEME VIVIER QUE LE BATISSEUR ET LA CHASSE. Ce recenseur tirait ses propres mondes :
 	# il ecrivait alors au vocabulaire des tuiles que le batisseur ne savait pas porter, et le
 	# guide sortait avec huit tuiles absentes. Deux battues qui ne cherchent pas au meme endroit

@@ -238,6 +238,16 @@ static func ground(draws: int = 400) -> Array[PackedStringArray]:
 					var basin: PackedStringArray = basins(top, floor_at, wide, tall)
 					if Gesture.legal(basin):
 						out.append(basin)
+	# ⚠ ET LES CUVETTES PERCHEES, POUR LE CISAILLEMENT NORD *AU RAS*. Le guide assemble pose
+	# `SURFACE 21 au ras, cisaille au nord` -- une case d'herbe au bord ouest, avec la falaise de
+	# son propre massif juste au-dessus, sur un massif qui en recouvre un autre. Mille cinq cents
+	# gestes ne l'ont pas rencontree : le hasard ne fabrique pas un creux DANS un massif porte.
+	# Meme lecon que les marches et les cuvettes : on construit ce qu'aucune autre source ne fait.
+	for high: int in [2, 3]:
+		for hole: int in [3, 4]:
+			var perched: PackedStringArray = perched_basin(high, hole)
+			if Gesture.legal(perched):
+				out.append(perched)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = GROUND_SEED
 	var drawn: int = 0
@@ -298,6 +308,47 @@ static func basins(top: int, floor_at: int, hole_w: int, hole_h: int) -> PackedS
 	for y3: int in range(high, high + hole_h):
 		for x2: int in range(left, left + hole_w):
 			grid[y3][x2] = floor_at + 1
+	return text(grid)
+
+
+## UNE CUVETTE DANS UN MASSIF PORTE : le creux, mais AU RAS.
+##
+## ⚠ CE QUE LA CUVETTE ORDINAIRE NE DONNE PAS. `basins` creuse un massif LIBRE : son contour
+## vagabonde, et le cisaillement qui en sort est libre lui aussi. Pour l'avoir au ras il faut que
+## le massif creuse en RECOUVRE un autre en debordant -- « ce qui force le ras, c'est une partie
+## dedans, une partie dehors » -- et cela ne se rencontre pas par hasard.
+##
+## Le porteur est un carre d'etage `high - 1` ; le massif creuse, d'etage `high`, est POSE
+## DESSUS mais deborde vers l'ouest, ce qui le met au ras sur tout son contour.
+static func perched_basin(high: int, hole: int) -> PackedStringArray:
+	var grid: Array[PackedByteArray] = []
+	for _y: int in range(GROUND_H):
+		var row: PackedByteArray = PackedByteArray()
+		row.resize(GROUND_W)
+		row.fill(0)
+		grid.append(row)
+	# ⚠ LES RANGEES SE COMPTENT DE BAS EN HAUT, ET CHAQUE MARGE EST DUE. Premier essai refuse :
+	# sept fautes de marge de pied et quatorze cases d'herbe fine, faute d'avoir compte. De bas
+	# en haut : 3 rangees de plaine visible, la jupe du porteur (3), 3 rangees de porteur
+	# visibles sous le pied du porte, la jupe du porte (3), puis sa surface -- 3 au nord du
+	# creux, le creux, 3 au sud.
+	for y2: int in range(4, 26):
+		for x: int in range(4, GROUND_W - 4):
+			grid[y2][x] = 1
+	for y3: int in range(4, 20):
+		for x2: int in range(8, GROUND_W - 4):
+			grid[y3][x2] = high
+	# ⚠ LE PORTE DEBORDE VERS L'OUEST : c'est ce qui le met AU RAS -- « une partie dedans, une
+	# partie dehors » -- et sans ce debordement le creux serait libre, donc deja connu.
+	for y4: int in range(4, 13):
+		for x3: int in range(5, GROUND_W - 9):
+			grid[y4][x3] = high + 1
+	# ⚠ ET LE CREUX SE COLLE AU BORD OUEST DU PORTE. `SURFACE 21` vaut N+E+S SANS ouest : la case
+	# du coude doit donc etre sur la colonne la plus a l'ouest de son massif. Un creux au milieu
+	# donne le meme cisaillement, mais sous la silhouette 255 -- deja connue.
+	for y5: int in range(7, 7 + hole):
+		for x4: int in range(5, 5 + hole):
+			grid[y5][x4] = high
 	return text(grid)
 
 

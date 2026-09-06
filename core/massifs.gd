@@ -70,7 +70,22 @@ const COVERS: int = 1 << 16
 ## `massif_scene` empile a 20.
 const CUT_WEST: int = 1 << 17
 const CUT_EAST: int = 1 << 18
-const CUTS: int = CUT_WEST | CUT_EAST
+
+## LE CISAILLEMENT PAR LE NORD : de la roche du MEME massif au-dessus de l'herbe.
+##
+## ⚠ RELEVE PAR L'UTILISATEUR LE 06/09, ET C'EST LA MEME FAUTE QUE LE CISAILLEMENT D'ORIGINE,
+## restee dans la seule direction que personne ne lisait. Quand un massif cisaille, la falaise
+## cisaille -- et la SURFACE aussi a son extremite nord. La case du coude se croyait pleine et
+## rendait la tuile d'interieur : le trait s'arretait net, sans pouvoir se refermer. Mesure
+## avant le bit : 123 cases sur 635 mondes, sous DEUX cles seulement -- et ces memes cles
+## servaient aussi aux cases SANS roche au nord, donc un seul dessin pour deux endroits.
+##
+## ⚠ ET IL NE SE LIT QUE POUR L'HERBE, PAS SYMETRIQUEMENT. Une case de falaise a toujours du
+## massif au-dessus d'elle, et la BANDE le dit deja : chapiteau au premier pas, corps ensuite.
+## Lire le nord des deux cotes mettrait le bit sur tous les chapiteaux du monde, pour une
+## distinction que la bande porte depuis le debut.
+const CUT_NORTH: int = 1 << 19
+const CUTS: int = CUT_WEST | CUT_EAST | CUT_NORTH
 
 const STEPS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 
@@ -313,6 +328,12 @@ static func poses(world: PackedStringArray) -> Array[Dictionary]:
 			if print_of.has(cell + Vector2i.RIGHT) \
 					and (int(print_of[cell + Vector2i.RIGHT]) == SURFACE) != grass:
 				cut |= CUT_EAST
+			# ⚠ LE NORD NE SE LIT QUE POUR L'HERBE. Une falaise a toujours du massif au-dessus
+			# d'elle et la bande le dit ; ce que personne ne disait, c'est « j'ai de la roche au
+			# nord » pour une case de SURFACE -- le coude, ou le trait s'arretait net.
+			if grass and print_of.has(cell + Vector2i.UP) \
+					and int(print_of[cell + Vector2i.UP]) != SURFACE:
+				cut |= CUT_NORTH
 			out.append({"cell": cell, "band": int(print_of[cell]), "level": levels[mark],
 					"sil": BlobIndex.canonicalize(raw), "flush": covers[mark], "cut": cut,
 					"lip": lips.get(cell, Vector2i(-9999, -9999)), "massif": mark,
@@ -455,12 +476,15 @@ static func describe(tile: int) -> String:
 	var said: String = "%s %d %s" % [BAND_NAMES[band_of(tile)], sil_of(tile),
 			"au ras" if flush_of(tile) else "libre"]
 	var cut: int = cut_of(tile)
-	if cut == CUT_WEST:
-		said += ", cisaille a l ouest"
-	elif cut == CUT_EAST:
-		said += ", cisaille a l est"
-	elif cut != 0:
-		said += ", cisaille des deux cotes"
+	var sides: PackedStringArray = PackedStringArray()
+	if (cut & CUT_WEST) != 0:
+		sides.append("a l ouest")
+	if (cut & CUT_EAST) != 0:
+		sides.append("a l est")
+	if (cut & CUT_NORTH) != 0:
+		sides.append("au nord")
+	if not sides.is_empty():
+		said += ", cisaille " + " et ".join(sides)
 	return said
 
 

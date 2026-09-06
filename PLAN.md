@@ -4649,9 +4649,30 @@ cisaillé à l'ouest` — donc **il n'est plus exportable**. C'est la règle du 
 accident : *la liste ne peut que croître*. Et le guide a **grandi de 30 rangées**, donc la case
 rétrécit à l'écran.
 
+✔ **LE COIN HAUT DU CISAILLEMENT EST RÉPARÉ — c'est un CISAILLEMENT PAR LE NORD**, et c'est
+l'utilisateur qui l'a nommé : *« quand le massif cisaille, la falaise cisaille mais la surface
+aussi a son extrémité nord, et à cet endroit-là il y a tuile plaine dans le coude, ce qui empêche
+de dessiner le trait en continu »*. Mesure d'abord (`tools/north_shear.gd`, puis
+`tools/surface_borders.gd` sur les **huit** voisins) : **123 cases** sur 635 mondes, sous **deux**
+clés qui servaient aussi aux cases sans roche au nord. Prix annoncé : deux clés se dédoublent.
+Après : `CUT_NORTH = 1 << 19`, lu **pour l'herbe seulement**, l'herbe **trace** (la roche du dessus
+ne peut pas : son bit S est mis), la lumière distingue. Vocabulaire **56 → 58**, manifeste **v11**,
+version **11.0.0**, les deux guides rebâtis, banc **VERT** (I7 62/62, I8 0 hors forme).
+
+⚠ **ET LA DEUXIÈME TUILE A DÛ ÊTRE CONSTRUITE.** `SURFACE 21 au ras, cisaillé au nord` — le coude
+au bord ouest d'un massif qui en recouvre un autre — n'est apparue ni à 300 gestes ni à **1500**
+(1734 mondes) : le hasard ne fabrique pas un creux **dans** un massif porté. Septième source du
+vivier, `Lab.perched_basin`, dont les rangées se comptent une par une (premier essai refusé pour
+sept fautes de marge de pied).
+
+⚠ **ET LA MESURE A DÉCOUVERT UN INVARIANT MANQUANT.** I1 ne compte que les extrémités **qui
+touchent du fond** — « une extrémité noyée dans la matière n'est pas un trou » — donc une coupure
+du trait **au milieu de l'herbe** lui échappe. C'est exactement le coude : le banc était vert
+pendant que le trait s'interrompait. La bonne formulation est celle de l'utilisateur : *le trait
+qui borde une surface est un anneau déformé continu*. **L'invariant reste à écrire.**
+
 **Reste au chantier** : `PIED 21 au ras` sans îlot propre (le guide le nomme à chaque
-construction), le **coin haut du cisaillement** (voir ci-dessous), et la **version 11.0.0**, à
-poser en dernier.
+construction), et **l'invariant de l'anneau**.
 
 ⚠ **LE COIN HAUT DU CISAILLEMENT EST LOCALISÉ, ET LA COMPARAISON TRANCHE.** Instrument : un bord
 sud **en marches** (le relief qui fabrique le cisaillement), rendu deux fois au même cadrage à 40× —

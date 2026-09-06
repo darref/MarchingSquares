@@ -167,6 +167,25 @@ static func shape(sil: int, band: int, flush: bool, freedom: int = 1,
 			# et l'HERBE prend une OMBRE, pas un trait. Ce n'est pas un demi-traitement : de ce
 			# cote-la le terrain plonge, et une ombre est ce qu'un bord de plateau porte. Les deux
 			# tuiles restent distinctes, ce qu'I7 exige, et l'artiste peindra chacune a sa main.
+			# LE CISAILLEMENT PAR LE NORD : de la roche du meme massif AU-DESSUS de l'herbe.
+			#
+			# ⚠ ET ICI C'EST L'HERBE QUI TRACE, a l'inverse des cotes. La roche du dessus ne peut
+			# pas le faire : sa voisine du sud est dans l'empreinte -- c'est cette surface-la --
+			# donc son bit S est mis et elle ne dessine aucun bord bas. Personne ne tracait, et
+			# c'est exactement le trou releve par l'utilisateur : le trait s'arretait au coude.
+			# Aucun risque de pave 2x2 pour la meme raison -- il n'y a pas de second trait.
+			#
+			# ⚠ ET LA LUMIERE DISTINGUE, COMME AUX COTES. Un trait seul rendrait `SURFACE 255
+			# cisaille nord` identique a une silhouette qui n'a simplement pas de voisine au nord,
+			# et I7 le dirait -- piege deja paye quand `CORPS 255 cisaille ouest` rendait
+			# `CORPS 21 au ras`. La lumiere vient du nord-ouest : une arete au nord S ECLAIRE.
+			if (cut & Massifs.CUT_NORTH) != 0:
+				if y2 == 0:
+					out.set_pixel(x2, y2, OUTLINE)
+					continue
+				if y2 == 1:
+					out.set_pixel(x2, y2, _matter(band, x2, y2, ink).lightened(SHEAR_TURN))
+					continue
 			var lateral: bool = ((cut & Massifs.CUT_WEST) != 0 and x2 == 0) 					or ((cut & Massifs.CUT_EAST) != 0 and x2 == RES - 1)
 			if lateral:
 				if band == Massifs.SURFACE:

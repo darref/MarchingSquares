@@ -624,6 +624,15 @@ func _check_off_plain(id: StringName, heights: PackedStringArray) -> void:
 	var promised: int = Modes.min_occurrences(id)
 
 	for family: StringName in Families.ids():
+		# ⚠ UN GUIDE DE L ANCIEN MODELE NE REPOND PAS DU VOCABULAIRE DU NOUVEAU, et le lui
+		# demander n est pas un controle, c est un CROISEMENT. `epais.txt` est garde comme temoin :
+		# il est fige, il ne se rebatit plus -- et le vocabulaire des massifs, lui, ne peut que
+		# CROITRE. Le jour ou il grandit (06/09, le cisaillement nord), ce croisement rougit sans
+		# qu aucun defaut n existe : il disait « le guide epais ne porte pas une tuile massif », ce
+		# qui est vrai, attendu et sans consequence. Chaque guide repond de SON modele ; celui des
+		# massifs est controle par `_check_massif_guide`.
+		if Modes.is_closed(id) and family == Families.BY_MASSIF:
+			continue
 		# ⚠ LA MEME TABLE QUE L'EDITEUR. `Families.paintable_map` est ce que la zone de
 		# travail lit pour tracer sa grille et refuser le crayon : hors de la plaine, et
 		# hors des cases qu'une robe recouvre. Ce que l'ecran accepte est ce qu'on compte.

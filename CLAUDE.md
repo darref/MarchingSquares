@@ -53,7 +53,7 @@ niveau **au moins** L, et la plaine est le massif d'étage 0. Une tuile est le c
 suis-je **AU RAS** ?
 
 Clé d'une tuile : `CUT | COVERS | (bande << 8) | silhouette` (`Massifs.key`) — `COVERS = 1 << 16`,
-`CUT_WEST = 1 << 17`, `CUT_EAST = 1 << 18`. Au ras, seuls les quatre cardinaux comptent — la
+`CUT_WEST = 1 << 17`, `CUT_EAST = 1 << 18`, `CUT_NORTH = 1 << 19`. Au ras, seuls les quatre cardinaux comptent — la
 profondeur y est nulle, donc rien ne se creuse, pas même les coins rentrants.
 
 **LE CISAILLEMENT — de l'herbe et de la roche du MÊME massif, côte à côte.** La bande encode déjà
@@ -64,6 +64,27 @@ rendait la tuile d'intérieur qui se répète partout. La roche s'arrêtait **ne
 l'**empreinte du massif**, jamais sur ce qui se voit — sinon l'identité d'une tuile dépendrait de
 ce qu'on pose dessus. ⚠ **Jamais les deux côtés à la fois** : min trois l'interdit, et
 l'énumération exhaustive le confirme (zéro fenêtre sur 2^18).
+
+**LE CISAILLEMENT PAR LE NORD — relevé par l'utilisateur le 06/09.** Quand un massif cisaille, la
+falaise cisaille **et la surface aussi a son extrémité nord** : la case du coude recevait la tuile
+**pleine**, celle qui ne porte aucun trait, et le trait s'arrêtait là sans pouvoir se refermer.
+C'est la même faute que le cisaillement d'origine, restée dans la seule direction que personne ne
+lisait — `poses()` ne testait que `LEFT` et `RIGHT`, et la bande ne porte que la transition
+verticale **descendante**. Mesure avant le bit : **123 cases sur 635 mondes**, sous **deux** clés
+qui servaient aussi aux cases sans roche au nord. ⚠ **Et il ne se lit que pour l'HERBE** : une
+falaise a toujours du massif au-dessus d'elle et la bande le dit déjà — lire le nord des deux côtés
+marquerait tous les chapiteaux du monde. ⚠ **Et ici c'est l'herbe qui TRACE**, à l'inverse des
+côtés : la roche du dessus ne peut pas le faire, sa voisine du sud est dans l'empreinte, donc son
+bit S est mis et elle ne dessine aucun bord bas. Aucun risque de pavé 2×2 pour la même raison — il
+n'y a pas de second trait. ⚠ **Et la lumière distingue, comme aux côtés** : un trait seul rendait
+`SURFACE 255 cisaillé nord` identique à une silhouette sans voisine au nord, et I7 le disait.
+
+⚠ **ET L'ANNEAU DE BORDURE N'EST PROUVÉ PAR RIEN — c'est ce que la mesure a découvert au
+passage.** I1 ne compte que les extrémités **qui touchent du fond** (« une extrémité noyée dans la
+matière n'est pas un trou »), donc une coupure du trait **au milieu de l'herbe** lui échappe :
+c'est exactement le coude, et c'est pourquoi le banc était vert pendant que le trait s'interrompait.
+La bonne formulation est celle de l'utilisateur : *le trait qui borde une surface est un anneau
+déformé continu*. Il manque l'invariant qui le dit.
 
 **Et un seul côté trace.** La roche marque sa fin (loi de la lèvre, couchée sur le côté), l'herbe
 prend une **ombre** — deux traits dos à dos feraient le pavé 2×2 qu'I2 refuse. ⚠ Et **la lumière
@@ -91,7 +112,7 @@ sans quoi `CORPS 255 cisaillé ouest` rendait exactement `CORPS 21 au ras`.
    ornement, c'est ce qui les sépare : F0 vaut un pixel.
 
 **Le vocabulaire livré est celui du GESTE, pas la forme close.** `core/brush_vocabulary.gd`
-(généré) porte les **56 tuiles** que le pinceau atteint.
+(généré) porte les **58 tuiles** que le pinceau atteint.
 `core/massif_form.gd` reste la **borne haute** : elle garde l'invariant I8, elle n'est plus la
 cible. ⚠ **La liste ne peut que croître — À MODÈLE CONSTANT.** C'est la précision qui manquait, et
 elle a coûté un cycle entier. Quand la **clé change de sens**, une entrée d'avant ne désigne plus
@@ -104,13 +125,17 @@ sans être *reconstructible au pinceau*. Le recenseur l'appelait après chaque c
 05/09/2026 : **six tuiles fantômes** en sont sorties, qu'aucun geste n'atteint. `mend` sert au
 pinceau, qui répare le geste de l'artiste. Jamais à une battue.
 
-⚠ **ET LE VIVIER A UNE CINQUIEME SOURCE DEPUIS LE 06/09 : LES CUVETTES** (`Lab.basins`), un
+⚠ **ET LE VIVIER A DEUX SOURCES DE PLUS DEPUIS LE 06/09 : LES CUVETTES ET LES CUVETTES PERCHEES** (`Lab.basins`), un
 plateau creuse d'un rectangle. Raison mesuree : **la battue ne creusait jamais jusqu'a la
 plaine** -- dans `Gesture.walk` l'effacement tire son etage dans `randi_range(1, ...)` et `_where`
 exige un centre d'etage >= 1 -- alors que le pinceau livre offre **0..N** *et* « Vide ». Une tuile
 y manquait, `PIED 255 libre cisaille a l'ouest`, portee par 54 reliefs sur les 324 mesures.
 ⚠ **Meme famille de faute que les marches, les terrasses et les sols etages** : on construit ce
-qu'aucune autre source ne fabrique, on ne l'espere pas du hasard.
+qu'aucune autre source ne fabrique, on ne l'espere pas du hasard. ⚠ **Et la CUVETTE PERCHEE en est
+la preuve refaite** : `SURFACE 21 au ras cisaille au nord` -- un creux dans un massif qui en
+recouvre un autre, colle a son bord ouest -- n'est apparue ni a 300 gestes ni a 1500 (1734 mondes).
+Le hasard ne fabrique pas un creux DANS un massif porte ; il a fallu le construire, et compter les
+rangees une par une : premier essai refuse pour sept fautes de marge de pied.
 
 ⚠ **ET LES BATTUES PARTAGENT UN SEUL VIVIER** (`Lab.ground()`). Le recenseur tirait ses mondes, le
 bâtisseur les siens : le premier écrivait au vocabulaire ce que le second ne savait pas porter, et
@@ -174,10 +199,10 @@ ui/              l'éditeur
   manual.gd          le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd      capture la fenêtre, pour se relire
 examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, redistribuables
-  low_res.solutiles  le tileset peint à la main, 16 px, 55/56 depuis le 06/09 : une tuile a peindre
+  low_res.solutiles  le tileset peint à la main, 16 px, 55/58 depuis le 06/09 : trois tuiles a peindre
 guides/          guides au format texte
   massifs.txt        LE DAMIER LIVRÉ : 152x248, un îlot par tuile
-  terrain.txt        LE PAYSAGE LIVRÉ : 249x159, les 56 tuiles, soudées sur une plaine
+  terrain.txt        LE PAYSAGE LIVRÉ : 249x173, les 58 tuiles, soudées sur une plaine
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -336,7 +361,7 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   donné `PIED 69 cisaillé ouest` ; `PIED 21` vaut **N+E+S sans W**, donc une **poche fermée sur
   trois côtés**, donc un **C**. Une famille qui demanderait une forme par tuile ne serait pas une
   famille, ce serait une liste : les deux sortent de la même pièce.
-- **LE PAYSAGE PORTE LES 56 TUILES ET LE MODE EST OUVERT.** `guides/terrain.txt`, 249×159, légal,
+- **LE PAYSAGE PORTE LES 58 TUILES ET LE MODE EST OUVERT.** `guides/terrain.txt`, 249×159, légal,
   chaque témoin à sa case, vérifié au banc. ⚠ **Même vocabulaire, même modèle, autre
   disposition** — rien de ce qui sort à l'export n'en dépend, et un travail commencé sur l'un se
   recharge sur l'autre, puisque le carnet range par **tuile**. **Ce qui reste, c'est l'œil** : le
@@ -723,6 +748,12 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   l'installation du plugin et l'export de l'essai). La preuve qu'une image est **dessinée**,
   c'est `RenderingServer.frame_post_draw`. On attend les deux : `process_frame` pour que la mise
   en page soit faite, `frame_post_draw` pour qu'elle soit à l'écran.
+- **⚠ UN DRAPEAU QUI DEVIENT SILENCIEUSEMENT « ZÉRO » EST UN COMPTEUR QUI MENT.**
+  `tools/brush_census.gd` lisait son nombre de gestes en **position zéro** : lancé
+  `-- --ecrire --refaire`, il calculait `"--ecrire".to_int()` = **0**, ne tirait plus un seul monde,
+  et le vocabulaire tombait de 56 à 53 **sans que rien ne le dise**. L'argument se **cherche**
+  désormais, et le compte retenu s'imprime. ⚠ **Le pire n'était pas la faute, c'était le silence** :
+  une redérivation appauvrie ressemble trait pour trait à une redérivation juste.
 - **⚠ `gui_input.emit()` N'APPELLE PAS LA VIRTUELLE `_gui_input`.** Le signal et la méthode
   reçoivent les mêmes événements quand c'est la souris qui parle, mais émettre le signal à la
   main ne déclenche que ses **branchements**. Une relecture qui pose ses clics ainsi capture
@@ -791,6 +822,13 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 Elle vit dans `project.godot` (`application/config/version`) et **nulle part ailleurs** : le
 bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contredire.
 
+**11.0.0** — LE CISAILLEMENT PAR LE NORD. La clé gagne son troisième bit (`CUT_NORTH`), donc elle
+change de sens : manifeste **v11**, bornes du lecteur déplacées, et un lecteur v10 poserait la
+tuile pleine là où il faut le coude — un trait qui s'arrête net, sans une seule erreur. Vocabulaire
+**58 tuiles**. ⚠ **Et `work_io` ne bouge PAS** : une clé `M255` veut toujours dire `SURFACE 255
+libre`, seules les CASES qui la portent changent — un travail v5 se relit mot pour mot, il lui
+manque simplement les tuiles neuves à peindre.
+
 **10.0.0** — LA DÉCOMPOSITION EN COUCHES : une tuile ne répond que d'elle-même ; elle remplit sa
 case, ce qui est à côté appartient à la couche du voisin, et l'ordre de dessin tranche qui est
 devant. C'est de là que sort le **modèle des massifs**, qui vit désormais dans le produit — un
@@ -824,7 +862,7 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
 
 - **CE QUI RESTE, DANS L'ORDRE — et c'est l'ordre que l'utilisateur a fixé** (PLAN.md, dernière
   section). La **première partie est bâtie** : le modèle, le guide, l'éditeur, `work_io` (v5),
-  l'export (`massif_tileset`, manifeste v10), l'essai, la planche packed, le mode d'emploi et le
+  l'export (`massif_tileset`, manifeste v11), l'essai, la planche packed, le mode d'emploi et le
   plugin SoluPaint. Ce qui reste de l'ancien noyau (`Walls`, `Coverage`, `CornerIndex`, `Brink*`,
   `Thickness`) n'est plus lu par le produit : il vit comme **témoin**, avec le guide `epais.txt`,
   jusqu'au démontage. Reste donc :
@@ -1030,7 +1068,7 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   ordinaire ; ⚠ **une cascade fixe est morte**, elle demande l'axe des frames. ⚠ **Et le reste ne se
   mesure pas tant que le paysage n'est pas là** : une rivière sans paysage n'a rien à traverser.
 - **La signature, suite.** Le sceau **existe** (`core/signing.gd`, `addons/solupaint/signature.gd`,
-  manifeste v10) : il porte les pixels et **dit** la provenance, il ne bloque pas. Ce qui reste :
+  manifeste v11) : il porte les pixels et **dit** la provenance, il ne bloque pas. Ce qui reste :
   poser la **clé publique définitive**, et sauvegarder la privée **ailleurs que sur la machine**.
   ⚠ **Un verrou dans l'addon ne protège de rien** — il part en GDScript en clair, et la charte
   interdit de maquiller un contrôle qui saute en trente secondes. Ce que la signature sépare, c'est « lire
