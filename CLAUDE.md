@@ -558,6 +558,24 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
 
 ### L'écran
 
+- **LES ROOMS SONT BÂTIES — `ui/rooms.gd`, et la grille « ATELIER » en haut de la barre de
+  GAUCHE.** Une room est un **endroit**, pas un réglage : le travail — carnet, guide, mode,
+  résolution — est **partagé**, et seule change la part de l'écran qu'on a sous la main.
+  `Dessin` et `Test` sont ouvertes, `Animation` attend l'axe des frames. ⚠ **Le catalogue ne
+  connaît ni nœud ni scène, seulement des NOMS** : c'est ce qui le rend mesurable sans monter
+  l'éditeur — et le banc vérifie **contre `editor.tscn`, sans l'instancier** (`get_state()`)
+  qu'aucune room ne nomme une section fantôme, **et dans les deux sens** qu'aucune section n'est
+  orpheline. ⚠ **Et la grille s'efface tant qu'il n'y a qu'une room** : une liste à une seule
+  entrée n'est pas un choix, c'est un décor — la règle était déjà écrite pour le réseau.
+- **LA ROOM DE TEST EST BÂTIE — `ui/test_room.gd`.** On y pose un vrai relief au **tampon 3×3**
+  (clic gauche monte, clic droit abaisse jusqu'au vide) et on le voit rendu **avec ses propres
+  tuiles**. ⚠ **Elle pose avec `addons/solupaint/rules.gd`, jamais avec `core/massifs.gd`** :
+  c'est un contrôle croisé **vivant**, sur le trait de l'artiste, avant livraison — et le refus
+  affiché est celui du moteur (`stamp_refused` : case fine **et** pincement diagonal).
+  ⚠ **L'aire se montre** (un liseré), sinon son refus se lit comme une panne. ⚠ **Filtrage au
+  plus proche**, sinon le pixel art bave. ⚠ **Et elle s'ouvre vide, en disant quoi faire** : une
+  colline posée d'office serait exactement l'aperçu supprimé le 05/09. Ce qui **reste** : ni
+  annulation, ni zoom, et la carte d'essai ne survit pas à la fermeture (elle ira dans `user://`).
 - **⚠ ET UNE TROISIÈME BANDE VIENDRA, AU-DESSUS DE LA ZONE : LES ENSEMBLES** (décision utilisateur
   du 06/09). Les **rooms** sont fixes et vivent à gauche — elles font partie du logiciel ; les
   **ensembles** s'ajoutent et se suppriment, et leur nom est du **texte libre**. ⚠ **C'est
@@ -697,6 +715,15 @@ $GODOT --path . --script res://ui/screenshot.gd -- sortie.png travail.solutiles 
   l'installation du plugin et l'export de l'essai). La preuve qu'une image est **dessinée**,
   c'est `RenderingServer.frame_post_draw`. On attend les deux : `process_frame` pour que la mise
   en page soit faite, `frame_post_draw` pour qu'elle soit à l'écran.
+- **⚠ `gui_input.emit()` N'APPELLE PAS LA VIRTUELLE `_gui_input`.** Le signal et la méthode
+  reçoivent les mêmes événements quand c'est la souris qui parle, mais émettre le signal à la
+  main ne déclenche que ses **branchements**. Une relecture qui pose ses clics ainsi capture
+  donc un écran vide **sans une seule erreur**. On branche : `gui_input.connect(...)`, comme le
+  bandeau du mode d'emploi.
+- **⚠ OUVRIR UN TRAVAIL EST ASYNCHRONE, ET CE QUI LIT LE CARNET JUSTE APRÈS LIT DU VIDE.**
+  `_on_open_chosen` attend trois fois (l'en-tête, le paysage, les tuiles) ; une vue montée
+  entre-temps affiche un monde sans une seule tuile, et rien ne le signale. Ce qui dépend du
+  carnet se rafraîchit donc **à la fin de l'ouverture**, pas au moment où on la demande.
 - **En script `SceneTree`, `quit()` part avant la première itération** : le `_ready()` d'un nœud
   qu'on vient d'ajouter n'a pas encore tourné. Rejouer son geste avant de mesurer.
 - **`user://` survit d'une exécution à l'autre** : un test qui écrit doit d'abord faire le vide,

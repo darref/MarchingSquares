@@ -36,6 +36,7 @@ const Thickness := preload("res://core/thickness.gd")
 const Domain := preload("res://core/domain.gd")
 const Seams := preload("res://core/seams.gd")
 const Junctions := preload("res://core/junctions.gd")
+const Rooms := preload("res://ui/rooms.gd")
 const WorkArea := preload("res://ui/work_area.gd")
 
 const CANDIDATE_GUIDE_PATH: String = "res://guides/candidate_01.txt"
@@ -101,6 +102,7 @@ func _initialize() -> void:
 	_test_plugin_manifest()
 	_test_manifest_discovery()
 	_test_plugin_install()
+	_test_rooms()
 	_test_every_script_parses()
 	_report_candidate_guide()
 	_print_summary()
@@ -3143,6 +3145,78 @@ func _test_wireframe_joins() -> void:
 ## echouerait sur la quantification, pour une raison etrangere au dessin.
 func _same_ink(left: Color, right: Color) -> bool:
 	return absf(left.r - right.r) < 0.02 and absf(left.g - right.g) < 0.02 			and absf(left.b - right.b) < 0.02
+
+
+func _test_rooms() -> void:
+	print("rooms : le catalogue des ateliers")
+	_check(Rooms.ids().has(Rooms.DESSIN), "Dessin est ouverte")
+	_check(Rooms.ids().has(Rooms.default_id()), "la room ou l'on entre est ouverte")
+
+	# ⚠ UN REFUS MUET EST LE PIRE DES REFUS : une room fermee dit de quoi elle depend.
+	var mute: int = 0
+	for id: StringName in Rooms.all_ids():
+		if Rooms.is_closed(id) and Rooms.why_closed(id).is_empty():
+			mute += 1
+	_check_equal(mute, 0, "aucune room fermee ne se tait sur ce qui lui manque")
+
+	# ⚠ UN LIBELLE QUI S'ALLONGE IMPOSE SA LARGEUR A TOUTE LA BARRE. Paye deux fois ailleurs,
+	# et une grille a deux colonnes est l'endroit ou ca se repaie.
+	var wide: PackedStringArray = PackedStringArray()
+	for id2: StringName in Rooms.all_ids():
+		var text: String = Rooms.label(id2)
+		if text.is_empty() or text.length() > Rooms.LABEL_MAX:
+			wide.append("%s (%d)" % [text, text.length()])
+	_check_equal(wide.size(), 0, "aucun libelle de room ne depasse %d caracteres"
+			% Rooms.LABEL_MAX)
+
+	# L'etat du jour, mesure et non redemontre. ⚠ CES DEUX LIGNES ROUGISSENT A CHAQUE ROOM
+	# QUI OUVRE, et c'est voulu : l'ecran change la, et il doit le dire.
+	_check_equal(Rooms.ids().size(), 2, "deux rooms sont ouvertes : Dessin et Test")
+	_check(Rooms.worth_showing(),
+			"la grille se montre : il y a desormais un choix a faire")
+	_check(not Rooms.shows(Rooms.TEST, "PencilSection"),
+			"la room de test ne montre pas le crayon : on n'y peint pas de faux pixels")
+	_check(Rooms.shows(Rooms.DESSIN, "PencilSection"),
+			"et la room de dessin, si")
+
+	# ⚠ ET LES SECTIONS SE VERIFIENT CONTRE LA SCENE, SANS LA MONTER. Une room qui nommerait
+	# une section fantome ne montrerait rien, sans une seule erreur -- le genre de faute
+	# qu'aucune relecture ne voit. `get_state()` lit les noms sans rien instancier.
+	var scene: PackedScene = ResourceLoader.load("res://ui/editor.tscn") as PackedScene
+	_check(scene != null, "editor.tscn se charge")
+	var present: Dictionary = {}
+	if scene != null:
+		var state: SceneState = scene.get_state()
+		for index: int in range(state.get_node_count()):
+			present[String(state.get_node_name(index))] = true
+	var ghosts: PackedStringArray = PackedStringArray()
+	for id3: StringName in Rooms.all_ids():
+		for section: String in Rooms.sections(id3):
+			if not present.has(section):
+				ghosts.append("%s nomme %s" % [id3, section])
+	_check_equal(ghosts.size(), 0, "aucune room ne nomme une section absente de la scene")
+
+	# ⚠ ET ON COMPARE DANS LES DEUX SENS. Une section que plus aucune room ne montre
+	# disparaitrait de l'ecran sans que rien ne s'en plaigne.
+	var orphans: PackedStringArray = PackedStringArray()
+	for section2: String in Rooms.known_sections():
+		var seen: bool = false
+		for id4: StringName in Rooms.all_ids():
+			if Rooms.shows(id4, section2):
+				seen = true
+				break
+		if not seen:
+			orphans.append(section2)
+	_check_equal(orphans.size(), 0, "aucune section de l'ecran n'est orpheline de room")
+
+	var unknown: PackedStringArray = PackedStringArray()
+	for section3: String in Rooms.known_sections():
+		if not present.has(section3):
+			unknown.append(section3)
+	_check_equal(unknown.size(), 0, "les sections connues sont toutes dans la scene")
+
+	_check(not Rooms.shows(Rooms.DESSIN, "SectionQuiNExistePas"),
+			"une section inconnue n'est montree par personne")
 
 
 func _test_every_script_parses() -> void:

@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://ui/sidebar.gd" id="3_4x3iy"]
 [ext_resource type="Script" path="res://ui/tool_section.gd" id="4_cwcei"]
 [ext_resource type="Script" path="res://ui/neighbours_panel.gd" id="6_nghb"]
+[ext_resource type="Script" path="res://ui/test_room.gd" id="7_troom"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qfej6"]
 bg_color = Color(0.129, 0.141, 0.149, 1)
@@ -352,6 +353,14 @@ anchor_bottom = 1.0
 focus_mode = 1
 script = ExtResource("2_c55ig")
 
+[node name="TestRoom" type="Control" parent="Layout/Body" unique_id=3300010]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("7_troom")
+
 [node name="Sidebar" type="PanelContainer" parent="Layout/Body" unique_id=768267908]
 unique_name_in_owner = true
 layout_mode = 0
@@ -363,6 +372,31 @@ script = ExtResource("3_4x3iy")
 [node name="Column" type="VBoxContainer" parent="Layout/Body/Sidebar" unique_id=2133558699]
 layout_mode = 2
 theme_override_constants/separation = 0
+
+[node name="Rooms" type="MarginContainer" parent="Layout/Body/Sidebar/Column" unique_id=3300001]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 4
+
+[node name="RoomsBox" type="VBoxContainer" parent="Layout/Body/Sidebar/Column/Rooms" unique_id=3300002]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RoomsTitle" type="Label" parent="Layout/Body/Sidebar/Column/Rooms/RoomsBox" unique_id=3300003]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.588, 0.612, 0.588, 1)
+text = "ATELIER"
+
+[node name="RoomGrid" type="GridContainer" parent="Layout/Body/Sidebar/Column/Rooms/RoomsBox" unique_id=3300004]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
 
 [node name="Globals" type="MarginContainer" parent="Layout/Body/Sidebar/Column" unique_id=271878592]
 layout_mode = 2

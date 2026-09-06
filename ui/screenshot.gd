@@ -23,6 +23,9 @@ var _zoom_at: Vector2 = Vector2.ZERO
 ## liste des reseaux se grise d'apres le guide, donc changer de paysage apres coup
 ## deplacerait la selection sous nos pieds.
 var _mode: StringName = &""
+## L'atelier a capturer. ⚠ ON PASSE PAR LE BOUTON, PAS PAR LA VARIABLE : un outil de
+## relecture qui prendrait un raccourci ne relirait pas ce que l'utilisateur voit.
+var _room: String = ""
 var _zoom_steps: int = 0
 var _zoomed: bool = false
 
@@ -63,6 +66,8 @@ func _initialize() -> void:
 				_mode = &"massifs"
 			"trait":
 				_strokes = true
+			"essai":
+				_room = "Test"
 			_:
 				if argument.begins_with("zoom="):
 					# ⚠ POUR REGARDER LE TRAIT, PAS LE PAYSAGE. En vue d'ensemble un faux pixel
@@ -117,6 +122,23 @@ func _process(_delta: float) -> bool:
 		# raccourci ne relirait pas ce que l'utilisateur voit.
 		if _work != "":
 			_editor.call("_on_open_chosen", _work)
+		if _room != "":
+			for child: Node in _editor.get_node("%RoomGrid").get_children():
+				var button: Button = child as Button
+				if button != null and button.text == _room:
+					button.button_pressed = true
+					button.pressed.emit()
+			# ⚠ ON POSE DU RELIEF PAR DE VRAIS CLICS, pas en appelant le tampon. Une relecture
+			# qui prendrait un raccourci ne relirait pas ce que l'utilisateur voit -- c'est la
+			# regle deja suivie pour le mode d'emploi et pour le zoom.
+			var room: Control = _editor.get_node("%TestRoom")
+			for step: Vector2i in [Vector2i(0, 0), Vector2i(3, 0), Vector2i(6, 0),
+					Vector2i(3, 3), Vector2i(6, 3), Vector2i(4, 1)]:
+				var click: InputEventMouseButton = InputEventMouseButton.new()
+				click.button_index = MOUSE_BUTTON_LEFT
+				click.pressed = true
+				click.position = room.size * 0.5 + Vector2(step) * 18.0
+				room.gui_input.emit(click)
 		if _assembled:
 			var check: CheckBox = _editor.get_node("%AssembledCheck")
 			check.button_pressed = true

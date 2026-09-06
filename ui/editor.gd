@@ -26,6 +26,7 @@ const ProofScene := preload("res://core/proof_scene.gd")
 const Examples := preload("res://core/examples.gd")
 const PluginInstall := preload("res://core/plugin_install.gd")
 const MANUAL := preload("res://ui/manual.gd")
+const Rooms := preload("res://ui/rooms.gd")
 const Trial := preload("res://exporters/trial_tileset.gd")
 const MassifTrial := preload("res://exporters/massif_trial.gd")
 
@@ -87,6 +88,11 @@ var _export_dialog: FileDialog = null
 var _packed_dialog: FileDialog = null
 var _plugin_dialog: FileDialog = null
 var _trial_dialog: FileDialog = null
+## L'atelier ouvert. ⚠ CE N'EST PAS UN REGLAGE, C'EST UN ENDROIT : le travail -- le carnet,
+## le guide, le mode, la resolution -- est PARTAGE entre les rooms ; seule change la part de
+## l'ecran qu'on a sous la main.
+var _room: StringName = Rooms.default_id()
+
 var _promise: int = 0
 var _elapsed: float = PROMISE_SECONDS
 
@@ -96,6 +102,9 @@ func _ready() -> void:
 	# ils finissent toujours par se contredire.
 	(%Version as Label).text = String(ProjectSettings.get_setting("application/config/version", "?"))
 	_apply_window_size()
+	var test_room: Control = %TestRoom
+	test_room.report_changed.connect(_on_test_report)
+	_fill_rooms()
 	_fill_modes()
 	_fill_resolutions()
 	_fill_families()
@@ -195,6 +204,88 @@ func _apply_window_size() -> void:
 	window.position = usable.position + (usable.size - target) / 2
 	print("SoluTiles : fenetre %dx%d, ecran utile %dx%d" % [
 			window.size.x, window.size.y, usable.size.x, usable.size.y])
+
+
+## LES BOUTONS D'ATELIER, en haut de la barre de GAUCHE.
+##
+## ⚠ ILS SE FABRIQUENT DU CATALOGUE, ILS NE SE POSENT PAS DANS LA SCENE. Une room ecrite a la
+## main dans `editor.tscn` serait un second endroit ou dire lesquelles existent, et le jour ou
+## les deux se contredisent c'est l'ecran qui gagne en silence.
+##
+## ⚠ ET LA GRILLE ENTIERE S'EFFACE TANT QU'IL N'Y A QU'UNE ROOM. C'est la regle deja ecrite
+## quelques lignes plus bas pour le reseau -- une liste a une seule entree n'est pas un choix,
+## c'est un decor -- et elle vaut ici telle quelle. Elle reparaitra d'elle-meme le jour ou la
+## room de test ouvrira.
+## CE QUE LA ROOM DE TEST A SOUS LA MAIN. ⚠ UN TROU EST NOIR, PAS COULEUR DE SOL : les poses
+## sans dessin laissent le vide, et le compte le DIT -- peint a la teinte du terrain, un
+## tileset a moitie peint aurait l'air de marcher. C'est la seule vue du logiciel ou
+## l'incomplet est utile a voir ; l'export, lui, refuse toujours (charte, regle 5).
+func _on_test_report(drawn: int, missing: int) -> void:
+	if missing == 0:
+		_announce("Essai : %d tuiles posees, aucun trou." % drawn)
+		return
+	_announce("Essai : %d tuiles posees, %d pose(s) sans dessin -- elles restent en vide."
+			% [drawn, missing])
+
+
+func _fill_rooms() -> void:
+	var grid: GridContainer = %RoomGrid
+	for old: Node in grid.get_children():
+		old.queue_free()
+	var group: ButtonGroup = ButtonGroup.new()
+	for id: StringName in Rooms.ids():
+		var button: Button = Button.new()
+		button.text = Rooms.label(id)
+		button.toggle_mode = true
+		button.button_group = group
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.button_pressed = id == _room
+		button.pressed.connect(_on_room_pressed.bind(id))
+		grid.add_child(button)
+	(%Rooms as Control).visible = Rooms.worth_showing()
+	_apply_room()
+
+
+func _on_room_pressed(id: StringName) -> void:
+	if id == _room:
+		return
+	_room = id
+	_apply_room()
+
+
+## Montre ce que l'atelier courant demande, cache le reste.
+##
+## ⚠ ON PARCOURT LES SECTIONS CONNUES, PAS LES ENFANTS DES BARRES. Une section que personne
+## n'a rangee dans une room resterait visible partout par accident ; ici elle ne peut pas --
+## et le banc verifie dans les deux sens qu'aucune n'est orpheline.
+##
+## ⚠ ET LES MARGES SE REPOSENT APRES, parce que cacher une section change la largeur de la
+## barre, donc la place qui reste a la zone de travail.
+func _apply_room() -> void:
+	for section_name: String in Rooms.known_sections():
+		var section: Control = _section_node(section_name)
+		if section != null:
+			section.visible = Rooms.shows(_room, section_name)
+	# ⚠ LE CENTRE CHANGE AVEC L'ATELIER, mais le TRAVAIL ne bouge pas : la zone de dessin est
+	# seulement cachee, jamais videe. Une room qui rechargerait le carnet en entrant ferait
+	# perdre l'annulation, et l'aller-retour entre deux ateliers coute alors un travail.
+	var test_room: Control = %TestRoom
+	(%WorkArea as Control).visible = _room != Rooms.TEST
+	test_room.visible = _room == Rooms.TEST
+	if _room == Rooms.TEST:
+		test_room.adopt(_painting, _heights)
+	_apply_margins()
+
+
+## Une section repliable, cherchee par son NOM dans l'une ou l'autre barre.
+## ⚠ LE PARAMETRE NE S'APPELLE PAS `name` : `Node.name` existe, et une variable qui masque un
+## membre du moteur est le genre de piege qui ne se voit qu'a l'execution.
+func _section_node(wanted: String) -> Control:
+	for bar: Node in [%Sidebar, %Toolbar]:
+		var found: Node = (bar as Node).find_child(wanted, true, false)
+		if found is Control:
+			return found as Control
+	return null
 
 
 func _fill_modes() -> void:
@@ -763,6 +854,10 @@ func _new_project() -> void:
 	(%WorkHint as Label).text = "Rien d'enregistre pour l'instant."
 	_load_current_mode()
 	_dirty = false
+	# ⚠ ET LA ROOM DE TEST OUBLIE CE QU'ELLE AVAIT SOUS LA MAIN. Sans ca, elle continuerait de
+	# poser les tuiles du travail precedent sur un projet vierge -- un ecran qui ment sur ce
+	# qu'on a peint est pire qu'un ecran vide.
+	_apply_room()
 	_announce("Nouveau projet : le guide est vierge, et les choix sont rouverts.")
 
 
@@ -803,6 +898,10 @@ func _on_open_chosen(path: String) -> void:
 	_work_path = path
 	_dirty = false
 	_refresh_counters()
+	# ⚠ ET LA ROOM DE TEST REPREND LES TUILES QU'ON VIENT D'OUVRIR. Ouvrir se fait en trois
+	# temps, avec des `await` : une room de test entree avant la fin lirait un carnet encore
+	# vide et montrerait un monde sans une seule tuile, sans une seule erreur.
+	_apply_room()
 
 	var orphans: int = PackedStringArray(report["unplaced"]).size()
 	if orphans > 0:

@@ -4539,7 +4539,13 @@ rien d'autre. Les mettre à la suite, c'est payer l'outillage une fois. Et la ro
 devant tout parce qu'elle est le **banc de recette** de ces quatre-là : un patch se juge à *est-ce
 qu'il tient, là, sur mon terrain* — question à laquelle aucun damier ne répond.
 
-## 1 · LE CADRE DES ROOMS
+## 1 · LE CADRE DES ROOMS — *bâti le 2026-09-06*
+
+✔ **FAIT.** `ui/rooms.gd` porte le catalogue ; la grille « ATELIER » est en haut de la barre de
+gauche ; `_apply_room` montre les sections que la room demande et cache les autres. Le banc y
+ajoute **13 vérifications**, dont celles qui lisent `editor.tscn` **sans le monter**
+(`PackedScene.get_state()`) : aucune room ne nomme une section fantôme, et — dans l'autre sens —
+aucune section n'est orpheline de room.
 
 Une grille de boutons **en haut de la barre de GAUCHE** (spécifié par l'utilisateur), au-dessus
 d'« Options ». Une room n'est **pas un réglage** : c'est un atelier. Le travail — le carnet, le
@@ -4561,7 +4567,20 @@ les gestes qu'on y a en main.
 Livré seul, ce chantier ne change **rien** à l'écran sauf une rangée de boutons avec une seule
 entrée, **Dessin**. C'est voulu : il se relit et se prouve avant que quoi que ce soit n'en dépende.
 
-## 2 · LA ROOM DE TEST — *demandée par l'utilisateur le 2026-09-06*
+## 2 · LA ROOM DE TEST — *demandée puis bâtie le 2026-09-06*
+
+✔ **FAIT** (`ui/test_room.gd`), et regardé à l'écran sur `examples/low_res.solutiles` : le relief
+posé au tampon revient rendu avec les tuiles peintes de l'exemple. Le tampon 3×3, le refus du
+moteur, le liseré de l'aire, le filtrage au plus proche, la repose complète, le compte des poses
+sans dessin, et `essai` dans `ui/screenshot.gd` pour la relire sans lancer à la main.
+
+⚠ **CE QUI RESTE, ET QUI EST DIT PLUTÔT QUE TU** : ni annulation, ni zoom, ni déplacement ; la
+carte d'essai ne survit pas à la fermeture (elle ira dans `user://`) ; et le banc ne mesure que le
+**catalogue**, jamais le rendu de la room — aucun banc ne monte l'interface.
+
+⚠ **DEUX PIÈGES PAYÉS EN LA BÂTISSANT**, tous deux du genre qui ne se voit pas : `gui_input.emit()`
+n'appelle **pas** la virtuelle `_gui_input` (la relecture capturait une room vide sans une erreur),
+et **ouvrir un travail est asynchrone** — la room entrée avant la fin lisait un carnet encore vide.
 
 **On pose un vrai relief, au pinceau du moteur, et on le voit rendu avec SES PROPRES TUILES.**
 Clic gauche monte d'un étage, clic droit efface — le tampon 3×3 de `core/gesture.gd`, celui-là
