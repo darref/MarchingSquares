@@ -269,12 +269,12 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 
 	var lines: PackedStringArray = text.split("\n")
 	if lines.is_empty() or not lines[0].begins_with(MAGIC + " "):
-		push_error("work_io: ce fichier n'est pas un travail SoluTiles.")
+		push_error("work_io: this file is not a SoluTiles work file.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
 	var written_with: int = lines[0].get_slice(" ", 1).to_int()
 	if written_with > VERSION:
-		push_error("work_io: fichier ecrit par une version plus recente.")
+		push_error("work_io: file written by a newer version.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
 
@@ -319,7 +319,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 			result["error"] = ERR_FILE_CORRUPT
 			continue
 		if image.get_width() != painting.resolution or image.get_height() != painting.resolution:
-			push_error("work_io: ligne %d, tuile '%s' en %dx%d alors que le fichier annonce %d."
+			push_error("work_io: line %d, tile '%s' at %dx%d while the file announces %d."
 					% [number + 1, head, image.get_width(), image.get_height(),
 					painting.resolution])
 			result["error"] = ERR_FILE_CORRUPT

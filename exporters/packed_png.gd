@@ -154,34 +154,34 @@ static func legend(painting: Painting, mode_id: StringName, basename: String,
 	var columns: int = columns_for(slots.size())
 	var rows: int = (slots.size() + columns - 1) / columns
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("# %s -- feuille packed" % basename)
+	lines.append("# %s -- packed sheet" % basename)
 	lines.append("#")
-	lines.append("# Une seule image, %d colonnes x %d rangees, %d pixels par case." % [
+	lines.append("# One image, %d columns x %d rows, %d pixels per cell." % [
 			columns, rows, painting.resolution])
-	lines.append("# Les tuiles dans l'ordre du vocabulaire, en lecture -- gauche a droite,")
-	lines.append("# haut en bas. Les cases de la fin peuvent etre vides.")
+	lines.append("# Tiles in vocabulary order, reading order -- left to right,")
+	lines.append("# top to bottom. Trailing cells may be empty.")
 	lines.append("#")
-	lines.append("# ⚠ CETTE FEUILLE NE PORTE AUCUNE REGLE DE POSE. Pour poser un monde,")
-	lines.append("#   c'est `%s_tileset.txt` qu'il faut lire, avec ses deux planches." % basename)
+	lines.append("# ⚠ THIS SHEET CARRIES NO PLACEMENT RULE. To place a world,")
+	lines.append("#   read `%s_tileset.txt` instead, with its sheet." % basename)
 	lines.append("")
 	lines.append("mode %s" % mode_id)
-	lines.append("famille %s" % family)
+	lines.append("family %s" % family)
 	lines.append("image %s" % (basename + SUFFIX_SHEET))
-	lines.append("tuile %d" % painting.resolution)
-	lines.append("grille %d %d" % [columns, rows])
-	lines.append("cases %d" % slots.size())
+	lines.append("tile %d" % painting.resolution)
+	lines.append("grid %d %d" % [columns, rows])
+	lines.append("cells %d" % slots.size())
 	lines.append("")
 	for at: int in range(slots.size()):
 		var slot: Array = slots[at]
 		var where: String = "%d,%d" % [at % columns, at / columns]
 		if String(slot[0]) == "M":
-			lines.append("case %s tuile %d  # %s" % [where, int(slot[1]),
+			lines.append("cell %s tile %d  # %s" % [where, int(slot[1]),
 					Massifs.describe(int(slot[1]))])
 		elif String(slot[0]) == "W":
 			var role: Vector2i = slot[1] as Vector2i
-			lines.append("case %s robe pan %d rangee %d" % [where, role.x, role.y])
+			lines.append("cell %s skirt face %d row %d" % [where, role.x, role.y])
 		else:
-			lines.append("case %s surface %d  # %s" % [where, int(slot[1]),
+			lines.append("cell %s surface %d  # %s" % [where, int(slot[1]),
 					Families.describe(family, int(slot[1]))])
 	return "\n".join(lines) + "\n"
 
@@ -203,7 +203,7 @@ static func write(folder: String, basename: String, painting: Painting,
 		return report
 	if DirAccess.make_dir_recursive_absolute(folder) != OK \
 			and not DirAccess.dir_exists_absolute(folder):
-		push_error("packed_png: dossier '%s' introuvable et impossible a creer." % folder)
+		push_error("packed_png: folder '%s' not found and cannot be created." % folder)
 		report["error"] = ERR_CANT_CREATE
 		return report
 

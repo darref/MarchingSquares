@@ -96,7 +96,7 @@ func _initialize() -> void:
 		push_error("essai : l export a refuse (%s)." % String(report["error"]))
 		quit(1)
 		return
-	print("L'essai est ecrit, en %d pixels par tuile :" % TRIAL_RESOLUTION)
+	print("Trial written, at %d pixels per tile:" % TRIAL_RESOLUTION)
 	for path: String in report["written"]:
 		print("  %s" % ProjectSettings.globalize_path(path))
 	quit(0)

@@ -162,4 +162,4 @@ static func describe(index: int) -> String:
 	for bit: int in range(BITS.size()):
 		if (index & BITS[bit]) != 0:
 			parts.append(BIT_NAMES[bit])
-	return "rien" if parts.is_empty() else "+".join(parts)
+	return "nothing" if parts.is_empty() else "+".join(parts)

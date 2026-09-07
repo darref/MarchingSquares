@@ -1402,13 +1402,23 @@ func _test_packed() -> void:
 	var listed: int = 0
 	for line: String in legend.split("
 "):
-		if line.begins_with("case "):
+		if line.begins_with("cell "):
 			listed += 1
 	_check_equal(listed, slots.size(), "la legende nomme chaque case de la feuille")
-	_check(legend.contains("grille %d %d" % [columns, rows]), "et elle dit sa grille")
+	_check(legend.contains("grid %d %d" % [columns, rows]), "et elle dit sa grille")
 	# ⚠ ELLE NE PORTE AUCUNE REGLE DE POSE, et c est asserte : un acheteur qui croirait
 	# pouvoir poser un monde avec elle fabriquerait un monde faux.
-	_check(not legend.contains("canonicalise"), "la legende n est pas un manifeste")
+	#
+	# ⚠ ET ON SUIT LA SOURCE, ON N EPINGLE PLUS UN MOT. Le garde-fou cherchait « canonicalise »,
+	# qui n existe plus nulle part dans ce qui se livre : il passait donc A VIDE, et un jour ou
+	# la legende aurait recopie la regle, il aurait dit VERT. Un test qui ne peut plus echouer
+	# n est pas un test. On compare desormais a `placement_rules()` LIGNE PAR LIGNE : si la
+	# regle bouge, le garde-fou bouge avec elle, et il ne peut pas se perimer en silence.
+	var leaked: Array[String] = []
+	for rule: String in MassifTileset.placement_rules():
+		if rule.length() > 20 and legend.contains(rule):
+			leaked.append(rule)
+	_check_equal(leaked.size(), 0, "la legende n est pas un manifeste")
 
 	# LE REFUS, PAR LE MEME CHEMIN QUE L EXPORT MOTEUR.
 	var partial: Painting = Painting.new(16)

@@ -67,7 +67,7 @@ static func _level_char(character: String, line_number: int, column: int) -> Str
 		return "1"
 	if character >= "1" and character <= "9":
 		return character
-	push_error("height_mask: caractere inattendu '%s' ligne %d colonne %d, lu comme plaine." % [character, line_number, column])
+	push_error("height_mask: unexpected character '%s' line %d column %d, read as plain." % [character, line_number, column])
 	return PLAIN_CHAR
 
 

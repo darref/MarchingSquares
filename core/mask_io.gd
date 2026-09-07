@@ -28,7 +28,7 @@ static func parse(text: String) -> PackedStringArray:
 				row += FILLED_CHAR
 				continue
 			if character != EMPTY_CHAR:
-				push_error("mask_io: caractere inattendu '%s' ligne %d colonne %d, lu comme vide." % [character, line_number, column + 1])
+				push_error("mask_io: unexpected character '%s' line %d column %d, read as void." % [character, line_number, column + 1])
 			row += EMPTY_CHAR
 		rows.append(row)
 		widest = maxi(widest, row.length())

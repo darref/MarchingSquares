@@ -82,7 +82,7 @@ static func describe(index: int) -> String:
 	for bit: int in range(BITS.size()):
 		if (index & BITS[bit]) != 0:
 			parts.append(BIT_NAMES[bit])
-	return "aucun voisin" if parts.is_empty() else "+".join(parts)
+	return "no neighbour" if parts.is_empty() else "+".join(parts)
 
 
 ## LE BORD — ce qu'il y a AU-DELA de chaque cardinal vide, et pourquoi ca vit dans la tuile.

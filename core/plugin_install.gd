@@ -57,7 +57,7 @@ const PROJECT_FILE: String = "project.godot"
 ##   can_install: bool
 static func analyse(project_folder: String) -> Dictionary:
 	if project_folder == "":
-		return _verdict(false, false, "Aucun dossier choisi.")
+		return _verdict(false, false, "No folder chosen.")
 	if not DirAccess.dir_exists_absolute(project_folder):
 		return _verdict(false, false, "This folder does not exist.")
 	if not FileAccess.file_exists(project_folder.path_join(PROJECT_FILE)):
