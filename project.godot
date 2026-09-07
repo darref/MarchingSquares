@@ -13,11 +13,11 @@ config_version=5
 config/name="SoluTiles"
 config/description="Paint one landscape. Every edge case covered."
 config/version="12.0.0"
-config/icon="res://icon.png"
 run/main_scene="res://ui/editor.tscn"
 config/features=PackedStringArray("4.7")
 boot_splash/stretch_mode=4
 boot_splash/image="uid://bejs8me8563my"
+config/icon="res://icon.png"
 
 [debug]
 
