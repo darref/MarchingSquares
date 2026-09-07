@@ -30,6 +30,11 @@ const Scene := preload("res://render/massif_scene.gd")
 const Thickness := preload("res://core/thickness.gd")
 const MassifForm := preload("res://core/massif_form.gd")
 const Gesture := preload("res://core/gesture.gd")
+const Brush := preload("res://core/brush_vocabulary.gd")
+
+## LES GUIDES LIVRES. ⚠ Ils se declarent ICI, une fois : le banc en lisait un seul,
+## en dur, a deux endroits differents.
+const GUIDES: Array[String] = ["res://guides/massifs.txt", "res://guides/terrain.txt"]
 
 const RES: int = MassifTiles.RES
 const OUTLINE: Color = MassifTiles.OUTLINE
@@ -58,7 +63,11 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var draws: int = args[0].to_int() if not args.is_empty() else 60
 	var worlds: Array[Dictionary] = []
-	worlds.append({"name": "guide", "world": HeightMask.read("res://guides/massifs.txt")})
+	# ⚠ LES DEUX GUIDES LIVRES, PAS UN. Le banc ne lisait que le damier, et le paysage est un
+	# guide LIVRE : personne n'avait jamais passe ses poses a I7 ni a I8. Un invariant qui ne
+	# regarde qu'une moitie du produit ne garde que cette moitie.
+	for path: String in GUIDES:
+		worlds.append({"name": path.get_file().get_basename(), "world": HeightMask.read(path)})
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 0x4D415353
 	var made: int = 0
@@ -182,11 +191,46 @@ func _initialize() -> void:
 	# le DESSIN -- fermeture, epaisseur du trait, verite, unicite, forme -- et personne ne
 	# regardait le RELIEF. Un guide qui contient un relief que le pinceau ne peut pas produire
 	# fait peindre des tuiles qui n'arriveront jamais, et en cache d'autres.
-	var wrongs: Array[String] = Gesture.faults(
-			HeightMask.read("res://guides/massifs.txt"))
+	var wrongs: Array[String] = []
+	for path1: String in GUIDES:
+		for fault: String in Gesture.faults(HeightMask.read(path1)):
+			wrongs.append("%s : %s" % [path1.get_file(), fault])
 	green = green and wrongs.is_empty()
 	print("I9 guide legal : %s%s" % ["VERT" if wrongs.is_empty() else "ROUGE",
 			"" if wrongs.is_empty() else "  (" + ", ".join(wrongs) + ")"])
+
+	# I11 LIVRAISON : un guide livre ne pose que des tuiles du vocabulaire livre.
+	#
+	# ⚠ ET CE N'EST PAS I8, MEME SI LES DEUX PARLENT DE LISTES. I8 compare a la FORME CLOSE --
+	# un theoreme, exhaustif sur 2^18 fenetres, 140 tuiles : il dit que le modele n'invente rien.
+	# I11 compare au VOCABULAIRE LIVRE -- ce qu'une BATTUE atteint, 60 tuiles, un echantillonnage :
+	# il dit que la PLANCHE porte de quoi peindre le guide. Une tuile peut donc etre parfaitement
+	# dans le modele et absente de la planche, et c'est exactement ce qui arrive.
+	#
+	# ⚠ ET IL MANQUAIT PARCE QU'ON NE COMPARAIT QUE DANS UN SENS. `build_terrain` verifie que
+	# chacune des 60 tuiles visees est PRESENTE ; personne ne verifiait que le guide n'en pose
+	# pas d'AUTRES. « Un garde-fou qui ne regarde que d'un cote ne garde rien » -- deja paye sur
+	# le controle croise du plugin, puis sur les raccords, et repaye ici.
+	#
+	# ⚠ ET IL SE LIT SUR `visible`, PAS SUR `paintable` : le carnet range ce qui SE VOIT, etage 0
+	# compris, et c'est lui qui decide ce que l'export doit porter.
+	var absent: Array[String] = []
+	var known: Dictionary = {}
+	for tile3: int in Brush.tiles():
+		known[tile3] = true
+	for path2: String in GUIDES:
+		var shown: Dictionary = Massifs.visible(HeightMask.read(path2))
+		var said: Dictionary = {}
+		for tile4: Variant in shown.values():
+			if known.has(int(tile4)) or said.has(int(tile4)):
+				continue
+			said[int(tile4)] = true
+			absent.append("%s : %s" % [path2.get_file(), Massifs.describe(int(tile4))])
+	green = green and absent.is_empty()
+	print("I11 livraison : %s (%d tuiles au vocabulaire livre)"
+			% ["VERT" if absent.is_empty() else "ROUGE", known.size()])
+	for line1: String in absent:
+		print("    hors vocabulaire : %s" % line1)
 	print("VERDICT : %s" % ("VERT" if green else "ROUGE"))
 	quit(0 if green else 1)
 
