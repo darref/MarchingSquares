@@ -140,6 +140,10 @@ const GROUND_H: int = 30
 ## des tuiles differentes, et c'est exactement le defaut qu'on repare ici.
 const GROUND_SEED: int = 0x475549
 
+## La largeur utile d'une alcove : le massif fait `ALCOVE_SPAN` colonnes, plus six
+## de plaine et quatre de vide de chaque cote.
+const ALCOVE_SPAN: int = 14
+
 
 ## LE VIVIER — LES MEMES MONDES POUR TOUTES LES BATTUES.
 ##
@@ -264,6 +268,29 @@ static func ground(draws: int = 400) -> Array[PackedStringArray]:
 			var perched: PackedStringArray = perched_basin(high, hole)
 			if Gesture.legal(perched):
 				out.append(perched)
+	# ⚠ ET LES ALCOVES, PARCE QUE LA MARCHE AU HASARD N'ENTAILLE JAMAIS UN MASSIF. Un massif
+	# rectangulaire dont une barre du milieu est EVIDEE -- l'entaille ouverte sur un cote, la
+	# barre du sud decalee par rapport a celle du nord -- est un renfoncement, un porche : ce
+	# qu'un artiste dessine sans y penser. `Gesture.walk` ne le fabrique pas, et le paysage, lui,
+	# en posait deux : `tools/edge_tiles.gd` a releve quatre tuiles que `guides/terrain.txt` pose
+	# a l'etage >= 1 -- donc peignables -- et que le vocabulaire n'avait pas.
+	# ⚠ ET LE BALAYAGE EXHAUSTIF EN A TROUVE DIX, PAS QUATRE (`tools/alcoves.gd`, 1512 formes,
+	# 720 legales). Le trou n'etait donc pas dans les guides : un acheteur qui dessine une alcove
+	# dans SA carte posait dix tuiles que la planche n'avait pas.
+	# ⚠ LA GRILLE RETENUE EST CELLE QUE LA MESURE A GARDEE, pas le balayage entier : le vivier
+	# est relu par trois battues, et payer quinze cents reliefs a chaque fois pour dix tuiles ne
+	# se defend pas. `tools/alcoves.gd` reste la mesure de reference, et il est plus large.
+	for level: int in [1, 2]:
+		for deep: int in [3, 4, 6]:
+			for m0: int in [0, 3, 6, 9]:
+				for m1: int in [9, ALCOVE_SPAN]:
+					for s0: int in [3, 9]:
+						for s1: int in [6, 9, ALCOVE_SPAN]:
+							if m1 <= m0 or s1 < s0:
+								continue
+							var nook: PackedStringArray = alcove(level, deep, m0, m1, s0, s1)
+							if Gesture.legal(nook):
+								out.append(nook)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = GROUND_SEED
 	var drawn: int = 0
@@ -365,6 +392,44 @@ static func perched_basin(high: int, hole: int) -> PackedStringArray:
 	for y5: int in range(7, 7 + hole):
 		for x4: int in range(5, 5 + hole):
 			grid[y5][x4] = high
+	return text(grid)
+
+
+## UNE ALCOVE : un massif rectangulaire dont une barre du milieu est EVIDEE.
+##
+## `m0..m1` est l'entaille de la barre du milieu, `s0..s1` celle de la barre du sud -- deux
+## intervalles independants, et c'est leur DECALAGE qui fait le tout. Quand ils coincident, on a
+## un simple renfoncement ; quand ils different, la barre du sud avance ou recule sous l'entaille,
+## et le PIED de la chute s'y retrouve avec du massif d'un cote et rien de l'autre.
+##
+## ⚠ ET C'EST BIEN UNE FAMILLE, PAS UNE LISTE. La meme piece, parametree, porte les dix tuiles :
+## une famille qui demanderait une forme par tuile ne serait pas une famille.
+##
+## ⚠ ET L'ENTAILLE OUVRE SUR UN COTE, JAMAIS AU MILIEU. `m0 = 0` la colle au bord ouest,
+## `m1 = ALCOVE_SPAN` au bord est ; au milieu, ce serait un trou, et un trou dans un massif est
+## une cuvette -- deja au vivier, et elle ne pose pas les memes tuiles.
+static func alcove(level: int, deep: int, m0: int, m1: int, s0: int, s1: int) -> PackedStringArray:
+	var wide: int = ALCOVE_SPAN + 12
+	var tall: int = 30
+	var grid: Array[PackedByteArray] = []
+	for _y: int in range(tall):
+		var row: PackedByteArray = PackedByteArray()
+		row.resize(wide)
+		row.fill(1)
+		grid.append(row)
+	for y: int in range(6, 6 + 3 + deep + 3):
+		for x: int in range(6, wide - 6):
+			grid[y][x] = level + 1
+	for y1: int in range(6 + 3, 6 + 3 + deep):
+		for x1: int in range(m0, m1):
+			grid[y1][6 + x1] = 1
+	for y2: int in range(6 + 3 + deep, 6 + 3 + deep + 3):
+		for x2: int in range(s0, s1):
+			grid[y2][6 + x2] = 1
+	for y3: int in range(tall):
+		for x3: int in range(wide):
+			if y3 < 4 or y3 >= tall - 4 or x3 < 4 or x3 >= wide - 4:
+				grid[y3][x3] = 0
 	return text(grid)
 
 

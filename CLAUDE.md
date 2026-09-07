@@ -118,7 +118,7 @@ sans quoi `CORPS 255 cisaillé ouest` rendait exactement `CORPS 21 au ras`.
    ornement, c'est ce qui les sépare : F0 vaut un pixel.
 
 **Le vocabulaire livré est celui du GESTE, pas la forme close.** `core/brush_vocabulary.gd`
-(généré) porte les **58 tuiles** que le pinceau atteint.
+(généré) porte les **70 tuiles** que le pinceau atteint.
 `core/massif_form.gd` reste la **borne haute** : elle garde l'invariant I8, elle n'est plus la
 cible. ⚠ **La liste ne peut que croître — À MODÈLE CONSTANT.** C'est la précision qui manquait, et
 elle a coûté un cycle entier. Quand la **clé change de sens**, une entrée d'avant ne désigne plus
@@ -161,6 +161,7 @@ BAS (mesuré : 55 tuiles, puis 50 au tour suivant).
 | **I7 UNICITÉ** | deux tuiles ne rendent jamais la même image |
 | **I8 FORME** | toute tuile posée est dans la forme close |
 | **I10 ANNEAU** | le trait qui borde une surface ne s'interrompt jamais |
+| **I11 LIVRAISON** | un guide livré ne pose que des tuiles du vocabulaire livré |
 
 ## Structure du dépôt
 
@@ -206,10 +207,10 @@ ui/              l'éditeur
   manual.gd          le mode d'emploi à trois niveaux, ouvert par le bandeau
   screenshot.gd      capture la fenêtre, pour se relire
 examples/        LES EXEMPLES LIVRÉS — des `.solutiles` complets, à nous, redistribuables
-  low_res.solutiles  le tileset peint à la main, 16 px, 55/58 depuis le 06/09 : trois tuiles a peindre
+  low_res.solutiles  le tileset peint a la main, 16 px, 55/70 : quinze tuiles a peindre
 guides/          guides au format texte
   massifs.txt        LE DAMIER LIVRÉ : 176x272, un îlot par tuile
-  terrain.txt        LE PAYSAGE LIVRÉ : 258x167, les 60 tuiles, soudées sur une plaine
+  terrain.txt        LE PAYSAGE LIVRÉ : 303x175, les 70 tuiles, soudées sur une plaine
   epais.txt, minimal.txt, ample.txt, candidate_01.txt, preview.txt   anciens, gardés témoins
 proof/
   massif_ladder.gd   LE BANC : I1 I2 I6 I7 I8, sur le guide et des reliefs tirés au sort
@@ -857,7 +858,7 @@ bandeau de l'éditeur la lit là. Deux endroits finiraient toujours par se contr
 **11.0.0** — LE CISAILLEMENT PAR LE NORD. La clé gagne son troisième bit (`CUT_NORTH`), donc elle
 change de sens : manifeste **v11**, bornes du lecteur déplacées, et un lecteur v10 poserait la
 tuile pleine là où il faut le coude — un trait qui s'arrête net, sans une seule erreur. Vocabulaire
-**58 tuiles**. ⚠ **Et `work_io` ne bouge PAS** : une clé `M255` veut toujours dire `SURFACE 255
+**70 tuiles**. ⚠ **Et `work_io` ne bouge PAS** : une clé `M255` veut toujours dire `SURFACE 255
 libre`, seules les CASES qui la portent changent — un travail v5 se relit mot pour mot, il lui
 manque simplement les tuiles neuves à peindre.
 
@@ -946,17 +947,33 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   tomber dans le vide fait dépasser la jupe de la plaine, donc met le massif **au ras** ; seule la
   plaine, qui n'a pas d'hôte, peut tomber dans le vide en restant `libre`. Le damier livre
   désormais **0 tuile hors vocabulaire**, et la suite est **verte, 730 vérifications**.
-- **⚠ IL RESTE QUATRE TUILES AU PAYSAGE, ET C'EST LE VIVIER, PAS LE MODÈLE** (`tools/edge_tiles.gd`).
-  `guides/terrain.txt` pose `FOOT 31 free`, `SURFACE 31 free sheared north`, `FOOT 247 free` et
-  `SURFACE 241 free sheared north` **à l'étage ≥ 1** — donc l'artiste **peut** les peindre — mais
-  elles ne sont pas au vocabulaire. ⚠ **Elles étaient là avant le cycle du pied, à la case près** :
-  ce n'est pas une régression, c'est la **soudure** qui les fabrique — le paysage est bâti de
-  témoins collés sur une plaine, et coller crée des jonctions qu'aucun monde du vivier n'a. ⚠ **Et
-  le damier n'en a aucune**, parce qu'il pose des **mondes entiers** au lieu de souder des blocs.
-  ⚠ **La sonde dit maintenant laquelle des deux fautes c'est** — étage 0 (le modèle) ou étage ≥ 1
-  (le vivier) — parce qu'elles ne se réparent pas au même endroit, et qu'un compteur qui les
-  mélange envoie chercher au mauvais endroit. ⚠ **Et le guide ne se remet PAS dans le vivier pour
-  autant** : mesuré, le cycle converge vers le bas (55 tuiles, puis 50).
+- **✔ LES ALCÔVES SONT ENTRÉES AU VIVIER, ET LE VOCABULAIRE PASSE DE 60 À 70** (décision
+  utilisateur du 07/09). Une **alcôve** est un massif rectangulaire dont une **barre du milieu est
+  évidée**, l'entaille ouverte sur un côté, la barre du sud **décalée** par rapport à celle du
+  nord — un renfoncement, un porche : ce qu'un artiste dessine sans y penser. ⚠ **Et `Gesture.walk`
+  ne la fabrique jamais** : même famille de faute que les marches, les terrasses, les sols étagés
+  et les cuvettes, et même remède — *on construit ce qu'aucune autre source ne fabrique*.
+  ⚠ **Trouvée par I11, pas par l'œil** : l'invariant nommait quatre tuiles que `terrain.txt` posait
+  à l'étage ≥ 1 sans qu'elles soient au vocabulaire ; en **regardant où elles tombent**, les deux
+  endroits étaient deux fois la même figure. ⚠ **Et le balayage exhaustif en a trouvé DIX, pas
+  quatre** (`tools/alcoves.gd`, 1512 formes, 720 légales) : le trou n'était donc pas dans les
+  guides — **un acheteur qui dessine une alcôve dans SA carte posait dix tuiles que la planche
+  n'avait pas**. ⚠ **La grille retenue dans `Lab` est plus étroite que le balayage** : le vivier
+  est relu par trois battues, et payer quinze cents reliefs à chaque fois pour dix tuiles ne se
+  défend pas — `alcoves.gd` reste la mesure de référence.
+- **⚠ ET UN MONDE QUI PORTE UNE TUILE EST SON TÉMOIN — LE COMPTE DOIT DONC LE SAVOIR.** `wanted`
+  se lisait **avant** le vivier, sur les seules fenêtres étirées et les blocs chassés : une tuile
+  que seul un monde du vivier porte tombait dans « hors de portée ». Le damier s'annonçait
+  **64 sur 64 en en portant 70**, et surtout **rien n'exigeait** que le glouton continue de la
+  couvrir — un tirage suivant pouvait la perdre sans un mot. C'est la même faute que pour
+  `PIED 21 au ras`, en plus général, et elle est réparée au même endroit.
+- **⚠ ET LA CASE DU PAYSAGE TOMBE À 4,3 PX** (303×175, contre 5,0 à 258×167). Dix tuiles de plus,
+  c'est dix témoins de plus à souder. La charte dit que **ce qui compte est la taille de la case à
+  l'écran** — à surveiller si le vocabulaire grandit encore.
+- **⚠ ET UNE FAMILLE ÉCRITE À LA MAIN EN A TROUVÉ DIX : L'ARGUMENT EST BORNÉ.** *Exhaustif sur une
+  famille bornée de mondes* — il **sature pour cette figure**, il ne dit **rien** de celles que
+  personne n'a écrites. Le vocabulaire peut donc encore bouger, et la question « quelles autres
+  figures le geste dessine-t-il que le hasard ne fabrique pas ? » reste **ouverte**.
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce
@@ -983,7 +1000,7 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   Elle coûte `work_io` **v6** (les v5 se traduisent : non animée = une frame) et manifeste **v11**
   (⚠ le lecteur doit pouvoir **refuser**, donc le nombre de frames en clair, comme `fall_rows`).
 - **L'exemple, peint à la main. LE LOW RES EST LIVRÉ** — `examples/low_res.solutiles`, 16 px,
-  **55 tuiles sur 56** depuis le 06/09 (une tuile est entrée au vocabulaire), et il se reprend au fil des passes de peinture. Reste l'**Exemple High Res**,
+  **55 tuiles sur 70** — et ⚠ **aucune n'est RENDUE** : tout ce qui a été peint retrouve sa place, le carnet rangeant par tuile ; il reste quinze à peindre. Reste l'**Exemple High Res**,
   dont la place est déjà tenue et grisée, et le passage en conditions réelles dans l'addon, par
   tâtonnements successifs. Le banc où chaque itération se regarde : `tools/make_trial_scene.gd`.
 - **Deux modes de disposition : paysage et damier de spécimens.** La résolution de la double

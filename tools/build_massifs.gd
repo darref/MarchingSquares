@@ -153,6 +153,24 @@ func _initialize() -> void:
 				targets[key1] = int(targets.get(key1, 0)) + 1
 	print("le monde pose %d especes de jonction et %d tuiles (%d mondes)"
 			% [species, targets.size() - species, pool.size()])
+	# ⚠ ET UN MONDE QUI PORTE UNE TUILE EST SON TEMOIN -- LE COMPTE DOIT DONC LE SAVOIR. `wanted`
+	# se lisait AVANT le vivier, sur les seules fenetres etirees et les blocs chasses : une tuile
+	# que seul un monde du vivier porte tombait dans « hors de portee », et le guide s'annoncait
+	# a 64 sur 64 en en portant 70. Deux consequences, et la seconde est la grave -- le glouton
+	# la couvrait par accident, et RIEN N'EXIGEAIT qu'il continue : un tirage suivant pouvait la
+	# perdre sans un mot. Meme faute que pour `PIED 21 au ras`, en plus general.
+	var reclaimed: Array[int] = []
+	for lost0: int in out_of_reach.duplicate():
+		if not targets.has("T%d" % lost0):
+			continue
+		wanted.append(lost0)
+		out_of_reach.erase(lost0)
+		reclaimed.append(lost0)
+	if not reclaimed.is_empty():
+		print("  %d tuile(s) que seul le vivier porte, comptees comme cibles :"
+				% reclaimed.size())
+		for back: int in reclaimed:
+			print("      %s" % Massifs.describe(back))
 	# ⚠ LE DEBORDEMENT NE SE CONSTRUIT PLUS : LE GESTE LE PRODUIT. Il a fallu le batir a la main
 	# tant que le pinceau montait d'un etage a la fois -- le hasard ne posait alors que des chutes
 	# de trois. Depuis le tampon a ETAGE CHOISI, la marche rend d'elle-meme 200 levres a six, 89 a
@@ -229,6 +247,15 @@ func _initialize() -> void:
 			centres.append(Vector2i(bx + 3 + PAD + MassifForm.CX,
 					by + 3 + PAD + MassifForm.CY))
 		else:
+			# ⚠ ET UN ILOT SANS BLOC SE DIT. Une tuile peut etre CIBLE sans avoir de bloc --
+			# celles que seul un monde du vivier porte -- et le glouton est cense les couvrir
+			# toutes. S'il en laisse une, `blocks` n'a rien a poser : on refuse a voix haute
+			# plutot que de planter sur un index manquant.
+			if not blocks.has(todo[at2]):
+				printerr("damier : %s n'a aucun bloc, et le vivier ne l'a pas couverte."
+						% Massifs.describe(todo[at2]))
+				quit(1)
+				return
 			var block: PackedStringArray = blocks[todo[at2]]
 			# ⚠ UN BLOC QUI DEBORDE DE SA CASE RECOUVRE SON VOISIN, ET EN SILENCE. Les blocs
 			# soudes ne sont pas taillees a la fenetre etiree : on refuse a voix haute plutot
