@@ -721,14 +721,6 @@ layout_mode = 2
 max_value = 12.0
 show_percentage = false
 
-[node name="ModeNote" type="Label" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=1250683687]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.706, 0.741, 0.522, 1)
-autowrap_mode = 3
-
 [node name="RemainingLabel" type="Label" parent="Layout/Body/Toolbar/Column/Counters/CountersBox" unique_id=573042155]
 unique_name_in_owner = true
 layout_mode = 2
@@ -1091,12 +1083,6 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "A stroke stays in the tile where it started: whatever spills onto a neighbour is ignored, not clamped to the edge. To work one tile without dirtying the ones next to it."
 text = "Keep inside the tile"
-
-[node name="RotationsCheck" type="CheckBox" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections/PencilSection/Content/Items" unique_id=542215267]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Also fills the tiles obtained by rotation, and the cliff skirts by mirroring. Only makes sense if your drawing has no lighting direction: a rotation would turn its highlights with it."
-text = "Paint rotations too"
 
 [node name="NeighboursSection" type="VBoxContainer" parent="Layout/Body/Toolbar/Column/ToolsScroll/Sections" unique_id=3200019]
 layout_mode = 2

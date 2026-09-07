@@ -141,7 +141,6 @@ const SPRAY_DENSITY: float = 0.08
 ## Peindre une case remplit aussi toutes ses symetriques, avec le dessin tourne ou
 ## retourne comme il faut. ⚠ CE N'EST PAS UNE CASE A COCHER : c'est le mode qui le decide,
 ## et seulement s'il livre des tuiles sans direction d'eclairage.
-var paint_symmetry: bool = false
 
 ## Peindre une case peint aussi toutes celles qui portent la meme tuile.
 ## ⚠ CE N'EST PAS UN REGLAGE DU PRODUIT, c'est une aide au geste : elle ne change rien a ce
@@ -579,11 +578,6 @@ func _filter_painted(among: Dictionary) -> Array[Vector2i]:
 ## charte l'interdit deux fois : on ne perd pas du travail sans le dire, et ce qui n'est pas
 ## garanti ne se propose pas (regles 4 et 5). L'option est donc retiree ; elle reviendra
 ## avec un vrai systeme de variantes, concu pour lui-meme.
-func set_fill_rules(symmetry: bool) -> void:
-	paint_symmetry = symmetry
-	_targets.clear()
-
-
 func set_guide_style(ink: GuideImage.Ink, purpose: GuideImage.Purpose,
 		example: StringName = &"") -> void:
 	if ink == guide_ink and purpose == guide_purpose and example == guide_example:
@@ -848,7 +842,7 @@ func _draw() -> void:
 
 ## LES LIEES DU SURVOL : chaque case que le geste remplirait, montree AVANT le clic.
 ## Les jumelles recoivent toujours le meme dessin ; les symetriques s'y joignent quand
-## « Peindre les rotations » est demande. La liste vient de _targets_for -- la fonction
+## La liste vient de _targets_for -- la fonction
 ## meme qui remplit -- jamais d'un second calcul : ce qui s'allume est exactement ce qui
 ## se peindra, et une case qui s'allumerait sans se peindre serait un mensonge d'ecran.
 ## En remontage rien ne s'allume, comme les autres reperes : cette vue decrasse l'ecran.
@@ -1526,21 +1520,7 @@ func _targets_for(cell: Vector2i) -> Array:
 		return _targets[cell]
 	var list: Array = []
 	var own: Vector2i = _painting.holder(cell)
-	if paint_symmetry and _surface_cells.has(cell):
-		var source: int = int(_surface_cells[cell])
-		for target_index: int in Symmetry.ORBIT_OF[source]:
-			if not _by_index.has(target_index):
-				continue
-			var turns: int = Symmetry.turns_between(source, target_index)
-			list.append([_painting.holder(_by_index[target_index][0]), turns])
-	elif paint_symmetry and _wall_roles.has(cell):
-		var role: Vector2i = _wall_roles[cell]
-		var mirrored: Vector2i = Symmetry.mirror_role(role)
-		list.append([own, Symmetry.TURN_NONE])
-		if mirrored != role and _by_role.has(mirrored):
-			list.append([_painting.holder(_by_role[mirrored][0]), Symmetry.MIRROR])
-	else:
-		list.append([own, Symmetry.TURN_NONE])
+	list.append([own, Symmetry.TURN_NONE])
 	_targets[cell] = list
 	return list
 

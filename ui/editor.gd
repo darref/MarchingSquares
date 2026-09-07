@@ -48,7 +48,7 @@ const PROMISES: Array[String] = [
 	"Nothing is made for you: no compositing, no mirroring, no AI.",
 	"Correctness is proven, not promised.",
 	"What is not guaranteed is forbidden: the pencil refuses the rest.",
-	"47 surface tiles, 12 cliff tiles. The count is kept on screen.",
+	"Surfaces and cliffs are counted apart, and both counts stay on screen.",
 	"A cell left blank is not used. Painting is choosing.",
 	"Click here: the user guide opens full size.",
 	"Left click paints, right click erases. Ctrl+Z undoes a whole stroke.",
@@ -134,7 +134,6 @@ func _ready() -> void:
 		if button != null:
 			button.pressed.connect(_on_swatch_pressed.bind(button))
 	(%StyleChoice as OptionButton).item_selected.connect(_on_style_selected)
-	(%RotationsCheck as CheckBox).toggled.connect(_on_twins_toggled)
 	(%LockCheck as CheckBox).toggled.connect(_on_lock_toggled)
 	for child: Node in %ToolGrid.get_children():
 		var tool_button: Button = child as Button
@@ -468,7 +467,6 @@ func _load_current_mode() -> void:
 	var work: Control = %WorkArea
 	work.guide_family = _current_family()
 	work.pencil = (%PencilColor as ColorPickerButton).color
-	_apply_fill_rules()
 	var picked: Dictionary = _style_pick()
 	work.guide_ink = picked["ink"]
 	work.guide_purpose = picked["purpose"]
@@ -624,28 +622,6 @@ func _show_then(title: String, note: String) -> void:
 	_busy_held = true
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-
-
-func _on_twins_toggled(_pressed: bool) -> void:
-	_apply_fill_rules()
-
-
-## ⚠ LES ROTATIONS SONT OFFERTES, PAS IMPOSEES, ET L OUTIL NE PEUT PAS TRANCHER A
-## VOTRE PLACE. Une rotation FABRIQUE une tuile dans une orientation que personne n a
-## peinte : sur un dessin eclaire c est visiblement faux, la lumiere tourne avec la
-## tuile ; sur un dessin sans direction d eclairage c est correct. Or l outil ne sait
-## pas ce que vous dessinez. La case le dit dans son infobulle, et le choix reste
-## le votre.
-func _apply_fill_rules() -> void:
-	var work: Control = %WorkArea
-	var rotations: bool = (%RotationsCheck as CheckBox).button_pressed
-	work.set_fill_rules(rotations)
-	var note: Label = %ModeNote
-	note.visible = rotations
-	if rotations:
-		note.text = "Rotations: the orbits fill themselves, %d tiles to paint instead of %d." % [
-				Symmetry.surface_work_count() + Symmetry.wall_work_count(),
-				Modes.tile_count(_current_mode())]
 
 
 ## Les deux barres flottent SUR la zone de travail : elles ne lui prennent pas de place,
