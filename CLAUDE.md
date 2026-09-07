@@ -933,30 +933,30 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   12. **les cascades et les rivières** — ⚠ **les seuls patchs qui TRAVERSENT**, donc les plus
       compliqués, et ils demandent le paysage ;
   13. **plus loin** : l'Exemple High Res, le plugin Unity, la suite de la signature.
-- **⚠ LA JUPE DU BORD DU MONDE — LA SEULE CHOSE QUI TIENT ENCORE LA SUITE EN ROUGE** (mesuré le
-  07/09, `tools/edge_tiles.gd`). **Une décision de modèle attend l'utilisateur.** Depuis que le
-  pied ne se pose qu'au vrai fond, une face qui tombe dans le **vide** ne pose plus de pied : sa
-  dernière rangée est un **CORPS**. La falaise du bord du monde — celle de la **plaine** — tombe
-  précisément dans le vide, donc elle se termine désormais par `CORPS 7 / 193 / 199 libre` là où
-  elle posait `PIED 7 / 193 / 199 libre`, qui, eux, étaient au vocabulaire. ⚠ **Et ces trois-là ne
-  sont posées QUE par la plaine, à l'étage 0** — 635 mondes du vivier, aucun massif d'étage ≥ 1 ne
-  les porte — c'est-à-dire là où **le crayon ne va pas**. Le carnet range `Massifs.visible` (qui
-  garde l'étage 0), le vocabulaire sort de `Massifs.paintable` (qui l'efface) : le guide **livre**
-  63 tuiles et le pinceau n'en atteint que 60. **Une tuile que le carnet range et qu'aucun crayon
-  n'atteint est un trou dans la planche que rien ne peut combler**, et c'est exactement ce que les
-  neuf échecs de la suite disent. ⚠ **Et le moteur les pose aussi** : son monde n'est pas borné,
-  mais `rules.gd` sonde `level_at`, qui rend VOID hors carte — au bord de la carte de l'acheteur,
-  la plaine pose la même jupe sans pied. ⚠ **Et la voie « construire un témoin » a été mesurée puis
-  fermée** : une face qui n'atterrit pas tombe dans le vide, donc dépasse la jupe de la plaine,
-  donc **son massif est AU RAS** — seule la plaine, qui n'a pas d'hôte, peut tomber dans le vide en
-  restant `libre`. Les faces **écrêtées** ne comblent pas non plus : sur trente-six constructions,
-  celles qui sont légales **atterrissent** au lieu d'être coupées. Les trois pistes ouvertes, et
-  aucune n'est gratuite : · **ne pas livrer la jupe du bord du monde** (le moteur perdrait trois
-  tuiles au bord de la carte, signalées par `last_warning`) ; · **rendre le pied à la seule plaine**
-  (`level == 0`), un cas particulier que la charte n'aime pas mais que le modèle justifie — le vide
-  y est le **bord de la carte**, pas un gouffre ; · **mettre la plaine au ras**, ce qui replierait
-  `7/193/199` sur `5/65/69` déjà connues, mais changerait **toutes** ses tuiles, pas seulement sa
-  jupe.
+- **✔ LA JUPE DU BORD DU MONDE A SON PIED — LE VIDE SOUS LA PLAINE EST LE BORD DE LA CARTE, PAS
+  UN GOUFFRE** (décision utilisateur du 07/09, `landed = ground == 0 or level == 0`). La plaine
+  n'a **rien sous elle** : ce qu'elle rencontre en tombant n'est ni le toit d'un autre massif ni
+  le fond d'un trou, c'est **la fin du monde**. Sa falaise s'y termine donc pour de bon, et c'est
+  un PIED. ⚠ **Et la distinction est celle de l'ÉTAGE, pas du sol rencontré** : un massif d'étage
+  ≥ 1 qui tombe dans le vide tombe **en plein monde** — « on ne touche pas le fond d'un gouffre »
+  tient pour lui, mot pour mot. ⚠ **Et sans cette clause la planche avait trois trous que rien ne
+  pouvait combler** : la jupe finissait en `CORPS 7 / 193 / 199 libre`, des clés **qu'aucun massif
+  d'étage ≥ 1 ne pose** (mesuré sur 635 mondes), donc rangées au carnet à l'étage 0 — là où le
+  crayon ne va pas. ⚠ **Et la voie « construire un témoin » était fermée par le modèle lui-même** :
+  tomber dans le vide fait dépasser la jupe de la plaine, donc met le massif **au ras** ; seule la
+  plaine, qui n'a pas d'hôte, peut tomber dans le vide en restant `libre`. Le damier livre
+  désormais **0 tuile hors vocabulaire**, et la suite est **verte, 730 vérifications**.
+- **⚠ IL RESTE QUATRE TUILES AU PAYSAGE, ET C'EST LE VIVIER, PAS LE MODÈLE** (`tools/edge_tiles.gd`).
+  `guides/terrain.txt` pose `FOOT 31 free`, `SURFACE 31 free sheared north`, `FOOT 247 free` et
+  `SURFACE 241 free sheared north` **à l'étage ≥ 1** — donc l'artiste **peut** les peindre — mais
+  elles ne sont pas au vocabulaire. ⚠ **Elles étaient là avant le cycle du pied, à la case près** :
+  ce n'est pas une régression, c'est la **soudure** qui les fabrique — le paysage est bâti de
+  témoins collés sur une plaine, et coller crée des jonctions qu'aucun monde du vivier n'a. ⚠ **Et
+  le damier n'en a aucune**, parce qu'il pose des **mondes entiers** au lieu de souder des blocs.
+  ⚠ **La sonde dit maintenant laquelle des deux fautes c'est** — étage 0 (le modèle) ou étage ≥ 1
+  (le vivier) — parce qu'elles ne se réparent pas au même endroit, et qu'un compteur qui les
+  mélange envoie chercher au mauvais endroit. ⚠ **Et le guide ne se remet PAS dans le vivier pour
+  autant** : mesuré, le cycle converge vers le bas (55 tuiles, puis 50).
 - **Le sweet spot de la grammaire.** Le vocabulaire est calculé comme *tout ce que le modèle peut
   produire*, jamais comme *ce qu'on accepte de construire*. Les trois clauses candidates ont été
   chiffrées et rendent peu ; le levier n'est pas *ce que le monde a le droit d'être* mais *ce

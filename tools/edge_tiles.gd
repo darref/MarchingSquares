@@ -17,7 +17,6 @@ extends SceneTree
 const HeightMask := preload("res://core/height_mask.gd")
 const Massifs := preload("res://core/massifs.gd")
 const Brush := preload("res://core/brush_vocabulary.gd")
-const Lab := preload("res://tools/relief_lab.gd")
 
 const GUIDES: Array[String] = ["res://guides/massifs.txt", "res://guides/terrain.txt"]
 
@@ -51,19 +50,26 @@ func _initialize() -> void:
 		quit(0)
 		return
 
-	# ⚠ ET ON DIT SI C'EST LE VIVIER QUI EST TROP PETIT. Une tuile portee par un massif d'etage
-	# au moins un est PEIGNABLE : il ne manque qu'un monde a la battue. Une tuile qu'aucun massif
-	# ne porte n'appartient qu'au bord du monde, et c'est une decision de modele, pas un tirage.
+	# ⚠ ET ON DIT LAQUELLE DES DEUX FAUTES C'EST, PARCE QU'ELLES NE SE REPARENT PAS AU MEME
+	# ENDROIT -- et un compteur qui les melange envoie chercher au mauvais endroit.
+	#
+	#   · POSEE A L'ETAGE 0 : le crayon n'y va pas, donc AUCUN geste ne peut la peindre. C'est
+	#     une decision de MODELE, jamais un tirage : chercher plus longtemps ne peut rien.
+	#   · POSEE A L'ETAGE >= 1 DANS LE GUIDE : l'artiste PEUT la peindre, elle est simplement
+	#     absente du vocabulaire -- le guide est bati de temoins soudes, et la soudure fabrique
+	#     des jonctions qu'aucun monde du vivier n'avait. C'est le vivier qu'il faut nourrir.
 	print("")
-	print("UN MASSIF D'ETAGE >= 1 LES PORTE-T-IL QUELQUE PART ? (%d mondes du vivier)"
-			% Lab.ground().size())
-	var reached: Dictionary = {}
-	for world1: PackedStringArray in Lab.ground():
+	print("OU CHACUNE SE POSE, ET DONC OU ELLE SE REPARE :")
+	var deep: Dictionary = {}
+	for path1: String in GUIDES:
+		var world1: PackedStringArray = HeightMask.read(path1)
+		if world1.is_empty():
+			continue
 		for tile3: Variant in Massifs.paintable(world1).values():
 			if orphans.has(int(tile3)):
-				reached[int(tile3)] = true
+				deep[int(tile3)] = true
 	for tile4: Variant in orphans.keys():
 		print("    %-46s %s" % [Massifs.describe(int(tile4)),
-				"OUI -- le vivier est trop petit" if reached.has(int(tile4))
-				else "NON -- seul le bord du monde la pose"])
+				"ETAGE >= 1 dans le guide -- le VIVIER est trop petit" if deep.has(int(tile4))
+				else "etage 0 seulement -- le crayon n'y va pas, c'est le MODELE"])
 	quit(1)

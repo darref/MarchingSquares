@@ -114,7 +114,7 @@ static func install(project_folder: String) -> Dictionary:
 static func summary(report: Dictionary) -> String:
 	if int(report["error"]) != OK:
 		return String(report["reason"])
-	var verb: String = "remplace" if bool(report["replaces"]) else "installe"
+	var verb: String = "replaced" if bool(report["replaces"]) else "installed"
 	return "SoluPaint %s (%d files). You still have to tick it: Project > Settings > Plugins." 			% [verb, PackedStringArray(report["written"]).size()]
 
 

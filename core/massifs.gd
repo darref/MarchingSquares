@@ -279,7 +279,21 @@ static func footprint(world: PackedStringArray, cells: Array, level: int,
 				# ⚠ ET SON DESSIN CESSE DE SERVIR A DEUX CHOSES. Une meme tuile devait convenir au bas
 				# REEL d une falaise ET a une simple rencontre ; c est l artiste qui payait la
 				# difference, en cherchant un trait qui aille aux deux.
-				landed = ground == 0
+				#
+				# ⚠ SAUF SOUS LA PLAINE, OU LE VIDE EST LE BORD DE LA CARTE ET PAS UN GOUFFRE
+				# (decision utilisateur du 07/09). La plaine n a rien sous elle : ce qu elle
+				# rencontre en tombant n est pas le toit d un autre massif ni le fond d un trou,
+				# c est la fin du monde. Sa falaise s y termine donc pour de bon, et c est un
+				# PIED. Un massif d etage >= 1, lui, tombe dans le vide EN PLEIN MONDE : la
+				# distinction est celle de l etage, pas du sol rencontre.
+				#
+				# ⚠ ET SANS CETTE CLAUSE LA PLANCHE A TROIS TROUS QUE RIEN NE PEUT COMBLER. La
+				# jupe du bord du monde finissait en CORPS, sous des cles -- `CORPS 7 / 193 / 199
+				# libre` -- QU AUCUN MASSIF D ETAGE >= 1 NE POSE : mesure sur 635 mondes du
+				# vivier, et la voie « construire un temoin » est fermee par le modele lui-meme
+				# (tomber dans le vide met le massif AU RAS, sauf la plaine, qui n a pas d hote).
+				# Le carnet rangeait donc trois tuiles a l etage 0, la ou le crayon ne va pas.
+				landed = ground == 0 or level == 0
 				break
 		for step: int in range(1, fall + 1):
 			var below: Vector2i = at + Vector2i(0, step)

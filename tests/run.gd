@@ -3904,7 +3904,10 @@ func _test_plugin_install() -> void:
 	var again: Dictionary = PluginInstall.install(project)
 	_check_equal(again["error"], OK, "reinstaller par-dessus fonctionne")
 	_check(bool(again["replaces"]), "et la seconde fois, il se sait remplacant")
-	_check(PluginInstall.summary(again).contains("Extensions"),
+	# ⚠ ET C EST LE MENU DE L EDITEUR QU ON CHERCHE, DANS LA LANGUE DU PRODUIT. Le resume
+	# disait « Plugins » depuis la passe anglaise pendant que le test cherchait encore
+	# « Extensions » : un refus muet, et le seul echec qui restait a la suite.
+	_check(PluginInstall.summary(again).contains("Plugins"),
 			"le resume dit la seule chose qui reste a faire")
 
 
