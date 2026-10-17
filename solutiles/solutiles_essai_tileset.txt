@@ -1,0 +1,70 @@
+solutiles-tileset 10
+mode massifs
+famille massif
+tile_size 16
+fall_rows 3
+tiles 55
+
+# La regle de pose ne figure pas dans ce fichier. Elle vit dans le moteur
+# SoluPaint, qui la porte en entier, et se fournit sous licence a qui veut
+# ecrire le sien. Ce manifeste dit OU sont les tuiles, pas comment les poser.
+
+sheet solutiles_essai_massifs.png 8 7
+# une planche unique : surfaces ET jupes, meme vocabulaire. Les tuiles sont
+# rangees par cle croissante, huit par rangee ; les cases qui restent en fin
+# de planche sont vides.
+tile 28 slot 0,0  # SURFACE 28 libre
+tile 31 slot 1,0  # SURFACE 31 libre
+tile 112 slot 2,0  # SURFACE 112 libre
+tile 124 slot 3,0  # SURFACE 124 libre
+tile 127 slot 4,0  # SURFACE 127 libre
+tile 241 slot 5,0  # SURFACE 241 libre
+tile 253 slot 6,0  # SURFACE 253 libre
+tile 255 slot 7,0  # SURFACE 255 libre
+tile 287 slot 0,1  # CHAPITEAU 31 libre
+tile 479 slot 1,1  # CHAPITEAU 223 libre
+tile 497 slot 2,1  # CHAPITEAU 241 libre
+tile 503 slot 3,1  # CHAPITEAU 247 libre
+tile 511 slot 4,1  # CHAPITEAU 255 libre
+tile 543 slot 5,1  # CORPS 31 libre
+tile 735 slot 6,1  # CORPS 223 libre
+tile 753 slot 7,1  # CORPS 241 libre
+tile 759 slot 0,2  # CORPS 247 libre
+tile 767 slot 1,2  # CORPS 255 libre
+tile 775 slot 2,2  # PIED 7 libre
+tile 961 slot 3,2  # PIED 193 libre
+tile 967 slot 4,2  # PIED 199 libre
+tile 1023 slot 5,2  # PIED 255 libre
+tile 65556 slot 6,2  # SURFACE 20 au ras
+tile 65557 slot 7,2  # SURFACE 21 au ras
+tile 65616 slot 0,3  # SURFACE 80 au ras
+tile 65617 slot 1,3  # SURFACE 81 au ras
+tile 65620 slot 2,3  # SURFACE 84 au ras
+tile 65813 slot 3,3  # CHAPITEAU 21 au ras
+tile 65873 slot 4,3  # CHAPITEAU 81 au ras
+tile 66049 slot 5,3  # CORPS 1 au ras
+tile 66053 slot 6,3  # CORPS 5 au ras
+tile 66065 slot 7,3  # CORPS 17 au ras
+tile 66069 slot 0,4  # CORPS 21 au ras
+tile 66113 slot 1,4  # CORPS 65 au ras
+tile 66117 slot 2,4  # CORPS 69 au ras
+tile 66129 slot 3,4  # CORPS 81 au ras
+tile 66305 slot 4,4  # PIED 1 au ras
+tile 66309 slot 5,4  # PIED 5 au ras
+tile 66325 slot 6,4  # PIED 21 au ras
+tile 66369 slot 7,4  # PIED 65 au ras
+tile 66373 slot 0,5  # PIED 69 au ras
+tile 131295 slot 1,5  # SURFACE 223 libre, cisaille a l ouest
+tile 131327 slot 2,5  # SURFACE 255 libre, cisaille a l ouest
+tile 131583 slot 3,5  # CHAPITEAU 255 libre, cisaille a l ouest
+tile 131839 slot 4,5  # CORPS 255 libre, cisaille a l ouest
+tile 132039 slot 5,5  # PIED 199 libre, cisaille a l ouest
+tile 197445 slot 6,5  # PIED 69 au ras, cisaille a l ouest
+tile 262271 slot 7,5  # SURFACE 127 libre, cisaille a l est
+tile 262391 slot 0,6  # SURFACE 247 libre, cisaille a l est
+tile 262399 slot 1,6  # SURFACE 255 libre, cisaille a l est
+tile 262655 slot 2,6  # CHAPITEAU 255 libre, cisaille a l est
+tile 262911 slot 3,6  # CORPS 255 libre, cisaille a l est
+tile 263111 slot 4,6  # PIED 199 libre, cisaille a l est
+tile 263167 slot 5,6  # PIED 255 libre, cisaille a l est
+tile 328517 slot 6,6  # PIED 69 au ras, cisaille a l est
