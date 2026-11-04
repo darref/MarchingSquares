@@ -41,8 +41,20 @@ rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (d
   (208 jonctions), puis chaque jonction manquante INCRUSTÉE dans le paysage — ses six coins recopiés à la hauteur du
   terrain, gardés seulement si la couverture monte — : **un seul paysage 36 × 22, 261 jonctions sur 261, 35 archétypes sur
   35**, sans planche de spécimens. Le contrôle final refuse d'écrire un guide incomplet.
-- **RESTE** : l'éditeur branché sur ce guide et ce modèle (la forme imposée à chaque archétype, les points de jonction, le
-  mode relief), les variantes et les matières comme MarchingBlocks, l'export, le greffon.
+- **L'ATELIER** (`ui/coins/atelier.tscn`, la scène de démarrage sur cette branche ; `core/coins/rendu.gd`,
+  `core/coins/travail.gd`) : on peint SUR le guide — le crayon touche l'archétype qui se voit, donc toujours DANS sa forme
+  (le fond le refuse, et le dit) ; chaque pixel paraît dans TOUTES les apparitions (le carnet `core/painting.gd`, une case
+  par archétype) ; le survol éclaire l'archétype partout ; crayon, gomme, pot (dans la forme), pipette, Ctrl+Z / Y ;
+  le MODE RELIEF sculpte des coins à n'importe quelle hauteur, rendu avec les archétypes peints ; le travail (`.mqcoins`)
+  et l'EXPORT : la planche (7 × 5) et son manifeste — la TABLE des 79 clés vers les 35 archétypes, tout ce qu'un moteur
+  doit savoir. MESURÉ : `proof/coins_atelier.gd` 13/13 ; ⚠ elle a trouvé un vrai défaut — deux coins de rangées
+  différentes tombent au même endroit de l'écran, et le relief montait celui du FOND : c'est celui de devant qui se voit.
+  Photos : `banc_coins/atelier_*.png` (un motif d'ESSAI calculé, jamais livré).
+- ⚠ **LE DESSUS SERT À TOUTES LES HAUTEURS** : c'est l'artiste qui dessine le BORD du plateau dans l'archétype de dessus,
+  sinon un plateau se fond dans l'herbe qui est derrière lui (vu sur la première photo : seules les falaises se lisaient).
+- **MESURÉ AUSSI** : la batterie complète, 200 reliefs, **6 444 800 pixels, 0 écart**.
+- **RESTE** : les points de jonction marqués sur les bords, les VARIANTES et les MATIÈRES (comme MarchingBlocks), le
+  greffon (lire la planche et la table, poser par `modele.gd`), puis rapatrier dans l'éditeur livré ce qui y reste utile.
 
 ## Contexte
 
