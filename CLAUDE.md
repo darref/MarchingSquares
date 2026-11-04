@@ -31,6 +31,18 @@ rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (d
 - **LE VOCABULAIRE EST FERMÉ ET COMPTÉ** : 79 clés possibles, **35 archétypes distincts** (15 dessus, 10 hauts, 10 bas) ;
   toute clé posée par un monde est au recensement. Plus de battue, plus de témoin à chasser.
 - Images (le tileset de TEST, des aplats calculés) : `D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/` (`grand/`).
+- **LES JONCTIONS SONT FERMÉES ET COMPTÉES** (`core/coins/jonctions.gd`) : une COUTURE est deux archétypes de la MÊME
+  surface ou de la MÊME falaise qui se touchent (à droite ; en dessous — dessus/dessus, haut/bas d'une même unité ;
+  superposés — dessus/lèvre, deux unités empilées, le pied sur sa terrasse) ; ce qu'un plateau cache est une silhouette,
+  pas une couture. Elle ne dépend que de six coins comparés à L−1, L, L+1 : quatre classes, 4⁶ voisinages par orientation
+  → **261 jonctions**. MESURÉ : 300 mondes au hasard en montrent 261, **aucune hors de l'ensemble** ; ⚠ vu rougir avec trois
+  classes (5 coutures échappent : des falaises à cheval sur deux cases).
+- **LE GUIDE EST GÉNÉRÉ ET COMPLET** (`tools/coins_guide.gd` → `guides/coins.txt`) : le meilleur de 300 paysages tirés
+  (208 jonctions), puis chaque jonction manquante INCRUSTÉE dans le paysage — ses six coins recopiés à la hauteur du
+  terrain, gardés seulement si la couverture monte — : **un seul paysage 36 × 22, 261 jonctions sur 261, 35 archétypes sur
+  35**, sans planche de spécimens. Le contrôle final refuse d'écrire un guide incomplet.
+- **RESTE** : l'éditeur branché sur ce guide et ce modèle (la forme imposée à chaque archétype, les points de jonction, le
+  mode relief), les variantes et les matières comme MarchingBlocks, l'export, le greffon.
 
 ## Contexte
 

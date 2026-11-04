@@ -16,6 +16,7 @@ extends SceneTree
 
 const Forme := preload("res://core/coins/forme.gd")
 const Modele := preload("res://core/coins/modele.gd")
+const Jonctions := preload("res://core/coins/jonctions.gd")
 const SORTIE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/"
 const SORTIE_GRANDE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/grand/"
 
@@ -24,11 +25,16 @@ var _casse := 8           # pixels par case
 
 func _initialize() -> void:
 	var mondes := 200
+	# `jonctions` : seulement la fermeture des jonctions (rapide), sans la comparaison pixel par pixel.
+	var pixels := true
+	var jonctions_vues := {}
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("mondes="):
 			mondes = int(a.substr(7))
 		elif a.begins_with("casse="):
 			_casse = int(a.substr(6))
+		elif a == "jonctions":
+			pixels = false
 	DirAccess.make_dir_recursive_absolute(SORTIE)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20261104
@@ -39,6 +45,9 @@ func _initialize() -> void:
 	for m in mondes:
 		var hostile := m % 4 == 3
 		var monde := _tirer(rng, 18 + rng.randi_range(0, 10), 12 + rng.randi_range(0, 8), hostile)
+		jonctions_vues.merge(Jonctions.du_monde(monde.h, monde.colonnes, monde.rangees))
+		if not pixels:
+			continue
 		var r := _comparer(monde, cles_vues, m < 3)
 		total_pixels += int(r.pixels)
 		total_ecarts += int(r.ecarts)
@@ -57,7 +66,15 @@ func _initialize() -> void:
 			hors += 1
 	print("vocabulaire FERMÉ : %d dessus, %d hauts, %d bas = %d archétypes distincts (%d clés) ; clés posées par les mondes : %d, hors du recensement : %d"
 			% [ferme.dessus, ferme.hauts, ferme.bas, ferme.dessus + ferme.hauts + ferme.bas, ferme.cles.size(), cles_vues.size(), hors])
-	quit(1 if total_ecarts > 0 or hors > 0 else 0)
+	# LES JONCTIONS : aucune couture d'un monde ne sort de l'ensemble énuméré sur les voisinages de six coins.
+	var ens := Jonctions.ensemble()
+	var hors_j := []
+	for k: String in jonctions_vues:
+		if not ens.has(k):
+			hors_j.append(k)
+	print("jonctions : ensemble FERMÉ %d ; vues dans les mondes %d ; hors de l'ensemble %d %s"
+			% [ens.size(), jonctions_vues.size(), hors_j.size(), str(hors_j.slice(0, 5))])
+	quit(1 if total_ecarts > 0 or hors > 0 or not hors_j.is_empty() else 0)
 
 
 # ── les reliefs ──────────────────────────────────────────────────────────────────────────────────────────────────────
