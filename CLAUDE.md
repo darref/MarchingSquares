@@ -54,6 +54,15 @@ rentrant, VIDE ; la selle reste deux coins séparés), `addons/marching_squares/
 - ⚠ **LE DESSUS SERT À TOUTES LES HAUTEURS** : c'est l'artiste qui dessine le BORD du plateau dans l'archétype de dessus,
   sinon un plateau se fond dans l'herbe qui est derrière lui (vu sur la première photo : seules les falaises se lisaient).
 - **MESURÉ AUSSI** : la batterie complète, 200 reliefs, **6 444 800 pixels, 0 écart**.
+- **PEINDRE EN MODE TEST — DÉCIDÉ (Jordan, 4 novembre 2026 : « corriger certaines tuiles ou les peindre directement dans
+  le mode test, et que ça se répercute partout dans le projet », « avec un bouton en mode test pour revenir à la peinture
+  de plateau »)** : au relief, les mêmes outils qu'au guide (crayon, gomme, pot, pipette) peignent l'image de la tuile qui
+  se voit — une image par tuile, donc la retouche est partout, au guide et dans l'export ; le bouton « Sculpt plateaus »
+  (S), qui n'existe qu'au mode test, rend le clic au relief (monter, descendre, Maj : la matière). Chaque mode garde son
+  dernier outil ; le mode test s'ouvre sur Sculpt. ⚠ Le relief ne montre pas toutes les jonctions : le survol dit combien
+  de fois la tuile est au guide, où se vérifient ses raccords (Tab). MESURÉ : la sonde, **29/29** (un pixel peint au
+  relief est au guide, 58 apparitions, et dans la planche) ; ⚠ vue rougir sans la règle (4 échecs). La barre d'état passe
+  en bas : en haut, le bouton de plus la coupait (vu à l'image).
 - **LES POINTS DE JONCTION** (J) : sur chaque tuile, là où une bande (dessus, lèvre, corps, pied) arrive au bord — l'endroit
   où le dessin doit se continuer chez la voisine ; avec la grille des tuiles.
 - **LES VARIANTES** (comme celles de MarchingBlocks, « créées une à une, sur place ») : V crée une variante depuis

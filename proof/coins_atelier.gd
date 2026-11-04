@@ -156,6 +156,52 @@ func _derouler() -> void:
 	a.poser_matiere(Vector2i(10 * res, (6 - hav - 1 + a.rendu.hmax) * res), 2)
 	check(int(a._relief.mat[6 * larg + 10]) == 2, "Maj + clic pose la matière 2 sur ce coin (%d → 2)" % mav)
 
+	# PEINDRE EN MODE TEST : le relief s'ouvre sur Sculpt ; avec le crayon, un pixel peint au relief est l'image de la tuile,
+	# donc il est au guide et dans l'export.
+	check(a.outil == a.Outil.SCULPT and a._boutons_outils[a.Outil.SCULPT].visible, "le mode test s'ouvre sur « Sculpt plateaus »")
+	var h_avant: PackedInt32Array = a._relief.h.duplicate()
+	a._choisir(a.Outil.CRAYON)
+	a.couleur = Color8(255, 128, 0)
+	var rr: Rendu = a.rendu
+	var px_t := Vector2i(-1, -1)
+	for i in rr.pose_de.size():
+		var ip := rr.pose_de[i]
+		if ip >= 0 and rr.poses[ip][0] == Modele.HAUT:
+			px_t = Vector2i(i % rr.largeur(), i / rr.largeur())
+			break
+	var s_t := rr.sous(px_t.x, px_t.y)
+	var cle_t: Vector2i = s_t[0]
+	a._dernier = Vector2i(-99999, -99999)
+	a.peinture.begin_stroke()
+	a.agir(px_t)
+	a.peinture.end_stroke()
+	check(a.peinture.pixel_at(cle_t, s_t[1], s_t[2]).is_equal_approx(a.couleur) and a._relief.h == h_avant,
+			"au mode test, le crayon peint la tuile %s (et ne sculpte pas)" % cle_t)
+	check(rr.image.get_pixel(px_t.x, px_t.y).is_equal_approx(a.couleur), "la retouche se voit au relief")
+	a._basculer()
+	check(not a.mode_relief and a.outil == a.Outil.CRAYON and not a._boutons_outils[a.Outil.SCULPT].visible,
+			"Tab : le guide retrouve son outil, sans Sculpt")
+	var au_guide := 0
+	var rg: Rendu = a.rendu
+	for i: int in rg.apparitions(cle_t):
+		var sg := rg.sous(i % rg.largeur(), i / rg.largeur())
+		if sg[1] == s_t[1] and sg[2] == s_t[2] and rg.image.get_pixel(i % rg.largeur(), i / rg.largeur()).is_equal_approx(a.couleur):
+			au_guide += 1
+	check(au_guide > 0, "la retouche du mode test est au guide (%d apparitions)" % au_guide)
+	var exp_t := Travail.exporter(a.peinture, a.meta, ProjectSettings.globalize_path("user://sonde_test"))
+	var man_t: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(exp_t[1]))
+	var planche_t := Image.load_from_file(exp_t[0])
+	var dans_export := false
+	for e: Dictionary in man_t.images:
+		if int(e.archetype) == cle_t.x and int(e.matiere) * 10 + int(e.variante) == cle_t.y:
+			var q := Vector2i(int(e.colonne) * res + s_t[1], int(e.rangee) * res + s_t[2])
+			dans_export = planche_t.get_pixel(q.x, q.y).is_equal_approx(a.couleur)
+	check(dans_export, "et dans la planche exportée")
+	a._basculer()
+	check(a.mode_relief and a.outil == a.Outil.CRAYON and a._boutons_outils[a.Outil.SCULPT].visible,
+			"Tab : le mode test retrouve son dernier outil (le crayon), Sculpt à portée")
+	a._choisir(a.Outil.SCULPT)
+
 	# LE GREFFON pose ce que montre l'atelier : tout peint d'un motif, une variante tirée, deux matières.
 	_peindre_tout(a)
 	a.mode_relief = false

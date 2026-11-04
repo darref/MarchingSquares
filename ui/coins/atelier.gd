@@ -9,13 +9,18 @@ extends Control
 ##           coutures possibles sont sous les yeux. Le survol éclaire l'image partout où elle est.
 ##           Avec une MATIÈRE choisie (M), le guide porte en plus son champ (`guides/coins_matieres.txt`) : ses quinze
 ##           formes de dessus posées sur les plateaux, à peindre là où elles vivront.
-##   RELIEF  on sculpte un relief à soi (clic : monter le coin le plus proche ; clic droit : le descendre ; Maj + clic :
-##           y poser la matière choisie, Maj + clic droit : l'ôter), rendu avec ses propres images, variantes TIRÉES comme
-##           le greffon les tirera.
+##   RELIEF  (le mode test) on sculpte un relief à soi avec l'outil SCULPT (S, le bouton « Sculpt plateaus », qui n'existe
+##           qu'ici ; clic : monter le coin qui se voit ; clic droit : le descendre ; Maj + clic : y poser la matière
+##           choisie, Maj + clic droit : l'ôter), rendu avec ses propres images, variantes TIRÉES comme le greffon les
+##           tirera. Et on y PEINT avec les mêmes outils qu'au guide (Jordan, 4 novembre 2026 : « corriger certaines tuiles
+##           ou les peindre directement dans le mode test, et que ça se répercute partout ») : c'est la même image, une par
+##           tuile, donc la retouche est partout — au guide, dans l'export. ⚠ Le relief ne montre pas toutes les jonctions :
+##           le survol dit combien de fois la tuile est au guide, où se vérifient ses 261 raccords (Tab).
+##           Chaque mode garde son outil : le guide le sien, le relief le sien (Sculpt au départ).
 ##   VARIANTES (comme MarchingBlocks : créées une à une, sur place, parmi les vraies voisines) — V : nouvelle variante
 ##           depuis l'apparition survolée (elle la montre aussitôt) ; C : faire défiler la variante montrée ici ; X : ôter
 ##           cette variante ; + / − : son poids (le tirage).
-## Outils : crayon (P), gomme (E, ou clic droit), pot (G), pipette (I) ; Ctrl+Z / Ctrl+Y ; J : points de jonction et grille ;
+## Outils : crayon (P), gomme (E, ou clic droit), pot (G), pipette (I), sculpter (S, au relief) ; Ctrl+Z / Ctrl+Y ; J : points de jonction et grille ;
 ## molette : zoom ; bouton du milieu (ou Espace) : déplacer ; Tab : guide ↔ relief. Textes à l'écran : anglais.
 
 const Rendu := preload("res://core/coins/rendu.gd")
@@ -30,7 +35,7 @@ const TRAVAIL := "user://marching_squares.mqcoins"
 const EXPORT := "user://export"
 const SORTES := ["", "top", "cliff top", "cliff bottom", "material"]
 
-enum Outil { CRAYON, GOMME, POT, PIPETTE }
+enum Outil { CRAYON, GOMME, POT, PIPETTE, SCULPT }
 
 var peinture: Painting
 var meta := {"poids": {}, "affectation": {}}
@@ -38,6 +43,10 @@ var rendu: Rendu
 var mode_relief := false
 var matiere := 0
 var outil := Outil.CRAYON
+## L'outil que l'autre mode retrouvera en revenant.
+var _outil_autre := Outil.SCULPT
+## archétype → combien de fois le guide le pose (dit au survol du relief).
+var _au_guide := {}
 var couleur := Color(0.36, 0.55, 0.27)
 var zoom := 2
 var origine := Vector2(24, 64)
@@ -73,6 +82,9 @@ func _ready() -> void:
 	if FileAccess.file_exists(GUIDE_MATIERES):
 		_guide_mat = lire_guide(GUIDE_MATIERES).h
 	_relief = _relief_de_depart()
+	for p: Array in Modele.poses(_guide.h, _guide.colonnes, _guide.rangees):
+		var n := Archetypes.numero(p[0], p[4], p[5])
+		_au_guide[n] = int(_au_guide.get(n, 0)) + 1
 	_construire_ui()
 	_reposer()
 
@@ -121,7 +133,8 @@ func _construire_ui() -> void:
 	titre.add_theme_font_size_override("font_size", 18)
 	rangee.add_child(titre)
 	rangee.add_child(VSeparator.new())
-	for o: Array in [[Outil.CRAYON, "Pencil (P)"], [Outil.GOMME, "Eraser (E)"], [Outil.POT, "Fill (G)"], [Outil.PIPETTE, "Picker (I)"]]:
+	for o: Array in [[Outil.SCULPT, "Sculpt plateaus (S)"], [Outil.CRAYON, "Pencil (P)"], [Outil.GOMME, "Eraser (E)"],
+			[Outil.POT, "Fill (G)"], [Outil.PIPETTE, "Picker (I)"]]:
 		var b := Button.new()
 		b.text = o[1]
 		b.toggle_mode = true
@@ -151,22 +164,34 @@ func _construire_ui() -> void:
 		b.text = a[0]
 		b.pressed.connect(a[1])
 		rangee.add_child(b)
+	# La barre d'état vit EN BAS, sur toute la largeur : en haut, les outils du mode test la coupaient (vu à l'image).
+	var bas := PanelContainer.new()
+	bas.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bas.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bas.add_theme_stylebox_override("panel", sb)
+	add_child(bas)
 	_statut = Label.new()
-	_statut.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_statut.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_statut.clip_text = true
-	rangee.add_child(_statut)
+	bas.add_child(_statut)
 	_choisir(Outil.CRAYON)
 
 
 func _choisir(o: int) -> void:
+	if o == Outil.SCULPT and not mode_relief:
+		return
 	outil = o
 	for k: int in _boutons_outils:
 		_boutons_outils[k].button_pressed = k == o
+	_boutons_outils[Outil.SCULPT].visible = mode_relief
 
 
+## Guide ↔ relief ; chaque mode retrouve son outil (le relief commence par Sculpt).
 func _basculer() -> void:
 	mode_relief = not mode_relief
+	var avant := outil
+	outil = _outil_autre
+	_outil_autre = avant
+	_choisir(outil)
 	_reposer()
 
 
@@ -302,13 +327,13 @@ func _entree_vue(e: InputEvent) -> void:
 			_zoomer(-1, b.position)
 		elif b.button_index == MOUSE_BUTTON_MIDDLE or (b.button_index == MOUSE_BUTTON_LEFT and _espace):
 			_glisse = b.pressed
-		elif mode_relief and b.pressed and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		elif mode_relief and outil == Outil.SCULPT and b.pressed and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 			var gauche := b.button_index == MOUSE_BUTTON_LEFT
 			if b.shift_pressed:
 				poser_matiere(_pixel(b.position), matiere if gauche else 0)
 			else:
 				sculpter(_pixel(b.position), 1 if gauche else -1)
-		elif not mode_relief and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		elif outil != Outil.SCULPT and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 			if b.pressed:
 				peinture.begin_stroke()
 				_peint = true
@@ -354,6 +379,8 @@ func _unhandled_key_input(e: InputEvent) -> void:
 		_choisir(Outil.POT)
 	elif k.keycode == KEY_I:
 		_choisir(Outil.PIPETTE)
+	elif k.keycode == KEY_S:
+		_choisir(Outil.SCULPT)
 	elif k.keycode == KEY_J:
 		_basculer_jonctions()
 	elif k.keycode == KEY_M:
@@ -384,8 +411,9 @@ func _zoomer(sens: int, autour: Vector2) -> void:
 
 func _survoler(p: Vector2i) -> void:
 	_survol = p
-	if mode_relief:
-		_dire("Click: raise the nearest corner · right click: lower it · Shift: paint material %d" % matiere)
+	if mode_relief and outil == Outil.SCULPT:
+		_eclairer(Vector2i(-1, -1))
+		_dire("Click: raise the corner you see · right click: lower it · Shift: paint material %d" % matiere)
 		return
 	var s := rendu.sous(p.x, p.y)
 	if s.is_empty():
@@ -401,6 +429,10 @@ func _survoler(p: Vector2i) -> void:
 	var nb := Travail.nb_variantes(meta, n, m)
 	var quoi: String = SORTES[a.sorte] if m == 0 else "material %d" % m
 	var var_txt := "" if nb <= 1 else " · variant %d of %d (weight %d)" % [k, nb - 1, Travail.poids(meta, n, m)[k]]
+	if mode_relief:
+		_dire("Archetype %d (%s)%s · %d times here, %d in the guide (Tab: check its junctions) · pixel %d,%d"
+				% [n, quoi, var_txt, rendu.poses_de(n), int(_au_guide.get(n, 0)), s[1], s[2]])
+		return
 	_dire("Archetype %d (%s)%s · seen %d times · pixel %d,%d · V: new variant here" % [n, quoi, var_txt,
 			rendu.poses_de(n), s[1], s[2]])
 
