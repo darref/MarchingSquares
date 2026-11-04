@@ -20,6 +20,7 @@ const Jonctions := preload("res://core/coins/jonctions.gd")
 const SORTIE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/"
 const SORTIE_GRANDE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/grand/"
 
+var _selles := 0
 var _casse := 8           # pixels par case
 
 
@@ -58,6 +59,7 @@ func _initialize() -> void:
 				_images(monde, "ecart_%d" % m)
 		if m < 3:
 			_images(monde, "monde_%d" % m)
+	print("mondes restés en selle après comblement : %d" % _selles)
 	print("mondes : %d ; pixels comparés : %d ; écarts : %d ; mondes faux : %d" % [mondes, total_pixels, total_ecarts, mondes_faux])
 	var ferme := _recenser()
 	var hors := 0
@@ -74,7 +76,7 @@ func _initialize() -> void:
 			hors_j.append(k)
 	print("jonctions : ensemble FERMÉ %d ; vues dans les mondes %d ; hors de l'ensemble %d %s"
 			% [ens.size(), jonctions_vues.size(), hors_j.size(), str(hors_j.slice(0, 5))])
-	quit(1 if total_ecarts > 0 or hors > 0 or not hors_j.is_empty() else 0)
+	quit(1 if total_ecarts > 0 or hors > 0 or not hors_j.is_empty() or _selles > 0 else 0)
 
 
 # ── les reliefs ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -119,6 +121,16 @@ func _tirer(rng: RandomNumberGenerator, colonnes: int, rangees: int, hostile: bo
 		for x in larg:
 			if x < 1 or j < 1 or x > colonnes - 1 or j > rangees - 1:
 				h[j * larg + x] = 0
+	# PAS DE SELLE (Jordan, 4 novembre 2026) : le relief tiré se comble, le bord reste au sol, jusqu'à ce que les deux tiennent.
+	for tour in 10:
+		Modele.combler_selles(h, mat, colonnes, rangees)
+		for j in rangees + 1:
+			for x in larg:
+				if x < 1 or j < 1 or x > colonnes - 1 or j > rangees - 1:
+					h[j * larg + x] = 0
+		if Modele.sans_selle(h, mat, colonnes, rangees):
+			break
+	_selles += 0 if Modele.sans_selle(h, mat, colonnes, rangees) else 1
 	return {"h": h, "mat": mat, "colonnes": colonnes, "rangees": rangees}
 
 
@@ -264,9 +276,13 @@ func _recenser() -> Dictionary:
 	var cles := {}
 	var compte := {Modele.DESSUS: {}, Modele.HAUT: {}, Modele.BAS: {}}
 	for c in range(1, 16):
+		if Modele.est_selle(c):             # pas de selle (Jordan, 4 novembre 2026)
+			continue
 		_noter(Modele.DESSUS, c, 0, images, cles, compte)
 		if Modele.a_falaise(c):
 			for cv in 16:
+				if Modele.est_selle(cv):
+					continue
 				if (cv & c) == cv:          # la couche du dessus est contenue
 					_noter(Modele.HAUT, c, cv, images, cles, compte)
 				if (cv & c) == c:           # la couche du dessous contient

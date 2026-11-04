@@ -2,7 +2,7 @@ extends RefCounted
 
 ## LES ARCHÉTYPES — le vocabulaire FERMÉ du modèle par les coins : toutes les clés possibles (DESSUS c ; HAUT c, c_dessus ;
 ## BAS c, c_dessous), groupées par IMAGE (deux clés qui dessinent exactement la même chose sont le même archétype, peint
-## une seule fois). Compté, jamais chassé : 79 clés, 35 archétypes (banc du 4 novembre 2026).
+## une seule fois). Compté, jamais chassé : 57 clés, 33 archétypes depuis l'interdiction des selles (79 et 35 avant ; 4 novembre 2026).
 ## `numero(sorte, c, cv)` rend l'archétype d'une pose ; `liste()` les archétypes, chacun avec une clé qui le représente.
 
 const Modele := preload("res://addons/marching_squares/modele.gd")
@@ -33,15 +33,17 @@ static func _construire() -> void:
 		return
 	var par_image := {}
 	var candidats := []
+	# ⚠ Sans selle (Jordan, 4 novembre 2026) : ni dessus en selle, ni haut ni bas dont la tuile ou la voisine l'est.
 	for c in range(1, 16):
-		candidats.append([Modele.DESSUS, c, 0])
+		if not Modele.est_selle(c):
+			candidats.append([Modele.DESSUS, c, 0])
 	for sorte: int in [Modele.HAUT, Modele.BAS]:
 		for c in range(1, 16):
-			if not Modele.a_falaise(c):
+			if not Modele.a_falaise(c) or Modele.est_selle(c):
 				continue
 			for cv in 16:
 				var ok := (cv & c) == cv if sorte == Modele.HAUT else (cv & c) == c
-				if ok:
+				if ok and not Modele.est_selle(cv):
 					candidats.append([sorte, c, cv])
 	for k: Array in candidats:
 		var sig := PackedInt32Array()

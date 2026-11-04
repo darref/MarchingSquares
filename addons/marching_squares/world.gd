@@ -2,7 +2,7 @@
 extends Node2D
 
 ## LE MONDE MARCHING SQUARES — un relief (une hauteur par COIN de la grille) et ses matières (un rang par coin), posés
-## avec la planche peinte dans Marching Squares. Il ne fabrique aucune tuile : chaque pose va chercher, dans la planche,
+## avec la planche peinte dans MarchingSquares. Il ne fabrique aucune tuile : chaque pose va chercher, dans la planche,
 ## l'image que la table désigne, dans l'ordre de `modele.gd` — qui EST l'occlusion. La même règle que l'appli, le même
 ## fichier : ce que l'artiste a vu dans son atelier est ce que le jeu pose.
 ## Une rangée d'écran par unité de hauteur : un coin de hauteur L est dessiné L tuiles plus haut ; les rangées négatives
@@ -11,7 +11,7 @@ extends Node2D
 const Modele := preload("res://addons/marching_squares/modele.gd")
 const Planche := preload("res://addons/marching_squares/planche.gd")
 
-## Le manifeste exporté par Marching Squares (« Export tileset ») : marching_squares_planche.json.
+## Le manifeste exporté par MarchingSquares (« Export tileset ») : marching_squares_planche.json.
 @export_file("*.json") var tileset: String = "":
 	set(v):
 		tileset = v
@@ -49,7 +49,7 @@ func _ready() -> void:
 func recharger() -> void:
 	planche = Planche.new()
 	if tileset != "" and not planche.lire(tileset):
-		push_warning("Marching Squares: " + planche.erreur)
+		push_warning("MarchingSquares: " + planche.erreur)
 	_ajuster()
 
 
@@ -124,25 +124,45 @@ func coin_sous(local: Vector2) -> int:
 	return Modele.coin_sous(heights, columns, rows, local / float(planche.tuile))
 
 
-## Monte (+1) ou descend (−1) le coin qui se voit en `local`. Rend [indice, avant, après] ou [].
-func sculpter(local: Vector2, sens: int) -> Array:
+## Pourquoi le dernier geste a été refusé ("" sinon).
+var dernier_refus := ""
+
+
+## Les hauteurs et matières qu'un geste donnerait au coin qui se voit en `local`, ou {} s'il n'y a pas de coin ou si le
+## geste est REFUSÉ (deux plateaux, ou deux taches de matière, qui ne se toucheraient que par un coin : une rencontre
+## diagonale, interdite comme dans MarchingBlocks). `sens` ±1 : hauteur ; `sens` 0 et `m` ≥ 0 : matière.
+func geste(local: Vector2, sens: int, m := -1) -> Dictionary:
+	dernier_refus = ""
 	var i := coin_sous(local)
 	if i < 0:
-		return []
-	var avant := heights[i]
+		return {}
 	var h := heights.duplicate()
-	h[i] = clampi(avant + sens, 0, 64)
-	heights = h
-	return [i, avant, h[i]]
-
-
-## Pose la matière `m` sur le coin qui se voit en `local`. Rend [indice, avant, après] ou [].
-func poser_matiere(local: Vector2, m: int) -> Array:
-	var i := coin_sous(local)
-	if i < 0:
-		return []
-	var avant := materials[i]
 	var mm := materials.duplicate()
-	mm[i] = m
-	materials = mm
-	return [i, avant, m]
+	if sens != 0:
+		h[i] = clampi(h[i] + sens, 0, 64)
+	else:
+		mm[i] = m
+	if h == heights and mm == materials:
+		return {}
+	if Modele.cree_une_selle(h, mm, columns, rows, i).x >= 0:
+		dernier_refus = "Refused: two plateaus would meet only at a corner. Raise or lower a neighbouring corner first."
+		return {}
+	return {"heights": h, "materials": mm, "coin": i}
+
+
+## Monte (+1) ou descend (−1) le coin qui se voit en `local`. Rend vrai si le relief a changé.
+func sculpter(local: Vector2, sens: int) -> bool:
+	var g := geste(local, sens)
+	if g.is_empty():
+		return false
+	heights = g.heights
+	return true
+
+
+## Pose la matière `m` sur le coin qui se voit en `local`. Rend vrai si le relief a changé.
+func poser_matiere(local: Vector2, m: int) -> bool:
+	var g := geste(local, 0, m)
+	if g.is_empty():
+		return false
+	materials = g.materials
+	return true

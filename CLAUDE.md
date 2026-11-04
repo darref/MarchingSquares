@@ -1,16 +1,62 @@
-# Marching Squares (ex-SoluTiles) — contexte de travail
+# MarchingSquares — contexte de travail
 
-⚠ **RENOMMÉ MARCHING SQUARES — DÉCIDÉ (Jordan, 4 novembre 2026 : « renomme le projet SoluTiles en Marching Squares,
-comme ça, ça fera le même nom que Marching Blocks »)** : le dossier `D:/MarchingSquares`, le dépôt
-`github.com/darref/MarchingSquares` (PUBLIC, licence CC0), le projet Godot. ⚠ Le nom du projet Godot change le dossier
-`user://` : ce qui y était enregistré reste sous l'ancien nom (`app_userdata/SoluTiles`). Le code garde ses noms
-(`SoluPaint`, `solutiles_*`…) jusqu'à la refonte.
+⚠ **LE NOM : MarchingSquares, EN UN MOT, PARTOUT — DÉCIDÉ (Jordan, 4 novembre 2026 : « il faut que ce soit marching
+squares partout, y compris sur le site et en attaché, car tous mes jeux et software ont leur nom en camel case en
+attaché »)** : le dossier `D:/MarchingSquares`, le dépôt `github.com/darref/MarchingSquares` (PUBLIC, licence CC0), le
+projet Godot, l'exe, le greffon, le site ; l'ancien nom n'est plus écrit nulle part. Seuls restent des IDENTIFIANTS de
+l'ancien modèle des massifs (l'extension `.solutiles`, `MAGIC = "solutiles-tileset"`, `SOLUTILES_KEY`, le dossier
+`solutiles/`, `SoluPaint`) : des formats de fichiers d'un modèle abandonné, que rien ne montre plus. ⚠ Le nom du projet
+Godot change le dossier `user://` (`app_userdata/MarchingSquares`).
 ⚠ **ET LE MODÈLE CHANGE — DÉCIDÉ (Jordan, 4 novembre 2026)** : on quitte le modèle des massifs (vocabulaire trouvé par
 battues, jamais fermé) pour le modèle de MarchingBlocks transposé en 2D — les hauteurs sur les COINS (grille duale), une
 couche binaire par unité de hauteur, des tuiles ARCHÉTYPES fermées (16 dessus + 40 falaises, rôles lèvre / corps / pied
 par demi-tuile), placées automatiquement par table précalculée, l'occlusion par l'ordre de dessin, des variantes et des
 transitions comme MarchingBlocks ; le guide, le modèle et l'outil de peinture conçus ENSEMBLE, d'une seule source.
 Le détail s'écrit avec le banc de preuve ; ce qui suit décrit l'ancien modèle.
+
+### PAS DE RENCONTRE DIAGONALE — DÉCIDÉ (Jordan, 4 novembre 2026 : « refuser le clic », comme dans MarchingBlocks)
+
+Une SELLE est une tuile dont deux coins opposés sont dedans et les deux autres dehors (configurations 6 et 9), à une
+couche quelconque ou pour une matière : deux plateaux qui ne se touchent que par un point. Elle est INTERDITE.
+- **Le pinceau la REFUSE** (`Modele.cree_une_selle`, une règle, un endroit) : dans l'éditeur (mode Test : le clic est
+  refusé, le coin cerclé de rouge, la raison dans le bandeau), dans le greffon (`world.gd geste`, un avertissement), et
+  dans l'atelier. Les reliefs TIRÉS (les deux guides, le banc, les captures) se COMBLENT (`Modele.combler_selles` :
+  un coin bas monte jusqu'au plus bas des deux hauts ; une matière passe au coin bas qui est dans la couche).
+- **Ce que ça retire, MESURÉ** (`proof/coins_diagonales.gd`) : 79 clés → **57** ; 35 archétypes → **33** (13 dessus,
+  10 hauts, 10 bas : les hauts et les bas des selles dessinaient déjà la même chose que d'autres) ; 261 jonctions →
+  **227** ; 15 formes par matière → **13**. Le gain en cas est petit (le modèle arrondi traitait déjà la selle) ; la
+  raison est l'IMAGE — un pincement ambigu — et les deux tuiles les plus pénibles à peindre.
+- **Les guides refaits** : `guides/coins.txt`, **227 jonctions sur 227, 33 archétypes sur 33**, tout incrusté dans le
+  paysage, refusé s'il porte une selle ; `guides/coins_matieres.txt`, **13 formes sur 13, 86 raccords sur 86**.
+- **La preuve refaite** : 40 reliefs à trois matières, **1 274 368 pixels, 0 écart**, vocabulaire FERMÉ 33 / 57,
+  jonctions 227, aucune hors de l'ensemble ; ⚠ vu rougir sans le comblement (7 mondes sur 8 en selle, 22 clés et 68
+  jonctions hors du vocabulaire). Les sondes : l'éditeur, 400 clics au hasard, **jamais de selle, 50 refusés** ; le
+  greffon, 400 gestes, **jamais de selle, 49 refusés** ; ⚠ vu rougir sans le refus.
+- **Un travail enregistré retrouve ses images** quand le vocabulaire change : le `.mqcoins` dit la CLÉ de chaque numéro
+  d'archétype (un numéro n'est pas une identité) ; une image de selle est laissée de côté et comptée (`oublies`).
+⚠ Ce qui suit, plus bas, parle de 35 archétypes, 79 clés et 261 jonctions : ce sont les mesures D'AVANT l'interdiction.
+
+### L'ÉDITEUR — l'interface du début, sur le nouveau modèle — DÉCIDÉ (Jordan, 4 novembre 2026)
+
+Jordan : « où est passée l'interface avec les deux volets, la barre du haut, la vue centrale […] le mode draw et le
+mode test ? », puis « oui » à « mettre le nouveau modèle dans l'ancienne interface ». La scène de démarrage est
+`ui/coins/editeur.tscn` — une copie de `ui/editor.tscn` (les mêmes volets, sections, outils, jauges, le bandeau qui
+ouvre le mode d'emploi) branchée sur `core/coins/` : `ui/coins/editeur.gd` (câblage), `ui/coins/zone.gd` (la vue
+centrale : les huit outils de l'ancienne zone, tailles, « rester dans la tuile », zoom à échelle entière),
+`ui/coins/tuile_panel.gd` (la tuile survolée en grand, à la place des voisines), `ui/coins/manuel.gd` (le mode d'emploi
+réécrit). Salles : **Draw** (le guide ; la ligne « Paint » : la base ou une matière ; la section Variants) et **Test**
+(le relief à soi ; la section Sculpt et son bouton « Sculpt plateaus »). Jauges : Tops 13, Cliffs 20 ; l'export est
+refusé tant qu'une base n'est pas peinte (l'essai, `core/coins/essai.gd`, permet d'essayer le greffon) ; « Install the
+Godot plugin » (`core/coins/installer.gd`) copie `addons/marching_squares/` et le tileset (ou l'essai). Résolutions
+16, 32, 64 (le guide entier est UNE image). La section **Support** : Ko-fi et GitHub Sponsors (la liste `DONS`, la même
+que `.github/FUNDING.yml` et le README). Ce qui n'a plus de sens est caché : le réseau, le fond d'exemple, l'export
+« packed ». MESURÉ : `proof/coins_editeur.gd` **25/25** (salles, sections, outils, jauges, variantes, matières, Test,
+enregistrer / ouvrir avec le relief, export, installation, refus d'un dossier qui n'est pas un projet).
+⚠ L'ancien éditeur (`ui/editor.tscn`) et SoluPaint restent dans le dépôt, plus montrés ni livrés (SoluPaint est
+désactivé, l'export ne l'emporte plus). ⚠ Le splash est refait (`splash/MarchingSquares_SPLASH.png`, `splash/titre.py` :
+la plaque d'origine et le nom en Archivo Black, OFL).
+⚠ **L'EXPORT N'EMPORTE PAS `icon.svg` EN CLAIR** (seulement sa version importée) : l'installeur en garde une copie en
+texte (`Installer.ICONE`), vérifiée identique par la sonde.
 
 ### LE MODÈLE PAR LES COINS — MESURÉ (4 novembre 2026, branche `modele-coins`)
 
@@ -95,9 +141,9 @@ rentrant, VIDE ; la selle reste deux coins séparés), `addons/marching_squares/
   que montre l'atelier — 98 304 pixels égaux, 0 différent, 0 de couverture** (tout peint, une variante tirée, deux
   matières) ; ⚠ vu rougir : un tirage décalé d'une rangée dans le greffon donne 52 pixels différents. Vu à l'image dans
   une vraie fenêtre (`banc_coins/greffon_monde.png`).
-- **RESTE** : remplacer l'ancien éditeur (`ui/editor.tscn`) et SoluPaint par l'atelier et ce greffon (le bouton
-  « installer le greffon » de `core/plugin_install.gd` copie encore SoluPaint), fusionner `modele-coins` dans `main`,
-  peindre un VRAI tileset (le 16 px), puis le greffon Unity.
+- ~~**RESTE** : remplacer l'ancien éditeur et SoluPaint~~ (FAIT le 4 novembre 2026, voir « L'ÉDITEUR » plus haut).
+  **RESTE** : fusionner `modele-coins` dans `main` (avec l'accord de Jordan), peindre un VRAI tileset (le 16 px), le
+  liseré de plateau sous une matière (OUVERT plus haut), puis le greffon Unity.
 
 ## Contexte
 
@@ -1229,7 +1275,7 @@ section de `PLAN.md`, et résumés ici. Ce qui reste vif :
   et ⚠ **« assez de place » est un REFUS, pas un calcul**, dit au relâchement. Dedans : **un trou
   noir est gratuit**, un intérieur qui laisse voir est une matière. ⚠ **À trancher : le balcon
   est-il une tranche de plus, ou le perron qui change de dessin ?** — la seconde garde le
-  neuf-tranches intact. ⚠ **Et le PASSAGE est hors sujet** : SoluTiles livre une façade, pas un jeu.
+  neuf-tranches intact. ⚠ **Et le PASSAGE est hors sujet** : MarchingSquares livre une façade, pas un jeu.
 - **LES CASCADES ET LES RIVIÈRES** — *les plus compliquées, donc à la fin* (décision du 06/09 : les
   cascades quittent les fluides pour rejoindre les rivières). ⚠ **CE SONT LES SEULS PATCHS QUI
   TRAVERSENT** : une cascade franchit la lèvre, descend la falaise et rejoint le bassin d'en bas ;

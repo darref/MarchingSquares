@@ -15,6 +15,10 @@ const Archetypes := preload("res://core/coins/archetypes.gd")
 const FOND := Color(0.08, 0.1, 0.16)
 
 var resolution := 16
+## Ce qu'on regarde (rien de ce qui sort n'en dépend) : sans le guide, une tuile non peinte reste vide ; sans le travail,
+## seules les couleurs du guide se voient.
+var montrer_guide := true
+var montrer_travail := true
 var colonnes := 0
 var rangees := 0
 var hmax := 0
@@ -109,12 +113,12 @@ func repeindre(cle: Vector2i, peinture: RefCounted) -> void:
 		var lx := l % resolution
 		var ly := l / resolution
 		var c := Color(0, 0, 0, 0)
-		if peinture != null:
+		if peinture != null and montrer_travail:
 			c = peinture.pixel_at(cle, lx, ly)
 			if c.a <= 0.0 and cle != base:
 				c = peinture.pixel_at(base, lx, ly)
 		if c.a <= 0.0:
-			c = couleur_guide(masque[l], int(poses[pose_de[i]][1]), m)
+			c = couleur_guide(masque[l], int(poses[pose_de[i]][1]), m) if montrer_guide else FOND
 		image.set_pixel(i % w, i / w, c)
 
 

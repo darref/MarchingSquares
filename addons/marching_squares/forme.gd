@@ -1,6 +1,6 @@
 extends RefCounted
 
-## LA FORME D'UNE TUILE — le modèle par les COINS de Marching Squares (Jordan, 4 novembre 2026 : « s'inspirer de
+## LA FORME D'UNE TUILE — le modèle par les COINS de MarchingSquares (Jordan, 4 novembre 2026 : « s'inspirer de
 ## MarchingBlocks »). Une tuile de la grille duale a quatre coins ; sa CONFIGURATION `c` dit lesquels sont « dedans »
 ## (pour une couche L : hauteur du coin ≥ L). La forme dans la tuile se lit QUART PAR QUART — chaque quart (½ × ½)
 ## appartient à son coin, et son état ne dépend que de ce coin, de ses deux voisins d'arête et de l'opposé :

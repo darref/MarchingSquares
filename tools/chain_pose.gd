@@ -12,7 +12,7 @@ extends SceneTree
 
 const WorldScript := preload("res://addons/solupaint/world.gd")
 
-const GUIDE_PATH: String = "D:/AbsoluTiles/guides/minimal.txt"
+const GUIDE_PATH: String = "D:/MarchingSquares/guides/minimal.txt"
 const MANIFEST_PATH: String = "res://solutiles/chaine_tileset.txt"
 
 var _failures: int = 0

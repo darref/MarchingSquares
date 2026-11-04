@@ -48,7 +48,7 @@ crie au loup.**
 **RESTE SUR CE POINT :**
 
 - [x] ✅ **L'ICÔNE — faite.** Décision utilisateur : **la même que le plugin**, donc une seule
-      identité pour SoluTiles, SoluPaint et le futur plugin Unity. `tools/make_icon.gd`
+      identité pour MarchingSquares, SoluPaint et le futur plugin Unity. `tools/make_icon.gd`
       **rastérise** `addons/solupaint/icon.svg` (le plateau vu de dessus, sa falaise, et le coin
       rentrant qui dit « autotile ») en six tailles ; un `.ico` multi-résolution est empaqueté
       sans dépendance externe. ⚠ **On rastérise le vecteur à chaque taille, on n'agrandit pas un
@@ -58,7 +58,7 @@ crie au loup.**
       dans `[application]`. Elle donne l'icône de la **fenêtre** (barre des tâches pendant que le
       logiciel tourne) ; celle de l'exe est déjà posée. Demandée au pair.
 - [ ] **Essai sur une machine SANS Godot installé** — le démarrage headless ici ne le remplace pas.
-- [ ] Le ZIP final : `SoluTiles.exe` + `README.txt` + `LICENSE.txt`. ⚠ **Pas besoin d'y mettre
+- [ ] Le ZIP final : `MarchingSquares.exe` + `README.txt` + `LICENSE.txt`. ⚠ **Pas besoin d'y mettre
       `addons/solupaint/`** : le bouton « Install the Godot plugin » l'écrit depuis le paquet.
 
 ### ✅ B. L'INTERFACE EST PASSÉE À L'ANGLAIS — fait le 06/09, 22 h
@@ -180,7 +180,7 @@ largement le déplacement. C'est aussi le seul endroit où l'on voit **l'avertis
 tel que l'acheteur le verra (exe non signé, téléchargé) — à voir une fois avant de vendre.
 
 **Ce qu'une VM ne prouve pas : le graphique.** `project.godot` ne déclare aucun
-`rendering/renderer/rendering_method`, donc SoluTiles tourne en **forward_plus, c'est-à-dire
+`rendering/renderer/rendering_method`, donc MarchingSquares tourne en **forward_plus, c'est-à-dire
 Vulkan**. Or la plupart des VM (VirtualBox, VMware, Hyper-V) n'ont **pas de Vulkan** : un échec
 là-bas peut être une **fausse alerte** qui ne concerne aucun acheteur, et un succès sous
 rendu logiciel ne dit rien d'un vieux GPU intégré.
@@ -232,7 +232,7 @@ Le `README` la tient déjà, et elle est bonne :
 > It's hard because **you don't know what to draw** — and you find out three months later,
 > when one corner in your map has no tile for it.
 >
-> SoluTiles gives you a landscape to paint over. Paint it, and you have a complete autotile
+> MarchingSquares gives you a landscape to paint over. Paint it, and you have a complete autotile
 > tileset — **proven** complete, not promised — plus the Godot plugin that places it.
 > Nothing is mirrored, composited, or generated. Every pixel is yours.
 
@@ -274,7 +274,7 @@ d'acheter, pas après** — donc la charge de travail protège la rétention, ja
 
 ### L'encadré, prêt à coller
 
-> **Early access.** SoluTiles builds **terrain** today: surfaces, cliffs, multi-level falls,
+> **Early access.** MarchingSquares builds **terrain** today: surfaces, cliffs, multi-level falls,
 > overlapping massifs — a proven-complete tile set, with the Godot plugin that places them.
 > Water, holes, caves and surface materials are being built. **No dates — I don't promise
 > what I can't date.**
@@ -309,7 +309,7 @@ prix **fixe**, pas « pay what you want » — un outil à prix libre se lit com
 
 > **The tilesets you make are yours.** Commercial use included, no royalties, no attribution
 > required. You may ship the exported sheets and the SoluPaint plugin inside your game.
-> You may not resell SoluTiles itself.
+> You may not resell MarchingSquares itself.
 
 ⚠ **Point n°2 à discuter** : rédiger le `LICENSE.txt` en conséquence, et vérifier qu'il dit la
 même chose que la page. Deux endroits qui se contredisent, c'est un litige.
@@ -318,7 +318,7 @@ même chose que la page. Deux endroits qui se contredisent, c'est un litige.
 
 ## 4. LA PAGE ITCH — dans l'ordre où on la remplit
 
-- [ ] **Titre** : `SoluTiles` · **Sous-titre** : `Paint one landscape. Get a complete autotile tileset.`
+- [ ] **Titre** : `MarchingSquares` · **Sous-titre** : `Paint one landscape. Get a complete autotile tileset.`
 - [ ] **Classification** : `Tools` (pas `Games`) · **Kind of project** : `Downloadable`
 - [ ] **Status** : `In development`
 - [ ] **Prix** : fixe, 19 € (voir §3) · paiement **direct**
@@ -403,7 +403,7 @@ et si on montre l'interface **française** ou si on attend la passe anglaise (§
 ### ⚠ LE MEILLEUR COUP GRATUIT : le plugin seul, offert sur l'Asset Library
 
 Publier **SoluPaint + le tileset d'essai** gratuitement sur la Godot Asset Library, avec un lien
-vers SoluTiles dans la description.
+vers MarchingSquares dans la description.
 
 - Ça met un **outil qui marche** entre les mains de gens qui n'auraient jamais cliqué sur une pub ;
 - ça **est** la démo — l'acheteur voit le monde se poser avant de payer ;
@@ -461,7 +461,7 @@ démarrage, des retours, et la preuve que ça se vend.** L'argent sérieux est �
    le français revient un jour comme traduction.
 3. **Le plugin gratuit sur l'Asset Library** : oui ou non ?
 4. **La licence** : rédiger `LICENSE.txt` et l'aligner sur la page.
-5. **Le nom de la page itch** et l'URL (`solutiles.itch.io/solutiles` ?).
+5. **Le nom de la page itch** et l'URL (`spannergames.itch.io/marchingsquares` ?).
 6. **Mac / Linux** : on exporte aussi, ou Windows seul avec la mention claire ?
 7. **La mise à jour des acheteurs** : itch pousse les nouvelles versions aux acheteurs — vérifier
    que le ZIP est bien marqué comme la plateforme Windows, sinon ils ne reçoivent rien.

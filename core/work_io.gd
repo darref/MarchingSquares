@@ -269,7 +269,7 @@ static func parse(text: String, heights: PackedStringArray) -> Dictionary:
 
 	var lines: PackedStringArray = text.split("\n")
 	if lines.is_empty() or not lines[0].begins_with(MAGIC + " "):
-		push_error("work_io: this file is not a SoluTiles work file.")
+		push_error("work_io: this file is not a MarchingSquares work file.")
 		result["error"] = ERR_FILE_UNRECOGNIZED
 		return result
 	var written_with: int = lines[0].get_slice(" ", 1).to_int()

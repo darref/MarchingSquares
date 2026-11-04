@@ -1,4 +1,4 @@
-# Runner de tests headless du noyau SoluTiles.
+# Runner de tests headless du noyau MarchingSquares.
 #
 #   godot --headless --path . --script res://tests/run.gd
 #
@@ -3786,7 +3786,7 @@ func _test_plugin_manifest() -> void:
 ##
 ## ⚠ CE QU'ON PEUT TROUVER NE SE DEMANDE PAS. Pointer un manifeste a la main, c'est
 ## demander a l'acheteur de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
-## occasions d'abandonner avant d'avoir rien vu. Un tileset SoluTiles se reconnait a son
+## occasions d'abandonner avant d'avoir rien vu. Un tileset MarchingSquares se reconnait a son
 ## nom -- donc on le trouve, et s'il n'y en a qu'un on le pose sans rien demander.
 func _test_manifest_discovery() -> void:
 	print("SoluPaint : les tilesets se trouvent tout seuls")

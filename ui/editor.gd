@@ -201,7 +201,7 @@ func _apply_window_size() -> void:
 			int(float(usable.size.y) * WINDOW_SCREEN_SHARE))
 	window.size = target
 	window.position = usable.position + (usable.size - target) / 2
-	print("SoluTiles: window %dx%d, usable screen %dx%d" % [
+	print("MarchingSquares: window %dx%d, usable screen %dx%d" % [
 			window.size.x, window.size.y, usable.size.x, usable.size.y])
 
 
@@ -722,7 +722,7 @@ func _on_fit_pressed() -> void:
 ## c'est un outil de bureau, et celui du systeme connait les dossiers de l'utilisateur.
 func _build_dialogs() -> void:
 	var work_filter: PackedStringArray = PackedStringArray(
-			["*.%s ; Travail SoluTiles" % WorkIO.EXTENSION])
+			["*.%s ; Travail MarchingSquares" % WorkIO.EXTENSION])
 	_open_dialog = _make_dialog(FileDialog.FILE_MODE_OPEN_FILE, "Open a work file", work_filter)
 	_open_dialog.file_selected.connect(_on_open_chosen)
 	_save_dialog = _make_dialog(FileDialog.FILE_MODE_SAVE_FILE, "Save the work file", work_filter)
@@ -857,7 +857,7 @@ func _on_open_chosen(path: String) -> void:
 	await _show_then("Opening the work file", "1/3  reading the header")
 	var header: Dictionary = WorkIO.peek(path)
 	if int(header["error"]) != OK:
-		_announce("This file is not a SoluTiles work file.")
+		_announce("This file is not a MarchingSquares work file.")
 		return
 	_select_metadata(%ModeChoice, header["mode"])
 	_select_metadata(%SizeChoice, int(header["resolution"]))

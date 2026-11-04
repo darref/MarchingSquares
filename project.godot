@@ -10,13 +10,13 @@ config_version=5
 
 [application]
 
-config/name="Marching Squares"
+config/name="MarchingSquares"
 config/description="Paint one landscape. Every edge case covered."
 config/version="12.0.0"
-run/main_scene="res://ui/coins/atelier.tscn"
+run/main_scene="res://ui/coins/editeur.tscn"
 config/features=PackedStringArray("4.7")
 boot_splash/stretch_mode=4
-boot_splash/image="uid://bejs8me8563my"
+boot_splash/image="res://splash/MarchingSquares_SPLASH.png"
 config/icon="res://icon.png"
 
 [debug]
@@ -30,7 +30,7 @@ window/size/viewport_height=900
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/solupaint/plugin.cfg", "res://addons/marching_squares/plugin.cfg")
+enabled=PackedStringArray("res://addons/marching_squares/plugin.cfg")
 
 [rendering]
 

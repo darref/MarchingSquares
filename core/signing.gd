@@ -3,7 +3,7 @@
 # ⚠ ELLE N'EMPECHE RIEN, ET NE DOIT PAS PRETENDRE LE CONTRAIRE. Le plugin part chez l'acheteur
 # en GDScript EN CLAIR : un controle qui refuserait une planche non signee saute en trente
 # secondes, et la charte interdit de maquiller un verrou qui ne tient pas. La signature est donc
-# une AFFIRMATION, pas une porte : elle dit « ceci sort de SoluTiles », et le moteur le REPETE
+# une AFFIRMATION, pas une porte : elle dit « ceci sort de MarchingSquares », et le moteur le REPETE
 # a l'acheteur au lieu de bloquer quoi que ce soit.
 #
 # ⚠ ET C'EST CE RENVERSEMENT QUI LA REND UTILE. On cesse d'essayer d'empecher la copie -- ce qui

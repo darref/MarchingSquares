@@ -10,13 +10,13 @@
 
 | Champ itch | Valeur |
 |---|---|
-| **Title** | `SoluTiles` |
+| **Title** | `MarchingSquares` |
 | **Short description / tagline** | `Paint one landscape. Get a complete autotile tileset.` |
 | **Classification** | `Tools` — ⚠ **pas `Games`** |
 | **Kind of project** | `Downloadable` |
 | **Release status** | `In development` — c'est ça qui affiche « accès anticipé » |
 | **Pricing** | `Paid`, prix fixe (⚠ **pas** « pay what you want ») |
-| **Uploads** | `SoluTiles-win64.zip`, coché **Windows** |
+| **Uploads** | `MarchingSquares-win64.zip`, coché **Windows** |
 | **Community** | `Comments` — un acheteur bloqué qui ne peut pas écrire demande un remboursement |
 | **Visibility** | `Public` quand tu es prêt ; `Restricted` pour te relire d'abord |
 
@@ -36,7 +36,7 @@ godot, tileset, autotile, pixel-art, tilemap, level-editor, gamedev-tool, 2d, to
 ```
 🚧 EARLY ACCESS
 
-SoluTiles builds TERRAIN today: surfaces, cliffs, multi-level falls, overlapping
+MarchingSquares builds TERRAIN today: surfaces, cliffs, multi-level falls, overlapping
 massifs — a tile vocabulary that is proven complete, with the Godot plugin that
 places it.
 
@@ -56,7 +56,7 @@ Making an autotile tileset by hand is not hard because of the drawing.
 It's hard because you don't know WHAT to draw — and you find out three months
 later, when one corner of your map has no tile for it.
 
-SoluTiles gives you a landscape to paint over. Paint it, and you have a complete
+MarchingSquares gives you a landscape to paint over. Paint it, and you have a complete
 autotile tileset — proven complete, not promised — plus the Godot plugin that
 places it in your game.
 
@@ -135,7 +135,7 @@ when they land, and that's the honest trade.
 
 ```
 REQUIREMENTS
-Windows 10+, 64-bit. Godot 4.x for the plugin only — SoluTiles itself needs
+Windows 10+, 64-bit. Godot 4.x for the plugin only — MarchingSquares itself needs
 nothing installed.
 
 The first launch may show "Windows protected your PC". The build isn't signed by
@@ -144,7 +144,7 @@ a certificate authority yet. Click More info → Run anyway.
 YOUR WORK IS YOURS
 The tilesets you make are yours. Commercial use included, no royalties, no
 attribution required. Ship the exported sheets and the SoluPaint plugin inside
-your game. You may not resell SoluTiles itself.
+your game. You may not resell MarchingSquares itself.
 
 REFUNDS
 Fourteen days, no questions asked. Email me.
@@ -172,7 +172,7 @@ Fourteen days, no questions asked. Email me.
 > et il est la moitié de ce qui rassure un acheteur.
 
 ```
-Title: SoluTiles is out in early access — terrain first
+Title: MarchingSquares is out in early access — terrain first
 
 What's in: surfaces, cliffs, multi-level falls, massifs that overlap. The tile
 vocabulary is proven complete by program, and the count is on screen while you

@@ -25,6 +25,12 @@ extends RefCounted
 ## (sable sur herbe, neige sur sable), posées juste après leur dessus ; la forme est contenue dans celle du dessus (la
 ## forme est monotone en c), donc rien ne déborde sur la falaise.
 ##
+## PAS DE RENCONTRE DIAGONALE — DÉCIDÉ (Jordan, 4 novembre 2026 : « refuser le clic », comme MarchingBlocks) : dans une
+## tuile, deux coins opposés dedans et les deux autres dehors (une SELLE, configurations 6 et 9) ne se posent jamais, à
+## aucune couche, ni pour une matière. Deux plateaux ne se touchent pas par un point : ils se rejoignent ou se séparent.
+## Le pinceau (l'éditeur, le greffon) REFUSE le geste qui en créerait une (`cree_une_selle`). Mesuré : 79 clés → 57,
+## 35 archétypes → 33 (13 dessus), 261 jonctions → 227.
+##
 ## LES VARIANTES (comme celles de MarchingBlocks) : plusieurs images pour un même archétype, tirées par un HACHAGE de la
 ## pose (jamais `randi()` : le même monde à chaque reconstruction), pondérées par des poids entiers.
 
@@ -67,6 +73,98 @@ static func config_matiere(h: PackedInt32Array, mat: PackedInt32Array, larg: int
 		if h[coins[k]] >= L and mat[coins[k]] >= m:
 			c |= bits[k]
 	return c
+
+
+static func est_selle(c: int) -> bool:
+	return c == 6 or c == 9
+
+
+## La tuile (x, j) porte-t-elle une selle, à une couche ou pour une matière ? Sur les hauteurs : deux coins opposés
+## tous deux plus hauts que les deux autres. Sur les matières : la même chose, couche par couche.
+static func tuile_en_selle(h: PackedInt32Array, mat: PackedInt32Array, larg: int, x: int, j: int) -> bool:
+	var a := h[j * larg + x]
+	var b := h[j * larg + x + 1]
+	var c := h[(j + 1) * larg + x]
+	var d := h[(j + 1) * larg + x + 1]
+	if mini(a, d) > maxi(b, c) or mini(b, c) > maxi(a, d):
+		return true
+	if mat.size() != h.size():
+		return false
+	var mmax := maxi(maxi(mat[j * larg + x], mat[j * larg + x + 1]), maxi(mat[(j + 1) * larg + x], mat[(j + 1) * larg + x + 1]))
+	if mmax == 0:
+		return false
+	for L in range(0, maxi(maxi(a, b), maxi(c, d)) + 1):
+		for m in range(1, mmax + 1):
+			if est_selle(config_matiere(h, mat, larg, x, j, L, m)):
+				return true
+	return false
+
+
+## Changer le coin `i` (hauteurs `h`, matières `mat` déjà modifiées) crée-t-il une selle dans une des quatre tuiles qui
+## le touchent ? Rend la première tuile fautive (Vector2i), ou (-1, -1).
+static func cree_une_selle(h: PackedInt32Array, mat: PackedInt32Array, colonnes: int, rangees: int, i: int) -> Vector2i:
+	var larg := colonnes + 1
+	var cx := i % larg
+	var cy := i / larg
+	for t: Vector2i in [Vector2i(cx - 1, cy - 1), Vector2i(cx, cy - 1), Vector2i(cx - 1, cy), Vector2i(cx, cy)]:
+		if t.x >= 0 and t.y >= 0 and t.x < colonnes and t.y < rangees and tuile_en_selle(h, mat, larg, t.x, t.y):
+			return t
+	return Vector2i(-1, -1)
+
+
+## Un relief entier sans selle ?
+static func sans_selle(h: PackedInt32Array, mat: PackedInt32Array, colonnes: int, rangees: int) -> bool:
+	for j in rangees:
+		for x in colonnes:
+			if tuile_en_selle(h, mat, colonnes + 1, x, j):
+				return false
+	return true
+
+
+## Comble toutes les selles d'un relief TIRÉ (les générateurs de guides, le banc — jamais le pinceau, qui refuse) : une selle
+## de hauteur se relie en montant l'un des deux coins bas jusqu'au plus bas des deux hauts ; une selle de matière, en
+## donnant la matière au coin bas qui est dans la couche. Rend le nombre de coins changés.
+static func combler_selles(h: PackedInt32Array, mat: PackedInt32Array, colonnes: int, rangees: int) -> int:
+	var larg := colonnes + 1
+	var changes := 0
+	for passe in 200:
+		var vu := false
+		for j in rangees:
+			for x in colonnes:
+				var i := [j * larg + x, j * larg + x + 1, (j + 1) * larg + x, (j + 1) * larg + x + 1]
+				var a := h[i[0]]
+				var b := h[i[1]]
+				var c := h[i[2]]
+				var d := h[i[3]]
+				if mini(a, d) > maxi(b, c):
+					var k: int = i[1] if b >= c else i[2]
+					h[k] = mini(a, d)
+					changes += 1
+					vu = true
+				elif mini(b, c) > maxi(a, d):
+					var k2: int = i[0] if a >= d else i[3]
+					h[k2] = mini(b, c)
+					changes += 1
+					vu = true
+				elif mat.size() == h.size() and tuile_en_selle(h, mat, larg, x, j):
+					# Une selle de matière : le coin bas le plus haut reçoit la plus forte matière des deux coins hauts.
+					for L in range(maxi(maxi(a, b), maxi(c, d)), -1, -1):
+						var fait := false
+						for m in range(1, 1 + maxi(maxi(mat[i[0]], mat[i[1]]), maxi(mat[i[2]], mat[i[3]]))):
+							var cm := config_matiere(h, mat, larg, x, j, L, m)
+							if est_selle(cm):
+								var bas: Array = [i[1], i[2]] if cm == 9 else [i[0], i[3]]
+								var k3: int = bas[0] if h[bas[0]] >= h[bas[1]] else bas[1]
+								mat[k3] = maxi(mat[k3], m)
+								changes += 1
+								vu = true
+								fait = true
+								break
+						if fait:
+							break
+		if not vu:
+			return changes
+	return changes
 
 
 ## La clé d'une pose dans la table du manifeste : « sorte:c:cv » (cv = 0 pour un dessus). Une matière se pose avec

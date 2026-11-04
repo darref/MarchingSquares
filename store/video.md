@@ -22,7 +22,7 @@ sur la page itch, en tête du post r/godot, et en natif sur X et Bluesky.
 > ailleurs sur le guide se remplissent en même temps**, pendant que la jauge monte.
 
 ⚠ **C'est le seul plan que personne d'autre ne peut tourner.** Un générateur de tileset
-montre un résultat ; SoluTiles montre **le geste qui remplit dix endroits à la fois**, parce
+montre un résultat ; MarchingSquares montre **le geste qui remplit dix endroits à la fois**, parce
 que ce sont la même tuile. Tout le reste du produit se déduit de là.
 
 **À préparer avant d'enregistrer :**
@@ -42,7 +42,7 @@ que ce sont la même tuile. Tout le reste du produit se déduit de là.
 
 | Temps | Durée | Ce qu'on voit |
 |---|---|---|
-| **1. Le problème** | 0–8 s | Une carte de jeu, et **un coin qui n'a pas de tuile** — un trou, une jonction qui casse. ⚠ Le seul moment où l'on montre autre chose que SoluTiles. |
+| **1. Le problème** | 0–8 s | Une carte de jeu, et **un coin qui n'a pas de tuile** — un trou, une jonction qui casse. ⚠ Le seul moment où l'on montre autre chose que MarchingSquares. |
 | **2. Le guide** | 8–20 s | L'écran s'ouvre. Le guide est déjà là, entier. « Every case that can occur is already in front of you. » |
 | **3. On peint** | 20–35 s | Le geste, les jumelles, la jauge. **C'est le GIF, en plus long.** |
 | **4. L'export** | 35–45 s | Le bouton qui s'active quand il ne manque plus rien. La planche apparaît. |

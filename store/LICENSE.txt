@@ -1,4 +1,4 @@
-SoluTiles — Licence
+MarchingSquares — Licence
 ===================
 
 Version du 2026-09-06. Ce fichier accompagne le logiciel dans son archive.
@@ -12,7 +12,7 @@ la validité dépend du pays de l'acheteur.
 CE QUE VOUS ACHETEZ
 -------------------
 
-Une licence d'utilisation de SoluTiles, personnelle ou pour votre entreprise. Vous pouvez
+Une licence d'utilisation de MarchingSquares, personnelle ou pour votre entreprise. Vous pouvez
 l'installer sur les machines dont vous vous servez pour travailler. Il n'y a pas de compte,
 pas d'activation, pas de connexion réseau : le logiciel fonctionne hors ligne.
 
@@ -20,23 +20,23 @@ pas d'activation, pas de connexion réseau : le logiciel fonctionne hors ligne.
 CE QUE VOUS PRODUISEZ EST À VOUS — SANS RÉSERVE
 -----------------------------------------------
 
-Les tilesets que vous peignez avec SoluTiles vous appartiennent entièrement.
+Les tilesets que vous peignez avec MarchingSquares vous appartiennent entièrement.
 
   · usage commercial inclus, sans limite de chiffre d'affaires ;
   · aucune redevance, aucun pourcentage, jamais ;
-  · aucune mention obligatoire — citer SoluTiles fait plaisir, ne se réclame pas ;
+  · aucune mention obligatoire — citer MarchingSquares fait plaisir, ne se réclame pas ;
   · vous pouvez livrer les planches exportées à l'intérieur de vos jeux et projets ;
   · vous pouvez livrer le greffon SoluPaint à l'intérieur de vos projets, y compris
     pour un projet commercial ou distribué à une équipe.
 
-⚠ Cette clause est le cœur du produit : SoluTiles ne fabrique aucun pixel à votre place.
+⚠ Cette clause est le cœur du produit : MarchingSquares ne fabrique aucun pixel à votre place.
 Tout ce qui sort a été peint par vous, donc tout ce qui sort est à vous.
 
 
 CE QUE VOUS NE POUVEZ PAS FAIRE
 -------------------------------
 
-  · revendre, relouer ou redistribuer SoluTiles lui-même ;
+  · revendre, relouer ou redistribuer MarchingSquares lui-même ;
   · le publier sur une place de marché ou un dépôt public ;
   · en retirer le sceau de provenance pour présenter un tileset comme signé par un autre.
 
@@ -56,7 +56,7 @@ pas de l'art : c'est un dessin de spécification, et il se voit.
 ACCÈS ANTICIPÉ
 --------------
 
-SoluTiles est vendu en accès anticipé. À ce jour il construit le TERRAIN : surfaces,
+MarchingSquares est vendu en accès anticipé. À ce jour il construit le TERRAIN : surfaces,
 falaises, chutes de plusieurs étages, massifs qui se chevauchent — un vocabulaire prouvé
 complet, avec le greffon Godot qui le pose.
 

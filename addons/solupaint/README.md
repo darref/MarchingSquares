@@ -2,13 +2,13 @@
 
 > Posez votre monde avec les tuiles que vous avez peintes.
 
-Plugin Godot 4 qui consomme un tileset exporté par **SoluTiles**. Vous lui donnez un
+Plugin Godot 4 qui consomme un tileset exporté par **MarchingSquares**. Vous lui donnez un
 relief — une hauteur par case — et il pose tout : les sommets de chaque étage, puis les
 faces de falaise.
 
 ## Installation
 
-Le bouton **« Installer le plugin Godot »** d'SoluTiles copie ce dossier dans le projet
+Le bouton **« Installer le plugin Godot »** d'MarchingSquares copie ce dossier dans le projet
 de votre choix. À la main, c'est un simple copier-coller de `addons/solupaint/` à la
 racine du projet.
 
@@ -24,9 +24,9 @@ Vous n'avez rien à chercher.
    vous y emmène sans en créer un second. (À la main : « Ajouter un nœud » →
    `SoluPaintWorld`.)
 
-⚠ **Vous n'avez pas de manifeste à pointer.** Le panneau **cherche les tilesets SoluTiles
+⚠ **Vous n'avez pas de manifeste à pointer.** Le panneau **cherche les tilesets MarchingSquares
 du projet** et les propose ; s'il n'y en a qu'un, il le pose sans rien demander. Le bouton
-« Installer le plugin Godot » d'SoluTiles en dépose d'ailleurs un dans `solutiles/` en
+« Installer le plugin Godot » d'MarchingSquares en dépose d'ailleurs un dans `solutiles/` en
 même temps que l'extension — votre tileset s'il est complet, son **essai** sinon.
 2. Choisissez le **tileset** dans le panneau, si le projet en contient plusieurs. Les deux
    planches sont lues à côté du manifeste, sous les noms qu'il donne.
@@ -97,7 +97,7 @@ leur pied. C'est exact, mais ce n'est probablement pas ce que vous vouliez voir.
 - **Rien n'est fabriqué.** Aucune composition, aucun miroir, aucune rotation. Chaque case
   va chercher dans la planche la tuile que la règle désigne.
 - **La règle est celle du manifeste**, pas une réinterprétation. Elle est vérifiée contre
-  le noyau d'SoluTiles sur des milliers de reliefs tirés au sort : une seule case qui
+  le noyau d'MarchingSquares sur des milliers de reliefs tirés au sort : une seule case qui
   divergerait ferait échouer la suite de tests.
 - **Il refuse plutôt que de deviner.** Un manifeste d'une version qu'il ne sait pas lire,
   des constantes de falaise qui ne sont pas les siennes, une planche à qui il manque une

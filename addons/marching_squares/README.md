@@ -1,15 +1,15 @@
-# Marching Squares — Godot plugin
+# MarchingSquares — Godot plugin
 
-Lay a 2D world of plateaus and cliffs, of any height, with the tileset you painted in **Marching Squares**.
+Lay a 2D world of plateaus and cliffs, of any height, with the tileset you painted in **MarchingSquares**.
 
 ## Install
 
 Copy `addons/marching_squares/` into your project, then **Project → Project Settings → Plugins** and enable
-*Marching Squares*.
+*MarchingSquares*.
 
 ## Use
 
-1. In Marching Squares, paint your tiles, then **Export tileset**: you get `marching_squares_planche.png` and
+1. In MarchingSquares, paint your tiles, then **Export tileset**: you get `marching_squares_planche.png` and
    `marching_squares_planche.json`. Put both in your project, side by side.
 2. Add a **MarchingSquaresWorld** node, set its **Tileset** to the `.json`, and its **Columns** / **Rows**.
 3. In the 2D view, with the node selected:
@@ -26,4 +26,4 @@ the same every time.
 
 ## License
 
-CC0 1.0 (public domain), like the Marching Squares repository — see its LICENSE.
+CC0 1.0 (public domain), like the MarchingSquares repository — see its LICENSE.

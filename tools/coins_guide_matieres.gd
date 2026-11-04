@@ -2,10 +2,10 @@ extends SceneTree
 
 ## LE GUIDE DES MATIÈRES — un champ de matière posé SUR le paysage du guide (`guides/coins.txt`), pour que l'artiste
 ## peigne une matière là où elle vivra : sur des plateaux, au bord des falaises, contre les autres hauteurs. Une matière
-## se pose avec les quinze formes du dessus ; le champ retenu les montre TOUTES, et le plus de raccords possible entre
+## se pose avec les treize formes du dessus ; le champ retenu les montre TOUTES, et le plus de raccords possible entre
 ## deux tuiles voisines (comptés, dits : pas de fermeture prétendue au-delà de ce qui est compté).
-## Parmi 400 champs de taches tirés au sort (graine fixe), le meilleur : 15/15 formes vues, puis le plus de raccords ;
-## ceux qui manquent encore sont incrustés là où le relief est plat. Un guide incomplet est REFUSÉ (mesuré : 114/114).
+## Parmi 400 champs de taches tirés au sort (graine fixe), le meilleur : 13/13 formes vues, puis le plus de raccords ;
+## ceux qui manquent encore sont incrustés là où le relief est plat. Un guide incomplet est REFUSÉ (sans selle depuis le 4 novembre 2026).
 ##   Godot_v4.7-stable_win64_console.exe --headless --path D:/MarchingSquares --script res://tools/coins_guide_matieres.gd
 ## Écrit `guides/coins_matieres.txt` (même format que le guide : « colonnes rangées », puis un rang par coin).
 
@@ -38,13 +38,16 @@ func _initialize() -> void:
 							else pow(float(x - cx) / rx, 2) + pow(float(j - cy) / ry, 2) <= 1.0
 					if d:
 						mat[j * larg + x] = 1
+		Modele.combler_selles(g.h.duplicate(), mat, g.colonnes, g.rangees)
 		var m := mesurer(g, mat)
 		var score: int = int(m.formes) * 1000 + int(m.raccords)
+		if not Modele.sans_selle(g.h, mat, g.colonnes, g.rangees):
+			continue
 		if score > score_max:
 			score_max = score
 			meilleur = {"mat": mat, "mesure": m, "essai": essai}
 	# Les raccords qui manquent encore sont INCRUSTÉS, un à un, là où le relief est plat sur les six coins de la paire :
-	# gardé seulement si le compte monte (et que les quinze formes restent vues).
+	# gardé seulement si le compte monte (et que les treize formes restent vues).
 	var mat_b: PackedInt32Array = meilleur.mat
 	for paire: Array in manquants(meilleur.mesure):
 		var fait := false
@@ -60,8 +63,10 @@ func _initialize() -> void:
 				var bits := _bits_paire(paire[0], paire[1], paire[2])
 				for k in 6:
 					essai[coins[k]] = bits[k]
+				if not Modele.sans_selle(g.h, essai, g.colonnes, g.rangees):
+					continue
 				var mm := mesurer(g, essai)
-				if int(mm.formes) == 15 and int(mm.raccords) > int(meilleur.mesure.raccords):
+				if int(mm.formes) == 13 and int(mm.raccords) > int(meilleur.mesure.raccords):
 					mat_b = essai
 					meilleur.mesure = mm
 					fait = true
@@ -70,9 +75,9 @@ func _initialize() -> void:
 				break
 	meilleur.mat = mat_b
 	var mesure: Dictionary = meilleur.mesure
-	print("champ retenu : essai %d ; formes de matière vues %d / 15 ; raccords vus %d (sur %d possibles)"
+	print("champ retenu : essai %d ; formes de matière vues %d / 13 ; raccords vus %d (sur %d possibles)"
 			% [meilleur.essai, mesure.formes, mesure.raccords, mesure.possibles])
-	if int(mesure.formes) < 15 or int(mesure.raccords) < int(mesure.possibles):
+	if int(mesure.formes) < 13 or int(mesure.raccords) < int(mesure.possibles) or not Modele.sans_selle(g.h, meilleur.mat, g.colonnes, g.rangees):
 		printerr("GUIDE DES MATIÈRES INCOMPLET : refusé")
 		quit(1)
 		return
@@ -121,6 +126,8 @@ static func mesurer(g: Dictionary, mat: PackedInt32Array) -> Dictionary:
 	var possibles := 0
 	for a in range(1, 16):
 		for b in range(1, 16):
+			if Modele.est_selle(a) or Modele.est_selle(b):
+				continue
 			if ((a >> 2) & 1) == ((b >> 3) & 1) and (a & 1) == ((b >> 1) & 1):
 				possibles += 1
 			if ((a >> 1) & 1) == ((b >> 3) & 1) and (a & 1) == ((b >> 2) & 1):
@@ -133,6 +140,8 @@ static func manquants(mesure: Dictionary) -> Array:
 	var sortie := []
 	for a in range(1, 16):
 		for b in range(1, 16):
+			if Modele.est_selle(a) or Modele.est_selle(b):
+				continue
 			if ((a >> 2) & 1) == ((b >> 3) & 1) and (a & 1) == ((b >> 1) & 1) and not mesure.vus.has("D%d-%d" % [a, b]):
 				sortie.append(["D", a, b])
 			if ((a >> 1) & 1) == ((b >> 3) & 1) and (a & 1) == ((b >> 2) & 1) and not mesure.vus.has("V%d-%d" % [a, b]):

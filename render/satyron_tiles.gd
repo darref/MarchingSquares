@@ -6,7 +6,7 @@
 # nous, ou chez Satyron.
 #
 # ⚠ ON LIT, ON NE COPIE PAS. Les images restent dans le projet Satyron, sur ce disque. Rien
-# n'est embarque dans SoluTiles : le pack de tuiles est achete, sa licence autorise
+# n'est embarque dans MarchingSquares : le pack de tuiles est achete, sa licence autorise
 # l'usage et interdit la redistribution. Sur une machine ou Satyron n'est pas la, la
 # technique se ferme d'elle-meme (charte, regle 5).
 #

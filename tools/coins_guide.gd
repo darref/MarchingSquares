@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## LE GUIDE DU MODÈLE PAR LES COINS — le paysage sur lequel l'artiste peindra (Jordan, 4 novembre 2026 : « le guide, le
-## modèle mathématique et l'outil de peinture, les trois doivent fonctionner en même temps »). Il doit porter les 35
-## archétypes ET les 261 jonctions (`core/coins/jonctions.gd`) : alors toute couture qu'un export pourra produire est déjà
+## modèle mathématique et l'outil de peinture, les trois doivent fonctionner en même temps »). Il doit porter les 33
+## archétypes ET les 227 jonctions (sans selle depuis le 4 novembre 2026 : aucune rencontre diagonale) (`core/coins/jonctions.gd`) : alors toute couture qu'un export pourra produire est déjà
 ## sous les yeux du peintre.
 ##
 ## Comment, sans chasse : (1) des paysages tirés au sort — plateaux et terrasses de toutes hauteurs, niches, piliers — et
@@ -55,7 +55,10 @@ func _initialize() -> void:
 		archetypes[Archetypes.numero(p[0], p[4], p[5])] = true
 	print("guide %d × %d : jonctions %d / %d ; archétypes %d / %d" % [guide.colonnes, guide.rangees, fin.size(), ens.size(),
 			archetypes.size(), Archetypes.liste().size()])
-	if not trous.is_empty() or archetypes.size() != Archetypes.liste().size():
+	var selle := not Modele.sans_selle(guide.h, PackedInt32Array(), guide.colonnes, guide.rangees)
+	if selle:
+		printerr("⚠ LE GUIDE PORTE UNE SELLE")
+	if selle or not trous.is_empty() or archetypes.size() != Archetypes.liste().size():
 		printerr("⚠ GUIDE INCOMPLET — rien n'est écrit : %s" % str(trous.slice(0, 8)))
 		quit(1)
 		return
@@ -87,6 +90,12 @@ func _paysage(rng: RandomNumberGenerator) -> Dictionary:
 		var i := rng.randi_range(2, RANGEES - 2) * larg + rng.randi_range(2, COLONNES - 2)
 		h[i] = maxi(0, h[i] + (rng.randi_range(1, 3) if rng.randf() < 0.5 else -rng.randi_range(1, 2)))
 	_bordure(h, larg, RANGEES)
+	# Combler peut monter un coin du bord, la bordure le rabaisse : on recommence jusqu'à ce que les deux tiennent.
+	for tour in 10:
+		Modele.combler_selles(h, PackedInt32Array(), COLONNES, RANGEES)
+		_bordure(h, larg, RANGEES)
+		if Modele.sans_selle(h, PackedInt32Array(), COLONNES, RANGEES):
+			break
 	return {"h": h, "colonnes": COLONNES, "rangees": RANGEES}
 
 
@@ -118,7 +127,7 @@ func _incruster(m: Dictionary, ens: Dictionary, vues: Dictionary, rng: RandomNum
 						avant.append(h[(y0 + j) * larg + x0 + x])
 						h[(y0 + j) * larg + x0 + x] = ph[j * (pc + 1) + x] + decale
 				var apres := Jonctions.du_monde(h, COLONNES, RANGEES)
-				if apres.size() > vues.size():
+				if apres.size() > vues.size() and Modele.sans_selle(h, PackedInt32Array(), COLONNES, RANGEES):
 					vues = apres
 					break
 				var i := 0

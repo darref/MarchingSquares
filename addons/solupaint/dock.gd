@@ -51,7 +51,7 @@ func _build() -> void:
 	add_child(sheet)
 	_tileset = OptionButton.new()
 	_tileset.clip_text = true
-	_tileset.tooltip_text = "The SoluTiles tilesets found in this project."
+	_tileset.tooltip_text = "The MarchingSquares tilesets found in this project."
 	_tileset.item_selected.connect(_on_tileset_selected)
 	add_child(_tileset)
 

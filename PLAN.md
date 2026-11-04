@@ -4419,7 +4419,7 @@ Quatre propriétés, et elles valent pour tous :
    | **grottes** | façade | assez de roche autour — ⚠ **un REFUS, pas un calcul** |
    | **cascades + rivières** | les deux | ⚠ elles **traversent** : la rivière **perce** la bordure du bassin |
 
-4. **TOUT EST PENSÉ POUR ÊTRE DESSINÉ DE N'IMPORTE QUELLE MANIÈRE**, comme le reste de SoluTiles
+4. **TOUT EST PENSÉ POUR ÊTRE DESSINÉ DE N'IMPORTE QUELLE MANIÈRE**, comme le reste de MarchingSquares
    (décision utilisateur du 06/09). ⚠ **Et le carnet dit déjà comment on paie ça : en RÉSERVANT.**
    *« C'est le “strictement réservé” qui rend le geste possible, pas un détail de rangement : si
    l'anneau partageait ses tuiles avec les corps ordinaires, un plafond peint là apparaîtrait sur

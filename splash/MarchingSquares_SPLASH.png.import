@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bejs8me8563my"
-path="res://.godot/imported/SoluTiles_SPLASH.png-33375ab184acf1be1b0a57f8962bd767.ctex"
+uid="uid://bhkdtimqt4ori"
+path="res://.godot/imported/MarchingSquares_SPLASH.png-4fcd64a654ca905f9cec01c0b8cdc52a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://splash/SoluTiles_SPLASH.png"
-dest_files=["res://.godot/imported/SoluTiles_SPLASH.png-33375ab184acf1be1b0a57f8962bd767.ctex"]
+source_file="res://splash/MarchingSquares_SPLASH.png"
+dest_files=["res://.godot/imported/MarchingSquares_SPLASH.png-4fcd64a654ca905f9cec01c0b8cdc52a.ctex"]
 
 [params]
 

@@ -52,7 +52,7 @@ var last_error: String = ""
 ## qu'il se lit, et enverrait l'acheteur resoudre le mauvais probleme.
 var last_warning: String = ""
 
-## D'ou vient ce tileset, en clair : « signe SoluTiles », « non signe », ou « sceau invalide ».
+## D'ou vient ce tileset, en clair : « signe MarchingSquares », « non signe », ou « sceau invalide ».
 ##
 ## ⚠ TROISIEME VARIABLE, ET C'EST DELIBERE. `last_error` dit ce qui empeche de LIRE, `last_warning`
 ## ce qui s'est mal passe a la POSE, et celle-ci d'ou vient la planche. Trois questions

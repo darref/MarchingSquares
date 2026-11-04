@@ -94,6 +94,9 @@ static func ensemble() -> Dictionary:
 			for i in n:
 				h[i] = r % 4
 				r /= 4
+			# ⚠ Un voisinage en selle n'existe plus (Jordan, 4 novembre 2026) : 261 → 227 jonctions.
+			if not Modele.sans_selle(h, PackedInt32Array(), colonnes, rangees):
+				continue
 			for k: String in du_monde(h, colonnes, rangees):
 				if not _ensemble.has(k):
 					_ensemble[k] = [colonnes, rangees, h]

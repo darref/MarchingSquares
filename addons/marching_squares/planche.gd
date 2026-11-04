@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 
-## LA PLANCHE LIVRÉE, LUE — le PNG et le manifeste qu'exporte Marching Squares (`core/coins/travail.gd`, v2) :
+## LA PLANCHE LIVRÉE, LUE — le PNG et le manifeste qu'exporte MarchingSquares (`core/coins/travail.gd`, v2) :
 ## la taille d'une tuile, la TABLE (clé de pose « sorte:c:cv » → archétype) et, pour chaque (archétype, matière), ses
 ## images (la base puis les variantes), leur place dans la planche et leurs poids. Rien d'autre à savoir : les poses se
 ## calculent par `modele.gd`, la variante se tire par `Modele.tirage`.
@@ -24,10 +24,10 @@ func lire(chemin: String) -> bool:
 		return false
 	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
 	if not (d is Dictionary) or d.get("format") != FORMAT:
-		erreur = "%s is not a Marching Squares tileset" % chemin
+		erreur = "%s is not a MarchingSquares tileset" % chemin
 		return false
 	if int(d.get("version", 0)) > 2:
-		erreur = "This tileset was exported by a newer Marching Squares (manifest v%d)" % int(d.version)
+		erreur = "This tileset was exported by a newer MarchingSquares (manifest v%d)" % int(d.version)
 		return false
 	tuile = int(d.tuile)
 	table.clear()

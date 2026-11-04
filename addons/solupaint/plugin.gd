@@ -179,7 +179,7 @@ func _blocking() -> Array:
 		if Manifest.discover().is_empty():
 			return ["No tileset in this project",
 					"The brush places tiles: it needs some.\n\n"
-					+ "In SoluTiles, click \u00ab Install the Godot plugin \u00bb and point at THIS "
+					+ "In MarchingSquares, click \u00ab Install the Godot plugin \u00bb and point at THIS "
 					+ "project. A tileset ships with the plugin -- yours if it is complete, "
 					+ "the trial otherwise."]
 		return ["No tileset chosen",
@@ -188,7 +188,7 @@ func _blocking() -> Array:
 	if not String(world.last_error).is_empty():
 		return ["This tileset cannot be read",
 				"%s\n\nPick another one from the list, or export it again from "
-				% String(world.last_error) + "SoluTiles."]
+				% String(world.last_error) + "MarchingSquares."]
 	return []
 
 
@@ -369,7 +369,7 @@ func _select(node: Node) -> void:
 ##
 ## ⚠ TOUT DOIT SE PASSER DANS LE PRODUIT. Demander a l'acheteur de pointer un fichier,
 ## c'est lui demander de savoir ce qu'il cherche, ou il est, et que ce soit lui : trois
-## occasions d'abandonner avant d'avoir rien vu. Un tileset SoluTiles se reconnait a son
+## occasions d'abandonner avant d'avoir rien vu. Un tileset MarchingSquares se reconnait a son
 ## nom, donc on le trouve.
 ##
 ## ⚠ ET ON NE CHOISIT A SA PLACE QUE QUAND IL N'Y A PAS DE CHOIX. Un seul tileset dans le

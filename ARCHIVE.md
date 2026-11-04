@@ -1459,7 +1459,7 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   `manifest_path` à la main. C'est demander à l'acheteur de savoir **ce qu'il cherche, où il
   est, et que ce soit lui** — trois occasions d'abandonner avant d'avoir rien vu.
 
-  Un tileset SoluTiles se reconnaît à son nom : le panneau **fouille le projet** et
+  Un tileset MarchingSquares se reconnaît à son nom : le panneau **fouille le projet** et
   propose ce qu'il trouve. ⚠ **Et il ne choisit à la place de personne que quand il n'y a
   pas de choix** : un seul tileset, le doute n'existe pas, on le pose ; plusieurs, on montre
   celui du monde et l'acheteur tranche.
@@ -2187,13 +2187,13 @@ Chaque entrée note le choix et sa raison, pour ne pas le rejouer plus tard.
   **244 px** pour que « Gomme » tienne dans sa colonne.
 
 
-- **LE NOM : SoluTiles et SoluPaint.** « AbsoluTiles / AbsoluPaint » sonnaient arrogants ;
+- **LE NOM : MarchingSquares et SoluPaint.** « MarchingSquares / AbsoluPaint » sonnaient arrogants ;
   renommage global appliqué le 23/08/2026 — 148 occurrences, `addons/solupaint/`,
   extension `.solutiles`, onglet de dock, clé `solutiles/satyron_path`, banc trial
   régénéré, suite verte (482 vérifications). Collision vérifiée au web avant de renommer :
   les deux noms sont libres. ⚠ **Les deux MAGIC de format ont changé avec la marque**
   (`solutiles`, `solutiles-tileset`) : rupture ASSUMÉE, décidée et non subie — rien n'est
-  vendu, et la 6.0.0 avait déjà périmé les manifestes antérieurs. Un `.absolutiles`
+  vendu, et la 6.0.0 avait déjà périmé les manifestes antérieurs. Un ancien fichier de travail
   d'avant le renommage serait refusé ; s'il en existe un jour, une ligne de compat en
   lecture suffit. Le dossier racine du dépôt, lui, garde son nom sur le disque tant que
   des sessions y travaillent — à renommer à un moment calme, hors session.
@@ -3156,7 +3156,7 @@ révélé le redan que le premier compte manquait), le guide et les planches de 
 sont épais, le pinceau de SoluPaint pose des tampons 3×3 et refuse les cases fines,
 manifeste v6 (v5 refusée) : majeure, tout l'existant est périmé.
 
-À **7.0.0** : le logiciel devient **SoluTiles** et le plugin **SoluPaint** — les deux
+À **7.0.0** : le logiciel devient **MarchingSquares** et le plugin **SoluPaint** — les deux
 MAGIC de format suivent la marque (`solutiles`, `solutiles-tileset`), ce qui périme
 sauvegardes et exports antérieurs : majeure. Autour : la matière derrière chaque
 transparence — toutes les vues empilent (remontage, aperçu en jeu, voisines, et la zone
@@ -3186,7 +3186,7 @@ Quand la monter, et je le proposerai le moment venu :
 ## Références
 
 - **Satyron** (`D:\Satyron`) — le jeu où ce modèle a été établi empiriquement puis éprouvé
-  sur une vraie carte. SoluTiles en fait un outil universaliste. À lire quand un doute
+  sur une vraie carte. MarchingSquares en fait un outil universaliste. À lire quand un doute
   survient sur le comportement d'une falaise :
   - `WORLD/cliffs.gd` — `assemble_walls`, `_fall_at`, `_trim`, `_column_at` ;
   - `WORLD/tiles/cliff_kit.gd` — le bloc 3 pans × 4 rangées et `atlas_row` ;

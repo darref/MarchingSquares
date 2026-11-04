@@ -129,7 +129,7 @@ func _construire_ui() -> void:
 	rangee.add_theme_constant_override("separation", 8)
 	barre.add_child(rangee)
 	var titre := Label.new()
-	titre.text = "Marching Squares"
+	titre.text = "MarchingSquares"
 	titre.add_theme_font_size_override("font_size", 18)
 	rangee.add_child(titre)
 	rangee.add_child(VSeparator.new())
@@ -497,8 +497,11 @@ func sculpter(p: Vector2i, sens: int) -> void:
 	var i := _coin(p)
 	if i < 0:
 		return
-	var hh: PackedInt32Array = _relief.h
+	var hh: PackedInt32Array = _relief.h.duplicate()
 	hh[i] = clampi(hh[i] + sens, 0, 12)
+	if Modele.cree_une_selle(hh, _relief.mat, _relief.colonnes, _relief.rangees, i).x >= 0:
+		_dire("Refused: two plateaus would meet only at a corner", true)
+		return
 	_relief.h = hh
 	_reposer()
 
@@ -508,8 +511,11 @@ func poser_matiere(p: Vector2i, m: int) -> void:
 	var i := _coin(p)
 	if i < 0:
 		return
-	var mm: PackedInt32Array = _relief.mat
+	var mm: PackedInt32Array = _relief.mat.duplicate()
 	mm[i] = m
+	if Modele.cree_une_selle(_relief.h, mm, _relief.colonnes, _relief.rangees, i).x >= 0:
+		_dire("Refused: two patches of material would meet only at a corner", true)
+		return
 	_relief.mat = mm
 	_reposer()
 
@@ -625,7 +631,7 @@ func _relire() -> void:
 		return
 	var d := Travail.relire(TRAVAIL)
 	if d.is_empty():
-		_dire("This file is not a Marching Squares work", true)
+		_dire("This file is not a MarchingSquares work", true)
 		return
 	peinture = d.peinture
 	meta = d.meta

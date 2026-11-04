@@ -41,7 +41,7 @@ func _derouler() -> void:
 	for n in Archetypes.liste().size():
 		if r.poses_de(n) > 0:
 			poses += 1
-	check(poses == 35, "le guide pose les 35 archétypes (%d)" % poses)
+	check(poses == 33, "le guide pose les 33 archétypes (%d)" % poses)
 
 	# Peindre un pixel : il apparaît partout où l'image se voit, au même pixel local.
 	var cle := _la_plus_vue(r)
@@ -135,14 +135,14 @@ func _derouler() -> void:
 	for k: Vector2i in a.rendu.images_vues():
 		if k.y / 10 == 1:
 			formes[k.x] = true
-	check(formes.size() == 15, "M : le guide de la matière 1 montre ses 15 formes (%d)" % formes.size())
+	check(formes.size() == 13, "M : le guide de la matière 1 montre ses 13 formes (%d)" % formes.size())
 	a.choisir_matiere(0)
 
 	# L'export.
 	var sortie := Travail.exporter(a.peinture, a.meta, ProjectSettings.globalize_path("user://sonde_export"))
 	var manifeste: Variant = JSON.parse_string(FileAccess.get_file_as_string(sortie[1]))
 	var table: Dictionary = manifeste.table if manifeste is Dictionary else {}
-	check(table.size() == 79, "le manifeste : la table des 79 clés (%d)" % table.size())
+	check(table.size() == 57, "le manifeste : la table des 57 clés (%d)" % table.size())
 
 	# Le mode relief.
 	a._basculer()
@@ -245,8 +245,19 @@ func _derouler() -> void:
 	check(tires > 0, "la variante est tirée dans le relief (%d pixels)" % tires)
 	var avant_s: int = monde.heights[6 * larg + 10]
 	var t := float(monde.planche.tuile)
-	var rs: Array = monde.sculpter(Vector2(10 * t, (6 - avant_s) * t), 1)
-	check(rs.size() == 3 and int(monde.heights[6 * larg + 10]) == avant_s + 1, "le pinceau du greffon monte le même coin")
+	var rs: bool = monde.sculpter(Vector2(10 * t, (6 - avant_s) * t), 1)
+	check(rs and int(monde.heights[6 * larg + 10]) == avant_s + 1, "le pinceau du greffon monte le même coin")
+	# Le greffon refuse aussi la rencontre diagonale : 400 gestes au hasard, jamais de selle.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var refuses := 0
+	for k in 400:
+		var q := Vector2(rng.randf_range(0, monde.columns * t), rng.randf_range(-4 * t, monde.rows * t))
+		var ok: bool = monde.sculpter(q, 1 if rng.randf() < 0.6 else -1) if rng.randf() < 0.75 else monde.poser_matiere(q, rng.randi_range(0, 2))
+		if not ok and monde.dernier_refus != "":
+			refuses += 1
+	check(Modele.sans_selle(monde.heights, monde.materials, monde.columns, monde.rows) and refuses > 0,
+			"le greffon : 400 gestes, jamais de rencontre diagonale (%d refusés)" % refuses)
 
 	print("%d/%d" % [_ok, _ok + _faux])
 	quit(1 if _faux else 0)
