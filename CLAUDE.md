@@ -27,6 +27,42 @@ licence), `MarchingSquares-Godot-1.0.0.zip` (le greffon ; ÉPROUVÉ seul dans un
 `ATELIER/MarchingSquares/builds/1.0.0/`. ⚠ `gh release create` est bloqué en mode automatique (« page publique ») :
 Jordan l'a demandé en clair, la commande exacte, puis elle est passée.
 
+### CE QUI DÉPASSE D'UNE TUILE, ET LA LIBERTÉ DES BORDURES (Jordan, 4 novembre 2026)
+
+- **LE CONSTAT DE JORDAN** : en peignant le guide, « des morceaux qui dépassaient au-delà des falaises et des plateaux
+  avaient des erreurs : peints en plateau, ça faisait des morceaux de plateau dans les falaises ailleurs ; peints en
+  falaise, des morceaux de falaise dans les plateaux ailleurs ». **L'ordre de dessin est juste** (prouvé) : au-delà de la
+  forme d'une tuile, c'est une AUTRE tuile qui se voit (la falaise devant, le dessus plein derrière — qui sert aussi au
+  sommet des plateaux), partagée dans d'autres contextes ; le crayon la peignait. **Une tuile est TRANSPARENTE hors de sa
+  forme, et le reste se voit par l'ordre de dessin : l'artiste ne remplit jamais ce qui dépasse.** Ce qui dépend du voisin
+  se peint dans la tuile qui CONNAÎT ce voisin : la lèvre (le plateau au-dessus), le pied (le sol au-dessous), le bord du
+  dessus (dans sa forme).
+- **CORRIGÉ LE JOUR MÊME — DÉCIDÉ (Jordan : « il faudrait tout de suite faire en sorte qu'il laisse de la
+  transparence »)** : « Keep inside the tile » COCHÉ D'OFFICE (un trait ne quitte pas la tuile où il commence ; ce qui
+  dépasse n'est pas peint, et le bandeau le dit) ; la tuile survolée montre sa forme dans la vue (le reste assombri, son
+  bord souligné) ; le mode d'emploi l'explique. Sonde 27/27, vue rougir sans le verrou.
+- **LA LIBERTÉ DES BORDURES — ce que Jordan attend du produit** (« le but du logiciel est de pouvoir faire varier les
+  bordures à l'intérieur des tuiles, c'est ça la liberté »). ⚠ Le modèle par les coins l'a ÉCHANGÉE contre un vocabulaire
+  fermé et prouvé : la bordure suit une forme CALCULÉE (le quart de disque) ; l'artiste décore dans la forme mais ne
+  déplace pas la bordure — l'ancien modèle des massifs avait sa « liberté » (le contour placé par l'artiste quand le massif
+  est entouré de ce qui le porte, voir plus bas).
+  - **PROPOSÉ PAR JORDAN** : des bordures FIXES aux points roses (les points de jonction au bord des tuiles) mais LIBRES
+    entre eux — ondulées, régulières ou « complètement archaïques ».
+  - **CE QUE CLAUDE EN PENSE — PROPOSÉ (Claude)** : faisable, et c'est la bonne forme de la liberté. L'artiste DESSINE la
+    silhouette de chacun des 13 dessus (une courbe par tuile qui passe par ses points roses) au lieu du quart de disque ;
+    tout le reste en DÉRIVE comme aujourd'hui (les falaises suivent la bordure colonne par colonne, la lèvre et le pied se
+    lisent sur les silhouettes voisines), donc ce qui dépasse s'adapte de lui-même par l'ordre de dessin. Deux règles
+    tiennent : le passage aux points roses (le raccord) et UNE colonne d'un seul tenant (la falaise est le plateau tiré vers
+    le bas : pas de surplomb). La preuve se REFAIT sur les silhouettes de l'artiste (le banc, le même lancer de rayons, les
+    mêmes jonctions) et l'éditeur dit pass / fail. Le vocabulaire reste à 33 tuiles TANT qu'une silhouette par
+    configuration suffit ; l'irrégulier « archaïque » (une bordure différente d'une case à l'autre) demande des JEUX de
+    silhouettes tirés par case (la falaise couplée à son plateau), chacun avec ses 33 tuiles à peindre.
+  - **DÉCIDÉ (Jordan, 4 novembre 2026)** : « si ça demande beaucoup plus de tuiles archétypales, il faudrait en faire un
+    MODE, comme ça c'est présenté honnêtement : le mode avec bordure baladeuse comprend beaucoup plus de tuiles à peindre ».
+  - **LE TRAILER MONTRERA LES DEUX — DÉCIDÉ (Jordan, 4 novembre 2026 : « faire le trailer avec deux créations, celle que tu
+    es en train de faire, qui est assez droite, et une autre beaucoup plus tordue et hasardeuse pour montrer cette
+    liberté »)**. ⚠ La seconde attend que l'éditeur ait les bordures libres (on ne montre pas ce que le produit ne fait pas).
+
 ### PAS DE RENCONTRE DIAGONALE — DÉCIDÉ (Jordan, 4 novembre 2026 : « refuser le clic », comme dans MarchingBlocks)
 
 Une SELLE est une tuile dont deux coins opposés sont dedans et les deux autres dehors (configurations 6 et 9), à une
