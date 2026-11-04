@@ -68,7 +68,8 @@ rentrant, VIDE ; la selle reste deux coins séparés), `addons/marching_squares/
   studio). Ordonnées (une plus haute se pose sur une plus basse), posées juste après leur dessus ; contenues dans le
   dessus (la forme est monotone en c), donc jamais sur la falaise. Quinze images par matière (4 au plus).
   MESURÉ : le banc compare aussi la matière vue au pixel près — 40 reliefs à trois matières, **1 274 368 pixels, 0
-  écart** ; ⚠ vu rougir : une matière qui ignore la hauteur donne 15 832 pixels faux sur 8 mondes.
+  écart**, puis la batterie complète, **200 reliefs, 6 523 200 pixels, 0 écart** (79 clés, 261 jonctions, rien hors
+  du recensement) ; ⚠ vu rougir : une matière qui ignore la hauteur donne 15 832 pixels faux sur 8 mondes.
   **LE GUIDE DES MATIÈRES** (`tools/coins_guide_matieres.gd` → `guides/coins_matieres.txt`) : un champ posé sur le
   paysage du guide, le meilleur de 400 puis les raccords manquants incrustés là où le relief est plat — **15 formes sur
   15, 114 raccords sur 114** ; il refuse d'écrire un guide incomplet. M dans l'atelier.
