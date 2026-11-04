@@ -20,6 +20,12 @@ La branche `modele-coins` est fusionnée dans `main` (avance rapide : `main` en 
 de travail. La version repart à **1.0.0** (`project.godot`, et `file_version` / `product_version` de l'exe) : le 12.0.0
 était l'héritage de l'ancien modèle des massifs. ⚠ Jamais de version montée par l'alignement (charte du studio) : c'est
 Jordan qui la change.
+**PUBLIÉE (4 novembre 2026, Jordan : « oui, fais-le »)** : la version GitHub `v1.0.0`
+(`github.com/darref/MarchingSquares/releases/tag/v1.0.0`) — `MarchingSquares-1.0.0-windows.zip` (l'exe, un README, la
+licence), `MarchingSquares-Godot-1.0.0.zip` (le greffon ; ÉPROUVÉ seul dans un projet Godot vierge avec l'essai),
+`MarchingSquares-1.0.0-trial-tileset.zip` (`tools/coins_essai.gd`) ; les fichiers et le texte dans
+`ATELIER/MarchingSquares/builds/1.0.0/`. ⚠ `gh release create` est bloqué en mode automatique (« page publique ») :
+Jordan l'a demandé en clair, la commande exacte, puis elle est passée.
 
 ### PAS DE RENCONTRE DIAGONALE — DÉCIDÉ (Jordan, 4 novembre 2026 : « refuser le clic », comme dans MarchingBlocks)
 
