@@ -12,6 +12,26 @@ par demi-tuile), placées automatiquement par table précalculée, l'occlusion p
 transitions comme MarchingBlocks ; le guide, le modèle et l'outil de peinture conçus ENSEMBLE, d'une seule source.
 Le détail s'écrit avec le banc de preuve ; ce qui suit décrit l'ancien modèle.
 
+### LE MODÈLE PAR LES COINS — MESURÉ (4 novembre 2026, branche `modele-coins`)
+
+`core/coins/forme.gd` (la forme d'une tuile, quart par quart : PLEIN, DISQUE = coin saillant arrondi, CREUX = coin
+rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (des hauteurs aux poses, dans l'ordre),
+`proof/coins_banc.gd` (la preuve). Ce que le banc a établi :
+- **UNE UNITÉ DE FALAISE TIENT SUR DEUX CASES.** Le bord passe à mi-tuile, donc une falaise d'une unité commence au milieu
+  de sa case : un **HAUT** (sous le bord, dans la case du dessus) et un **BAS** (la case du dessous). Ce n'était pas dans
+  la stratégie annoncée ; le calcul l'a imposé.
+- **LES RÔLES NE SE LISENT PAS SUR LES COINS** — ils se lisent sur la forme de la couche VOISINE dans la même tuile : LÈVRE
+  là où la couche du dessus n'a pas le même bord, PIED là où la couche du dessous va au-delà. Clés : DESSUS `c`, HAUT
+  `(c, c_dessus)`, BAS `(c, c_dessous)`. ⚠ Vu rougir : les rôles par les seuls coins donnent 14 591 pixels faux sur 8 mondes.
+- **L'ORDRE EST TOUTE L'OCCLUSION** : couche après couche du bas vers le haut, rangée après rangée du nord au sud, dans une
+  rangée les dessus et les hauts puis les bas. ⚠ Vu rougir : les bas posés avant tout donnent 26 653 pixels faux.
+- **LA PREUVE** : l'assemblage des archétypes comparé, PIXEL PAR PIXEL, à un lancer de rayons exact sur le vrai relief 3D
+  (plateaux empilés de toutes hauteurs, et du bruit pur) — **0 écart sur 619 008 pixels (20 mondes), puis 922 752 (3 mondes
+  à 24 px la case)**.
+- **LE VOCABULAIRE EST FERMÉ ET COMPTÉ** : 79 clés possibles, **35 archétypes distincts** (15 dessus, 10 hauts, 10 bas) ;
+  toute clé posée par un monde est au recensement. Plus de battue, plus de témoin à chasser.
+- Images (le tileset de TEST, des aplats calculés) : `D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/` (`grand/`).
+
 ## Contexte
 
 Outil desktop de génération de tilesets autotile, écrit en Godot 4 / GDScript.
