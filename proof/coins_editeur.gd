@@ -67,10 +67,11 @@ func _derouler() -> void:
 	# La brosse de taille 3 et « rester dans la tuile ».
 	e._choisir_outil(1)
 	z.brush_size = 3
-	z.lock_to_tile = true
+	check(z.lock_to_tile and (e.get_node("%LockCheck") as CheckBox).button_pressed, "« Keep inside the tile » est coché d'office")
 	var avant: int = e._peinture.painted_cells().size()
 	z.passe(p0, p0 + Vector2i(40, 0))
-	check(e._peinture.painted_cells().size() == avant, "« Keep inside the tile » : la brosse ne déborde pas sur la voisine")
+	check(e._peinture.painted_cells().size() == avant, "un trait qui sort de sa tuile ne peint pas la voisine")
+	check((e.get_node("%Ticker") as Label).text.begins_with("Outside this tile"), "et le bandeau le dit")
 	z.lock_to_tile = false
 
 	# Les variantes, sur la tuile survolée.

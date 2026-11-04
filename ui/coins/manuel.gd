@@ -11,6 +11,12 @@ can meet ([b]261[/b] junctions). Paint on it. The pencil only reaches the tile y
 shape: the hatched part of the tile panel is not yours to paint.
 Every pixel you place shows at once wherever that tile appears. All the seams are in front of you while you paint.
 
+[b]Outside a tile's shape, leave it to the others.[/b] A tile is transparent beyond its shape: there, the drawing
+order shows what lies behind it (a lower plateau, a cliff, the plain). If you go on painting past the edge, you are
+painting ANOTHER tile, the one you see there, and it is shared elsewhere: your colour would show up in places where it
+does not belong. So a stroke stays in the tile where it started ([i]Keep inside the tile[/i], ticked by default); the
+hovered tile shows its shape, the rest is darkened. Draw the plateau's rim inside the top, the overhang in the cliff's
+lip, the rubble in the cliff's foot.
 [b]Left click[/b] paints, [b]right click[/b] erases. [b]Ctrl+Z[/b] undoes a whole stroke.
 Tools: [b]P[/b] pencil, [b]B[/b] brush, [b]A[/b] airbrush, [b]G[/b] fill (it stays inside the shape), [b]L[/b] line,
 [b]R[/b] rectangle, [b]I[/b] picker, [b]E[/b] eraser. [b][[/b] and [b]][/b] change the size.

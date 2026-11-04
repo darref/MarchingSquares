@@ -51,6 +51,7 @@ const PROMISES: Array[String] = [
 	"The pencil only reaches the tile you see, and only inside its shape.",
 	"Painting one tile paints it everywhere it appears.",
 	"Pink points: where a band meets the tile edge. Carry the drawing on there.",
+	"Outside a tile's shape is not yours: it stays transparent and shows what lies behind.",
 	"V makes a variant from the tile you hover. C switches it, X removes it.",
 	"Test: sculpt your own world with S, paint it with any tool. The change is everywhere.",
 	"Materials share the 15 top shapes: rounded, never in steps.",
@@ -120,6 +121,9 @@ func _ready() -> void:
 		if b != null:
 			b.pressed.connect(_on_swatch_pressed.bind(b))
 	(%LockCheck as CheckBox).toggled.connect(func(on: bool) -> void: _zone().lock_to_tile = on)
+	# Coché d'office : peindre au-delà de la forme, c'est peindre une autre tuile (voir `zone.gd`, `lock_to_tile`).
+	(%LockCheck as CheckBox).button_pressed = true
+	(%LockCheck as CheckBox).tooltip_text = "A stroke stays in the tile where it started. Beyond a tile's shape lies ANOTHER tile, shared elsewhere in other places: painting it there would put your colour where it does not belong. Untick only if you know which tiles you are painting."
 	for child: Node in %ToolGrid.get_children():
 		var tb := child as Button
 		if tb != null and tb.has_meta("tool"):

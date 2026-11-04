@@ -39,7 +39,11 @@ const HALO := Color(1.0, 0.85, 0.3, 0.2)
 var pencil: Color = Color(0.36, 0.55, 0.27)
 var tool: Tool = Tool.PENCIL
 var brush_size: int = 1
-var lock_to_tile: bool = false
+## ⚠ VRAI PAR DÉFAUT (Jordan, 4 novembre 2026) : au-delà de la forme d'une tuile, c'est une AUTRE tuile qui se voit (la
+## falaise devant, le dessus de la plaine derrière), partagée ailleurs dans d'autres contextes. Un trait qui continuait
+## au-delà du bord la peignait, et l'erreur réapparaissait à l'autre bout du guide (« des morceaux de plateau dans les
+## falaises ailleurs »). Le trait reste dans la tuile où il commence ; ce qui dépasse n'est pas peint, et c'est dit.
+var lock_to_tile: bool = true
 var reserved_left: float = 0.0
 var reserved_right: float = 0.0
 ## Ce qu'on regarde : la grille et les points de jonction ; le guide sous les tuiles non peintes ; le travail.
@@ -78,6 +82,10 @@ var _touched := {}
 var _discs := {}
 ## Le coin dont le geste vient d'être refusé (rond rouge jusqu'au prochain mouvement), ou -1.
 var _refus_coin := -1
+## Le trait en cours est-il déjà sorti de sa tuile (on ne le dit qu'une fois par trait) ?
+var _sorti := false
+const HORS_FORME := Color(0.02, 0.03, 0.06, 0.55)
+const BORD_FORME := Color(1.0, 0.85, 0.3, 0.95)
 
 
 func _ready() -> void:
@@ -216,6 +224,7 @@ func _draw() -> void:
 	if _refus_coin >= 0 and mode_relief:
 		draw_arc(_ecran_du_coin(_refus_coin), maxf(8.0, _tile_px * 0.35), 0.0, TAU, 32, HOVER_REFUSED, 3.0)
 	if _hover_pixel != NOWHERE and tool != Tool.SCULPT:
+		_draw_forme(px)
 		var s := rendu.sous(_hover_pixel.x, _hover_pixel.y)
 		var res := peinture.resolution
 		var cellule := Vector2(floori(float(_hover_pixel.x) / res), floori(float(_hover_pixel.y) / res)) * res
@@ -223,6 +232,31 @@ func _draw() -> void:
 		var d := maxi(1, brush_size if tool != Tool.PENCIL else 1)
 		draw_rect(Rect2(_origin + Vector2(_hover_pixel - Vector2i(d / 2, d / 2)) * px, Vector2(d, d) * px),
 				HOVER_OK if not s.is_empty() else HOVER_REFUSED, false, 1.0)
+
+
+## LA FORME DE LA TUILE VISÉE, DANS LA VUE : ce qui n'est pas à elle est assombri (c'est une autre tuile, ou le vide), son
+## bord est souligné. Pendant un trait, c'est la tuile où il a commencé.
+func _draw_forme(px: float) -> void:
+	var ip := _stroke_pose if (_stroke != 0 and lock_to_tile and _stroke_pose >= 0) else -1
+	if ip < 0:
+		var s := rendu.sous(_hover_pixel.x, _hover_pixel.y)
+		if s.is_empty():
+			return
+		ip = s[3]
+	var p: Array = rendu.poses[ip]
+	var res := peinture.resolution
+	var masque := Rendu.masque_de(rendu.image_de_pose[ip].x, res)
+	var o := _origin + Vector2(int(p[2]) * res, (int(p[3]) + rendu.hmax) * res) * px
+	if px < 2.0:
+		return
+	for y in res:
+		for x in res:
+			var r := Rect2(o + Vector2(x, y) * px, Vector2(px, px))
+			if masque[y * res + x] == 0:
+				draw_rect(r, HORS_FORME)
+			elif x == 0 or y == 0 or x == res - 1 or y == res - 1 or masque[y * res + x - 1] == 0 \
+					or masque[y * res + x + 1] == 0 or masque[(y - 1) * res + x] == 0 or masque[(y + 1) * res + x] == 0:
+				draw_rect(r, BORD_FORME, false, maxf(1.0, px / 8.0))
 
 
 func _draw_grid(px: float, taille: Vector2) -> void:
@@ -415,6 +449,7 @@ func _begin_or_end(pressed: bool, sens: int, position: Vector2) -> void:
 			return
 		_stroke = sens
 		_stroke_pose = -1
+		_sorti = false
 		peinture.begin_stroke()
 		_last_paint = position
 		_anchor = _pixel_at(position)
@@ -442,6 +477,7 @@ func _begin_or_end(pressed: bool, sens: int, position: Vector2) -> void:
 func passe(a: Vector2i, b: Vector2i, sens := 1) -> void:
 	_stroke = sens
 	_stroke_pose = -1
+	_sorti = false
 	peinture.begin_stroke()
 	if tool == Tool.BUCKET:
 		_pour(a)
@@ -484,6 +520,9 @@ func _plot(pixel: Vector2i) -> bool:
 		if _stroke_pose < 0:
 			_stroke_pose = s[3]
 		elif s[3] != _stroke_pose:
+			if not _sorti:
+				_sorti = true
+				refused.emit("Outside this tile's shape: that is another tile, which shows what lies behind it. Not painted.")
 			return false
 	var cle: Vector2i = s[0]
 	var efface := _stroke < 0 or tool == Tool.ERASER
