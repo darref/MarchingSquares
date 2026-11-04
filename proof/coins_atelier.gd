@@ -1,14 +1,18 @@
 extends SceneTree
 
-## L'ATELIER DU MODÈLE PAR LES COINS, ÉPROUVÉ — headless, par ses fonctions publiques (`agir`, `sculpter`) comme le ferait
-## la souris : le guide pose les 35 archétypes ; un pixel peint apparaît dans TOUTES les apparitions de son archétype ;
-## le fond refuse le crayon ; le pot reste dans la forme ; l'annulation rend l'image ; le travail se relit à l'identique ;
-## l'export porte la planche et la table des 79 clés ; le mode relief sculpte et rend avec les archétypes peints.
+## L'ATELIER ET LE GREFFON DU MODÈLE PAR LES COINS, ÉPROUVÉS — headless, par leurs fonctions publiques comme le ferait la
+## souris : le guide pose les 35 archétypes ; un pixel peint apparaît dans TOUTES les apparitions de son image ; le fond
+## refuse le crayon ; le pot reste dans la forme ; l'annulation rend l'image ; les VARIANTES naissent d'une copie, se
+## montrent là où on les a créées seulement, s'ôtent ; le guide d'une MATIÈRE montre ses quinze formes ; le travail se
+## relit à l'identique ; l'export porte la planche et la table ; le relief se sculpte et prend des matières ; et le
+## GREFFON, avec la planche exportée, pose EXACTEMENT ce que montre l'atelier, pixel pour pixel.
 ##   Godot_v4.7-stable_win64_console.exe --headless --path D:/MarchingSquares --script res://proof/coins_atelier.gd
 
 const Archetypes := preload("res://core/coins/archetypes.gd")
 const Rendu := preload("res://core/coins/rendu.gd")
 const Travail := preload("res://core/coins/travail.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
+const Monde := preload("res://addons/marching_squares/world.gd")
 
 var _ok := 0
 var _faux := 0
@@ -32,15 +36,16 @@ func _derouler() -> void:
 	root.add_child(a)
 	await process_frame
 	var r: Rendu = a.rendu
+	var res: int = a.peinture.resolution
 	var poses := 0
 	for n in Archetypes.liste().size():
 		if r.poses_de(n) > 0:
 			poses += 1
 	check(poses == 35, "le guide pose les 35 archétypes (%d)" % poses)
 
-	# Peindre un pixel : il apparaît partout où l'archétype se voit, au même pixel local.
-	var n := _le_plus_vu(r)
-	var app := r.apparitions(n)
+	# Peindre un pixel : il apparaît partout où l'image se voit, au même pixel local.
+	var cle := _la_plus_vue(r)
+	var app := r.apparitions(cle)
 	var w := r.largeur()
 	var i0 := app[0]
 	var cible := r.sous(i0 % w, i0 / w)
@@ -48,7 +53,7 @@ func _derouler() -> void:
 	a.peinture.begin_stroke()
 	a.agir(Vector2i(i0 % w, i0 / w))
 	a.peinture.end_stroke()
-	check(a.peinture.is_painted(Vector2i(n, 0)), "le crayon peint l'archétype %d" % n)
+	check(a.peinture.is_painted(cle), "le crayon peint l'image %s" % cle)
 	var partout := 0
 	var attendus := 0
 	for i: int in app:
@@ -60,31 +65,26 @@ func _derouler() -> void:
 	check(attendus >= 2 and partout == attendus, "le pixel peint se voit dans les %d apparitions (%d)" % [attendus, partout])
 
 	# Le fond refuse.
-	var fond := -1
-	for i in r.archetype_de.size():
-		if r.archetype_de[i] < 0:
-			fond = i
-			break
-	var avant: int = a.peinture.pixel_count(Vector2i(n, 0))
+	var fond := r.pose_de.find(-1)
+	var avant: int = a.peinture.pixel_count(cle)
 	a.agir(Vector2i(fond % w, fond / w))
-	check(fond >= 0 and a.peinture.pixel_count(Vector2i(n, 0)) == avant, "le fond refuse le crayon")
+	check(fond >= 0 and a.peinture.pixel_count(cle) == avant, "le fond refuse le crayon")
 
 	# L'annulation.
-	a._rafraichir(a._numeros(a.peinture.undo()))
-	check(not a.peinture.is_painted(Vector2i(n, 0)) and not r.image.get_pixel(i0 % w, i0 / w).is_equal_approx(a.couleur),
+	a._rafraichir(a.peinture.undo())
+	check(not a.peinture.is_painted(cle) and not r.image.get_pixel(i0 % w, i0 / w).is_equal_approx(a.couleur),
 			"Ctrl+Z rend l'image du guide")
 
 	# Le pot reste dans la forme.
 	a.outil = a.Outil.POT
 	a._dernier = Vector2i(-99999, -99999)
 	a.agir(Vector2i(i0 % w, i0 / w))
-	var masque := Rendu.masque_de(n, a.peinture.resolution)
+	var masque := Rendu.masque_de(cle.x, res)
 	var dans := 0
 	var hors := 0
-	var res: int = a.peinture.resolution
 	for y in res:
 		for x in res:
-			if a.peinture.pixel_at(Vector2i(n, 0), x, y).a > 0.0:
+			if a.peinture.pixel_at(cle, x, y).a > 0.0:
 				if masque[y * res + x] != 0:
 					dans += 1
 				else:
@@ -95,47 +95,149 @@ func _derouler() -> void:
 			forme += 1
 	check(hors == 0 and dans == forme, "le pot remplit la forme, rien au-delà (%d / %d, hors %d)" % [dans, forme, hors])
 
-	# Le travail se relit à l'identique.
+	# Les variantes : V sur une apparition, elle seule la montre ; on la peint sans toucher la base ; X l'ôte.
+	var ici := Vector2i(i0 % w, i0 / w)
+	check(a.nouvelle_variante(ici), "V : une variante naît de l'apparition survolée")
+	r = a.rendu
+	var vue: Vector2i = r.sous(ici.x, ici.y)[0]
+	check(vue == Vector2i(cle.x, cle.y + 1), "cette apparition montre la variante 1 (%s)" % vue)
+	var autres := 0
+	for i: int in r.apparitions(cle):
+		autres += 1
+	check(autres > 0 and r.apparitions(vue).size() < app.size(), "les autres apparitions gardent la base (%d pixels)" % autres)
+	a.outil = a.Outil.CRAYON
+	a.couleur = Color8(20, 40, 200)
+	a._dernier = Vector2i(-99999, -99999)
+	a.peinture.begin_stroke()
+	a.agir(ici)
+	a.peinture.end_stroke()
+	check(a.peinture.pixel_at(vue, cible[1], cible[2]).is_equal_approx(a.couleur)
+			and not a.peinture.pixel_at(cle, cible[1], cible[2]).is_equal_approx(a.couleur),
+			"peindre la variante ne touche pas la base")
+	a.regler_poids(ici, 2)
+	check(Travail.poids(a.meta, cle.x, 0) == PackedInt32Array([1, 3]), "+ : le poids de la variante monte (%s)" % Travail.poids(a.meta, cle.x, 0))
+
+	# Le travail se relit à l'identique, variantes et poids compris.
 	var chemin := "user://sonde_coins.mqcoins"
-	check(Travail.sauver(a.peinture, chemin) == OK, "le travail s'enregistre")
-	var relu: RefCounted = Travail.relire(chemin)
-	check(relu != null and relu.image_of(Vector2i(n, 0)).get_data() == a.peinture.image_of(Vector2i(n, 0)).get_data(),
-			"il se relit pixel pour pixel")
+	check(Travail.sauver(a.peinture, a.meta, chemin) == OK, "le travail s'enregistre")
+	var relu := Travail.relire(chemin)
+	check(not relu.is_empty() and relu.peinture.image_of(vue).get_data() == a.peinture.image_of(vue).get_data()
+			and relu.meta.poids == a.meta.poids and relu.meta.affectation == a.meta.affectation,
+			"il se relit pixel pour pixel, poids et affectation compris")
+
+	a.oter_variante(ici)
+	check(Travail.nb_variantes(a.meta, cle.x, 0) == 1 and not a.peinture.is_painted(vue) and a.meta.affectation.is_empty(),
+			"X : la variante s'ôte, l'apparition revient à la base")
+
+	# Le guide d'une matière : ses quinze formes de dessus se voient.
+	a.choisir_matiere(1)
+	var formes := {}
+	for k: Vector2i in a.rendu.images_vues():
+		if k.y / 10 == 1:
+			formes[k.x] = true
+	check(formes.size() == 15, "M : le guide de la matière 1 montre ses 15 formes (%d)" % formes.size())
+	a.choisir_matiere(0)
 
 	# L'export.
-	var sortie := Travail.exporter(a.peinture, ProjectSettings.globalize_path("user://sonde_export"))
+	var sortie := Travail.exporter(a.peinture, a.meta, ProjectSettings.globalize_path("user://sonde_export"))
 	var manifeste: Variant = JSON.parse_string(FileAccess.get_file_as_string(sortie[1]))
 	var table: Dictionary = manifeste.table if manifeste is Dictionary else {}
-	var dans_bornes := true
-	for k: String in table:
-		dans_bornes = dans_bornes and int(table[k]) >= 0 and int(table[k]) < 35
-	check(table.size() == 79 and dans_bornes, "le manifeste : les 79 clés vers 35 archétypes (%d)" % table.size())
-	var planche := Image.load_from_file(sortie[0])
-	check(planche != null and planche.get_width() == 7 * res and planche.get_height() == 5 * res, "la planche : 7 × 5 tuiles")
+	check(table.size() == 79, "le manifeste : la table des 79 clés (%d)" % table.size())
 
 	# Le mode relief.
 	a._basculer()
 	check(a.mode_relief and a.rendu.colonnes == 24, "Tab : le relief de départ")
 	var larg := 25
 	var hav: int = a._relief.h[6 * larg + 10]
-	var sy: int = (6 - hav + a.rendu.hmax) * res
-	a.sculpter(Vector2i(10 * res, sy), 1)
-	check(int(a._relief.h[6 * larg + 10]) == hav + 1, "un clic monte le coin le plus proche (%d → %d)" % [hav, a._relief.h[6 * larg + 10]])
-	var peint_vu := false
-	var r2: Rendu = a.rendu
-	for i: int in r2.apparitions(n):
-		if r2.image.get_pixel(i % r2.largeur(), i / r2.largeur()).a > 0.0 and a.peinture.pixel_at(Vector2i(n, 0), r2.local_de[i] % res, r2.local_de[i] / res).a > 0.0:
-			peint_vu = true
-			break
-	check(peint_vu or r2.poses_de(n) == 0, "le relief se rend avec les archétypes peints")
+	a.sculpter(Vector2i(10 * res, (6 - hav + a.rendu.hmax) * res), 1)
+	check(int(a._relief.h[6 * larg + 10]) == hav + 1, "un clic monte le coin qui se voit (%d → %d)" % [hav, a._relief.h[6 * larg + 10]])
+	var mav: int = a._relief.mat[6 * larg + 10]
+	a.matiere = 2
+	a.poser_matiere(Vector2i(10 * res, (6 - hav - 1 + a.rendu.hmax) * res), 2)
+	check(int(a._relief.mat[6 * larg + 10]) == 2, "Maj + clic pose la matière 2 sur ce coin (%d → 2)" % mav)
+
+	# LE GREFFON pose ce que montre l'atelier : tout peint d'un motif, une variante tirée, deux matières.
+	_peindre_tout(a)
+	a.mode_relief = false
+	a._reposer()
+	a.choisir_matiere(0)
+	var guide_ici := _une_apparition(a.rendu, Modele.DESSUS)
+	a.nouvelle_variante(guide_ici)
+	var cv: Vector2i = a.rendu.sous(guide_ici.x, guide_ici.y)[0]
+	_motif_sur(a, cv, Color8(250, 250, 0))
+	a.mode_relief = true
+	a._reposer()
+	var exp := Travail.exporter(a.peinture, a.meta, ProjectSettings.globalize_path("user://sonde_greffon"))
+	var monde: Node2D = Monde.new()
+	monde.tileset = exp[1]
+	monde.columns = a._relief.colonnes
+	monde.rows = a._relief.rangees
+	monde.heights = a._relief.h
+	monde.materials = a._relief.mat
+	root.add_child(monde)
+	var img: Image = monde.composer()
+	var ra: Rendu = a.rendu
+	var egaux := 0
+	var differents := 0
+	var couverture := 0
+	var tires := 0
+	for y in ra.image.get_height():
+		for x in ra.image.get_width():
+			var i := y * ra.largeur() + x
+			var g := img.get_pixel(x, y)
+			if (ra.pose_de[i] >= 0) != (g.a > 0.0):
+				couverture += 1
+			elif ra.pose_de[i] >= 0:
+				if g.is_equal_approx(ra.image.get_pixel(x, y)):
+					egaux += 1
+				else:
+					differents += 1
+				if ra.image_de_pose[ra.pose_de[i]] == cv:
+					tires += 1
+	check(img.get_size() == ra.image.get_size() and differents == 0 and couverture == 0 and egaux > 1000,
+			"le greffon pose exactement l'atelier : %d pixels égaux, %d différents, %d de couverture" % [egaux, differents, couverture])
+	check(tires > 0, "la variante est tirée dans le relief (%d pixels)" % tires)
+	var avant_s: int = monde.heights[6 * larg + 10]
+	var t := float(monde.planche.tuile)
+	var rs: Array = monde.sculpter(Vector2(10 * t, (6 - avant_s) * t), 1)
+	check(rs.size() == 3 and int(monde.heights[6 * larg + 10]) == avant_s + 1, "le pinceau du greffon monte le même coin")
 
 	print("%d/%d" % [_ok, _ok + _faux])
 	quit(1 if _faux else 0)
 
 
-func _le_plus_vu(r: Rendu) -> int:
-	var meilleur := 0
+## Toutes les images de base de la surface et les quinze dessus des matières 1 et 2, remplis d'un motif opaque.
+func _peindre_tout(a: Control) -> void:
+	var res: int = a.peinture.resolution
 	for n in Archetypes.liste().size():
-		if r.apparitions(n).size() > r.apparitions(meilleur).size():
-			meilleur = n
+		var dessus: bool = Archetypes.liste()[n].sorte == Modele.DESSUS
+		for m: int in ([0, 1, 2] if dessus else [0]):
+			_motif_sur(a, Vector2i(n, m * 10), Color8(40 + 60 * m, 90 + n * 4, 60 + 50 * m))
+	a._reposer()
+
+
+func _motif_sur(a: Control, cle: Vector2i, c: Color) -> void:
+	var res: int = a.peinture.resolution
+	var masque := Rendu.masque_de(cle.x, res)
+	for y in res:
+		for x in res:
+			if masque[y * res + x] != 0:
+				a.peinture.paint(cle, x, y, c.darkened(0.04 * ((x + y) % 3)))
+
+
+func _une_apparition(r: Rendu, sorte: int) -> Vector2i:
+	for i in r.pose_de.size():
+		var ip := r.pose_de[i]
+		if ip >= 0 and r.poses[ip][0] == sorte and r.poses_de(r.image_de_pose[ip].x) > 4:
+			return Vector2i(i % r.largeur(), i / r.largeur())
+	return Vector2i(-1, -1)
+
+
+func _la_plus_vue(r: Rendu) -> Vector2i:
+	var meilleur := Vector2i(-1, -1)
+	var nb := -1
+	for k: Vector2i in r.images_vues():
+		if r.apparitions(k).size() > nb:
+			nb = r.apparitions(k).size()
+			meilleur = k
 	return meilleur

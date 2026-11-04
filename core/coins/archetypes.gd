@@ -5,7 +5,7 @@ extends RefCounted
 ## une seule fois). Compté, jamais chassé : 79 clés, 35 archétypes (banc du 4 novembre 2026).
 ## `numero(sorte, c, cv)` rend l'archétype d'une pose ; `liste()` les archétypes, chacun avec une clé qui le représente.
 
-const Modele := preload("res://core/coins/modele.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
 const COTE := 16          # la résolution de la signature (assez fine pour séparer les formes)
 
 static var _par_cle := {}
@@ -13,9 +13,10 @@ static var _liste: Array = []
 
 
 static func cle(sorte: int, c: int, cv: int) -> String:
-	return "%d:%d:%d" % [sorte, c, cv if sorte != Modele.DESSUS else 0]
+	return Modele.cle(sorte, c, cv)
 
 
+## Une pose de MATIÈRE rend l'archétype du dessus de sa configuration (même forme ; l'image est celle de la matière).
 static func numero(sorte: int, c: int, cv: int) -> int:
 	_construire()
 	return int(_par_cle.get(cle(sorte, c, cv), -1))

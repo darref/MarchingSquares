@@ -16,7 +16,7 @@ extends RefCounted
 ## L−1, L et L+1 : quatre classes (en dessous de L−1, L−1, L, au-dessus), donc les hauteurs 0..3 à L = 2 les donnent
 ## toutes. `ensemble()` énumère les 4⁶ voisinages de chaque orientation ; le banc vérifie qu'aucun monde n'en sort.
 
-const Modele := preload("res://core/coins/modele.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
 const Archetypes := preload("res://core/coins/archetypes.gd")
 
 static var _ensemble := {}

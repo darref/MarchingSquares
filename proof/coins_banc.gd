@@ -14,8 +14,8 @@ extends SceneTree
 ##   Godot_v4.7-stable_win64_console.exe --headless --path D:/MarchingSquares --script res://proof/coins_banc.gd [-- mondes=200 casse=8]
 ## Rend 0 si tout est identique. Images : D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/.
 
-const Forme := preload("res://core/coins/forme.gd")
-const Modele := preload("res://core/coins/modele.gd")
+const Forme := preload("res://addons/marching_squares/forme.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
 const Jonctions := preload("res://core/coins/jonctions.gd")
 const SORTIE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/"
 const SORTIE_GRANDE := "D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/grand/"
@@ -101,12 +101,25 @@ func _tirer(rng: RandomNumberGenerator, colonnes: int, rangees: int, hostile: bo
 							else (pow(float(x - cx) / rx, 2) + pow(float(j - cy) / ry, 2) <= 1.0)
 					if dedans:
 						h[j * larg + x] = mini(h[j * larg + x] + d, 9)
+	# LES MATIÈRES : trois rangs posés en taches (rectangles et disques), comme un artiste les peindrait.
+	var mat := PackedInt32Array()
+	mat.resize(h.size())
+	for k in rng.randi_range(2, 8):
+		var cx := rng.randi_range(0, colonnes)
+		var cy := rng.randi_range(0, rangees)
+		var rx := rng.randi_range(1, 5)
+		var ry := rng.randi_range(1, 4)
+		var m := rng.randi_range(1, 3)
+		for j in rangees + 1:
+			for x in larg:
+				if pow(float(x - cx) / rx, 2) + pow(float(j - cy) / ry, 2) <= 1.0 or (hostile and rng.randf() < 0.15):
+					mat[j * larg + x] = maxi(mat[j * larg + x], m) if not hostile else rng.randi_range(0, 3)
 	# Le bord du monde reste au sol : une falaise ne tombe jamais hors de la carte.
 	for j in rangees + 1:
 		for x in larg:
 			if x < 1 or j < 1 or x > colonnes - 1 or j > rangees - 1:
 				h[j * larg + x] = 0
-	return {"h": h, "colonnes": colonnes, "rangees": rangees}
+	return {"h": h, "mat": mat, "colonnes": colonnes, "rangees": rangees}
 
 
 # ── l'assemblage ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -116,10 +129,10 @@ func _assembler(monde: Dictionary, hmax: int, cles: Dictionary) -> PackedInt32Ar
 	var hpx := (int(monde.rangees) + hmax + 1) * _casse
 	var img := PackedInt32Array()
 	img.resize(w * hpx)
-	for p: Array in Modele.poses(monde.h, monde.colonnes, monde.rangees):
+	for p: Array in Modele.poses(monde.h, monde.colonnes, monde.rangees, monde.get("mat", PackedInt32Array())):
 		var sorte: int = p[0]
 		var L: int = p[1]
-		var cle := "%d:%d:%d" % [sorte, p[4], p[5] if sorte != Modele.DESSUS else 0]
+		var cle := Modele.cle(sorte, p[4], p[5])
 		if cles != null:
 			cles[cle] = true
 		var x0: int = int(p[2]) * _casse
@@ -127,6 +140,8 @@ func _assembler(monde: Dictionary, hmax: int, cles: Dictionary) -> PackedInt32Ar
 		for py in _casse:
 			for px in _casse:
 				var e := Modele.etiquette(sorte, L, p[4], p[5], (px + 0.5) / _casse, (py + 0.5) / _casse)
+				if e != 0 and sorte == Modele.MATIERE:
+					e |= int(p[5]) << 11
 				if e != 0:
 					img[(y0 + py) * w + x0 + px] = e
 	return img
@@ -174,7 +189,7 @@ func _oracle(monde: Dictionary, x: float, sy: float, hmax: int) -> int:
 	if Lm < 0:
 		return 0
 	if absf(meilleur - (sy + Lm)) < 1e-9:
-		return Modele.lab(Modele.DESSUS, Lm, 0)
+		return Modele.lab(Modele.DESSUS, Lm, 0) | (_matiere(monde, x, sy + Lm, Lm) << 11)
 	if Lm == 0:
 		return 0            # le bord sud de la carte : hors du monde
 	var z := meilleur - sy
@@ -188,6 +203,21 @@ func _oracle(monde: Dictionary, x: float, sy: float, hmax: int) -> int:
 	if case == jb - unite + 1:
 		return Modele.lab(Modele.BAS, unite, 1 if unite - 1 == hs else 0)
 	return 999
+
+
+## La matière vue au point (x, Y) du dessus de la couche L : le plus haut rang dont la forme le contient.
+func _matiere(monde: Dictionary, x: float, Y: float, L: int) -> int:
+	var mat: PackedInt32Array = monde.get("mat", PackedInt32Array())
+	if mat.is_empty():
+		return 0
+	var i := floori(x)
+	var j := mini(floori(Y), int(monde.rangees) - 1)
+	var larg := int(monde.colonnes) + 1
+	for m in range(3, 0, -1):
+		var cm := Modele.config_matiere(monde.h, mat, larg, i, j, L, m)
+		if cm != 0 and Forme.dedans(cm, x - i, Y - j):
+			return m
+	return 0
 
 
 func _comparer(monde: Dictionary, cles: Dictionary, garder: bool) -> Dictionary:
@@ -223,7 +253,8 @@ func _nom(e: int) -> String:
 		role = " lèvre" if (e >> 10) & 1 else " corps"
 	elif (e & 3) == Modele.BAS:
 		role = " pied" if (e >> 10) & 1 else " corps"
-	return "%s L%d%s" % [s, (e >> 2) & 255, role]
+	var m := e >> 11
+	return "%s L%d%s%s" % [s, (e >> 2) & 255, role, " matière %d" % m if m else ""]
 
 
 # ── le recensement : le vocabulaire fermé ────────────────────────────────────────────────────────────────────────────
@@ -264,7 +295,9 @@ func _couleur(e: int) -> Color:
 	var L := (e >> 2) & 255
 	match e & 3:
 		Modele.DESSUS:
-			return Color(0.25, 0.45, 0.2).lerp(Color(0.75, 0.9, 0.45), clampf(L / 6.0, 0, 1))
+			var base := Color(0.25, 0.45, 0.2).lerp(Color(0.75, 0.9, 0.45), clampf(L / 6.0, 0, 1))
+			var tons: Array[Color] = [base, Color(0.86, 0.78, 0.5), Color(0.92, 0.94, 0.98), Color(0.35, 0.5, 0.8)]
+			return tons[mini(e >> 11, 3)] if (e >> 11) == 0 else tons[mini(e >> 11, 3)].lerp(base, 0.15)
 		Modele.HAUT:
 			return Color(0.92, 0.8, 0.55) if (e >> 10) & 1 else Color(0.6, 0.48, 0.38)
 		Modele.BAS:

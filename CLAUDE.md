@@ -14,8 +14,9 @@ Le détail s'écrit avec le banc de preuve ; ce qui suit décrit l'ancien modèl
 
 ### LE MODÈLE PAR LES COINS — MESURÉ (4 novembre 2026, branche `modele-coins`)
 
-`core/coins/forme.gd` (la forme d'une tuile, quart par quart : PLEIN, DISQUE = coin saillant arrondi, CREUX = coin
-rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (des hauteurs aux poses, dans l'ordre),
+`addons/marching_squares/forme.gd` (la forme d'une tuile, quart par quart : PLEIN, DISQUE = coin saillant arrondi, CREUX = coin
+rentrant, VIDE ; la selle reste deux coins séparés), `addons/marching_squares/modele.gd` (des hauteurs aux poses, dans l'ordre ; ⚠ DANS LE GREFFON depuis le 4 novembre
+2026 : l'appli et le greffon posent avec le même fichier — une règle, un endroit),
 `proof/coins_banc.gd` (la preuve). Ce que le banc a établi :
 - **UNE UNITÉ DE FALAISE TIENT SUR DEUX CASES.** Le bord passe à mi-tuile, donc une falaise d'une unité commence au milieu
   de sa case : un **HAUT** (sous le bord, dans la case du dessus) et un **BAS** (la case du dessous). Ce n'était pas dans
@@ -44,7 +45,7 @@ rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (d
 - **L'ATELIER** (`ui/coins/atelier.tscn`, la scène de démarrage sur cette branche ; `core/coins/rendu.gd`,
   `core/coins/travail.gd`) : on peint SUR le guide — le crayon touche l'archétype qui se voit, donc toujours DANS sa forme
   (le fond le refuse, et le dit) ; chaque pixel paraît dans TOUTES les apparitions (le carnet `core/painting.gd`, une case
-  par archétype) ; le survol éclaire l'archétype partout ; crayon, gomme, pot (dans la forme), pipette, Ctrl+Z / Y ;
+  par archétype, matière et variante) ; le survol éclaire l'archétype partout ; crayon, gomme, pot (dans la forme), pipette, Ctrl+Z / Y ;
   le MODE RELIEF sculpte des coins à n'importe quelle hauteur, rendu avec les archétypes peints ; le travail (`.mqcoins`)
   et l'EXPORT : la planche (7 × 5) et son manifeste — la TABLE des 79 clés vers les 35 archétypes, tout ce qu'un moteur
   doit savoir. MESURÉ : `proof/coins_atelier.gd` 13/13 ; ⚠ elle a trouvé un vrai défaut — deux coins de rangées
@@ -53,8 +54,40 @@ rentrant, VIDE ; la selle reste deux coins séparés), `core/coins/modele.gd` (d
 - ⚠ **LE DESSUS SERT À TOUTES LES HAUTEURS** : c'est l'artiste qui dessine le BORD du plateau dans l'archétype de dessus,
   sinon un plateau se fond dans l'herbe qui est derrière lui (vu sur la première photo : seules les falaises se lisaient).
 - **MESURÉ AUSSI** : la batterie complète, 200 reliefs, **6 444 800 pixels, 0 écart**.
-- **RESTE** : les points de jonction marqués sur les bords, les VARIANTES et les MATIÈRES (comme MarchingBlocks), le
-  greffon (lire la planche et la table, poser par `modele.gd`), puis rapatrier dans l'éditeur livré ce qui y reste utile.
+- **LES POINTS DE JONCTION** (J) : sur chaque tuile, là où une bande (dessus, lèvre, corps, pied) arrive au bord — l'endroit
+  où le dessin doit se continuer chez la voisine ; avec la grille des tuiles.
+- **LES VARIANTES** (comme celles de MarchingBlocks, « créées une à une, sur place ») : V crée une variante depuis
+  l'apparition survolée (copiée d'elle, et cette apparition la montre aussitôt, parmi ses vraies voisines) ; C fait défiler
+  la variante montrée ici ; X l'ôte (les suivantes se renumérotent) ; + / − son poids. Au relief et dans le greffon, la
+  variante se TIRE par un hachage de la pose (`Modele.tirage` : Teschner et deux brassages, jamais `randi()`), pondéré.
+  ⚠ La décision ancienne « les variantes sont supprimées » (modèle des massifs) est levée par Jordan le 4 novembre 2026
+  (« les variantes, les transitions, tout ça, tu t'en inspires »).
+- **LES MATIÈRES** — « une matière est un étage sans falaise » (le carnet le disait) : un rang par coin ; sur le dessus de
+  la couche L, la matière m prend la forme de « coin dans la couche ET rang ≥ m » — les MÊMES quinze formes que les
+  dessus, arrondies, raccordées au milieu des arêtes : une transition FONDUE, jamais un bord en escalier (charte du
+  studio). Ordonnées (une plus haute se pose sur une plus basse), posées juste après leur dessus ; contenues dans le
+  dessus (la forme est monotone en c), donc jamais sur la falaise. Quinze images par matière (4 au plus).
+  MESURÉ : le banc compare aussi la matière vue au pixel près — 40 reliefs à trois matières, **1 274 368 pixels, 0
+  écart** ; ⚠ vu rougir : une matière qui ignore la hauteur donne 15 832 pixels faux sur 8 mondes.
+  **LE GUIDE DES MATIÈRES** (`tools/coins_guide_matieres.gd` → `guides/coins_matieres.txt`) : un champ posé sur le
+  paysage du guide, le meilleur de 400 puis les raccords manquants incrustés là où le relief est plat — **15 formes sur
+  15, 114 raccords sur 114** ; il refuse d'écrire un guide incomplet. M dans l'atelier.
+  ⚠ **OUVERT** : l'image d'une matière sert au bord « matière contre surface » ET au bord du plateau (même forme, même
+  clé) ; un artiste qui veut un liseré de plateau différent sous le sable demandera un second jeu de quinze images
+  (« matière au bord ») — à décider avec Jordan sur un vrai tileset.
+- **L'EXPORT v2** (`core/coins/travail.gd`) : la planche (8 colonnes ; les 35 bases, leurs variantes, les quinze dessus de
+  chaque matière peinte) et le manifeste — la TABLE des 79 clés, les images (archétype, matière, variante, poids, place) ;
+  une image non peinte est dite. Le travail `.mqcoins` passe en v2 (variantes, poids, affectation) ; un v1 se relit.
+- **LE GREFFON** (`addons/marching_squares/` : `world.gd`, `planche.gd`, `plugin.gd`) : un nœud MarchingSquaresWorld —
+  la planche exportée, une hauteur et une matière par coin — qui pose dans l'ordre du modèle et tire les variantes ; dans
+  l'éditeur, clic / clic droit montent et descendent le coin qui se voit, Maj pose la matière, tout se défait.
+  `composer()` rend le monde en image. MESURÉ (`proof/coins_atelier.gd`, **22/22**) : **le greffon pose EXACTEMENT ce
+  que montre l'atelier — 98 304 pixels égaux, 0 différent, 0 de couverture** (tout peint, une variante tirée, deux
+  matières) ; ⚠ vu rougir : un tirage décalé d'une rangée dans le greffon donne 52 pixels différents. Vu à l'image dans
+  une vraie fenêtre (`banc_coins/greffon_monde.png`).
+- **RESTE** : remplacer l'ancien éditeur (`ui/editor.tscn`) et SoluPaint par l'atelier et ce greffon (le bouton
+  « installer le greffon » de `core/plugin_install.gd` copie encore SoluPaint), fusionner `modele-coins` dans `main`,
+  peindre un VRAI tileset (le 16 px), puis le greffon Unity.
 
 ## Contexte
 

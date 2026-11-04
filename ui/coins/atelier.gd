@@ -1,50 +1,68 @@
 extends Control
 
 ## L'ATELIER DU MODÈLE PAR LES COINS — le guide, le modèle et l'outil de peinture ENSEMBLE (Jordan, 4 novembre 2026 :
-## « les trois doivent fonctionner en même temps »). Une seule source : `core/coins/` ; aucune règle ne vit ici.
+## « les trois doivent fonctionner en même temps »). Une seule source : `core/coins/` et `addons/marching_squares/` ;
+## aucune règle ne vit ici.
 ##   GUIDE   le paysage livré (`guides/coins.txt` : les 35 archétypes, les 261 jonctions). On peint SUR lui : le crayon
-##           touche l'archétype qui se voit sous la souris, donc toujours DANS sa forme (le reste n'est pas à peindre et le
-##           curseur le dit) ; chaque pixel posé apparaît aussitôt dans TOUTES ses apparitions — toutes les coutures
-##           possibles sont sous les yeux. Le survol éclaire l'archétype partout où il est.
-##   RELIEF  on sculpte un relief à soi (clic : monter le coin le plus proche ; clic droit : le descendre), rendu avec ses
-##           propres archétypes peints : on voit ce qu'on peut faire, à n'importe quelle hauteur.
-## Outils : crayon (P), gomme (E, ou clic droit), pot (G), pipette (I) ; Ctrl+Z / Ctrl+Y ; molette : zoom ; bouton du
-## milieu (ou Espace) : déplacer ; Tab : guide ↔ relief. Textes à l'écran : anglais (charte du studio).
+##           touche l'image qui se voit sous la souris, donc toujours DANS la forme de son archétype (le reste n'est pas à
+##           peindre et le curseur le dit) ; chaque pixel posé apparaît aussitôt dans TOUTES ses apparitions — toutes les
+##           coutures possibles sont sous les yeux. Le survol éclaire l'image partout où elle est.
+##           Avec une MATIÈRE choisie (M), le guide porte en plus son champ (`guides/coins_matieres.txt`) : ses quinze
+##           formes de dessus posées sur les plateaux, à peindre là où elles vivront.
+##   RELIEF  on sculpte un relief à soi (clic : monter le coin le plus proche ; clic droit : le descendre ; Maj + clic :
+##           y poser la matière choisie, Maj + clic droit : l'ôter), rendu avec ses propres images, variantes TIRÉES comme
+##           le greffon les tirera.
+##   VARIANTES (comme MarchingBlocks : créées une à une, sur place, parmi les vraies voisines) — V : nouvelle variante
+##           depuis l'apparition survolée (elle la montre aussitôt) ; C : faire défiler la variante montrée ici ; X : ôter
+##           cette variante ; + / − : son poids (le tirage).
+## Outils : crayon (P), gomme (E, ou clic droit), pot (G), pipette (I) ; Ctrl+Z / Ctrl+Y ; J : points de jonction et grille ;
+## molette : zoom ; bouton du milieu (ou Espace) : déplacer ; Tab : guide ↔ relief. Textes à l'écran : anglais.
 
 const Rendu := preload("res://core/coins/rendu.gd")
 const Archetypes := preload("res://core/coins/archetypes.gd")
 const Travail := preload("res://core/coins/travail.gd")
 const Painting := preload("res://core/painting.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
 
 const GUIDE := "res://guides/coins.txt"
+const GUIDE_MATIERES := "res://guides/coins_matieres.txt"
 const TRAVAIL := "user://marching_squares.mqcoins"
 const EXPORT := "user://export"
+const SORTES := ["", "top", "cliff top", "cliff bottom", "material"]
 
 enum Outil { CRAYON, GOMME, POT, PIPETTE }
 
 var peinture: Painting
+var meta := {"poids": {}, "affectation": {}}
 var rendu: Rendu
 var mode_relief := false
+var matiere := 0
 var outil := Outil.CRAYON
 var couleur := Color(0.36, 0.55, 0.27)
 var zoom := 2
 var origine := Vector2(24, 64)
+var jonctions_visibles := false
 
 var _guide := {}
+var _guide_mat := PackedInt32Array()
 var _relief := {}
 var _vue: Control
 var _image: TextureRect
 var _halo: TextureRect
+var _calque: Control
 var _texture: ImageTexture
 var _halo_image: Image
 var _halo_texture: ImageTexture
-var _halo_de := -1
+var _halo_de := Vector2i(-1, -1)
+var _points := PackedVector2Array()
 var _statut: Label
 var _boutons_outils := {}
 var _bouton_mode: Button
+var _bouton_matiere: Button
 var _choix_couleur: ColorPickerButton
 var _peint := false
 var _dernier := Vector2i(-99999, -99999)
+var _survol := Vector2i(-1, -1)
 var _glisse := false
 var _espace := false
 
@@ -52,6 +70,8 @@ var _espace := false
 func _ready() -> void:
 	peinture = Painting.new(16)
 	_guide = lire_guide(GUIDE)
+	if FileAccess.file_exists(GUIDE_MATIERES):
+		_guide_mat = lire_guide(GUIDE_MATIERES).h
 	_relief = _relief_de_depart()
 	_construire_ui()
 	_reposer()
@@ -71,7 +91,7 @@ func _construire_ui() -> void:
 	_vue.clip_contents = true
 	_vue.mouse_filter = Control.MOUSE_FILTER_STOP
 	_vue.gui_input.connect(_entree_vue)
-	_vue.mouse_exited.connect(func() -> void: _eclairer(-1))
+	_vue.mouse_exited.connect(func() -> void: _eclairer(Vector2i(-1, -1)))
 	add_child(_vue)
 	_image = TextureRect.new()
 	_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -81,6 +101,11 @@ func _construire_ui() -> void:
 	_halo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_vue.add_child(_halo)
+	_calque = Control.new()
+	_calque.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_calque.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_calque.draw.connect(_dessiner_calque)
+	_vue.add_child(_calque)
 	var barre := PanelContainer.new()
 	barre.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	var sb := StyleBoxFlat.new()
@@ -113,6 +138,13 @@ func _construire_ui() -> void:
 	_bouton_mode = Button.new()
 	_bouton_mode.pressed.connect(_basculer)
 	rangee.add_child(_bouton_mode)
+	_bouton_matiere = Button.new()
+	_bouton_matiere.pressed.connect(func() -> void: choisir_matiere((matiere + 1) % Modele.MATIERES_MAXI))
+	rangee.add_child(_bouton_matiere)
+	var bj := Button.new()
+	bj.text = "Junctions (J)"
+	bj.pressed.connect(_basculer_jonctions)
+	rangee.add_child(bj)
 	rangee.add_child(VSeparator.new())
 	for a: Array in [["Save", _sauver], ["Reload", _relire], ["Export tileset", _exporter], ["Open folder", _ouvrir_dossier]]:
 		var b := Button.new()
@@ -138,21 +170,63 @@ func _basculer() -> void:
 	_reposer()
 
 
+func choisir_matiere(m: int) -> void:
+	matiere = clampi(m, 0, Modele.MATIERES_MAXI - 1)
+	_reposer()
+
+
+func _basculer_jonctions() -> void:
+	jonctions_visibles = not jonctions_visibles
+	_points = rendu.jonctions_ecran() if jonctions_visibles else PackedVector2Array()
+	_calque.queue_redraw()
+
+
 # ── le rendu ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+## Le relief montré : le guide (et le champ de la matière choisie), ou le relief sculpté.
+func monde() -> Dictionary:
+	if mode_relief:
+		return _relief
+	var mat := PackedInt32Array()
+	if matiere > 0 and _guide_mat.size() == (_guide.h as PackedInt32Array).size():
+		mat = _guide_mat.duplicate()
+		for i in mat.size():
+			mat[i] *= matiere
+	return {"h": _guide.h, "mat": mat, "colonnes": _guide.colonnes, "rangees": _guide.rangees}
+
+
 func _reposer() -> void:
-	var m: Dictionary = _relief if mode_relief else _guide
+	var m := monde()
 	rendu = Rendu.new(peinture.resolution)
-	rendu.construire(m.h, m.colonnes, m.rangees, peinture)
+	rendu.construire(m.h, m.colonnes, m.rangees, peinture, m.get("mat", PackedInt32Array()), _variante)
 	_texture = ImageTexture.create_from_image(rendu.image)
 	_image.texture = _texture
 	_halo_image = Image.create(rendu.image.get_width(), rendu.image.get_height(), false, Image.FORMAT_RGBA8)
 	_halo_texture = ImageTexture.create_from_image(_halo_image)
 	_halo.texture = _halo_texture
-	_halo_de = -1
+	_halo_de = Vector2i(-1, -1)
+	_points = rendu.jonctions_ecran() if jonctions_visibles else PackedVector2Array()
 	_placer()
 	_bouton_mode.text = "Mode: Relief (Tab)" if mode_relief else "Mode: Guide (Tab)"
+	_bouton_matiere.text = "Material: %s (M)" % ("base" if matiere == 0 else str(matiere))
 	_dire()
+
+
+## La variante montrée par une pose : au guide, celle que l'artiste y a mise ; au relief, le TIRAGE du greffon.
+func _variante(ip: int, p: Array, n: int, m: int) -> int:
+	var nb := Travail.nb_variantes(meta, n, m)
+	if nb <= 1:
+		return 0
+	if mode_relief:
+		return Modele.tirage(p[2], p[3], p[1], p[0], Travail.poids(meta, n, m))
+	var a: Array = (meta.affectation as Dictionary).get(_id_pose(p), [])
+	if a.size() == 3 and a[0] == n and a[1] == m and a[2] < nb:
+		return a[2]
+	return 0
+
+
+static func _id_pose(p: Array) -> String:
+	return "%d:%d:%d:%d:%d" % [p[0], p[1], p[2], p[3], p[5] if p[0] == Modele.MATIERE else 0]
 
 
 func _placer() -> void:
@@ -160,25 +234,46 @@ func _placer() -> void:
 	for t: TextureRect in [_image, _halo]:
 		t.position = origine
 		t.size = taille
+	_calque.queue_redraw()
 
 
-func _rafraichir(numeros: Array) -> void:
-	for n: int in numeros:
-		rendu.repeindre(n, peinture)
+func _dessiner_calque() -> void:
+	if not jonctions_visibles or rendu == null:
+		return
+	var res := rendu.resolution
+	var w := rendu.image.get_width()
+	var h := rendu.image.get_height()
+	var ligne_grille := Color(1, 1, 1, 0.12)
+	for x in range(0, w + 1, res):
+		_calque.draw_line(origine + Vector2(x, 0) * zoom, origine + Vector2(x, h) * zoom, ligne_grille)
+	for y in range(0, h + 1, res):
+		_calque.draw_line(origine + Vector2(0, y) * zoom, origine + Vector2(w, y) * zoom, ligne_grille)
+	for p: Vector2 in _points:
+		var cote := maxf(zoom, 3.0)
+		_calque.draw_rect(Rect2(origine + (p + Vector2(0.5, 0.5)) * zoom - Vector2(cote, cote) / 2.0, Vector2(cote, cote)),
+				Color(1.0, 0.25, 0.6, 0.9))
+
+
+func _rafraichir(cles: Array) -> void:
+	var familles := {}
+	for c: Vector2i in cles:
+		familles[Vector2i(c.x, c.y / 10)] = true
+	for f: Vector2i in familles:
+		rendu.repeindre_famille(f.x, f.y, peinture)
 	_texture.update(rendu.image)
 
 
-## Éclaire toutes les apparitions de l'archétype `n` (-1 : rien).
-func _eclairer(n: int) -> void:
-	if n == _halo_de or _halo_image == null:
+## Éclaire toutes les apparitions de l'image `cle` ((-1, -1) : rien).
+func _eclairer(cle: Vector2i) -> void:
+	if cle == _halo_de or _halo_image == null:
 		return
 	var w := rendu.largeur()
-	if _halo_de >= 0:
+	if _halo_de.x >= 0:
 		for i: int in rendu.apparitions(_halo_de):
 			_halo_image.set_pixel(i % w, i / w, Color(0, 0, 0, 0))
-	_halo_de = n
-	if n >= 0:
-		for i: int in rendu.apparitions(n):
+	_halo_de = cle
+	if cle.x >= 0:
+		for i: int in rendu.apparitions(cle):
 			_halo_image.set_pixel(i % w, i / w, Color(1.0, 0.85, 0.3, 0.22))
 	_halo_texture.update(_halo_image)
 
@@ -208,7 +303,11 @@ func _entree_vue(e: InputEvent) -> void:
 		elif b.button_index == MOUSE_BUTTON_MIDDLE or (b.button_index == MOUSE_BUTTON_LEFT and _espace):
 			_glisse = b.pressed
 		elif mode_relief and b.pressed and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
-			sculpter(_pixel(b.position), 1 if b.button_index == MOUSE_BUTTON_LEFT else -1)
+			var gauche := b.button_index == MOUSE_BUTTON_LEFT
+			if b.shift_pressed:
+				poser_matiere(_pixel(b.position), matiere if gauche else 0)
+			else:
+				sculpter(_pixel(b.position), 1 if gauche else -1)
 		elif not mode_relief and b.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 			if b.pressed:
 				peinture.begin_stroke()
@@ -240,9 +339,9 @@ func _unhandled_key_input(e: InputEvent) -> void:
 	if not k.pressed or k.echo:
 		return
 	if k.ctrl_pressed and k.keycode == KEY_Z:
-		_rafraichir(_numeros(peinture.undo()))
+		_rafraichir(peinture.undo())
 	elif k.ctrl_pressed and k.keycode == KEY_Y:
-		_rafraichir(_numeros(peinture.redo()))
+		_rafraichir(peinture.redo())
 	elif k.ctrl_pressed and k.keycode == KEY_S:
 		_sauver()
 	elif k.keycode == KEY_TAB:
@@ -255,6 +354,20 @@ func _unhandled_key_input(e: InputEvent) -> void:
 		_choisir(Outil.POT)
 	elif k.keycode == KEY_I:
 		_choisir(Outil.PIPETTE)
+	elif k.keycode == KEY_J:
+		_basculer_jonctions()
+	elif k.keycode == KEY_M:
+		choisir_matiere((matiere + 1) % Modele.MATIERES_MAXI)
+	elif k.keycode == KEY_V:
+		nouvelle_variante(_survol)
+	elif k.keycode == KEY_C:
+		changer_variante(_survol)
+	elif k.keycode == KEY_X:
+		oter_variante(_survol)
+	elif k.keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD]:
+		regler_poids(_survol, 1)
+	elif k.keycode in [KEY_MINUS, KEY_KP_SUBTRACT]:
+		regler_poids(_survol, -1)
 	else:
 		return
 	get_viewport().set_input_as_handled()
@@ -270,27 +383,31 @@ func _zoomer(sens: int, autour: Vector2) -> void:
 
 
 func _survoler(p: Vector2i) -> void:
+	_survol = p
 	if mode_relief:
-		_dire("Click: raise the nearest corner · right click: lower it")
+		_dire("Click: raise the nearest corner · right click: lower it · Shift: paint material %d" % matiere)
 		return
 	var s := rendu.sous(p.x, p.y)
 	if s.is_empty():
-		_eclairer(-1)
+		_eclairer(Vector2i(-1, -1))
 		_dire("Nothing to paint here", true)
 		return
-	_eclairer(s[0])
-	var a: Dictionary = Archetypes.liste()[s[0]]
-	_dire("Archetype %d (%s) · seen %d times · pixel %d,%d" % [s[0], ["", "top", "cliff top", "cliff bottom"][a.sorte],
-			_occurrences(s[0]), s[1], s[2]])
-
-
-func _occurrences(n: int) -> int:
-	return rendu.poses_de(n)
+	var cle: Vector2i = s[0]
+	_eclairer(cle)
+	var n := cle.x
+	var m := cle.y / 10
+	var k := cle.y % 10
+	var a: Dictionary = Archetypes.liste()[n]
+	var nb := Travail.nb_variantes(meta, n, m)
+	var quoi: String = SORTES[a.sorte] if m == 0 else "material %d" % m
+	var var_txt := "" if nb <= 1 else " · variant %d of %d (weight %d)" % [k, nb - 1, Travail.poids(meta, n, m)[k]]
+	_dire("Archetype %d (%s)%s · seen %d times · pixel %d,%d · V: new variant here" % [n, quoi, var_txt,
+			rendu.poses_de(n), s[1], s[2]])
 
 
 # ── peindre et sculpter (publics : la sonde les appelle) ─────────────────────────────────────────────────────────────
 
-## Un geste de l'outil au pixel d'écran `p` (avec la ligne depuis le précédent, pour qu'un trait rapide reste continu).
+## Un geste de l'outil au pixel d'écran `p` (avec la ligne depuis le précédent, pour qu'un ligne_grille rapide reste continu).
 func agir(p: Vector2i, effacer := false) -> void:
 	var points: Array[Vector2i] = [p]
 	if _dernier.x > -99999 and (outil == Outil.CRAYON or outil == Outil.GOMME or effacer):
@@ -301,16 +418,16 @@ func agir(p: Vector2i, effacer := false) -> void:
 		var s := rendu.sous(q.x, q.y)
 		if s.is_empty():
 			continue
-		var cle := Vector2i(s[0], 0)
+		var cle: Vector2i = s[0]
 		if effacer or outil == Outil.GOMME:
 			if peinture.erase(cle, s[1], s[2]):
-				touches[s[0]] = true
+				touches[cle] = true
 		elif outil == Outil.CRAYON:
 			if peinture.paint(cle, s[1], s[2], couleur):
-				touches[s[0]] = true
+				touches[cle] = true
 		elif outil == Outil.POT:
-			if _remplir(s[0], s[1], s[2]):
-				touches[s[0]] = true
+			if _remplir(cle, s[1], s[2]):
+				touches[cle] = true
 		elif outil == Outil.PIPETTE:
 			var c := peinture.pixel_at(cle, s[1], s[2])
 			if c.a > 0.0:
@@ -322,10 +439,9 @@ func agir(p: Vector2i, effacer := false) -> void:
 
 
 ## Le pot, DANS la forme de l'archétype : la plage contiguë de même couleur, jamais au-delà de ce qui se voit.
-func _remplir(n: int, x: int, y: int) -> bool:
+func _remplir(cle: Vector2i, x: int, y: int) -> bool:
 	var res := peinture.resolution
-	var masque := Rendu.masque_de(n, res)
-	var cle := Vector2i(n, 0)
+	var masque := Rendu.masque_de(cle.x, res)
 	var depart := peinture.pixel_at(cle, x, y)
 	if depart.is_equal_approx(couleur):
 		return false
@@ -344,28 +460,115 @@ func _remplir(n: int, x: int, y: int) -> bool:
 	return change
 
 
-## Monte (+1) ou descend (−1) le coin du relief le plus proche du pixel d'écran `p`.
+## Monte (+1) ou descend (−1) le coin du relief qui se voit au pixel d'écran `p`.
 func sculpter(p: Vector2i, sens: int) -> void:
-	var m := _relief
-	var larg: int = m.colonnes + 1
-	var res := peinture.resolution
-	var x := clampi(roundi(float(p.x) / res), 1, m.colonnes - 1)
-	var meilleur := -1
-	var ecart := INF
-	for j in range(1, m.rangees):
-		var sy: float = (j - m.h[j * larg + x] + rendu.hmax) * res
-		# ⚠ À égalité, le coin de DEVANT (le plus au sud) : deux coins de rangées différentes peuvent tomber au même
-		# endroit de l'écran, et c'est celui de devant qui se voit (sonde du 4 novembre 2026 : on montait celui du fond).
-		if absf(sy - p.y) <= ecart:
-			ecart = absf(sy - p.y)
-			meilleur = j
-	if meilleur < 0:
+	var i := _coin(p)
+	if i < 0:
 		return
-	var hh: PackedInt32Array = m.h
-	var i := meilleur * larg + x
+	var hh: PackedInt32Array = _relief.h
 	hh[i] = clampi(hh[i] + sens, 0, 12)
-	m.h = hh
+	_relief.h = hh
 	_reposer()
+
+
+## Pose la matière `m` (0 : l'ôter) sur le coin qui se voit au pixel d'écran `p`.
+func poser_matiere(p: Vector2i, m: int) -> void:
+	var i := _coin(p)
+	if i < 0:
+		return
+	var mm: PackedInt32Array = _relief.mat
+	mm[i] = m
+	_relief.mat = mm
+	_reposer()
+
+
+func _coin(p: Vector2i) -> int:
+	var res := float(peinture.resolution)
+	return Modele.coin_sous(_relief.h, _relief.colonnes, _relief.rangees, Vector2(p.x / res, p.y / res - rendu.hmax))
+
+
+# ── les variantes (publiques : la sonde les appelle) ─────────────────────────────────────────────────────────────────
+
+## Une NOUVELLE variante de l'image qui se voit au pixel `p`, copiée d'elle ; cette apparition la montre aussitôt.
+func nouvelle_variante(p: Vector2i) -> bool:
+	var s := rendu.sous(p.x, p.y) if not mode_relief else []
+	if s.is_empty():
+		_dire("Hover a tile of the guide to make a variant of it", true)
+		return false
+	var cle: Vector2i = s[0]
+	var n := cle.x
+	var m := cle.y / 10
+	var nb := Travail.nb_variantes(meta, n, m)
+	if nb >= Modele.VARIANTES_MAXI + 1:
+		_dire("%d variants at most" % Modele.VARIANTES_MAXI, true)
+		return false
+	if not peinture.is_painted(cle) and not peinture.is_painted(Vector2i(n, m * 10)):
+		_dire("Paint this tile first: a variant starts as a copy", true)
+		return false
+	var source := cle if peinture.is_painted(cle) else Vector2i(n, m * 10)
+	peinture.set_image(Vector2i(n, m * 10 + nb), peinture.image_of(source).duplicate())
+	var p_ := Travail.poids(meta, n, m)
+	p_.append(1)
+	meta.poids["%d:%d" % [n, m]] = Array(p_)
+	meta.affectation[_id_pose(rendu.poses[s[3]])] = [n, m, nb]
+	_reposer()
+	_dire("Variant %d of archetype %d made from this copy, shown here" % [nb, n])
+	return true
+
+
+## Fait défiler la variante montrée par l'apparition survolée (au guide seulement).
+func changer_variante(p: Vector2i) -> void:
+	var s := rendu.sous(p.x, p.y) if not mode_relief else []
+	if s.is_empty():
+		return
+	var cle: Vector2i = s[0]
+	var nb := Travail.nb_variantes(meta, cle.x, cle.y / 10)
+	if nb <= 1:
+		return
+	meta.affectation[_id_pose(rendu.poses[s[3]])] = [cle.x, cle.y / 10, (cle.y % 10 + 1) % nb]
+	_reposer()
+
+
+## Ôte la variante montrée par l'apparition survolée ; les suivantes se renumérotent (une var3 sans var2 ne se tire jamais).
+func oter_variante(p: Vector2i) -> void:
+	var s := rendu.sous(p.x, p.y) if not mode_relief else []
+	if s.is_empty():
+		return
+	var cle: Vector2i = s[0]
+	var n := cle.x
+	var m := cle.y / 10
+	var k := cle.y % 10
+	if k == 0:
+		_dire("The base cannot be removed", true)
+		return
+	var nb := Travail.nb_variantes(meta, n, m)
+	for j in range(k, nb - 1):
+		peinture.set_image(Vector2i(n, m * 10 + j), peinture.image_of(Vector2i(n, m * 10 + j + 1)).duplicate())
+	peinture.clear_cell(Vector2i(n, m * 10 + nb - 1))
+	var p_ := Array(Travail.poids(meta, n, m))
+	p_.remove_at(k)
+	meta.poids["%d:%d" % [n, m]] = p_
+	for id: String in (meta.affectation as Dictionary).keys():
+		var a: Array = meta.affectation[id]
+		if a[0] == n and a[1] == m:
+			if a[2] == k:
+				meta.affectation.erase(id)
+			elif a[2] > k:
+				a[2] -= 1
+	_reposer()
+	_dire("Variant %d of archetype %d removed" % [k, n])
+
+
+## Change le poids de la variante survolée (le tirage du relief et du greffon).
+func regler_poids(p: Vector2i, sens: int) -> void:
+	var s := rendu.sous(p.x, p.y) if not mode_relief else []
+	if s.is_empty():
+		return
+	var cle: Vector2i = s[0]
+	var p_ := Array(Travail.poids(meta, cle.x, cle.y / 10))
+	p_[cle.y % 10] = maxi(0, int(p_[cle.y % 10]) + sens)
+	meta.poids["%d:%d" % [cle.x, cle.y / 10]] = p_
+	_survoler(p)
 
 
 static func _ligne(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
@@ -377,17 +580,10 @@ static func _ligne(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 	return sortie
 
 
-static func _numeros(cases: Array[Vector2i]) -> Array:
-	var s := {}
-	for c: Vector2i in cases:
-		s[c.x] = true
-	return s.keys()
-
-
 # ── le travail ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
 func _sauver() -> void:
-	var e := Travail.sauver(peinture, TRAVAIL)
+	var e := Travail.sauver(peinture, meta, TRAVAIL)
 	_dire("Saved: %s" % ProjectSettings.globalize_path(TRAVAIL) if e == OK else "Could not save (%d)" % e, e != OK)
 
 
@@ -395,18 +591,19 @@ func _relire() -> void:
 	if not FileAccess.file_exists(TRAVAIL):
 		_dire("Nothing saved yet", true)
 		return
-	var p := Travail.relire(TRAVAIL)
-	if p == null:
+	var d := Travail.relire(TRAVAIL)
+	if d.is_empty():
 		_dire("This file is not a Marching Squares work", true)
 		return
-	peinture = p
+	peinture = d.peinture
+	meta = d.meta
 	_reposer()
 	_dire("Reloaded")
 
 
 func _exporter() -> void:
-	var sortie := Travail.exporter(peinture, ProjectSettings.globalize_path(EXPORT))
-	_dire("Exported: %s" % sortie[0])
+	var sortie := Travail.exporter(peinture, meta, ProjectSettings.globalize_path(EXPORT))
+	_dire("Exported: %s%s" % [sortie[0], "" if sortie[2] == 0 else " · %d tiles still unpainted" % sortie[2]], sortie[2] > 0)
 
 
 func _ouvrir_dossier() -> void:
@@ -415,10 +612,10 @@ func _ouvrir_dossier() -> void:
 
 # ── le guide et le relief ────────────────────────────────────────────────────────────────────────────────────────────
 
-## Un relief au format texte : « colonnes rangées », puis les hauteurs des coins, une rangée par ligne.
+## Un relief au format texte : « colonnes rangées », puis une valeur par coin, une rangée par ligne.
 static func lire_guide(chemin: String) -> Dictionary:
 	var lignes := FileAccess.get_file_as_string(chemin).strip_edges().split("\n")
-	var tete := lignes[0].split(" ")
+	var tete := lignes[0].strip_edges().split(" ")
 	var colonnes := int(tete[0])
 	var rangees := int(tete[1])
 	var h := PackedInt32Array()
@@ -428,18 +625,23 @@ static func lire_guide(chemin: String) -> Dictionary:
 	return {"h": h, "colonnes": colonnes, "rangees": rangees}
 
 
-## Un relief de départ pour le mode relief : un plateau à deux terrasses et une niche, sur une plaine.
+## Un relief de départ pour le mode relief : un plateau à deux terrasses et une niche, sur une plaine, avec une tache de
+## matière 1 qui passe de la plaine au plateau.
 static func _relief_de_depart() -> Dictionary:
 	var colonnes := 24
 	var rangees := 16
 	var larg := colonnes + 1
 	var h := PackedInt32Array()
 	h.resize(larg * (rangees + 1))
+	var mat := PackedInt32Array()
+	mat.resize(h.size())
 	for j in rangees + 1:
 		for x in larg:
 			if x >= 5 and x <= 18 and j >= 4 and j <= 11:
 				h[j * larg + x] = 2
 			if x >= 8 and x <= 14 and j >= 5 and j <= 8:
 				h[j * larg + x] = 4
+			if pow((x - 4) / 3.5, 2) + pow((j - 12) / 2.5, 2) <= 1.0:
+				mat[j * larg + x] = 1
 	h[11 * larg + 11] = 0
-	return {"h": h, "colonnes": colonnes, "rangees": rangees}
+	return {"h": h, "mat": mat, "colonnes": colonnes, "rangees": rangees}

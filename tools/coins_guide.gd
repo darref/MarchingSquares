@@ -13,7 +13,7 @@ extends SceneTree
 ## Sortie : guides/coins.txt (les hauteurs des coins) ; l'aperçu au tileset de test dans
 ## D:/SpannerGames/ATELIER/MarchingSquares/banc_coins/guide.png.
 
-const Modele := preload("res://core/coins/modele.gd")
+const Modele := preload("res://addons/marching_squares/modele.gd")
 const Jonctions := preload("res://core/coins/jonctions.gd")
 const Archetypes := preload("res://core/coins/archetypes.gd")
 
