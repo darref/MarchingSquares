@@ -28,7 +28,8 @@ couche quelconque ou pour une matière : deux plateaux qui ne se touchent que pa
   raison est l'IMAGE — un pincement ambigu — et les deux tuiles les plus pénibles à peindre.
 - **Les guides refaits** : `guides/coins.txt`, **227 jonctions sur 227, 33 archétypes sur 33**, tout incrusté dans le
   paysage, refusé s'il porte une selle ; `guides/coins_matieres.txt`, **13 formes sur 13, 86 raccords sur 86**.
-- **La preuve refaite** : 40 reliefs à trois matières, **1 274 368 pixels, 0 écart**, vocabulaire FERMÉ 33 / 57,
+- **La preuve refaite** : 40 reliefs à trois matières, **1 274 368 pixels, 0 écart**, puis la batterie complète,
+  **200 reliefs, 6 523 200 pixels, 0 écart, aucun monde resté en selle** ; vocabulaire FERMÉ 33 / 57,
   jonctions 227, aucune hors de l'ensemble ; ⚠ vu rougir sans le comblement (7 mondes sur 8 en selle, 22 clés et 68
   jonctions hors du vocabulaire). Les sondes : l'éditeur, 400 clics au hasard, **jamais de selle, 50 refusés** ; le
   greffon, 400 gestes, **jamais de selle, 49 refusés** ; ⚠ vu rougir sans le refus.
