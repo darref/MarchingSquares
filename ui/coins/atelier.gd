@@ -3,7 +3,7 @@ extends Control
 ## L'ATELIER DU MODÈLE PAR LES COINS — le guide, le modèle et l'outil de peinture ENSEMBLE (Jordan, 4 novembre 2026 :
 ## « les trois doivent fonctionner en même temps »). Une seule source : `core/coins/` et `addons/marching_squares/` ;
 ## aucune règle ne vit ici.
-##   GUIDE   le paysage livré (`guides/coins.txt` : les 35 archétypes, les 261 jonctions). On peint SUR lui : le crayon
+##   GUIDE   le paysage livré (`guides/coins.txt` : les 33 archétypes, les 227 jonctions). On peint SUR lui : le crayon
 ##           touche l'image qui se voit sous la souris, donc toujours DANS la forme de son archétype (le reste n'est pas à
 ##           peindre et le curseur le dit) ; chaque pixel posé apparaît aussitôt dans TOUTES ses apparitions — toutes les
 ##           coutures possibles sont sous les yeux. Le survol éclaire l'image partout où elle est.

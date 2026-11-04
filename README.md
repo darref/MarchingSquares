@@ -9,9 +9,10 @@ that lays whole worlds with them. It is the 2D sibling of [MarchingBlocks](https
 
 - **Heights live on the corners of the grid.** Each height unit is a layer drawn one tile higher; a cliff unit spans two
   tiles. Plateaus can be stacked to any height and hide one another: the drawing order *is* the occlusion.
-- **A closed set of 35 tiles** (15 tops, 10 cliff tops, 10 cliff bottoms) covers all 79 ways a tile can be placed.
+- **A closed set of 33 tiles** (13 tops, 10 cliff tops, 10 cliff bottoms) covers all 57 ways a tile can be placed;
+  two plateaus never meet by a single corner (the brush refuses it).
   Shapes are rounded; they always meet in the middle of a tile edge.
-- **One guide** holds all 35 tiles and all 261 junctions. You paint on it: every pixel shows at once wherever that tile
+- **One guide** holds all 33 tiles and all 227 junctions. You paint on it: every pixel shows at once wherever that tile
   appears, so every seam is in front of you while you paint.
 - **Proven, not promised**: the tile placement is compared, pixel by pixel, with an exact ray cast of the true relief —
   200 random worlds, 6,523,200 pixels, no difference.

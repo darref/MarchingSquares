@@ -28,7 +28,7 @@ Hover a tile in the guide and press [b]V[/b]: a variant is made from it, and tha
 neighbours. [b]C[/b] switches which variant this spot shows, [b]X[/b] removes it, [b]+[/b] / [b]-[/b] set its weight.
 In the game, variants are drawn by a fixed hash of the position: the same world looks the same every time.
 """ + _titre("Materials") + """
-Choose [i]Paint: Material 1[/i] (up to 3): the guide carries that material's field, and you paint its 15 top shapes
+Choose [i]Paint: Material 1[/i] (up to 3): the guide carries that material's field, and you paint its 13 top shapes
 where they live. A material is a floor without cliffs: sand on grass, snow on sand. Paint its edge as a soft
 transition: the shapes are rounded and meet in the middle of each tile edge, never in steps.
 """ + _titre("Test") + """
@@ -49,7 +49,7 @@ The tiles are placed layer by layer, row by row, from the back to the front. [b]
 occlusion[/b]: nothing is cut, nothing is composed.
 """ + _titre("Proven, not hoped") + """
 Every tile placement was compared, pixel by pixel, with an exact ray cast of the true relief: 200 random worlds,
-6,523,200 pixels, [b]no difference[/b]. The set is closed: 79 placements, 35 different tiles. The guide is generated
+6,523,200 pixels, [b]no difference[/b]. The set is closed: 57 placements, 33 different tiles; two plateaus never meet by a single corner. The guide is generated
 and refuses to be written if it misses a single tile or junction.
 """
 

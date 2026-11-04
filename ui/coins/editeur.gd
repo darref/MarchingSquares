@@ -46,7 +46,7 @@ const SORTES := ["", "top", "cliff top", "cliff bottom"]
 ## Le bandeau du haut : il dit quelque chose de VRAI à chaque phrase (la règle de l'ancien), et un clic ouvre le mode
 ## d'emploi.
 const PROMISES: Array[String] = [
-	"One guide holds all 35 tiles and all 261 junctions. Paint it once.",
+	"One guide holds all 33 tiles and all 227 junctions. Paint it once.",
 	"Proven, not promised: 6,523,200 pixels against an exact ray cast, no difference.",
 	"The pencil only reaches the tile you see, and only inside its shape.",
 	"Painting one tile paints it everywhere it appears.",
@@ -54,7 +54,7 @@ const PROMISES: Array[String] = [
 	"Outside a tile's shape is not yours: it stays transparent and shows what lies behind.",
 	"V makes a variant from the tile you hover. C switches it, X removes it.",
 	"Test: sculpt your own world with S, paint it with any tool. The change is everywhere.",
-	"Materials share the 15 top shapes: rounded, never in steps.",
+	"Materials share the 13 top shapes: rounded, never in steps.",
 	"Left click paints, right click erases. Ctrl+Z undoes a whole stroke.",
 	"Tools: P B A G L R I E. The brackets change the size. Tab: Draw / Test.",
 	"Click here: the user guide opens full size.",
@@ -288,7 +288,7 @@ func _construire_sections() -> void:
 
 func _reecrire_textes() -> void:
 	_texte("Slogan", "Paint one guide. Every junction covered.")
-	_texte("Subtitle", "Heights on corners, 35 tiles, proven pixel by pixel.")
+	_texte("Subtitle", "Heights on corners, 33 tiles, proven pixel by pixel.")
 	_texte("ModeLabel", "Paint")
 	_texte("NeighboursLabel", "The hovered tile, full size. Hatched: not yours to paint. Pink: its junction points.")
 	_texte("ViewHint", "Wheel: zoom · middle button: move\nP B A G L R I E: tools · [ ]: size\nTab: Draw / Test · S: sculpt (Test)\nV C X: variants · + -: weight\nCtrl+Z / Ctrl+Y · Ctrl+S · Ctrl+O")
@@ -381,7 +381,7 @@ func _fill_paint_choice() -> void:
 	c.add_item("Base surface")
 	for m in range(1, Modele.MATIERES_MAXI):
 		c.add_item("Material %d" % m)
-	c.tooltip_text = "What the guide shows to paint: the base surface (tops and cliffs), or a material's 15 top shapes laid on the plateaus."
+	c.tooltip_text = "What the guide shows to paint: the base surface (tops and cliffs), or a material's 13 top shapes laid on the plateaus."
 	c.select(0)
 
 
@@ -402,7 +402,7 @@ func _current_resolution() -> int:
 func _on_paint_selected(index: int) -> void:
 	await _show_then("Laying the guide", "the material's field on the landscape" if index > 0 else "the base surface")
 	_zone().set_matiere(index)
-	_announce("Painting the base surface." if index == 0 else "Painting material %d: its 15 top shapes are in the guide." % index)
+	_announce("Painting the base surface." if index == 0 else "Painting material %d: its 13 top shapes are in the guide." % index)
 
 
 func _on_resolution_selected(_index: int) -> void:
