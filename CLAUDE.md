@@ -14,6 +14,13 @@ par demi-tuile), placées automatiquement par table précalculée, l'occlusion p
 transitions comme MarchingBlocks ; le guide, le modèle et l'outil de peinture conçus ENSEMBLE, d'une seule source.
 Le détail s'écrit avec le banc de preuve ; ce qui suit décrit l'ancien modèle.
 
+### LA VERSION 1.0.0 ET LA FUSION DANS `main` — DÉCIDÉ (Jordan, 4 novembre 2026 : « fusionne et repars à la 1.0.0 »)
+
+La branche `modele-coins` est fusionnée dans `main` (avance rapide : `main` en était l'ancêtre), qui redevient la branche
+de travail. La version repart à **1.0.0** (`project.godot`, et `file_version` / `product_version` de l'exe) : le 12.0.0
+était l'héritage de l'ancien modèle des massifs. ⚠ Jamais de version montée par l'alignement (charte du studio) : c'est
+Jordan qui la change.
+
 ### PAS DE RENCONTRE DIAGONALE — DÉCIDÉ (Jordan, 4 novembre 2026 : « refuser le clic », comme dans MarchingBlocks)
 
 Une SELLE est une tuile dont deux coins opposés sont dedans et les deux autres dehors (configurations 6 et 9), à une
@@ -143,7 +150,7 @@ rentrant, VIDE ; la selle reste deux coins séparés), `addons/marching_squares/
   matières) ; ⚠ vu rougir : un tirage décalé d'une rangée dans le greffon donne 52 pixels différents. Vu à l'image dans
   une vraie fenêtre (`banc_coins/greffon_monde.png`).
 - ~~**RESTE** : remplacer l'ancien éditeur et SoluPaint~~ (FAIT le 4 novembre 2026, voir « L'ÉDITEUR » plus haut).
-  **RESTE** : fusionner `modele-coins` dans `main` (avec l'accord de Jordan), peindre un VRAI tileset (le 16 px), le
+  **RESTE** : ~~fusionner `modele-coins` dans `main`~~ (FAIT le 4 novembre 2026), peindre un VRAI tileset (le 16 px), le
   liseré de plateau sous une matière (OUVERT plus haut), puis le greffon Unity.
 
 ## Contexte
