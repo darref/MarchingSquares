@@ -1,4 +1,16 @@
-# SoluTiles — contexte de travail
+# Marching Squares (ex-SoluTiles) — contexte de travail
+
+⚠ **RENOMMÉ MARCHING SQUARES — DÉCIDÉ (Jordan, 4 novembre 2026 : « renomme le projet SoluTiles en Marching Squares,
+comme ça, ça fera le même nom que Marching Blocks »)** : le dossier `D:/MarchingSquares`, le dépôt
+`github.com/darref/MarchingSquares` (PUBLIC, licence CC0), le projet Godot. ⚠ Le nom du projet Godot change le dossier
+`user://` : ce qui y était enregistré reste sous l'ancien nom (`app_userdata/SoluTiles`). Le code garde ses noms
+(`SoluPaint`, `solutiles_*`…) jusqu'à la refonte.
+⚠ **ET LE MODÈLE CHANGE — DÉCIDÉ (Jordan, 4 novembre 2026)** : on quitte le modèle des massifs (vocabulaire trouvé par
+battues, jamais fermé) pour le modèle de MarchingBlocks transposé en 2D — les hauteurs sur les COINS (grille duale), une
+couche binaire par unité de hauteur, des tuiles ARCHÉTYPES fermées (16 dessus + 40 falaises, rôles lèvre / corps / pied
+par demi-tuile), placées automatiquement par table précalculée, l'occlusion par l'ordre de dessin, des variantes et des
+transitions comme MarchingBlocks ; le guide, le modèle et l'outil de peinture conçus ENSEMBLE, d'une seule source.
+Le détail s'écrit avec le banc de preuve ; ce qui suit décrit l'ancien modèle.
 
 ## Contexte
 

@@ -1,4 +1,6 @@
-# SoluTiles
+# Marching Squares
+
+*Formerly SoluTiles — renamed on November 4, 2026 to sit beside its sibling [MarchingBlocks](https://github.com/darref/MarchingBlocks).*
 
 > **Paint one landscape. Every edge case covered.**
 > *No pixel you didn't paint.*
