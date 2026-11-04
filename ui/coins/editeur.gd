@@ -165,7 +165,8 @@ func _process(delta: float) -> void:
 
 func _apply_window_size() -> void:
 	var window := get_window()
-	if window == null or DisplayServer.get_name() == "headless":
+	# Une prise de vue (`--write-movie`) fixe sa fenêtre elle-même : la redimensionner changerait la taille du film.
+	if window == null or DisplayServer.get_name() == "headless" or window.has_meta("tournage"):
 		return
 	if window.mode != Window.MODE_WINDOWED:
 		window.mode = Window.MODE_WINDOWED
