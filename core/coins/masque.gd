@@ -14,9 +14,14 @@ const Rendu := preload("res://core/coins/rendu.gd")
 const Travail := preload("res://core/coins/travail.gd")
 const Painting := preload("res://core/painting.gd")
 const Modele := preload("res://addons/marching_squares/modele.gd")
+const Essai := preload("res://core/coins/essai.gd")
 
 ## Où l'on marche.
 const MARCHER := Color(0.83, 0.79, 0.68)
+## Le TRAIT au bord de chaque dessus (Jordan, 6 novembre 2026 : « il manque des contours autour des plateaux […] le sol
+## d'un plateau et de celui qui est au-dessus ou au-dessous sont confondus ») : un pixel, DANS la tuile, sur le vrai bord
+## de la forme (jamais le bord de la tuile : la forme continue chez la voisine). On y marche aussi.
+const TRAIT := Color(0.42, 0.38, 0.33)
 ## Ce qui bloque : la lèvre (le haut de la falaise), le corps, le pied.
 const LEVRE := Color(0.62, 0.6, 0.62)
 const CORPS := Color(0.44, 0.42, 0.46)
@@ -43,8 +48,12 @@ static func peindre(res: int) -> Painting:
 		for y in res:
 			for x in res:
 				var e := m[y * res + x]
-				if e != 0:
-					p.paint(Vector2i(a.numero, 0), x, y, couleur(e))
+				if e == 0:
+					continue
+				var c := couleur(e)
+				if (e & 3) == Modele.DESSUS and Essai.distance_au_bord(m, res, x, y) < 1.5 * maxf(1.0, res / 32.0):
+					c = TRAIT
+				p.paint(Vector2i(a.numero, 0), x, y, c)
 	return p
 
 
