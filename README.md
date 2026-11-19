@@ -1,3 +1,5 @@
+> **Merged into MarchingBlocks (SpannerGames). This repository is archived and read-only.**
+
 # MarchingSquares
 
 > **Paint one guide. Every junction covered.**
